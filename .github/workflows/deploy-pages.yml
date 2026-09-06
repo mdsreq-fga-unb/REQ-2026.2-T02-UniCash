@@ -46,7 +46,7 @@ jobs:
         with:
           path: unicash/site
 
-    deploy:
+  deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
