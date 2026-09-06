@@ -1,0 +1,65 @@
+site_name: UniCash — Gestão Financeira Pessoal
+site_description: Plataforma para organização financeira de estudantes, famílias e comunidade universitária
+edit_uri: ""
+
+theme:
+  name: material
+  language: pt-BR
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.sections
+    - content.code.copy
+    - toc.integrate
+    - search.highlight
+    - search.suggest
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/weather-night
+        name: Modo escuro
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue
+      accent: light blue
+      toggle:
+        icon: material/weather-sunny
+        name: Modo claro
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+  - footnotes
+  - def_list
+  - tables
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: true
+
+nav:
+  - Início:
+      - Apresentação: index.md
+  - Projeto:
+      - Cenário atual: cenario.md
+      - Solução proposta: solucao.md
+      - Intervenção social: intervencao.md
+  - Planejamento:
+      - Estratégias de engenharia de software: estrategia.md
+      - Cronograma e entregas: cronograma.md
+  - Equipe:
+      - Interação entre equipe e cliente: interacao.md
+
+
+extra_css:
+  - stylesheets/extra.css
