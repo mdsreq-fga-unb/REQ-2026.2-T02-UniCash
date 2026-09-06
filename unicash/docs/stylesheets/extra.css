@@ -1,16 +1,19 @@
 table {
     width: 100%;
-    border: 1px solid #999;
+    color: var(--md-default-fg-color);
+    background-color: var(--md-default-bg-color);
+    border: 1px solid var(--md-default-fg-color--light);
     border-collapse: collapse;
 }
 
 th,
 td {
     padding: 8px;
-    border: 1px solid #999;
+    border: 1px solid var(--md-default-fg-color--light);
     text-align: left;
 }
 
 th {
-    background-color: #eee;
+    color: var(--md-default-fg-color);
+    background-color: var(--md-code-bg-color);
 }
