@@ -28,6 +28,39 @@ A plataforma será planejada para oferecer uma experiência simples, intuitiva e
 
 O objetivo do UniCash é contribuir para uma relação mais consciente com o dinheiro. Ao facilitar o registro e a visualização das movimentações financeiras, a solução pretende ampliar a autonomia dos usuários, apoiar o planejamento e reduzir situações de desorganização financeira e endividamento.
 
+## Equipe SevenSpecs
+
+<div class="team-grid">
+	<div class="team-member">
+		<img src="images/Natan.jpeg" alt="Natan França" loading="lazy">
+		<strong>Natan França</strong>
+	</div>
+	<div class="team-member">
+		<img src="images/Dante.jpeg" alt="Dante Scarpati" loading="lazy">
+		<strong>Dante Scarpati</strong>
+	</div>
+	<div class="team-member">
+		<img src="images/Erick.jpeg" alt="Erick Alves" loading="lazy">
+		<strong>Erick Alves</strong>
+	</div>
+	<div class="team-member">
+		<img src="images/Leonardo.jpeg" alt="Leonardo Alves" loading="lazy">
+		<strong>Leonardo Alves</strong>
+	</div>
+	<div class="team-member">
+		<img src="images/Evellyn.jpeg" alt="Evellyn Rocha" loading="lazy">
+		<strong>Evellyn Rocha</strong>
+	</div>
+	<div class="team-member team-member--placeholder" aria-label="Foto de Bruno Duarte não disponível">
+		<span>BD</span>
+		<strong>Bruno Duarte</strong>
+	</div>
+	<div class="team-member team-member--placeholder" aria-label="Foto de Caio Pacheco não disponível">
+		<span>CP</span>
+		<strong>Caio Pacheco</strong>
+	</div>
+</div>
+
 ## Como o projeto será desenvolvido
 
 A evolução da solução será orientada por protótipos, validações frequentes com a cliente e feedback dos usuários. O projeto adota o DSDM como processo de engenharia de software e o Kanban como apoio à organização das atividades.

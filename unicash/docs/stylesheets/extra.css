@@ -17,3 +17,36 @@ th {
     color: var(--md-default-fg-color);
     background-color: var(--md-code-bg-color);
 }
+
+.team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1.25rem;
+    margin: 1.5rem 0 2rem;
+}
+
+.team-member {
+    display: flex;
+    align-items: center;
+    flex-direction: column;
+    gap: 0.7rem;
+    text-align: center;
+}
+
+.team-member img,
+.team-member--placeholder span {
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+}
+
+.team-member--placeholder span {
+    display: grid;
+    place-items: center;
+    color: var(--md-primary-bg-color);
+    background-color: var(--md-primary-fg-color);
+    font-size: 1.6rem;
+    font-weight: 700;
+}
