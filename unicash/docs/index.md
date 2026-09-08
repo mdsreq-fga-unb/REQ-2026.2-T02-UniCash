@@ -65,6 +65,21 @@ O objetivo do UniCash é contribuir para uma relação mais consciente com o din
 
 A evolução da solução será orientada por protótipos, validações frequentes com a cliente e feedback dos usuários. O projeto adota o DSDM como processo de engenharia de software e o Kanban como apoio à organização das atividades.
 
+
+## Vídeo de apresentação da visão do produto Unicash
+<iframe width="560" height="315" src="https://www.youtube.com/embed/3qLZkL-_ePc?si=JLmmAyHCotTmptjv" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+## Slides utilizados no vídeo
+
+<div style="position: relative; width: 100%; height: 0; padding-top: 56.2500%;
+ padding-bottom: 0; box-shadow: 0 2px 8px 0 rgba(63,69,81,0.16); margin-top: 1.6em; margin-bottom: 0.9em; overflow: hidden;
+ border-radius: 8px; will-change: transform;">
+	<iframe loading="lazy" style="position: absolute; width: 100%; height: 100%; top: 0; left: 0; border: none; padding: 0;margin: 0;"
+		src="https://www.canva.com/design/DAHUiGBCPsM/MeSY-YY2hkqsaqhigXwIyA/view?embed" allowfullscreen="allowfullscreen" allow="fullscreen">
+	</iframe>
+</div>
+<a href="https:&#x2F;&#x2F;www.canva.com&#x2F;design&#x2F;DAHUiGBCPsM&#x2F;MeSY-YY2hkqsaqhigXwIyA&#x2F;view?utm_content=DAHUiGBCPsM&amp;utm_campaign=designshare&amp;utm_medium=embeds&amp;utm_source=link" target="_blank" rel="noopener">
+
 ## Conheça o projeto
 
 - [Cenário atual do negócio e do cliente](cenario.md)

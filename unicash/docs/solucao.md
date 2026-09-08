@@ -25,9 +25,9 @@ O objetivo do produto é **auxiliar estudantes universitários, famílias e dema
 
 ## 2.4 Tecnologias a Serem Utilizadas
 
-Para o desenvolvimento do UniCash, serão utilizadas tecnologias compatíveis com os objetivos do projeto e com o escopo previsto para a disciplina. O frontend será desenvolvido utilizando **React**, permitindo a construção de uma interface moderna, responsiva e reutilizável para o gerenciamento das informações financeiras dos usuários. No backend será utilizado **Node.js**, responsável pela implementação da lógica de negócio, autenticação dos usuários e disponibilização de APIs para comunicação com o cliente da aplicação.
+Para o desenvolvimento do UniCash, serão utilizadas tecnologias compatíveis com os objetivos do projeto e com o escopo previsto para a disciplina. O frontend será desenvolvido utilizando **React**, permitindo a construção de uma interface moderna, responsiva e reutilizável para o gerenciamento das informações financeiras dos usuários. No backend será utilizado **Python**, responsável pela implementação da lógica de negócio, autenticação dos usuários e disponibilização de APIs para comunicação com o cliente da aplicação.
 
-Para a persistência dos dados será utilizado o **MongoDB**, considerando sua flexibilidade para armazenar informações como receitas, despesas, categorias, metas financeiras e dados cadastrais dos usuários. A comunicação entre frontend e backend será realizada por meio de **APIs REST**, facilitando a integração entre os componentes do sistema.
+Para a persistência dos dados será utilizado o **PostgreSQL**, considerando sua flexibilidade para armazenar informações como receitas, despesas, categorias, metas financeiras e dados cadastrais dos usuários. A comunicação entre frontend e backend será realizada por meio de **APIs REST**, facilitando a integração entre os componentes do sistema.
 
 Como apoio ao desenvolvimento colaborativo serão utilizados **Git** e **GitHub** para controle de versão e gerenciamento do código-fonte. Também serão adotadas boas práticas relacionadas à **autenticação de usuários, proteção dos dados armazenados e organização do projeto**, de forma compatível com as características definidas para o UniCash.
 
