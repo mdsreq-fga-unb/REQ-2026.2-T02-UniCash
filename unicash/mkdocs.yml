@@ -56,6 +56,7 @@ nav:
       - Intervenção social: intervencao.md
   - Planejamento:
       - Estratégias de engenharia de software: estrategia.md
+      - Engenharia de requisitos: engenharia_de_requisitos.md
       - Cronograma e entregas: cronograma.md
   - Equipe:
       - Interação entre equipe e cliente: interacao.md
