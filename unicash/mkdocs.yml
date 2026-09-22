@@ -50,17 +50,20 @@ markdown_extensions:
 nav:
   - Início:
       - Apresentação: index.md
+
   - Projeto:
       - Cenário atual: cenario.md
       - Solução proposta: solucao.md
       - Intervenção social: intervencao.md
+
   - Planejamento:
       - Estratégias de engenharia de software: estrategia.md
       - Engenharia de requisitos: engenharia_de_requisitos.md
       - Requisitos:
-      - Requisitos Funcionais: requisitos_funcionais.md
-      - Requisitos Não Funcionais: requisitos_nao_funcionais.md
+          - Requisitos Funcionais: requisitos_funcionais.md
+          - Requisitos Não Funcionais: requisitos_nao_funcionais.md
       - Cronograma e entregas: cronograma.md
+
   - Equipe:
       - Interação entre equipe e cliente: interacao.md
 
