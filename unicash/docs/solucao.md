@@ -10,18 +10,16 @@ O objetivo do produto é **auxiliar estudantes universitários, famílias e dema
 - **(OE2)** Auxiliar no planejamento financeiro por meio do controle de orçamento, categorização de gastos e acompanhamento de metas de economia;
 - **(OE3)** Disponibilizar informações e indicadores que permitam ao usuário compreender seus hábitos financeiros e tomar decisões mais conscientes;
 - **(OE4)** Incentivar a organização financeira de estudantes universitários, famílias e demais usuários, contribuindo para a redução do endividamento e para a formação de reservas financeiras;
-- **(OE5)** Disponibilizar uma base tecnológica que permita a evolução gradual da plataforma, possibilitando a inclusão de novas funcionalidades conforme as necessidades dos usuários forem identificadas.
 
 ## 2.3 Características de Produto (mapeadas com os Objetivos Específicos do Produto)
 
 | **ID** | **Característica de Produto (CP)** | **Descrição resumida** | **ID** | **Valor de negócio (VN) principal** | **Contribuição principal** | **Contribuição secundária** |
 |---|---|---|---|---|---|---|
-| CP1 | Cadastro e gerenciamento de receitas e despesas | A solução deverá permitir o registro, edição, exclusão e consulta de receitas e despesas, possibilitando que o usuário acompanhe sua movimentação financeira de forma organizada e intuitiva. | VN1 | Maior controle financeiro e redução da perda de informações sobre movimentações. | OE1 | OE3 |
-| CP2 | Organização financeira por categorias | A solução deverá permitir classificar receitas e despesas por categorias, facilitando a identificação dos principais tipos de gastos e apoiando o planejamento financeiro. | VN2 | Melhor compreensão dos hábitos de consumo e apoio à organização do orçamento. | OE2 | OE3 |
-| CP3 | Planejamento financeiro e metas | A solução deverá possibilitar a criação de metas financeiras e o acompanhamento do orçamento, incentivando o usuário a economizar e manter controle sobre seus gastos. | VN3 | Incentivo à formação de reservas financeiras e redução do endividamento. | OE2 | OE4 |
-| CP4 | Relatórios e indicadores financeiros | A solução deverá apresentar gráficos, relatórios e indicadores que permitam visualizar receitas, despesas, saldo e evolução financeira ao longo do tempo. | VN4 | Apoio à tomada de decisões e melhor acompanhamento da situação financeira. | OE3 | OE2 |
-| CP5 | Perfil e gerenciamento do usuário | A solução deverá permitir o gerenciamento das informações do usuário, incluindo autenticação, atualização de dados cadastrais e personalização básica da experiência. | VN5 | Maior praticidade, segurança e personalização da utilização do sistema. | OE5 | OE4 |
-| CP6 | Segurança e proteção dos dados | A solução deverá incorporar mecanismos de autenticação e proteção das informações financeiras dos usuários, garantindo privacidade e confiabilidade no uso da plataforma. | VN6 | Fortalecimento da confiança dos usuários e proteção das informações financeiras. | OE5 | OE1 |
+| CP1 | Gestão de movimentações financeiras | A solução deverá prover a capacidade de gerir os fluxos de entrada e saída de recursos, permitindo ao usuário manter um histórico unificado e organizado de suas finanças. | VN1 | Maior controle financeiro e redução da perda de informações sobre movimentações diárias. | OE1 | OE3 |
+| CP2 | Organização e análise dos gastos | A solução deverá prover a capacidade de estruturar as finanças, agrupando os registros por categorias para facilitar a compreensão dos hábitos de consumo. | VN2 | Melhor compreensão de onde os recursos são alocados e apoio à organização do orçamento. | OE2 | OE3 |
+| CP3 | Planejamento financeiro pessoal | A solução deverá prover a capacidade de projetar o futuro financeiro, estabelecendo orçamentos e acompanhando metas voltadas à economia. | VN3 | Incentivo à formação de reservas financeiras e redução do endividamento. | OE2 | OE4 |
+| CP4 | Visualização da situação financeira | A solução deverá prover a capacidade de fornecer um panorama claro do estado atual das finanças, consolidando saldos, gráficos e resumos periódicos. | VN4 | Apoio à tomada de decisões rápidas a partir de uma compreensão visual da situação financeira. | OE3 | OE2 |
+| CP5 | Gestão da identidade do usuário | A solução deverá prover a capacidade de individualizar a experiência, garantindo o acesso autenticado e a manutenção do perfil de cada utilizador. | VN5 | Garantia de que os dados financeiros fiquem segregados e restritos ao seu respectivo titular. | OE1 | OE4 |
 
 ## 2.4 Tecnologias a Serem Utilizadas
 
@@ -33,31 +31,32 @@ Como apoio ao desenvolvimento colaborativo serão utilizados **Git** e **GitHub*
 
 ## 2.5 Pesquisa de Mercado e Análise Competitiva
 
-No mercado de gestão financeira pessoal, existem diversas soluções consolidadas, como Mobills, Organizze e Minhas Economias. Essas plataformas oferecem funcionalidades para registro de receitas e despesas, categorização de gastos, acompanhamento de orçamentos e geração de relatórios financeiros. Entretanto, algumas limitações podem ser observadas quando consideradas as necessidades do público-alvo do UniCash.
+No mercado de gestão financeira pessoal, existem diversas soluções consolidadas. A avaliação a seguir considerou as necessidades específicas do público-alvo do UniCash (estudantes universitários e famílias com orçamento restrito), utilizando como base de comparação as limitações de planos gratuitos verificadas no mercado:
 
-- **Mobills:** oferece um conjunto amplo de funcionalidades para controle financeiro, porém diversos recursos importantes estão disponíveis apenas na versão paga, limitando o acesso de usuários que buscam uma solução gratuita, como muitos estudantes universitários.
+- **Mobills:** oferece um conjunto amplo de funcionalidades. No entanto, na sua versão gratuita, o usuário sofre restrições severas que inviabilizam o controle mensal completo (ex: limite de criação de apenas um planejamento orçamentário, restrição na criação de novas categorias personalizadas e limites de leitura de gráficos de análise).
 
-- **Organizze:** apresenta uma interface simples e organizada, mas possui limitações relacionadas ao acesso gratuito da plataforma e não é direcionado especificamente às necessidades de estudantes e usuários que desejam desenvolver hábitos financeiros desde o início da vida acadêmica.
+- **Organizze:** apresenta uma interface simples e organizada. Contudo, seu plano básico/gratuito não permite o controle de cartões de crédito nem a gestão de múltiplas contas (como separar a conta corrente da carteira física ou conta poupança), exigindo assinatura para a organização completa da realidade do usuário comum.
 
-- **Minhas Economias:** disponibiliza funcionalidades de planejamento financeiro sem custo, porém possui uma interface menos moderna e oferece menor flexibilidade para evolução da experiência do usuário em comparação com soluções mais recentes.
+- **Minhas Economias:** diferencia-se por ser uma plataforma 100% gratuita que oferece controle orçamentário e relatórios. O ponto fraco reside na usabilidade (UX/UI menos intuitiva e defasada em relação aos padrões de mercado atuais) e na ausência de recursos focados no engajamento diário e educação de usuários que estão aprendendo a gerir dinheiro agora.
 
-A proposta do UniCash busca se diferenciar por:
+A proposta do UniCash busca uma diferenciação verificável baseada em:
 
-- **Foco no público universitário e em famílias:** a plataforma será desenvolvida considerando as necessidades específicas desses perfis, incluindo despesas recorrentes como bolsa-auxílio, aluguel, transporte, alimentação, material acadêmico e contas domésticas.
+- **Ausência de paywall para controle essencial:** diferente do Mobills e Organizze, o UniCash não limitará a quantidade de categorias, contas básicas ou planejamentos no seu fluxo principal, pois o foco social do projeto exige que a organização financeira não seja condicionada à capacidade de pagamento.
 
-- **Facilidade de uso:** o sistema priorizará uma interface intuitiva e de fácil aprendizagem, permitindo que usuários sem conhecimento em finanças consigam organizar seu orçamento com rapidez.
+- **Modelagem focada no perfil estudantil/bolsista:** a plataforma virá com estruturas (ou templates sugeridos) de categorias aderentes à realidade de jovens adultos e estudantes (ex: despesas com restaurante universitário, transporte, xerox, materiais, bolsas-auxílio, rateio de moradia), ao invés de focar primariamente em perfis investidores.
 
-- **Incentivo à educação financeira:** além do registro das movimentações financeiras, a solução buscará estimular hábitos de planejamento e economia, auxiliando o usuário na construção de uma reserva financeira e no acompanhamento de metas pessoais.
-
-- **Evolução contínua da plataforma:** a arquitetura do sistema será planejada para permitir a inclusão gradual de novas funcionalidades, acompanhando as necessidades identificadas junto aos usuários ao longo do desenvolvimento do produto.
+- **Curva de aprendizado minimizada** processo de lançamento otimizado focado em usabilidade e rapidez, garantindo a retenção do usuário que não possui disciplina financeira prévia.
 
 ## 2.6 Viabilidade da Proposta
 
-A proposta é considerada viável no **contexto da disciplina**, tendo em vista o acesso direto à cliente para levantamento e validação dos requisitos, o escopo definido para o projeto e a possibilidade de desenvolvimento incremental de um Produto Mínimo Viável (MVP) ao longo do semestre.
+A proposta é considerada viável no **contexto da disciplina**, tendo em vista o acesso aos stakeholders para levantamento e validação de requisitos, o escopo enxuto voltado para as necessidades essenciais do usuário final e a disponibilidade de tecnologias adequadas e gratuitas para o desenvolvimento da solução pela equipe.
 
-A equipe possui conhecimentos compatíveis com as tecnologias selecionadas para o desenvolvimento da aplicação e pretende adotar uma abordagem iterativa, priorizando inicialmente as funcionalidades essenciais, como cadastro de usuários, registro de receitas e despesas, categorização de gastos, acompanhamento do saldo financeiro e visualização de indicadores. Essa estratégia permite reduzir a complexidade inicial do projeto e facilitar a validação contínua da solução junto à cliente.
+Para garantir a viabilidade técnica, o cumprimento do prazo de desenvolvimento e a segurança da informação, o sistema possui as seguintes fronteiras de escopo estritamente definidas:
 
-Os principais **riscos** estão relacionados ao tempo disponível para desenvolvimento, ao aprendizado de algumas tecnologias e à implementação de funcionalidades complementares, como relatórios mais elaborados e recursos avançados de análise financeira. Esses riscos serão **mitigados** por meio da priorização das funcionalidades essenciais, do acompanhamento contínuo das atividades da equipe, da realização de validações frequentes com a cliente e da utilização de tecnologias amplamente consolidadas no desenvolvimento de aplicações mobile.
+- **Ausência de transações reais** o sistema funcionará estritamente como uma ferramenta de gestão visual e diário financeiro. Não haverá, sob nenhuma hipótese, transição de dinheiro real, pagamentos ou transferências executadas por dentro da aplicação.
+- **Inserção exclusivamente declaratória** todos os lançamentos de receitas e despesas deverão ser inseridos manualmente pelos usuários.
+- **Sem integração bancária** o sistema não possuirá integração via API com instituições financeiras, operadoras de cartão de crédito ou com o ecossistema de Open Finance.
+- **Dados Sensíveis** a aplicação não solicitará e não armazenará dados bancários sensíveis (como senhas de banco, código de segurança de cartões ou números de contas reais), operando apenas com a representação virtual (ex: "Conta Corrente", "Carteira") criada pelo próprio usuário.
 
 ## 2.7 Benefícios Esperados
 
