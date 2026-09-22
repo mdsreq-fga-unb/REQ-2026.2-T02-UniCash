@@ -53,10 +53,10 @@ A proposta é considerada viável no **contexto da disciplina**, tendo em vista 
 
 Para garantir a viabilidade técnica, o cumprimento do prazo de desenvolvimento e a segurança da informação, o sistema possui as seguintes fronteiras de escopo estritamente definidas:
 
-- **Ausência de transações reais** o sistema funcionará estritamente como uma ferramenta de gestão visual e diário financeiro. Não haverá, sob nenhuma hipótese, transição de dinheiro real, pagamentos ou transferências executadas por dentro da aplicação.
-- **Inserção exclusivamente declaratória** todos os lançamentos de receitas e despesas deverão ser inseridos manualmente pelos usuários.
-- **Sem integração bancária** o sistema não possuirá integração via API com instituições financeiras, operadoras de cartão de crédito ou com o ecossistema de Open Finance.
-- **Dados Sensíveis** a aplicação não solicitará e não armazenará dados bancários sensíveis (como senhas de banco, código de segurança de cartões ou números de contas reais), operando apenas com a representação virtual (ex: "Conta Corrente", "Carteira") criada pelo próprio usuário.
+- **Ausência de transações reais**: o sistema funcionará estritamente como uma ferramenta de gestão visual e diário financeiro. Não haverá, sob nenhuma hipótese, transição de dinheiro real, pagamentos ou transferências executadas por dentro da aplicação.
+- **Inserção exclusivamente declaratória**: todos os lançamentos de receitas e despesas deverão ser inseridos manualmente pelos usuários.
+- **Sem integração bancária**: o sistema não possuirá integração via API com instituições financeiras, operadoras de cartão de crédito ou com o ecossistema de Open Finance.
+- **Dados Sensíveis**: a aplicação não solicitará e não armazenará dados bancários sensíveis (como senhas de banco, código de segurança de cartões ou números de contas reais), operando apenas com a representação virtual (ex: "Conta Corrente", "Carteira") criada pelo próprio usuário.
 
 ## 2.7 Benefícios Esperados
 
