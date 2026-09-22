@@ -6,12 +6,11 @@ Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usu
 
 | Código | Característica |
 |---|---|
-| CP1 | Cadastro e gerenciamento de receitas e despesas |
-| CP2 | Organização financeira por categorias |
-| CP3 | Planejamento financeiro e metas |
-| CP4 | Relatórios e indicadores financeiros |
-| CP5 | Perfil e gerenciamento do usuário |
-| CP6 | Segurança e proteção dos dados |
+| CP1 | Gestão de movimentações financeiras |
+| CP2 | Organização e análise dos gastos |
+| CP3 | Planejamento financeiro pessoal |
+| CP4 | Visualização da situação financeira |
+| CP5 | Gestão da identidade do usuário |
 
 ## Requisitos Funcionais
 
@@ -42,7 +41,7 @@ Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usu
 | **RF23** | **Entrar em grupo de amigos ou família:** Permitir ao usuário aceitar um convite válido para integrar um grupo e passar a acessar o conteúdo permitido ao seu papel. | CP5 |
 | **RF24** | **Convidar membro para grupo:** Permitir ao membro autorizado enviar convite e acompanhar sua situação até o aceite ou cancelamento. | CP5 |
 | **RF25** | **Sair de grupo de amigos ou família:** Permitir ao membro sair do grupo, com confirmação e atualização de suas permissões de acesso. | CP5 |
-| **RF26** | **Tornar controle financeiro privado:** Permitir ao usuário marcar seus dados financeiros como privados para impedir sua visualização pelos demais integrantes do grupo. | CP6 |
+| **RF26** | **Tornar controle financeiro privado:** Permitir ao usuário marcar seus dados financeiros como privados para impedir sua visualização pelos demais integrantes do grupo. | CP5 |
 | **RF27** | **Visualizar metas de membros do grupo:** Exibir as metas compartilhadas pelos membros do grupo de acordo com as permissões de quem consulta. | CP5 |
 | **RF28** | **Criar meta do grupo:** Permitir a um membro autorizado definir objetivo, valor alvo e prazo para uma meta coletiva. | CP3 |
 | **RF29** | **Visualizar metas do grupo:** Exibir as metas coletivas com seu progresso e prazo para os membros autorizados. | CP3 |
@@ -67,11 +66,11 @@ Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usu
 | **RF48** | **Identificar lançamento duplicado:** Comparar valor, data e descrição de registros importados com lançamentos manuais e pedir confirmação para cada possível duplicidade antes de consolidar. | CP1 |
 | **RF49** | **Consolidar extratos de contas:** Apresentar em uma visão única os lançamentos confirmados de diferentes bancos e contas, preservando a identificação da origem. | CP4 |
 | **RF50** | **Registrar despesa por comprovante:** Permitir fotografar ou selecionar um comprovante, extrair campos sugeridos e confirmar ou corrigir os dados antes de salvar a despesa. | CP1 |
-| **RF51** | **Definir papel de membro:** Permitir ao administrador atribuir ou alterar o papel de cada integrante e aplicar as permissões correspondentes. | CP6 |
+| **RF51** | **Definir papel de membro:** Permitir ao administrador atribuir ou alterar o papel de cada integrante e aplicar as permissões correspondentes. | CP5 |
 | **RF52** | **Consolidar dados do grupo:** Somar e exibir os dados financeiros compartilhados pelos integrantes, respeitando as permissões e a privacidade de cada lançamento. | CP4 |
 | **RF53** | **Comparar gastos do grupo:** Apresentar comparação dos gastos compartilhados entre membros autorizados, no período selecionado. | CP4 |
 | **RF54** | **Importar formatos de extrato:** Aceitar extratos nos formatos OFX, CSV, PDF e imagem, apresentar prévia dos dados identificados e solicitar revisão quando a leitura for ambígua. | CP1 |
 | **RF55** | **Apresentar tutorial inicial:** No primeiro acesso, oferecer tutorial interativo das tarefas principais, com opção de avançar ou encerrar. | CP5 |
-| **RF56** | **Avisar manutenção programada:** Exibir aos usuários aviso prévio com período e impacto previsto de uma manutenção cadastrada. | CP6 |
+| **RF56** | **Avisar manutenção programada:** Exibir aos usuários aviso prévio com período e impacto previsto de uma manutenção cadastrada. | CP5 |
 
 > **Ponto para validação:** Os limiares definidos no RF39 ainda precisam ser validados com a cliente.
