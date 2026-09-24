@@ -55,7 +55,7 @@ nav:
       - Cenário atual: cenario.md
       - Solução proposta: solucao.md
       - Intervenção social: intervencao.md
-      - Lições aprendidas: licoes_aprendidas.md
+      
 
   - Planejamento:
       - Estratégias de engenharia de software: estrategia.md
@@ -67,6 +67,7 @@ nav:
 
   - Equipe:
       - Interação entre equipe e cliente: interacao.md
+      - Lições aprendidas: licoes_aprendidas.md
 
 
 extra_css:
