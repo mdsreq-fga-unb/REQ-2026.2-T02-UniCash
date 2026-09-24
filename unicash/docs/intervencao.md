@@ -4,7 +4,7 @@ O UniCash pretende contribuir para o desenvolvimento de hábitos de planejamento
 
 ## 3.1 Impacto Pretendido
 
-Espera-se que o acompanhamento facilitado dos gastos favoreça maior autonomia na tomada de decisão financeira e apoie a preparação para despesas futuras. A redução do endividamento e a formação de reservas financeiras são tratadas como **resultados pretendidos**, e não como consequências automáticas do software: elas dependem de fatores externos à ferramenta — nível de renda do usuário, disciplina pessoal, contexto socioeconômico — que o UniCash não controla. Por isso, esses resultados precisam ser acompanhados por indicadores de uso ao longo do projeto (por exemplo, frequência de registro, permanência de uso, taxa de cumprimento de metas), e não assumidos como benefício garantido pela existência do app.
+Espera-se que o acompanhamento facilitado dos gastos favoreça maior autonomia na tomada de decisão financeira e apoie a preparação para despesas futuras. A redução do endividamento e a formação de reservas financeiras são tratadas como **resultados pretendidos**, e não como consequências automáticas do software: elas dependem de fatores externos à ferramenta: nível de renda do usuário, disciplina pessoal, contexto socioeconômico, que o UniCash não controla. Por isso, esses resultados precisam ser acompanhados por indicadores de uso ao longo do projeto (por exemplo, frequência de registro, permanência de uso, taxa de cumprimento de metas), e não assumidos como benefício garantido pela existência do app.
 
 ## 3.2 Efeitos Emergentes Positivos
 
@@ -21,7 +21,7 @@ Como toda intervenção que expõe informações sensíveis e introduz comparaç
 - **Decisões equivocadas baseadas em indicadores simplificados**: sinais visuais simplificados (como um indicador de cor única por categoria) podem induzir decisões financeiras inadequadas caso o usuário não compreenda os critérios por trás da classificação ou trate o indicador como recomendação definitiva.
 - **Exposição de informações financeiras**: funcionalidades como leitura/importação de extratos bancários e compartilhamento de dados em grupos (família, república) aumentam a superfície de exposição de dados sensíveis, com risco de acesso indevido por outros membros do grupo ou vazamento de informações.
 - **Exclusão de usuários com menor letramento digital ou financeiro**: parte do público-alvo (famílias com menor familiaridade tecnológica, estudantes sem histórico de planejamento financeiro) pode ter dificuldade em interpretar categorias, metas e relatórios, o que pode gerar abandono precoce da ferramenta em vez de inclusão.
-- **Abandono da ferramenta**: a combinação dos fatores acima — pressão de metas, comparação social, complexidade de uso — pode levar ao abandono do aplicativo antes que qualquer benefício de longo prazo (redução de dívidas, formação de reserva) se manifeste, especialmente se o onboarding e a curva de aprendizado não forem cuidadosamente desenhados.
+- **Abandono da ferramenta**: a combinação dos fatores acima: pressão de metas, comparação social, complexidade de uso, pode levar ao abandono do aplicativo antes que qualquer benefício de longo prazo (redução de dívidas, formação de reserva) se manifeste, especialmente se o onboarding e a curva de aprendizado não forem cuidadosamente desenhados.
 
 ## 3.4 Monitoramento e Mitigação
 
