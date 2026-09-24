@@ -1,8 +1,9 @@
-# 4 - LIÇÕES APRENDIDAS
+# 8 - LIÇÕES APRENDIDAS
 
-## 4.1 Unidade 1
+## 8.1 Unidade 1
 
 ### O que funcionou bem
+...
 
 A equipe conseguiu avançar na elicitação inicial junto à cliente e consolidar a Visão do Produto e Projeto dentro do prazo definido, mesmo com a instabilidade natural de um escopo que já havia sido ampliado uma vez. A abordagem híbrida adotada (DSDM + Kanban) se mostrou adequada para lidar com essa instabilidade, e o fato de a cliente ser acessível e estar genuinamente disposta a colaborar facilitou bastante o levantamento de informações — algo que a equipe reconhece não poder ser dado como garantido em outros contextos, e que teve impacto direto e positivo no ritmo do trabalho.
 
