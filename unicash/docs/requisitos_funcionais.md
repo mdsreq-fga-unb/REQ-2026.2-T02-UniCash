@@ -46,15 +46,15 @@ Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usu
 | **RF27** | **Visualizar metas de membros do grupo:** Exibir as metas compartilhadas pelos membros do grupo de acordo com as permissões de quem consulta. | CP5 |
 | **RF28** | **Criar meta do grupo:** Permitir a um membro autorizado definir objetivo, valor alvo e prazo para uma meta coletiva. | CP3 |
 | **RF29** | **Visualizar metas do grupo:** Exibir as metas coletivas com seu progresso e prazo para os membros autorizados. | CP3 |
-| **RF30** | **Classificar usuários do grupo:** Ordenar os membros conforme a pontuação acumulada e exibir sua posição no grupo. | CP5 |
+| **RF30** | **Classificar usuários do grupo:** Ordenar os membros que optaram por participar da classificação, conforme a pontuação acumulada, e exibir sua posição no grupo, de acordo com a escolha registrada no RF57. | CP5 |
 | **RF31** | **Recuperar senha:** Permitir solicitar redefinição por um canal verificado e cadastrar uma nova senha por meio de ligação temporária de uso único. | CP5 |
 | **RF32** | **Definir lançamento recorrente:** Permitir marcar receita ou despesa como fixa ou recorrente e informar sua periodicidade para gerar lançamentos nos meses seguintes. | CP1 |
 | **RF33** | **Editar ocorrência de lançamento recorrente:** Permitir alterar apenas o lançamento de um mês específico sem modificar as demais ocorrências da série. | CP1 |
 | **RF34** | **Calcular saldo mensal:** Calcular e exibir o saldo do mês a partir do saldo inicial, das receitas e das despesas registradas no período. | CP4 |
 | **RF35** | **Reportar saldo anterior:** Exibir o saldo remanescente do mês anterior como referência no cálculo e na apresentação do mês atual. | CP4 |
 | **RF36** | **Acompanhar progresso da meta:** Comparar o valor realizado com o valor alvo e apresentar progresso e valor restante da meta. | CP3 |
-| **RF37** | **Notificar aproximação do limite:** Emitir alerta quando o gasto atingir o limiar de aproximação definido para a meta ou categoria. | CP3 |
-| **RF38** | **Notificar ultrapassagem do limite:** Emitir alerta quando o gasto superar o limite definido para a meta ou categoria. | CP3 |
+| **RF37** | **Notificar aproximação do limite:** Emitir alerta quando o gasto atingir o limiar de aproximação definido para a meta ou categoria, apresentando apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e respeitando as preferências do RF58. | CP3 |
+| **RF38** | **Notificar ultrapassagem do limite:** Emitir alerta quando o gasto superar o limite definido para a meta ou categoria, apresentando apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e respeitando as preferências do RF58. | CP3 |
 | **RF39** | **Exibir indicador de categoria:** Apresentar indicador verde abaixo de 80% do limite, amarelo de 80% a 100% e vermelho acima de 100%; validar esses limiares com a cliente. **(A SER DISCUTIDO)** | CP3 |
 | **RF40** | **Gerar resumo financeiro inicial:** Ao abrir o aplicativo, exibir ao usuário autenticado o saldo, o total de receitas, o total de despesas e o progresso das metas do período selecionado, sendo o mês corrente o período padrão; quando não houver lançamentos, exibir estado vazio com atalho para o tutorial (RF55). | CP4 |
 | **RF41** | **Exibir gráfico de despesas:** Representar os totais de despesas por categoria no período selecionado em um gráfico com valores identificáveis. | CP4 |
@@ -62,18 +62,19 @@ Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usu
 | **RF43** | **Exibir previsão de faturas:** Projetar as contas recorrentes já cadastradas para períodos futuros e identificá-las como valores previstos. | CP4 |
 | **RF44** | **Conceder conquistas financeiras:** Identificar o cumprimento dos marcos financeiros definidos e registrar os selos correspondentes no perfil. | CP3 |
 | **RF45** | **Atribuir pontuação por metas:** Somar ao usuário os pontos definidos para cada meta concluída e atualizar seu total. | CP3 |
-| **RF46** | **Notificar conquista obtida:** Informar ao usuário quando um selo ou conquista for concedido, com identificação do marco atingido. | CP3 |
+| **RF46** | **Notificar conquista obtida:** Informar ao usuário quando um selo ou conquista for concedido, com identificação do marco atingido, respeitando as preferências do RF58. | CP3 |
 | **RF47** | **Classificar lançamentos importados:** Reconhecer os dados de cada registro importado e sugerir sua categoria, permitindo revisão antes da confirmação. | CP2 |
 | **RF48** | **Identificar lançamento duplicado:** Comparar cada registro importado com os lançamentos já registrados e considerar possível duplicidade quando o valor for idêntico e a data diferir em até 1 dia; para cada possível duplicidade, exibir os dois registros lado a lado e pedir ao usuário que escolha entre descartar o importado ou mantê-lo como lançamento distinto, antes de consolidar. | CP1 |
 | **RF49** | **Consolidar extratos de contas:** Exibir ao usuário, em uma visão única, os lançamentos confirmados de diferentes extratos importados, identificando em cada um a instituição de origem informada na importação. | CP4 |
 | **RF50** | **Registrar despesa por comprovante:** Permitir fotografar ou selecionar um comprovante, extrair campos sugeridos e confirmar ou corrigir os dados antes de salvar a despesa. | CP1 |
 | **RF51** | **Definir papel de membro:** Permitir ao administrador do grupo atribuir ou alterar o papel de cada integrante (Administrador ou Membro) e aplicar as permissões do papel, conforme a RN01. | CP5 |
 | **RF52** | **Consolidar dados do grupo:** Exibir aos integrantes do grupo o total de receitas, o total de despesas e o saldo dos lançamentos que cada integrante tornou compartilhados, respeitando a privacidade definida no RF26. | CP4 |
-| **RF53** | **Comparar gastos do grupo:** Exibir aos membros autorizados, no período selecionado, um gráfico de barras com o total de despesas compartilhadas de cada membro e seu percentual de participação nas despesas do grupo. | CP4 |
+| **RF53** | **Comparar gastos do grupo:** Exibir aos membros autorizados, no período selecionado, um gráfico de barras com o total de despesas compartilhadas e o percentual de participação nas despesas do grupo dos membros que optaram por participar da comparação, de acordo com a escolha registrada no RF57. | CP4 |
 | **RF54** | **Importar formatos de extrato:** Aceitar extratos nos formatos OFX, CSV, PDF e imagem, apresentar prévia dos dados identificados e solicitar revisão quando a leitura for ambígua. | CP1 |
-| **RF55** | **Apresentar tutorial inicial:** No primeiro acesso, oferecer tutorial interativo que guie o usuário por registrar receita (RF07), registrar despesa (RF15), criar meta financeira (RF12) e ler o resumo inicial (RF40), com opção de avançar ou encerrar a qualquer etapa; permitir reabrir o tutorial pelo menu de ajuda. | CP6 |
+| **RF55** | **Apresentar tutorial inicial:** No primeiro acesso, oferecer tutorial interativo que informe o que o aplicativo faz e o que não faz (organiza e apresenta as informações financeiras, sem aumentar a renda nem garantir a redução de dívidas) e guie o usuário por registrar receita (RF07), registrar despesa (RF15), criar meta financeira (RF12) e ler o resumo inicial (RF40), explicando em linguagem simples os termos financeiros usados e com opção de avançar ou encerrar a qualquer etapa; permitir reabrir o tutorial pelo menu de ajuda. | CP6 |
 | **RF56** | **Avisar manutenção programada:** Exibir aos usuários, ao abrir o aplicativo, aviso prévio com período e impacto previsto de uma manutenção programada, informada pela equipe de operação por configuração do sistema, sem tela de cadastro no produto. | CP6 |
-
+| **RF57** | **Configurar participação em comparações do grupo:** Permitir ao usuário escolher se seus dados aparecem na classificação do grupo (RF30) e na comparação de gastos do grupo (RF53), mantendo a participação desativada por padrão e permitindo alterar a escolha a qualquer momento. | CP5 |
+| **RF58** | **Configurar notificações:** Permitir ao usuário ativar ou desativar cada tipo de alerta (aproximação do limite, ultrapassagem do limite e conquistas) e alterar a escolha a qualquer momento. | CP6 |
 ## Regras de Negócio
 
 ### RN01: Papéis e permissões do grupo
