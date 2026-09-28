@@ -13,7 +13,6 @@ O UniCash reunirá, em um único lugar, recursos para:
 - registrar e acompanhar receitas e despesas;
 - categorizar os gastos e identificar hábitos de consumo;
 - acompanhar o orçamento e o saldo disponível;
-- criar metas financeiras e estimular a formação de reservas;
 - visualizar relatórios e indicadores para apoiar decisões mais conscientes.
 
 A plataforma será planejada para oferecer uma experiência simples, intuitiva e acessível, inclusive para pessoas sem conhecimento prévio em educação financeira.
