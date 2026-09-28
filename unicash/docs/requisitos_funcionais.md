@@ -11,6 +11,7 @@ Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usu
 | CP3 | Planejamento financeiro pessoal |
 | CP4 | Visualização da situação financeira |
 | CP5 | Gestão da identidade do usuário |
+| CP6 | Suporte ao uso e operação |
 
 ## Requisitos Funcionais
 
@@ -55,7 +56,7 @@ Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usu
 | **RF37** | **Notificar aproximação do limite:** Emitir alerta quando o gasto atingir o limiar de aproximação definido para a meta ou categoria. | CP3 |
 | **RF38** | **Notificar ultrapassagem do limite:** Emitir alerta quando o gasto superar o limite definido para a meta ou categoria. | CP3 |
 | **RF39** | **Exibir indicador de categoria:** Apresentar indicador verde abaixo de 80% do limite, amarelo de 80% a 100% e vermelho acima de 100%; validar esses limiares com a cliente. **(A SER DISCUTIDO)** | CP3 |
-| **RF40** | **Gerar resumo financeiro inicial:** Ao abrir o aplicativo, apresentar saldo, receitas, despesas e indicadores do período selecionado. | CP4 |
+| **RF40** | **Gerar resumo financeiro inicial:** Ao abrir o aplicativo, exibir ao usuário autenticado o saldo, o total de receitas, o total de despesas e o progresso das metas do período selecionado, sendo o mês corrente o período padrão; quando não houver lançamentos, exibir estado vazio com atalho para o tutorial (RF55). | CP4 |
 | **RF41** | **Exibir gráfico de despesas:** Representar os totais de despesas por categoria no período selecionado em um gráfico com valores identificáveis. | CP4 |
 | **RF42** | **Exibir percentual por categoria:** Calcular a relação entre o gasto de cada categoria e a receita do período e apresentar o percentual correspondente. | CP4 |
 | **RF43** | **Exibir previsão de faturas:** Projetar as contas recorrentes já cadastradas para períodos futuros e identificá-las como valores previstos. | CP4 |
@@ -63,14 +64,28 @@ Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usu
 | **RF45** | **Atribuir pontuação por metas:** Somar ao usuário os pontos definidos para cada meta concluída e atualizar seu total. | CP3 |
 | **RF46** | **Notificar conquista obtida:** Informar ao usuário quando um selo ou conquista for concedido, com identificação do marco atingido. | CP3 |
 | **RF47** | **Classificar lançamentos importados:** Reconhecer os dados de cada registro importado e sugerir sua categoria, permitindo revisão antes da confirmação. | CP2 |
-| **RF48** | **Identificar lançamento duplicado:** Comparar valor, data e descrição de registros importados com lançamentos manuais e pedir confirmação para cada possível duplicidade antes de consolidar. | CP1 |
-| **RF49** | **Consolidar extratos de contas:** Apresentar em uma visão única os lançamentos confirmados de diferentes bancos e contas, preservando a identificação da origem. | CP4 |
+| **RF48** | **Identificar lançamento duplicado:** Comparar cada registro importado com os lançamentos já registrados e considerar possível duplicidade quando o valor for idêntico e a data diferir em até 1 dia; para cada possível duplicidade, exibir os dois registros lado a lado e pedir ao usuário que escolha entre descartar o importado ou mantê-lo como lançamento distinto, antes de consolidar. | CP1 |
+| **RF49** | **Consolidar extratos de contas:** Exibir ao usuário, em uma visão única, os lançamentos confirmados de diferentes extratos importados, identificando em cada um a instituição de origem informada na importação. | CP4 |
 | **RF50** | **Registrar despesa por comprovante:** Permitir fotografar ou selecionar um comprovante, extrair campos sugeridos e confirmar ou corrigir os dados antes de salvar a despesa. | CP1 |
-| **RF51** | **Definir papel de membro:** Permitir ao administrador atribuir ou alterar o papel de cada integrante e aplicar as permissões correspondentes. | CP5 |
-| **RF52** | **Consolidar dados do grupo:** Somar e exibir os dados financeiros compartilhados pelos integrantes, respeitando as permissões e a privacidade de cada lançamento. | CP4 |
-| **RF53** | **Comparar gastos do grupo:** Apresentar comparação dos gastos compartilhados entre membros autorizados, no período selecionado. | CP4 |
+| **RF51** | **Definir papel de membro:** Permitir ao administrador do grupo atribuir ou alterar o papel de cada integrante (Administrador ou Membro) e aplicar as permissões do papel, conforme a RN01. | CP5 |
+| **RF52** | **Consolidar dados do grupo:** Exibir aos integrantes do grupo o total de receitas, o total de despesas e o saldo dos lançamentos que cada integrante tornou compartilhados, respeitando a privacidade definida no RF26. | CP4 |
+| **RF53** | **Comparar gastos do grupo:** Exibir aos membros autorizados, no período selecionado, um gráfico de barras com o total de despesas compartilhadas de cada membro e seu percentual de participação nas despesas do grupo. | CP4 |
 | **RF54** | **Importar formatos de extrato:** Aceitar extratos nos formatos OFX, CSV, PDF e imagem, apresentar prévia dos dados identificados e solicitar revisão quando a leitura for ambígua. | CP1 |
-| **RF55** | **Apresentar tutorial inicial:** No primeiro acesso, oferecer tutorial interativo das tarefas principais, com opção de avançar ou encerrar. | CP5 |
-| **RF56** | **Avisar manutenção programada:** Exibir aos usuários aviso prévio com período e impacto previsto de uma manutenção cadastrada. | CP5 |
+| **RF55** | **Apresentar tutorial inicial:** No primeiro acesso, oferecer tutorial interativo que guie o usuário por registrar receita (RF07), registrar despesa (RF15), criar meta financeira (RF12) e ler o resumo inicial (RF40), com opção de avançar ou encerrar a qualquer etapa; permitir reabrir o tutorial pelo menu de ajuda. | CP6 |
+| **RF56** | **Avisar manutenção programada:** Exibir aos usuários, ao abrir o aplicativo, aviso prévio com período e impacto previsto de uma manutenção programada, informada pela equipe de operação por configuração do sistema, sem tela de cadastro no produto. | CP6 |
+
+## Regras de Negócio
+
+### RN01: Papéis e permissões do grupo
+
+| Ação | Administrador | Membro |
+|---|---|---|
+| Atribuir ou alterar papéis (RF51) | Sim | Não |
+| Convidar membro (RF24) | Sim | Não |
+| Criar meta do grupo (RF28) | Sim | Não |
+| Visualizar metas do grupo (RF29) e metas de membros (RF27, conforme privacidade do RF26) | Sim | Sim |
+| Ver consolidado e comparação (RF52, RF53) | Sim | Sim |
+
+O criador do grupo começa como Administrador, e o grupo deve ter sempre ao menos um Administrador.
 
 > **Ponto para validação:** Os limiares definidos no RF39 ainda precisam ser validados com a cliente.
