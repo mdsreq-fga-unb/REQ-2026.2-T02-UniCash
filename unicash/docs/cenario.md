@@ -4,19 +4,19 @@
 
 **Nome:** Leinad Santos França.
 
-**Tipo:** Pessoa física; representante do projeto.
+**Tipo:** Pessoa física; idealizadora e patrocinadora conceitual do projeto.
 
-**Representante:** Leinad Santos França.
+**Representante:** Leinad Santos França, como idealizadora; Maria Vitória, como representante dos usários estudantes; Alana França, como representante dos usuários de famílias.
 
 **Forma de contato:** WhatsApp; reuniões periódicas por videoconferência.
 
-**Vínculo com o projeto:** Cliente real e idealizadora.
+**Vínculo com o projeto:** Cliente real e idealizadora do produto e responsável pela articulação inicial do projeto.
 
 ## 1.2 Introdução ao Negócio e Contexto
 
 A cliente é uma funcionária pública na Universidade Estadual da Bahia (UESB), atuando como técnica.
 
-A ideia do projeto surgiu da necessidade de auxiliar famílias que enfrentam dificuldades na organização de suas finanças pessoais, especialmente no acompanhamento de receitas, despesas e orçamento doméstico.
+A ideia do projeto surgiu da necessidade de auxiliar pessoas que enfrentam dificuldades na organização de suas finanças pessoais, especialmente no acompanhamento de receitas, despesas e orçamento doméstico. Leinad Santos França atua como idealizadora, enquanto Maria Vitória representa os estudantes e Alana França representa as famílias durante o levantamento e a validação das necessidades.
 
 Posteriormente, o escopo foi ampliado para atender estudantes universitários que recebem bolsa-auxílio, ajudando-os a gerir suas despesas diárias (como xerox, viagem e aluguel) e a construir uma reserva financeira.
 
@@ -26,7 +26,7 @@ Posteriormente, o escopo foi ampliado para atender estudantes universitários qu
 
 ## 1.4 Identificação da Oportunidade ou Problema
 
-O projeto surge dada a dificuldade crônica das pessoas em administrar e gerir recursos financeiros limitados. A ineficiência das ferramentas atuais, como o Excel, faz com que as pessoas percam o controle de seus gastos, resultando em acúmulo de dívidas ou, no caso dos estudantes, na falta de dinheiro para eventos importantes.
+O projeto surge a partir da dificuldade de pessoas que não possuem educação financeira suficiente para organizar e acompanhar suas finanças pessoais. Entre as dificuldades a serem investigadas estão a falta de hábito de registrar receitas e despesas, a dificuldade de compreender a própria situação financeira e de planejar o uso de recursos limitados. Essas dificuldades podem contribuir para a perda de controle dos gastos, para o endividamento e, no caso dos estudantes, para a falta de dinheiro para compromissos importantes. 
 
 A figura a seguir apresenta o Diagrama de Ishikawa contendo as causas (organizadas pelos 6M) e o problema da UniCash.
 
@@ -34,7 +34,7 @@ A figura a seguir apresenta o Diagrama de Ishikawa contendo as causas (organizad
 
 ## 1.5 Desafios do Projeto
 
-A cliente não possuía conhecimento técnico ou oportunidades para o desenvolvimento da ideia, pois, por possuir poucas responsabilidades financeiras, não sentia dificuldade em administrar o dinheiro. Porém, acredita que a ideia do projeto possa impactar a vida de muitos estudantes, uma vez que consegue ver de perto a realidade no local onde trabalha, e de famílias que necessitam controlar os gastos para evitar endividamentos.
+Os principais desafios do projeto são produzir mudança comportamental, incentivando o registro contínuo e o planejamento financeiro, e conquistar a confiança dos usuários para que registrem informações financeiras pessoais. Também será necessário validar as necessidades com representantes dos segmentos atendidos, garantindo que a solução não seja definida apenas pela perspectiva da idealizadora.
 
 ## 1.6 Identificação dos Stakeholders
 
@@ -42,11 +42,13 @@ A cliente não possuía conhecimento técnico ou oportunidades para o desenvolvi
 
 | **Stakeholder** | **Relação com a solução** | **Interesse principal** | **Influência** |
 |---|---|---|---|
-| Leinad Santos França | Representante do cliente | Validar escopo, prioridades e entregas | Alta |
-| Estudantes universitários | Usuários finais | Gerir despesas rotineiras e poupar para metas futuras | Alta |
-| Famílias | Usuários finais | Organizar contas domésticas e evitar endividamento | Alta |
-| Comunidade universitária (UESB) | Usuários secundários | Controlar finanças pessoais com simplicidade e sem custos | Média |
-| Equipe de desenvolvimento | Responsável pela construção do produto | Entregar uma solução viável e de qualidade | Alta |
+| Leinad Santos França | Idealizadora e patrocinadora conceitual | Definir a visão inicial e acompanhar o projeto | Média |
+| Maria Vitória | Representante dos estudantes e participante da ER | Representar necessidades, dificuldades e expectativas dos estudantes | Alta |
+| Alana França | Representante das famílias e participante da ER | Representar necessidades, dificuldades e expectativas das famílias | Alta |
+| Estudantes universitários | Usuários finais e público potencial | Gerir despesas rotineiras e poupar para metas futuras | Média |
+| Famílias | Usuários finais e público potencial | Organizar contas domésticas e evitar o endividamento | Média |
+| Pessoas com dificuldade de controle financeiro | Público potencial de mercado | Encontrar formas simples de registrar, compreender e planejar suas finanças | Média |
+| Equipe de desenvolvimento | Responsável pela construção do produto | Transformar necessidades validadas em uma solução viável e de qualidade | Alta |
 
 
 ## 1.7 Segmentação de Clientes
@@ -56,3 +58,4 @@ Foram identificados os seguintes perfis de usuários:
 - **Estudantes universitários:** Jovens que recebem bolsa da instituição, possuem gastos rotineiros específicos e desejam poupar para despesas futuras, como a formatura;
 - **Famílias:** Pessoas que necessitam de maior organização no controle de contas fixas, gastos domésticos e despesas imprevistas do lar;
 - **Comunidade universitária em geral:** Um público abrangente que engloba professores, técnicos e demais pessoas interessadas em organizar finanças.
+- **Pessoas com dificuldade de controle financeiro:** Público potencial de mercado que inclui pessoas com dificuldade de organizar receitas e despesas, manter o hábito de registro ou planejar o uso do próprio dinheiro.
