@@ -63,6 +63,7 @@ nav:
       - Requisitos:
           - Requisitos Funcionais: requisitos_funcionais.md
           - Requisitos Não Funcionais: requisitos_nao_funcionais.md
+      - Escopo do MVP: mvp.md
       - Cronograma e entregas: cronograma.md
 
   - Equipe:
