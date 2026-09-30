@@ -16,7 +16,19 @@ Para caber na realidade da equipe, o processo foi calibrado da seguinte forma:
 1. **Fases:** Estudo de viabilidade e de negócio nas primeiras semanas, seguido das iterações de modelo funcional e de projeto e construção, encerradas pela implementação ao final do semestre (AGILE BUSINESS CONSORTIUM, 2021).
 2. **Timeboxes:** Timeboxes de duas semanas, aproximadamente seis após o estudo inicial, alinhados às unidades da disciplina. Prazo e equipe permanecem fixos; o escopo alocado a cada timebox é o que se ajusta.
 3. **Priorização MoSCoW:** Cada requisito é classificado em *Must have*, *Should have*, *Could have* ou *Won’t have this time*. Os *Must have* delimitam o MVP e são dimensionados para um ritmo conservador; as classes inferiores funcionam como margem de manobra em semanas de sobrecarga (MARSICANO, 2026).
-4. **Papéis:** A cliente atua como Embaixadora do Negócio, participando dos workshops e das revisões de timebox; um integrante acumula o papel de Visionário do Negócio, guardando os objetivos do produto e fazendo a interlocução com a cliente entre as sessões; outro responde pela coordenação técnica; e os cinco demais desenvolvem e testam.
+4. **Papéis:**
+
+| Integrante | Papéis atribuídos |
+| :--- | :--- |
+| **BRUNO BERNARDES DUARTE** | Desenvolvedor; Facilitador; Escrivão; Testador |
+| **CAIO PACHECO SANTOS** | Desenvolvedor; Coordenador Técnico; Escrivão; Testador |
+| **DANTE FERNANDES SCARPATI** | Desenvolvedor; Anunciante; Escrivão; Testador |
+| **ERICK ALVES DOS SANTOS** | Desenvolvedor; Escrivão; Testador |
+| **EVELLYN DE SOUSA ROCHA** | Desenvolvedora; Intermediadora; Escrivã; Testadora |
+| **LEONARDO RAMIRO ALVES DE OLIVEIRA** | Desenvolvedor; Gerenciador de Timebox; Escrivão; Testador |
+| **NATAN JOSE FRANCA** | Desenvolvedor; Visionário; Escrivão; Testador |
+| **Clientes** | Embaixadoras do Negócio |
+
 5. **Elicitação:** Por workshops facilitados no início de cada fase, com protótipos evolutivos como principal instrumento de captura, comunicação e validação de requisitos.
 6. **Documentação “quanto basta”:** Business case enxuto, definição de arquitetura e protótipos, somados aos artefatos exigidos pela disciplina. As decisões sobre tratamento de dados pessoais e financeiros, controle de acesso e critérios de aceitação de segurança e privacidade também devem ser registradas.
 7. **Métodos técnicos complementares:** Como o DSDM não prescreve práticas de codificação, a equipe adota testes automatizados sobre as regras de cálculo de saldo, orçamento e metas, integração contínua e revisão obrigatória por *pull request*; métodos e processos são complementares (BECK; ANDRES, 2004; MARSICANO, 2026).
