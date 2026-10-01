@@ -40,15 +40,15 @@ Os principais desafios do projeto são produzir mudança comportamental, incenti
 
 ![Representação dos stakeholders do projeto](images/stakeholders.png)
 
-| **Stakeholder** | **Relação com a solução** | **Interesse principal** | **Influência** |
-|---|---|---|---|
-| Leinad Santos França | Idealizadora e patrocinadora conceitual | Definir a visão inicial e acompanhar o projeto | Média |
-| Maria Vitória | Representante dos estudantes e participante da ER | Representar necessidades, dificuldades e expectativas dos estudantes | Alta |
-| Alana França | Representante das famílias e participante da ER | Representar necessidades, dificuldades e expectativas das famílias | Alta |
-| Estudantes universitários | Usuários finais e público potencial | Gerir despesas rotineiras e poupar para metas futuras | Média |
-| Famílias | Usuários finais e público potencial | Organizar contas domésticas e evitar o endividamento | Média |
-| Pessoas com dificuldade de controle financeiro | Público potencial de mercado | Encontrar formas simples de registrar, compreender e planejar suas finanças | Média |
-| Equipe de desenvolvimento | Responsável pela construção do produto | Transformar necessidades validadas em uma solução viável e de qualidade | Alta |
+| **Stakeholder** | **Relação com a solução** | **Interesse principal** | **Influência** | **Impacto** | **Participação na ER** |
+|---|---|---|---|---|---|
+| Leinad Santos França | Idealizadora e patrocinadora conceitual | Definir a visão inicial e acompanhar o projeto | Média | Médio | Alta |
+| Maria Vitória | Representante dos estudantes e participante da ER | Representar necessidades, dificuldades e expectativas dos estudantes | Alta | Médio/Alto| Alta
+| Alana França | Representante das famílias e participante da ER | Representar necessidades, dificuldades e expectativas das famílias | Alta | Médio/Alto | Alta
+| Estudantes universitários | Usuários finais e público potencial | Gerir despesas rotineiras e poupar para metas futuras | Média | Alto | Baixa |
+| Famílias | Usuários finais e público potencial | Organizar contas domésticas e evitar o endividamento | Média | Alto | Baixa |
+| Pessoas com dificuldade de controle financeiro | Público potencial de mercado | Encontrar formas simples de registrar, compreender e planejar suas finanças | Média | Alto | Baixa
+| Equipe de desenvolvimento | Responsável pela construção do produto | Transformar necessidades validadas em uma solução viável e de qualidade | Alta | Médio | Alta |
 
 
 ## 1.7 Segmentação de Clientes
