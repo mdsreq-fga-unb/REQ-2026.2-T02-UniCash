@@ -4,7 +4,7 @@ Este documento apresenta a especificação atualizada do **Minimum Viable Produc
 
 ---
 
-## 0. Priorização do backlog e definição do MVP
+## 1. Priorização do backlog e definição do MVP
 
 A priorização do MVP foi realizada com base na planilha **planilha_priorizacao_unicash**, utilizando uma matriz 4 × 4 de **valor de negócio × esforço técnico**. Cada requisito foi avaliado pelas participantes em uma escala de 1 a 4:
 
@@ -17,7 +17,7 @@ A priorização do MVP foi realizada com base na planilha **planilha_priorizacao
 
 Para obter o valor de negócio, foi calculada a média das três avaliações recebidas por cada requisito. O esforço técnico foi consolidado a partir da média dos três critérios avaliados por cada integrante e, posteriormente, da média entre as seis avaliações consideradas na planilha. Assim, a decisão não dependeu de uma única opinião e permitiu comparar o benefício esperado com a complexidade de implementação.
 
-### 0.1 Métricas e fórmulas de cálculo
+### 1.1 Métricas e fórmulas de cálculo
 
 As métricas foram calculadas por requisito, mantendo as casas decimais durante os cálculos e arredondando apenas para a classificação na matriz:
 
@@ -29,18 +29,18 @@ As médias contínuas foram convertidas para as faixas da matriz pelo valor mais
 
 O quadrante foi obtido pelo cruzamento entre a faixa de valor e a faixa de esforço. Em seguida, a equipe analisou dependências, riscos e necessidade de funcionamento do produto: requisitos de alto valor e baixo ou moderado esforço foram priorizados para o MVP; requisitos de valor moderado ou esforço alto foram mantidos como evolução futura. A matriz abaixo apresenta a classificação calculada para todos os requisitos da tabela consolidada.
 
-### 0.2 Critério de decisão
+### 1.2 Critério de decisão
 
-| Valor de negócio \ Esforço técnico | **1 — baixo** | **2 — moderado** | **3 — alto** | **4 — muito alto** |
+| Valor de negócio \ Esforço técnico  | **1 — baixo** | **2 — moderado** | **3 — alto** | **4 — muito alto** |
 | :--- | :--- | :--- | :--- | :--- |
-| **4 — muito alto** | **Prioridade máxima**<br>RF03, RF04, RF05, RF07, RF08, RF09, RF10, RF11, RF12, RF13, RF14, RF15, RF16, RF17, RF18, RF19, RF20, RF34, RF35, RF36 | **Forte candidato ao MVP**<br>RF06, RF26, RF32, RF33, RF37, RF38, RF39, RF40, RF41, RF42, RF44, RF45, RF46, RF55 | **Avaliar viabilidade**<br>RF48 | **Planejar, reduzir ou decompor**<br>— |
-| **3 — alto** | **Forte candidato ao MVP**<br>RF29 | **Candidato ao MVP**<br>RF01, RF02, RF22, RF25, RF51 | **Avaliar contexto**<br>RF31 | **Entrega futura**<br>— |
-| **2 — moderado** | **Avaliar oportunidade**<br>— | **Entrega futura**<br>RF23, RF24, RF27, RF28, RF30, RF43, RF52, RF53 | **Entrega futura**<br>RF21, RF47, RF49 | **Baixa prioridade**<br>— |
+| **4 — muito alto** | **Prioridade máxima**<br>RF03, RF04, RF05, RF07, RF08, RF09, RF10, RF11, RF12, RF13, RF14, RF15, RF16, RF17, RF18, RF19, RF20, RF34, RF35, RF36 | **Forte candidato ao MVP**<br>RF06, RF26, RF32, RF33, RF37, RF38, RF39, RF40, RF41, RF42, RF44, RF45, RF46, RF55 | **Avaliar viabilidade**<br>RF48, RF56 | **Planejar, reduzir ou decompor**<br>— |
+| **3 — alto** | **Forte candidato ao MVP**<br>— | **Candidato ao MVP**<br>RF01, RF02, RF22, RF25, RF51 | **Avaliar contexto**<br>RF31 | **Entrega futura**<br>— |
+| **2 — moderado** | **Avaliar oportunidade**<br>RF29 | **Entrega futura**<br>RF23, RF24, RF27, RF28, RF30, RF43, RF52, RF53 | **Entrega futura**<br>RF21, RF47, RF49 | **Baixa prioridade**<br>— |
 | **1 — baixo** | **Avaliar oportunidade**<br>— | **Baixa prioridade**<br>— | **Baixa prioridade**<br>RF50, RF54 | **Não priorizar agora**<br>— |
 
 Foram priorizados para o MVP os requisitos com valor médio igual ou aproximado a **4** e esforço baixo ou moderado, pois eles entregam alto valor com menor risco e permitem validar rapidamente a proposta central do aplicativo. A planilha classificou como prioridade principal os requisitos de gestão de perfil, receitas, metas, despesas, saldos, limites, relatórios, gamificação e onboarding que se encontram nesses quadrantes. Cadastro e autenticação foram mantidos como dependências estruturais do MVP, pois são necessários para proteger os dados financeiros e garantir que as demais funcionalidades sejam utilizadas por um usuário identificado.
 
-### 0.3 Resultado da priorização
+### 1.3 Resultado da priorização
 
 O recorte priorizado contempla:
 
@@ -56,7 +56,7 @@ Funcionalidades com menor valor médio, esforço técnico alto ou dependências 
 ---
 
 
-## 1. Matriz de Rastreabilidade Resumida
+## 2. Matriz de Rastreabilidade Resumida
 
 | Requisito Funcional (RF) | Requisito Não-Funcional (RNF) Principal | Categoria |
 | :--- | :--- | :--- |
