@@ -4,229 +4,59 @@ Este documento apresenta a especificação atualizada do **Minimum Viable Produc
 
 ---
 
-## 1. Mapeamento de Requisitos do MVP (RFs e RNFs)
+## 0. Priorização do backlog e definição do MVP
 
-Abaixo estão listados os Requisitos Funcionais do escopo do MVP juntamente com os Requisitos Não-Funcionais que definem critérios de qualidade, desempenho, segurança e usabilidade.
+A priorização do MVP foi realizada com base na planilha **planilha_priorizacao_unicash**, utilizando uma matriz 4 × 4 de **valor de negócio × esforço técnico**. Cada requisito foi avaliado pelas participantes em uma escala de 1 a 4:
 
-### 1.1. Gestão de Contas e Perfil de Usuário
+| Nota | Interpretação do valor de negócio |
+| :--- | :--- |
+| **4** | Must have: essencial para o funcionamento e para a validação da proposta do UniCash |
+| **3** | Should have: importante, mas pode ser entregue após o núcleo do MVP |
+| **2** | Could have: oportunidade de evolução, sem impacto no funcionamento básico |
+| **1** | Won't have now: não priorizado para a versão atual |
 
-#### RF01 — Cadastrar usuário
-* **Descrição:** Permitir que o estudante crie uma conta no aplicativo informando dados básicos.
-* **RNF Associados:**
-  * **RNF01 (Segurança):** As senhas de usuário devem ser armazenadas utilizando hash criptográfico forte (ex: bcrypt/Argon2).
-  * **RNF02 (Desempenho):** O processo de cadastro deve responder e confirmar em no máximo 2 segundos.
+Para obter o valor de negócio, foi calculada a média das três avaliações recebidas por cada requisito. O esforço técnico foi consolidado a partir da média dos três critérios avaliados por cada integrante e, posteriormente, da média entre as seis avaliações consideradas na planilha. Assim, a decisão não dependeu de uma única opinião e permitiu comparar o benefício esperado com a complexidade de implementação.
 
-#### RF02 — Autenticar usuário
-* **Descrição:** Permitir que o usuário realize login seguro na aplicação.
-* **RNF Associados:**
-  * **RNF03 (Segurança):** Uso de autenticação baseada em Tokens JWT com tempo de expiração definido.
-  * **RNF04 (Usabilidade):** Permitir opção de "lembrar sessão" para acesso facilitado.
+### 0.1 Métricas e fórmulas de cálculo
 
-#### RF03 — Visualizar perfil de usuário
-* **Descrição:** Permitir a consulta das informações cadastradas no perfil.
-* **RNF Associados:**
-  * **RNF05 (Privacidade):** Exibição restrita apenas ao usuário autenticado dono da conta.
+As métricas foram calculadas por requisito, mantendo as casas decimais durante os cálculos e arredondando apenas para a classificação na matriz:
 
-#### RF04 — Editar perfil de usuário
-* **Descrição:** Permitir a alteração de dados do perfil (nome, e-mail, foto, etc.).
-* **RNF Associados:**
-  * **RNF02 (Desempenho):** Atualizações de perfil devem ser processadas em até 1,5 segundo.
+* **Média de valor de negócio (MVN):** soma das notas de valor atribuídas pelas três avaliadoras dividida por três. Para o requisito $RF_i$, a fórmula é $MVN_i = (V_{i1} + V_{i2} + V_{i3}) / 3$.
+* **Média de esforço por avaliador:** cada integrante avaliou três critérios de esforço técnico. Para a avaliadora $j$, a média é $E_{ij} = (C_{ij1} + C_{ij2} + C_{ij3}) / 3$.
+* **Média de esforço técnico (MET):** média das seis médias individuais de esforço: $MET_i = (E_{i1} + E_{i2} + E_{i3} + E_{i4} + E_{i5} + E_{i6} + E_{i7}) / 7$.
 
-#### RF05 — Excluir perfil de usuário
-* **Descrição:** Permitir a remoção completa da conta e exclusão permanente dos dados do usuário.
-* **RNF Associados:**
-  * **RNF06 (Conformidade/LGPD):** A exclusão deve remover de forma irreversível todos os dados pessoais e lançamentos financeiros associados (Direito ao Esquecimento).
+As médias contínuas foram convertidas para as faixas da matriz pelo valor mais próximo na escala de 1 a 4. Para o valor de negócio, as faixas representam: 1,0–1,49 = **1 — baixo**; 1,5–2,49 = **2 — moderado**; 2,5–3,49 = **3 — alto**; e 3,5–4,0 = **4 — muito alto**. Para o esforço técnico, as mesmas faixas representam, respectivamente, esforço **baixo**, **moderado**, **alto** e **muito alto**.
 
-#### RF06 — Encerrar sessão
-* **Descrição:** Permitir que o usuário faça logout da sua conta em qualquer momento.
-* **RNF Associados:**
-  * **RNF07 (Segurança):** Invalidação imediata do token de sessão no dispositivo local.
+O quadrante foi obtido pelo cruzamento entre a faixa de valor e a faixa de esforço. Em seguida, a equipe analisou dependências, riscos e necessidade de funcionamento do produto: requisitos de alto valor e baixo ou moderado esforço foram priorizados para o MVP; requisitos de valor moderado ou esforço alto foram mantidos como evolução futura. A matriz abaixo apresenta a classificação calculada para todos os requisitos da tabela consolidada.
 
----
+### 0.2 Critério de decisão
 
-### 1.2. Gestão de Receitas
+| Valor de negócio \ Esforço técnico | **1 — baixo** | **2 — moderado** | **3 — alto** | **4 — muito alto** |
+| :--- | :--- | :--- | :--- | :--- |
+| **4 — muito alto** | **Prioridade máxima**<br>RF03, RF04, RF05, RF07, RF08, RF09, RF10, RF11, RF12, RF13, RF14, RF15, RF16, RF17, RF18, RF19, RF20, RF34, RF35, RF36 | **Forte candidato ao MVP**<br>RF06, RF26, RF32, RF33, RF37, RF38, RF39, RF40, RF41, RF42, RF44, RF45, RF46, RF55 | **Avaliar viabilidade**<br>RF48 | **Planejar, reduzir ou decompor**<br>— |
+| **3 — alto** | **Forte candidato ao MVP**<br>RF29 | **Candidato ao MVP**<br>RF01, RF02, RF22, RF25, RF51 | **Avaliar contexto**<br>RF31 | **Entrega futura**<br>— |
+| **2 — moderado** | **Avaliar oportunidade**<br>— | **Entrega futura**<br>RF23, RF24, RF27, RF28, RF30, RF43, RF52, RF53 | **Entrega futura**<br>RF21, RF47, RF49 | **Baixa prioridade**<br>— |
+| **1 — baixo** | **Avaliar oportunidade**<br>— | **Baixa prioridade**<br>— | **Baixa prioridade**<br>RF50, RF54 | **Não priorizar agora**<br>— |
 
-#### RF07 — Registrar receita
-* **Descrição:** Permitir a inserção manual de entradas financeiras (ex: mesada, salário, bolsa, estipêndio).
-* **RNF Associados:**
-  * **RNF08 (Disponibilidade/Offline):** Permitir o registro e armazenamento local mesmo sem conexão ativa com a internet (sincronização posterior).
+Foram priorizados para o MVP os requisitos com valor médio igual ou aproximado a **4** e esforço baixo ou moderado, pois eles entregam alto valor com menor risco e permitem validar rapidamente a proposta central do aplicativo. A planilha classificou como prioridade principal os requisitos de gestão de perfil, receitas, metas, despesas, saldos, limites, relatórios, gamificação e onboarding que se encontram nesses quadrantes. Cadastro e autenticação foram mantidos como dependências estruturais do MVP, pois são necessários para proteger os dados financeiros e garantir que as demais funcionalidades sejam utilizadas por um usuário identificado.
 
-#### RF08 — Consultar receitas
-* **Descrição:** Listar o histórico de receitas registradas com filtros de ordenação e busca por período.
-* **RNF Associados:**
-  * **RNF09 (Desempenho):** Carregamento da listagem de receitas em no máximo 1 segundo.
+### 0.3 Resultado da priorização
 
-#### RF09 — Editar receita
-* **Descrição:** Permitir a alteração de valor, data, descrição ou fonte de uma receita cadastrada.
-* **RNF Associados:**
-  * **RNF10 (Integridade de Dados):** Atualização automática e imediata nos totais acumulados de saldo.
+O recorte priorizado contempla:
 
-#### RF10 — Excluir receita
-* **Descrição:** Permitir a remoção de um registro de receita efetuado incorretamente.
-* **RNF Associados:**
-  * **RNF10 (Integridade de Dados):** Reversão imediata do impacto do valor excluído no saldo geral.
+* **Núcleo financeiro:** registrar, consultar, editar e excluir receitas e despesas; calcular totais e saldo mensal; e reportar o saldo anterior.
+* **Metas e acompanhamento:** criar, editar, excluir e visualizar metas, além de acompanhar o progresso financeiro.
+* **Acesso e privacidade:** cadastrar e autenticar o usuário, visualizar e editar o perfil, encerrar a sessão e excluir a conta.
+* **Categorias, limites e relatórios:** criar categorias de despesas, notificar a aproximação ou ultrapassagem de limites e exibir o resumo e os indicadores financeiros.
+* **Recorrência e engajamento:** definir e editar lançamentos recorrentes, conceder conquistas, atribuir pontuação e notificar conquistas obtidas.
+* **Orientação inicial:** apresentar o tutorial inicial para reduzir a curva de aprendizado e apoiar o uso correto do aplicativo.
 
-#### RF11 — Calcular total de receitas
-* **Descrição:** Consolidar e somar o total de entradas financeiras em um determinado período (mensal/anual).
-* **RNF Associados:**
-  * **RNF11 (Precisão):** Garantir precisão decimal exata em todos os cálculos monetários (sem erros de ponto flutuante).
+Funcionalidades com menor valor médio, esforço técnico alto ou dependências ainda não resolvidas, como importações bancárias, recursos de grupos e automações mais avançadas, permanecem fora do núcleo do MVP e podem ser reavaliadas em releases posteriores. A matriz é um apoio à decisão: dependências, riscos de segurança, privacidade e integridade financeira também foram considerados antes da composição final do escopo.
 
 ---
 
-### 1.3. Gestão de Metas Financeiras
 
-#### RF12 — Criar meta financeira
-* **Descrição:** Permitir o estabelecimento de metas de economia ou limites de gastos com prazos definidos.
-* **RNF Associados:**
-  * **RNF12 (Usabilidade):** Interface simples e guiada para criação de metas em até 3 etapas.
-
-#### RF13 — Editar meta financeira
-* **Descrição:** Permitir a alteração de prazos, valores-alvo ou nomes de metas existentes.
-* **RNF Associados:**
-  * **RNF10 (Integridade de Dados):** Recálculo imediato do percentual de progresso.
-
-#### RF14 — Excluir meta financeira
-* **Descrição:** Permitir o cancelamento ou exclusão de uma meta orçamentária.
-* **RNF Associados:**
-  * **RNF13 (Confiabilidade):** Solicitação de confirmação explícita antes da exclusão definitiva.
-
----
-
-### 1.4. Gestão de Despesas e Categorização
-
-#### RF15 — Registrar despesa
-* **Descrição:** Permitir o lançamento de saídas financeiras, vinculando valor, data e categoria.
-* **RNF Associados:**
-  * **RNF08 (Disponibilidade/Offline):** Suporte para inserção rápida sem depender de conectividade.
-
-#### RF16 — Consultar despesas
-* **Descrição:** Apresentar histórico e detalhes de todas as despesas lançadas.
-* **RNF Associados:**
-  * **RNF09 (Desempenho):** Renderização ágil de listas longas utilizando paginação/virtualização.
-
-#### RF17 — Editar despesa
-* **Descrição:** Permitir retificar informações relativas a lançamentos de saída.
-* **RNF Associados:**
-  * **RNF10 (Integridade de Dados):** Atualização automática dos relatórios e gráficos por categoria.
-
-#### RF18 — Excluir despesa
-* **Descrição:** Permitir a exclusão de lançamentos de despesas.
-* **RNF Associados:**
-  * **RNF10 (Integridade de Dados):** Recálculo instantâneo do saldo disponível e orçamento.
-
-#### RF19 — Criar categoria de despesas
-* **Descrição:** Permitir ao usuário personalizar suas categorias de gasto (ex: Alimentação, Transporte, Lazer, Faculdade).
-* **RNF Associados:**
-  * **RNF14 (Flexibilidade):** Suporte à definição de ícones e cores personalizadas para fácil diferenciação visual.
-
-#### RF20 — Visualizar metas financeiras
-* **Descrição:** Exibir visão consolidada de todas as metas cadastradas e seus respectivos status.
-* **RNF Associados:**
-  * **RNF15 (Design/UX):** Indicadores visuais claros (barras de progresso) de fácil interpretação.
-
----
-
-### 1.5. Lançamentos Recorrentes e Consolidação Financeira
-
-#### RF31 — Excluir lançamento recorrente
-* **Descrição:** Cancelar a repetição automática de lançamentos futuros.
-* **RNF Associados:**
-  * **RNF16 (Consistência):** Opção de manter ou remover histórico de lançamentos já efetuados no passado.
-
-#### RF32 — Definir lançamento recorrente
-* **Descrição:** Permitir a criação de despesas/receitas fixas que se repetem periodicamente (mensal, semanal).
-* **RNF Associados:**
-  * **RNF17 (Automação):** Execução em segundo plano de rotinas para criação automática de lançamentos na data agendada.
-
-#### RF33 — Editar lançamento recorrente
-* **Descrição:** Alterar o valor ou a frequência de lançamentos programados.
-* **RNF Associados:**
-  * **RNF16 (Consistência):** Aplicação de alterações com opção de afetar apenas os lançamentos futuros.
-
-#### RF34 — Calcular saldo mensal
-* **Descrição:** Determinar o resultado financeiro líquido do mês ($\text{Receitas} - \text{Despesas}$).
-* **RNF Associados:**
-  * **RNF11 (Precisão):** Processamento matemático preciso sem arredondamentos indevidos.
-
-#### RF35 — Reportar saldo anterior
-* **Descrição:** Carregar e consolidar o saldo acumulado do mês anterior para o mês corrente.
-* **RNF Associados:**
-  * **RNF10 (Integridade de Dados):** Atualização fluida do caixa continuado sem perda de registros.
-
-#### RF36 — Acompanhar progresso da meta
-* **Descrição:** Exibir em percentual e valor restante o quanto falta para atingir a meta financeira.
-* **RNF Associados:**
-  * **RNF15 (Design/UX):** Atualização dinâmica em tempo real ao registrar novos aportes ou economias.
-
----
-
-### 1.6. Alertas e Notificações
-
-#### RF37 — Notificar aproximação do limite de gastos
-* **Descrição:** Emitir alerta quando o usuário atingir uma porcentagem pré-definida (ex: 80%) do seu teto de gastos.
-* **RNF Associados:**
-  * **RNF18 (Portabilidade/Push):** Envio de notificações push eficientes e sem atrasos no dispositivo móvel.
-
-#### RF38 — Notificar ultrapassagem do limite de gastos
-* **Descrição:** Notificar imediatamente quando o teto de gastos cadastrado for excedido.
-* **RNF Associados:**
-  * **RNF18 (Portabilidade/Push):** Alerta em tempo real com destaque visual dentro do aplicativo.
-
----
-
-### 1.7. Visualização de Dados e Relatórios
-
-#### RF39 — Exibir gráfico de despesas por categoria
-* **Descrição:** Apresentar distribuição percentual dos gastos por meio de gráfico gráfico interativo (ex: pizza/rosca).
-* **RNF Associados:**
-  * **RNF19 (Acessibilidade):** Paletas de cores contrastantes e adaptadas para acessibilidade (incluindo daltonismo).
-
-#### RF40 — Exibir resumo mensal
-* **Descrição:** Painel geral (Dashboard) reunindo entradas, saídas e saldo acumulado no mês ativo.
-* **RNF Associados:**
-  * **RNF09 (Desempenho):** Carregamento e renderização inicial do dashboard em menos de 1,5 segundo.
-
-#### RF41 — Exibir comparação mensal
-* **Descrição:** Comparativo evolutivo entre os gastos do mês atual em relação a meses anteriores.
-* **RNF Associados:**
-  * **RNF15 (Design/UX):** Gráficos de barras claros e comparativos simples de entender.
-
-#### RF42 — Exibir total gasto por categoria
-* **Descrição:** Listagem detalhada exibindo o valor somado gasto em cada categoria individual.
-* **RNF Associados:**
-  * **RNF11 (Precisão):** Garantia de paridade exata com a soma de todas as despesas individuais.
-
----
-
-### 1.8. Gamificação e Engajamento
-
-#### RF44 — Conceder conquistas
-* **Descrição:** Desbloquear medalhas/badges virtuais ao atingir metas e manter consistência de registros.
-* **RNF Associados:**
-  * **RNF20 (Engajamento):** Sistema de feedback imediato na tela ao conquistar uma nova insígnia.
-
-#### RF45 — Pontuação por metas alcançadas
-* **Descrição:** Atribuir pontuação ao perfil do estudante sempre que uma meta orçamentária for cumprida.
-* **RNF Associados:**
-  * **RNF10 (Integridade de Dados):** Cálculo automático e seguro contra manipulação local de pontuação.
-
-#### RF46 — Notificar conquistas
-* **Descrição:** Disparar mensagem comemorativa no momento do desbloqueio de conquistas ou pontos.
-* **RNF Associados:**
-  * **RNF18 (Portabilidade/Push):** Animações leves e notificações atraentes sem travar o dispositivo.
-
----
-
-### 1.9. Onboarding e Suporte Ao Usuário
-
-#### RF55 — Apresentar tutorial inicial
-* **Descrição:** Guia interativo (Onboarding) apresentado na primeira utilização do app para ensinar as principais funcionalidades.
-* **RNF Associados:**
-  * **RNF04 (Usabilidade):** Permitir a opção de pular ou rever o tutorial a qualquer momento no menu de configurações.
-
----
-
-## 2. Matriz de Rastreabilidade Resumida
+## 1. Matriz de Rastreabilidade Resumida
 
 | Requisito Funcional (RF) | Requisito Não-Funcional (RNF) Principal | Categoria |
 | :--- | :--- | :--- |
