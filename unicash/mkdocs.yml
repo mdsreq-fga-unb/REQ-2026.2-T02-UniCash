@@ -71,6 +71,7 @@ nav:
   - Equipe:
       - Interação entre equipe e cliente: interacao.md
       - Lições aprendidas: licoes_aprendidas.md
+      - Referências: referencias.md
 
 
 extra_css:
