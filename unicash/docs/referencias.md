@@ -1,4 +1,4 @@
-# 9 - SOLUÇÃO PROPOSTA
+# 9 - REFERÊNCIAS BIBLIOGRÁFICAS
 
 Fontes citadas ao longo do documento de visão, organizadas pela seção em que aparecem.
 
