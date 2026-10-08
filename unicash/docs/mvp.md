@@ -127,17 +127,18 @@ Foram priorizados para o MVP os requisitos com valor médio igual ou aproximado 
 
 O recorte priorizado contempla:
 
-* **Núcleo financeiro:** registrar, consultar, editar e excluir receitas e despesas; calcular totais e saldo mensal; e reportar o saldo anterior.
-* **Metas e acompanhamento:** criar, editar, excluir e visualizar metas, além de acompanhar o progresso financeiro.
-* **Acesso e privacidade:** cadastrar e autenticar o usuário, visualizar e editar o perfil, encerrar a sessão e excluir a conta.
-* **Categorias, limites e relatórios:** criar categorias de despesas, notificar a aproximação ou ultrapassagem de limites e exibir o resumo e os indicadores financeiros.
-* **Recorrência e engajamento:** definir e editar lançamentos recorrentes, conceder conquistas, atribuir pontuação e notificar conquistas obtidas.
-* **Orientação inicial:** apresentar o tutorial inicial para reduzir a curva de aprendizado e apoiar o uso correto do aplicativo.
+| Frente do MVP | RFs relacionados | Escopo contemplado |
+| :--- | :--- | :--- |
+| **Núcleo financeiro** | RF07, RF08, RF09, RF10, RF11, RF15, RF16, RF17, RF18, RF34, RF35 | Registrar, consultar, editar e excluir receitas e despesas; calcular totais e saldo mensal; e reportar o saldo anterior. |
+| **Metas e acompanhamento** | RF12, RF13, RF14, RF20, RF36 | Criar, editar, excluir e visualizar metas, além de acompanhar o progresso financeiro. |
+| **Acesso e privacidade** | RF01, RF02, RF03, RF04, RF05, RF06 | Cadastrar e autenticar o usuário, visualizar e editar o perfil, encerrar a sessão e excluir a conta. |
+| **Categorias, limites e relatórios** | RF19, RF37, RF38, RF39, RF40, RF41, RF42 | Criar categorias de despesas, notificar a aproximação ou ultrapassagem de limites e exibir o resumo e os indicadores financeiros. |
+| **Recorrência e engajamento** | RF31, RF32, RF33, RF44, RF45, RF46 | Definir e editar lançamentos recorrentes, conceder conquistas, atribuir pontuação e notificar conquistas obtidas. |
+| **Orientação inicial** | RF55 | Apresentar o tutorial inicial para reduzir a curva de aprendizado e apoiar o uso correto do aplicativo. |
 
 Funcionalidades com menor valor médio, esforço técnico alto ou dependências ainda não resolvidas, como importações bancárias, recursos de grupos e automações mais avançadas, permanecem fora do núcleo do MVP e podem ser reavaliadas em releases posteriores. A matriz é um apoio à decisão: dependências, riscos de segurança, privacidade e integridade financeira também foram considerados antes da composição final do escopo.
 
 ---
-
 
 ## 2. Matriz de Rastreabilidade Resumida
 
