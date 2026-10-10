@@ -29,7 +29,7 @@
   * **Priorização MoSCoW:** Priorizar funcionalidades críticas (*Must have*, *Should have*, *Could have* e *Won't have*) para a gestão financeira, como metas de economia e centralização de gastos.
   * **Definição do MVP:** Definir o escopo do MVP para entregar uma solução funcional inicial aos *stakeholders*.
 * **Declaração:**
-  * **Temas, Épicos e User Stories:** Estruturar a granularidade dos requisitos para garantir clareza aos desenvolvedores.
+  * **Casos de uso detalhados:** Estruturar os requisitos em casos de uso, descrevendo ator, objetivo, pré-condições, pós-condições, fluxo principal, fluxos alternativos, fluxos de exceção, regras de negócio e critérios de aceitação.
   * **Quadro Kanban:** Organizar os requisitos conforme a priorização no quadro visual para facilitar o acompanhamento do fluxo.
 
 ---
@@ -40,7 +40,7 @@
 * **Análise e Consenso:**
   * **Definição das Timeboxes:** Alinhar prazos das *timeboxes* com a equipe para garantir entregas de valor no tempo previsto.
 * **Declaração:**
-  * **Critérios de Aceitação Detalhados e Definition of Ready (DoR):** Definir critérios claros para cada *User Story* garantindo que estejam *Ready* (prontas) antes de iniciar o desenvolvimento.
+  * **Refinamento dos casos de uso e Definition of Ready (DoR):** Detalhar os fluxos, regras de negócio e critérios de aceitação de cada caso de uso, garantindo que esteja pronto antes de iniciar o desenvolvimento.
 * **Representação:**
   * **Protótipos e Wireframes:** Criar representações visuais dos requisitos para facilitar a compreensão da equipe.
 * **Verificação e Validação:**
@@ -70,7 +70,21 @@
 
 ---
 
-## 5.2 Engenharia de Requisitos e o DSDM/Kanban
+## 5.2 Métodos de Declaração de Requisitos
+
+Os requisitos do UniCash serão declarados em diferentes níveis de detalhamento, conforme o tipo de requisito e a finalidade do registro.
+
+| Tipo de requisito | Método de declaração | Aplicação no projeto |
+| :--- | :--- | :--- |
+| **Requisitos de negócio** | Texto livre em linguagem natural | Registrar o problema, os objetivos do negócio, as necessidades da cliente e o valor esperado da solução. |
+| **Requisitos de usuário** | Texto livre em linguagem natural com declarações curtas | Descrever de forma simples as necessidades e capacidades esperadas pelos usuários. |
+| **Requisitos de usuário** | Lista de requisitos com declarações curtas | Organizar e identificar as necessidades dos usuários para priorização, rastreabilidade e acompanhamento no Backlog. |
+| **Requisitos de produto** | Casos de uso detalhados | Descrever atores, objetivos, pré-condições, pós-condições, fluxo principal, fluxos alternativos, fluxos de exceção e regras de negócio. |
+| **Requisitos de produto** | Critérios de aceitação | Definir as condições objetivas que devem ser verificadas para confirmar que o caso de uso foi implementado corretamente. |
+
+---
+
+## 5.3 Engenharia de Requisitos e o DSDM/Kanban
 
 | Fases do Processo | Atividades ER | Prática / Técnica | Resultado Esperado |
 | :--- | :--- | :--- | :--- |
@@ -81,10 +95,10 @@
 | | Declaração de Requisitos | Registros em Texto livre | Requisitos iniciais documentados e classificados (RF, RNF e RN). |
 | **Fundamentos** | Elicitação e Descoberta | Levantamento de prioridades e do domínio via Entrevistas e Investigação do Problema | Prioridades da cliente e contexto do endividamento/gestão financeira compreendidos. |
 | | Análise e Consenso | Priorização MoSCoW e Definição do MVP | Requisitos classificados por prioridade e escopo do MVP definido. |
-| | Declaração de Requisitos | Registro com Temas, Épicos, User Stories e Quadro Kanban | Requisitos estruturados em granularidades e organizados no fluxo visual. |
+| | Declaração de Requisitos | Registro de Casos de Uso Detalhados e Quadro Kanban | Requisitos estruturados em casos de uso detalhados e organizados no fluxo visual. |
 | **Desenvolvimento Evolutivo** | Elicitação e Descoberta | Refinamento de requisitos via Formulários de Coleta | Requisitos refinados com base em informações adicionais dos *stakeholders*. |
 | | Análise e Consenso | Planejamento e Definição das Timeboxes | Prazos de cada *timebox* definidos e alinhados à entrega de valor. |
-| | Declaração de Requisitos | Critérios de Aceitação Detalhados e Definition of Ready (DoR) | *User Stories* prontas (*ready*) para desenvolvimento com critérios claros. |
+| | Declaração de Requisitos | Refinamento dos Casos de Uso e Definition of Ready (DoR) | Casos de uso prontos (*ready*) para desenvolvimento com fluxos e critérios claros. |
 | | Representação de Requisitos | Criação de Protótipos e Wireframes | Representações visuais que facilitam a compreensão do time. |
 | | Verificação e Validação | Coleta de Feedback e Revisão dos Requisitos | Requisitos validados junto à cliente e alinhados ao objetivo do projeto. |
 | | Organização e Atualização | Atualizar Backlog, Monitoramento WIP no Kanban e Repriorização MoSCoW | Backlog atualizado, gargalos de fluxo identificados e requisitos repriorizados. |
