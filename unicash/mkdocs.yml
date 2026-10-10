@@ -70,6 +70,7 @@ nav:
 
   - Equipe:
       - Interação entre equipe e cliente: interacao.md
+      - Registros de engenharia de requisitos: registros.md
       - Lições aprendidas: licoes_aprendidas.md
       - Referências: referencias.md
 
