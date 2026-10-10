@@ -85,6 +85,16 @@ A tabela está ordenada por Característica de Produto.
 
 **Códigos descontinuados** (não reutilizados): **RF54** foi fundido ao RF21; os formatos aceitos passaram para a RN05.
 
+## Feedback do grupo Cybersetor
+
+Esta planilha reúne os feedbacks e as contribuições do grupo Cybersetor sobre os requisitos funcionais do UniCash.
+
+<!-- markdownlint-disable MD033 -->
+<iframe src="https://docs.google.com/spreadsheets/d/1i8MpzD3WsmCZDgpqmq5NLsuR3ytNymDENCd4NgwdNRg/edit?usp=sharing&rm=minimal" width="100%" height="600" frameborder="0" title="Feedback do grupo Cybersetor sobre os requisitos funcionais"></iframe>
+<!-- markdownlint-enable MD033 -->
+
+[Abrir o feedback do grupo Cybersetor em uma nova página](https://docs.google.com/spreadsheets/d/1i8MpzD3WsmCZDgpqmq5NLsuR3ytNymDENCd4NgwdNRg/edit?usp=sharing).
+
 ## Regras de Negócio
 
 ### RN01: Papéis e permissões do grupo

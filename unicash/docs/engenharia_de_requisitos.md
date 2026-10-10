@@ -111,7 +111,21 @@ Objetivo: identificar e priorizar os próximos incrementos a partir do uso do MV
 
 ---
 
-## 5.2 Engenharia de Requisitos e o DSDM/Kanban
+## 5.2 Métodos de Declaração de Requisitos
+
+Os requisitos do UniCash serão declarados em diferentes níveis de detalhamento, conforme o tipo de requisito e a finalidade do registro.
+
+| Tipo de requisito | Método de declaração | Aplicação no projeto |
+| :--- | :--- | :--- |
+| **Requisitos de negócio** | Texto livre em linguagem natural | Registrar o problema, os objetivos do negócio, as necessidades da cliente e o valor esperado da solução. |
+| **Requisitos de usuário** | Texto livre em linguagem natural com declarações curtas | Descrever de forma simples as necessidades e capacidades esperadas pelos usuários. |
+| **Requisitos de usuário** | Lista de requisitos com declarações curtas | Organizar e identificar as necessidades dos usuários para priorização, rastreabilidade e acompanhamento no Backlog. |
+| **Requisitos de produto** | Casos de uso detalhados | Descrever atores, objetivos, pré-condições, pós-condições, fluxo principal, fluxos alternativos, fluxos de exceção e regras de negócio. |
+| **Requisitos de produto** | Critérios de aceitação | Definir as condições objetivas que devem ser verificadas para confirmar que o caso de uso foi implementado corretamente. |
+
+---
+
+## 5.3 Engenharia de Requisitos e o DSDM/Kanban
 
 | Fases do Processo | Atividades ER | Prática / Técnica | Resultado Esperado |
 | :--- | :--- | :--- | :--- |
