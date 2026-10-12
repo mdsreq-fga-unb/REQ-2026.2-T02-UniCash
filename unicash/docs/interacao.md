@@ -7,8 +7,8 @@ A equipe do UniCash é composta por sete integrantes e conta com a participaçã
 | Integrante | Função (responsabilidade) | Papel no processo | Responsabilidade principal |
 | --- | --- | --- | --- |
 | **Leinad Santos França** | Cliente e representante do negócio | Embaixadora do Negócio (*Business Ambassador*) | Apresentar as necessidades do negócio e participar da validação dos requisitos |
-| **Maria Vitória** | Usuária representante do público-alvo | Representante de Usuários (*User Representative*) | Avaliar as funcionalidades, registrar justificativas e contribuir para a validação dos requisitos |
-| **Alana** | Usuária representante do público-alvo | Representante de Usuários (*User Representative*) | Avaliar o valor das funcionalidades, registrar justificativas e contribuir para a priorização do MVP |
+| **Maria Vitória** | Usuária representante do público-alvo | Embaixadora do Negócio (*Business Ambassador*)/Representante de Usuários (*User Representative*) | Avaliar as funcionalidades, registrar justificativas, contribuir para a validação dos requisitos e apresentar as necessidades do negócio |
+| **Alana** | Usuária representante do público-alvo | Representante de Usuários (*User Representative*)/Embaixadora do Negócio (*Business Ambassador*) | Avaliar o valor das funcionalidades, registrar justificativas, contribuir para a priorização do MVP e apresentar as necessidades do negócio |
 | **BRUNO BERNARDES DUARTE** | Backend; documentação técnica e engenharia de requisitos | Facilitador (*Facilitator*) | Apoiar a condução de workshops e atividades colaborativas |
 | **CAIO PACHECO SANTOS** | Backend; documentação técnica e engenharia de requisitos | Coordenador Técnico (*Technical Coordinator*) | Avaliar a arquitetura e a viabilidade técnica |
 | **DANTE FERNANDES SCARPATI** | Backend; documentação técnica e engenharia de requisitos | Comunicador (*Communicator*) | Registrar e divulgar informações sobre o andamento do projeto |
