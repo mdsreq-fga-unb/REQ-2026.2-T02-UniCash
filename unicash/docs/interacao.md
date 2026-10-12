@@ -25,7 +25,7 @@ A comunicação entre a equipe e a cliente é essencial para manter o alinhament
 
 As ferramentas utilizadas no projeto são:
 
-- **Google Meet:** realização de reuniões, workshops e apresentações de protótipos.
+- **Microsoft Teams:** realização de reuniões, workshops e apresentações de protótipos.
 - **WhatsApp:** compartilhamento de avisos rápidos e esclarecimento de dúvidas pontuais.
 - **Figma:** criação colaborativa, apresentação e validação de protótipos.
 - **GitHub:** versionamento do código, armazenamento da documentação e acompanhamento das alterações.
@@ -86,7 +86,7 @@ Para organizar a comunicação e estabelecer prazos verificáveis, a equipe adot
 | Atividade | Frequência | Participantes | Objetivo |
 |---|---|---|---|
 | Workshop de início de fase (*Kickoff*) | No primeiro dia útil de cada fase | Equipe, cliente e responsável pela visão do negócio | Definir o escopo, alinhar os objetivos e levantar requisitos iniciais |
-| Reuniões de alinhamento da equipe | Segundas e quartas-feiras, das 19h às 21h | Sete integrantes da equipe técnica | Refinar requisitos, elaborar casos de uso detalhados e atualizar o Kanban |
+| Reuniões de alinhamento da equipe | Segundas e quartas-feiras, das 20h às 21h | Sete integrantes da equipe técnica | Refinar requisitos, elaborar casos de uso detalhados e atualizar o Kanban |
 | Reuniões com a cliente | Sextas-feiras, das 16h às 18h | Equipe técnica, cliente e representantes dos usuários | Apresentar protótipos, levantar necessidades e validar requisitos |
 | Revisão de final de *timebox* (*Timebox Review/Demo*) | A cada duas semanas, ao término do ciclo | Equipe, cliente e usuários representativos | Demonstrar o incremento desenvolvido e verificar os critérios de aceitação |
 
