@@ -9,7 +9,7 @@ O processo de Engenharia de Requisitos (ER) do UniCash é organizado em seis ati
 5. **Verificação e Validação:** verificar se os requisitos estão bem escritos e prontos, e validar se atendem às necessidades reais.
 6. **Organização e Atualização:** manter o backlog e a rastreabilidade atualizados à medida que os requisitos mudam.
 
-Nas tabelas a seguir, cada técnica informa os participantes e o critério de seleção, as entradas analisadas, o responsável e a forma de registro e de evidência. Ferramentas, artefatos e práticas de gestão do projeto que apoiam a ER, mas não são técnicas de ER, estão separados na seção 5.3.
+Nas tabelas a seguir, cada técnica informa os participantes e o critério de seleção, as entradas analisadas, o responsável e a forma de registro e de evidência. Ferramentas, artefatos e práticas de gestão do projeto que apoiam a ER, mas não são técnicas de ER, estão separados na seção 5.4.
 
 **Participantes de referência:**
 
@@ -43,7 +43,7 @@ Objetivo: delimitar o escopo preliminar e avaliar se a equipe consegue entregá-
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | Elicitação e Descoberta | Análise de soluções existentes | Equipe | Aplicativos de finanças pessoais gratuitos, pagos e open-source (como Minhas Economias, Securo, Monekin e Parsa) | Dante | Quadro comparativo (seção 2.5); discussões em [R03](registros.md#r03-reuniao-de-refinamento-com-a-cliente-17092026), [R05](registros.md#r05-priorizacao-do-mvp-com-a-cliente-e-representante-25092026) e [R07](registros.md#r07-validacao-do-mvp-com-a-cliente-e-as-representantes-02102026) |
 | Análise e Consenso | Análise de viabilidade técnica da equipe | Sete integrantes da equipe | Respostas ao formulário de conhecimentos técnicos de cada integrante | Bruno (formulário) e Caio (Coordenador Técnico) | Formulário de conhecimentos ([R02](registros.md#r02-reuniao-de-equipe-002-04092026)) |
-| Análise e Consenso | Análise de riscos | Equipe; Caio para os riscos técnicos | Lista preliminar de necessidades e restrições de escopo | Leonardo (Gerenciador de Timebox) e Caio (Coordenador Técnico) | Lista de riscos com probabilidade, impacto e ação de mitigação |
+| Análise e Consenso | Análise de riscos | Equipe; Caio para os riscos técnicos | Lista preliminar de necessidades e restrições de escopo | Leonardo (Gerenciador de Timebox) e Caio (Coordenador Técnico) | Lista de riscos com probabilidade, impacto e ação de mitigação (prevista; ainda sem registro, ver seção 5.6) |
 | Análise e Consenso | Análise de custo/benefício por Característica de Produto | Equipe e cliente | CPs preliminares e riscos | Natan (Visionário) | Fronteiras de escopo (seção 2.6) |
 | Análise e Consenso | Classificação dos requisitos em RF, RNF (URPS+ e Sommerville) e RN | Equipe | Lista preliminar de necessidades | Leonardo | Requisitos classificados nas páginas de requisitos funcionais e não funcionais |
 | Declaração | Declaração em linguagem natural, com código e descrição de cada requisito | Equipe | Requisitos classificados | Leonardo; revisão de Erick e Evellyn | [Requisitos Funcionais](requisitos_funcionais.md) e [Requisitos Não Funcionais](requisitos_nao_funcionais.md) |
@@ -58,10 +58,10 @@ Objetivo: priorizar os requisitos, definir o MVP e preparar o backlog.
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | Elicitação e Descoberta | Workshop de apresentação dos requisitos às representantes dos segmentos | Leinad e Maria Vitória; Alana França informada depois | Lista de requisitos ([R04](registros.md#r04-primeira-versao-consolidada-dos-requisitos-anterior-a-25092026)) | Natan | Contribuições registradas em [R05](registros.md#r05-priorizacao-do-mvp-com-a-cliente-e-representante-25092026) |
 | Análise e Consenso | Priorização MoSCoW com matriz valor de negócio × esforço técnico | Leinad, Maria Vitória e Alana França para o valor de negócio, com nota de 1 a 4 e justificativa; integrantes da equipe para o esforço técnico | RF01 a RF56 | Natan (planilha) e Erick (Campeão do Produto) | Planilha de priorização ([R05](registros.md#r05-priorizacao-do-mvp-com-a-cliente-e-representante-25092026)); MVP definido como resultado ([Escopo do MVP](mvp.md)) |
-| Declaração | Casos de uso em formato breve | Equipe | RFs priorizados como *Must have* | Leonardo | Casos de uso com identificador próprio, vinculados ao RF de origem; decisão de adotar casos de uso em [R08](registros.md#r08-reuniao-de-equipe-com-o-monitor-05102026) |
-| Representação | Prototipação de baixa fidelidade | Bruno; revisão da cliente | Casos de uso e decisões registradas com a cliente | Bruno | Wireframes no Figma |
+| Declaração | Casos de uso em formato breve | Equipe | RFs priorizados como *Must have* | Leonardo | Casos de uso com identificador próprio, vinculados ao RF de origem (previstos; ainda não escritos); decisão de adotar casos de uso em [R08](registros.md#r08-reuniao-de-equipe-com-o-monitor-05102026) |
+| Representação | Prototipação de baixa fidelidade | Bruno; revisão da cliente | Casos de uso e decisões registradas com a cliente | Bruno | Wireframes no Figma (previstos; ainda não produzidos) |
 | Verificação e Validação | Revisão do escopo do MVP com a cliente e as representantes | Leinad, Maria Vitória e Alana França | MVP e documentação publicada | Natan | Escopo validado e ajustes registrados em [R07](registros.md#r07-validacao-do-mvp-com-a-cliente-e-as-representantes-02102026) |
-| Organização e Atualização | Estruturação do backlog de requisitos por CP e caso de uso | Equipe | Casos de uso e CPs | Leonardo | Backlog de requisitos em um GitHub Project separado do Kanban de atividades ([R08](registros.md#r08-reuniao-de-equipe-com-o-monitor-05102026)); versão inicial da matriz de rastreabilidade (seção 5.4) |
+| Organização e Atualização | Estruturação do backlog de requisitos por CP e caso de uso | Equipe | Casos de uso e CPs | Leonardo | Backlog de requisitos em um GitHub Project separado do Kanban de atividades ([R08](registros.md#r08-reuniao-de-equipe-com-o-monitor-05102026)); matriz de rastreabilidade (seção 5.5), prevista e ainda não produzida |
 
 ---
 
@@ -155,7 +155,7 @@ Os requisitos do UniCash serão declarados em diferentes níveis de detalhamento
 
 ---
 
-## 5.3 Elementos de Apoio que Não São Técnicas de ER
+## 5.4 Elementos de Apoio que Não São Técnicas de ER
 
 Os elementos abaixo participam do processo, mas não são técnicas de Engenharia de Requisitos. Eles foram retirados das atividades da seção 5.1 e classificados conforme sua natureza.
 
@@ -165,7 +165,7 @@ Os elementos abaixo participam do processo, mas não são técnicas de Engenhari
 | Separação em RF, RNF e RN | Análise e classificação | Tratada como técnica de classificação dentro de Análise e Consenso. |
 | Definição do MVP | Resultado da priorização | Decorre da priorização MoSCoW com a matriz valor × esforço. |
 | Temas, épicos e histórias | Estrutura de declaração e organização | Substituídos por casos de uso como forma de declaração e pelo backlog de requisitos organizado por CP ([R08](registros.md#r08-reuniao-de-equipe-com-o-monitor-05102026)). |
-| Quadro Kanban | Ferramenta de organização e acompanhamento | Mostra o andamento das atividades no GitHub Projects; não substitui a rastreabilidade (seção 5.4). |
+| Quadro Kanban | Ferramenta de organização e acompanhamento | Mostra o andamento das atividades no GitHub Projects; não substitui a rastreabilidade (seção 5.5). |
 | Definição das timeboxes | Planejamento do projeto | Definida no cronograma, fora das atividades de ER. |
 | Critérios de aceitação | Condições para aceitação | Declarados junto a cada caso de uso e usados na validação do incremento. |
 | Definition of Ready (DoR) | Critério de prontidão | Usada como checklist na inspeção dos requisitos. |
@@ -178,7 +178,7 @@ Os elementos abaixo participam do processo, mas não são técnicas de Engenhari
 
 ---
 
-## 5.4 Rastreabilidade dos Requisitos
+## 5.5 Rastreabilidade dos Requisitos
 
 A rastreabilidade liga cada requisito à sua origem e à sua validação, seguindo a cadeia:
 
@@ -198,7 +198,7 @@ Como a equipe adotou casos de uso em vez de histórias de usuário ([R08](regist
 | Incremento | Timebox e pull request | Repositório | O pull request cita os casos de uso implementados |
 | Validação | Data e registro da revisão | Ata da revisão do incremento ou do teste de aceitação | Registra o resultado de cada critério de aceitação |
 
-Os vínculos de Problema até RF/RNF já estão registrados nas páginas indicadas. A partir dos casos de uso, os vínculos são consolidados em uma **matriz de rastreabilidade**, com uma linha por critério de aceitação e as colunas da cadeia acima.
+Os vínculos de Problema até RF/RNF já estão registrados nas páginas indicadas. A partir dos casos de uso, os vínculos serão consolidados em uma **matriz de rastreabilidade**, com uma linha por critério de aceitação e as colunas da cadeia acima. Os casos de uso e a matriz ainda não foram produzidos e serão adicionados nos próximos timeboxes.
 
 **Regras de manutenção:**
 
@@ -211,11 +211,13 @@ O quadro Kanban acompanha o fluxo de trabalho, mas não substitui a rastreabilid
 
 ---
 
-## 5.5 Registro das Decisões e Evidências de Execução
+## 5.6 Registro das Decisões e Evidências de Execução
 
 As decisões das atividades de ER são registradas em atas com os seguintes campos: data, participantes, pauta, decisões tomadas, requisitos afetados (por identificador) e pendências com responsável. As atas são aprovadas pela cliente no prazo definido na seção 7.2.
 
-A tabela abaixo relaciona as atividades já realizadas às evidências correspondentes. Os registros R01 a R08 estão na página [Registros de Engenharia de Requisitos](registros.md).
+A seção 5.1 descreve o processo planejado, organizado pelas fases do DSDM. A coluna "Fase" da tabela abaixo indica quando cada atividade foi de fato executada, conforme os registros. Por isso, atividades previstas para Viabilidade e Fundamentos (como a análise de soluções existentes, a classificação dos requisitos e a priorização do MVP) aparecem aqui nos Timeboxes 1 e 2 do Desenvolvimento Evolutivo.
+
+A tabela relaciona as atividades já realizadas às evidências correspondentes. Os registros R01 a R08 estão na página [Registros de Engenharia de Requisitos](registros.md).
 
 | Data | Fase | Atividade | Evidência | Situação |
 | :--- | :--- | :--- | :--- | :--- |
@@ -233,3 +235,6 @@ A tabela abaixo relaciona as atividades já realizadas às evidências correspon
 | 30/09/2026 e 05/10/2026 | Desenvolvimento Evolutivo — Timebox 2 | Avaliação cruzada dos requisitos | Tabela de aceite e justificativa de cada feedback ([R06](registros.md#r06-reuniao-de-equipe-30092026), [R08](registros.md#r08-reuniao-de-equipe-com-o-monitor-05102026)) | Sem registro no site |
 | 02/10/2026 | Desenvolvimento Evolutivo — Timebox 2 | Validação do escopo do MVP com a cliente e as representantes | [R07](registros.md#r07-validacao-do-mvp-com-a-cliente-e-as-representantes-02102026) | Registrada |
 | 05/10/2026 | Desenvolvimento Evolutivo — Timebox 2 | Adoção de casos de uso como forma de declaração | [R08](registros.md#r08-reuniao-de-equipe-com-o-monitor-05102026) | Registrada |
+| — | Fundamentos | Casos de uso em formato breve | Casos de uso (UCxx) vinculados aos RFs *Must have* | Sem registro (previsto) |
+| — | Fundamentos | Matriz de rastreabilidade (versão inicial) | Matriz descrita na seção 5.5 | Sem registro (previsto) |
+| — | Fundamentos | Prototipação de baixa fidelidade | Wireframes no Figma | Sem registro (previsto) |
