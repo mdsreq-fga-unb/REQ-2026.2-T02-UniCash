@@ -13,7 +13,7 @@ As decisões desta seção decorrem de três condições descritas nas seções 
 
 Para caber na realidade da equipe, o processo foi calibrado da seguinte forma:
 
-1. **Fases:** Estudo de viabilidade e de negócio nas primeiras semanas, seguido das iterações de modelo funcional e de projeto e construção, encerradas pela implementação ao final do semestre (AGILE BUSINESS CONSORTIUM, 2021).
+1. **Fases:** Pré-projeto, Viabilidade, Fundamentos, Desenvolvimento Evolutivo, Implantação e Pós-projeto, organizados de forma a acompanhar a evolução do projeto desde a definição inicial até a avaliação e evolução após a implantação (AGILE BUSINESS CONSORTIUM, 2021).
 2. **Timeboxes:** Timeboxes de duas semanas, aproximadamente seis após o estudo inicial, alinhados às unidades da disciplina. Prazo e equipe permanecem fixos; o escopo alocado a cada timebox é o que se ajusta.
 3. **Priorização MoSCoW:** Cada requisito é classificado em *Must have*, *Should have*, *Could have* ou *Won’t have this time*. Os *Must have* delimitam o MVP e são dimensionados para um ritmo conservador; as classes inferiores funcionam como margem de manobra em semanas de sobrecarga (MARSICANO, 2026).
 4. **Papéis:**
