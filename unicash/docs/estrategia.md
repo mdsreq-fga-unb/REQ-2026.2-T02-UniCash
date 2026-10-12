@@ -22,8 +22,8 @@ Para caber na realidade da equipe, o processo foi calibrado da seguinte forma:
 | :--- | :--- |
 | **BRUNO BERNARDES DUARTE** | Desenvolvedor; Facilitador; Escrivão; Testador |
 | **CAIO PACHECO SANTOS** | Desenvolvedor; Coordenador Técnico; Escrivão; Testador |
-| **DANTE FERNANDES SCARPATI** | Desenvolvedor; Anunciante; Escrivão; Testador |
-| **ERICK ALVES DOS SANTOS** | Desenvolvedor; Escrivão; Testador |
+| **DANTE FERNANDES SCARPATI** | Desenvolvedor; Comunicador; Escrivão; Testador |
+| **ERICK ALVES DOS SANTOS** | Desenvolvedor; Campeão do produto; Escrivão; Testador |
 | **EVELLYN DE SOUSA ROCHA** | Desenvolvedora; Intermediadora; Escrivã; Testadora |
 | **LEONARDO RAMIRO ALVES DE OLIVEIRA** | Desenvolvedor; Gerenciador de Timebox; Escrivão; Testador |
 | **NATAN JOSE FRANCA** | Desenvolvedor; Visionário; Escrivão; Testador |
