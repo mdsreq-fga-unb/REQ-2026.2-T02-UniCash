@@ -42,7 +42,7 @@ Os dois processos considerados pela equipe foram o DSDM e o OpenUP. Ambos organi
 
 | Característica | DSDM | OpenUP |
 | :--- | :--- | :--- |
-| **Estrutura** | Estudo de viabilidade e de negócio, iterações de modelo funcional e de projeto e construção, e implementação; trabalho dividido em timeboxes de duas a seis semanas. | Quatro fases (concepção, elaboração, construção e transição), com iterações internas. |
+| **Estrutura** | Pré-projeto, Viabilidade, Fundamentos, Desenvolvimento Evolutivo, Implantação e Pós-projeto, com trabalho organizado em timeboxes de aproximadamente duas semanas. | Quatro fases (concepção, elaboração, construção e transição), com iterações internas. |
 | **Organização dos requisitos** | Business case, requisitos de negócio e requisitos da solução, todos classificados por MoSCoW. | Visão, casos de uso ou histórias, requisitos técnicos e não funcionais. |
 | **Documentação** | Guiada pelo princípio de “quanto basta”: business case, definição de arquitetura e protótipos evolutivos. | Leve e adaptável ao projeto, com artefatos como visão, requisitos e registros de arquitetura, detalhados conforme a necessidade. |
 | **Mudanças de requisitos** | Acolhidas com prazo e custo mantidos fixos; o ajuste recai sobre o escopo, por repriorização MoSCoW. | Incorporadas ao planejamento iterativo, considerando prioridades, riscos e impactos na arquitetura, que pode evoluir durante o projeto. |
