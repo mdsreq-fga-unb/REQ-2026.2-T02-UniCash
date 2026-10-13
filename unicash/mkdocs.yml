@@ -5,10 +5,10 @@ edit_uri: ""
 theme:
   name: material
   language: pt-BR
-  features:
-    - navigation.tabs
+  feature:
+#    - navigation.tabs
     - navigation.top
-    - navigation.sections
+#    - navigation.sections
     - content.code.copy
     - toc.integrate
     - search.highlight
