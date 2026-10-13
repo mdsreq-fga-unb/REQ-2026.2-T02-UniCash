@@ -132,7 +132,7 @@ A evolução da solução será orientada por protótipos, validações frequent
 
 ## Vídeo de apresentação dos requisitos
 <div class="embed-container">
-  <iframe src="https://youtu.be/kA_u--syxi8" title="Vídeo de apresentação dos requisitos" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+  <iframe width="560" height="315" src="https://www.youtube.com/embed/kA_u--syxi8?si=wSyGCX1BODUoza_b" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 </div>
 ## Explore a documentação
 
