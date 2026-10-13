@@ -1,6 +1,6 @@
 # 9 - REFERÊNCIAS BIBLIOGRÁFICAS
 
-Fontes citadas ao longo do documento de visão, organizadas pela seção em que aparecem.
+Fontes citadas ao longo da documentação.
 
 ## Referências da Seção 2.5
 

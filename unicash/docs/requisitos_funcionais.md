@@ -63,9 +63,13 @@ A tabela está ordenada por Característica de Produto.
 | **RF05** | **Excluir perfil de usuário:** Solicitar confirmação antes da exclusão da conta e executar a remoção dos dados associados conforme a política de retenção da RN04. | CP5 |
 | **RF06** | **Encerrar sessão:** Permitir ao usuário sair da conta e invalidar a sessão ativa no aplicativo. | CP5 |
 | **RF31** | **Recuperar senha:** Permitir solicitar redefinição por um canal verificado e cadastrar uma nova senha por meio de ligação temporária de uso único. | CP5 |
+| **RF61** | **Usar sem conta:** Permitir usar todas as funcionalidades individuais sem cadastro, com os dados somente no dispositivo; a conta é necessária só para sincronizar e participar de grupos. | CP5 |
 | **RF55** | **Apresentar tutorial inicial:** No primeiro acesso, oferecer tutorial interativo que informe o que o aplicativo faz e o que não faz (organiza e apresenta as informações financeiras, sem aumentar a renda nem garantir a redução de dívidas) e guie o usuário por registrar receita (RF07), registrar despesa (RF15), criar meta financeira (RF12) e ler o resumo inicial (RF40), explicando em linguagem simples os termos financeiros usados e com opção de avançar ou encerrar a qualquer etapa; permitir reabrir o tutorial pelo menu de ajuda. | CP6 |
 | **RF56** | **Avisar manutenção programada:** Exibir aos usuários, ao abrir o aplicativo, aviso prévio com período e impacto previsto de uma manutenção programada, informada pela equipe de operação por configuração do sistema, sem tela de cadastro no produto. | CP6 |
 | **RF58** | **Configurar notificações:** Permitir ao usuário ativar ou desativar cada tipo de alerta (aproximação do limite, ultrapassagem do limite e conquistas) e alterar a escolha a qualquer momento. | CP6 |
+| **RF62** | **Acompanhar sincronização:** Exibir o estado (sincronizado, pendente, sem conexão, erro), a última sincronização e as alterações pendentes, com opção de sincronizar na hora; generaliza o “estado de envio” do RF59. | CP6 |
+| **RF63** | **Gerar backup:** Criar um arquivo completo e restaurável dos dados do usuário, sem exigir conexão. | CP6 |
+| **RF64** | **Restaurar backup:** Validar o arquivo, mostrar prévia e permitir substituir ou mesclar com os dados atuais. | CP6 |
 | **RF22** | **Criar grupo de amigos ou família:** Permitir ao usuário criar um grupo, definir seu nome e assumir o papel inicial de administração. | CP7 |
 | **RF23** | **Entrar em grupo de amigos ou família:** Permitir ao usuário aceitar um convite válido para integrar um grupo e passar a acessar o conteúdo permitido ao seu papel (RN01). | CP7 |
 | **RF24** | **Convidar membro para grupo:** Permitir ao Administrador do grupo (RN01) enviar convite e acompanhar sua situação até o aceite ou cancelamento. | CP7 |
@@ -84,6 +88,16 @@ A tabela está ordenada por Característica de Produto.
 | **RF46** | **Notificar conquista obtida:** Informar ao usuário quando um selo ou conquista for concedido, com identificação do marco atingido, respeitando as preferências do RF58. | CP8 |
 
 **Códigos descontinuados** (não reutilizados): **RF54** foi fundido ao RF21; os formatos aceitos passaram para a RN05.
+
+## Feedback do grupo Cybersetor
+
+Esta planilha reúne os feedbacks e as contribuições do grupo Cybersetor sobre os requisitos funcionais do UniCash.
+
+<!-- markdownlint-disable MD033 -->
+<iframe src="https://docs.google.com/spreadsheets/d/1i8MpzD3WsmCZDgpqmq5NLsuR3ytNymDENCd4NgwdNRg/edit?usp=sharing&rm=minimal" width="100%" height="600" frameborder="0" title="Feedback do grupo Cybersetor sobre os requisitos funcionais"></iframe>
+<!-- markdownlint-enable MD033 -->
+
+[Abrir o feedback do grupo Cybersetor em uma nova página](https://docs.google.com/spreadsheets/d/1i8MpzD3WsmCZDgpqmq5NLsuR3ytNymDENCd4NgwdNRg/edit?usp=sharing).
 
 ## Regras de Negócio
 
@@ -131,6 +145,14 @@ Cada alerta é emitido uma vez por período em que a condição ocorre. *Pendent
 
 - **Aceitos:** OFX e CSV;
 - **Fora do escopo atual:** PDF e imagem, por exigirem reconhecimento óptico de caracteres; candidatos a uma versão futura.
+
+### RN06: Princípio offline-first e disponibilidade
+
+A base local é a cópia principal dos dados; o servidor serve à sincronização e aos grupos. Funcionam offline: CP1 a CP4, categorias, metas, importação, conquistas e pontos pessoais. Exigem conexão: cadastro e recuperação de senha (RF01, RF31) e operações de grupo (RF22 a RF25, RF51). Dados de outros membros (RF27, RF29, RF30, RF52, RF53) aparecem offline com a data da última atualização. Em caso de conflito com RF59, RNF02, RNF06, RNF08, RNF09 ou RNF31, prevalece esta regra para operações locais.
+
+### RN07: Resolução de conflitos
+
+Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo vale a mais recente por ordem lógica das alterações, não só pela hora do aparelho; em edição contra exclusão, a exclusão prevalece. Saldo, totais, progresso, pontos e selos são sempre recalculados a partir dos lançamentos, nunca sincronizados como contadores.
 
 ## Pontos para validação
 

@@ -79,6 +79,9 @@ A evolução da solução será orientada por protótipos, validações frequent
 </div>
 <a href="https:&#x2F;&#x2F;www.canva.com&#x2F;design&#x2F;DAHUiGBCPsM&#x2F;MeSY-YY2hkqsaqhigXwIyA&#x2F;view?utm_content=DAHUiGBCPsM&amp;utm_campaign=designshare&amp;utm_medium=embeds&amp;utm_source=link" target="_blank" rel="noopener">
 
+## Vídeo de apresentação dos requisitos
+<iframe width="560" height="315" src="https://youtu.be/kA_u--syxi8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 ## Conheça o projeto
 
 - [Cenário atual do negócio e do cliente](cenario.md)
