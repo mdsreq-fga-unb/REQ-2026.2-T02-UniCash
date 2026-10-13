@@ -131,8 +131,9 @@ A evolução da solução será orientada por protótipos, validações frequent
 [Ver a apresentação diretamente no Canva](https://www.canva.com/design/DAHUiGBCPsM/MeSY-YY2hkqsaqhigXwIyA/view)
 
 ## Vídeo de apresentação dos requisitos
-<iframe width="560" height="315" src="https://youtu.be/kA_u--syxi8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
+<div class="embed-container">
+  <iframe src="https://youtu.be/kA_u--syxi8" title="Vídeo de apresentação dos requisitos" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+</div>
 ## Explore a documentação
 
 <div class="docs-grid">
