@@ -26,9 +26,10 @@ Para que um caso de uso seja movido para **Pronto para Desenvolvimento**, todos 
 
 ## DoD (Definition of Done) — Filtro de Saída
 
-O **Nível 1** deve ser preenchido pelos responsáveis técnicos antes de solicitar o merge ou review. O **Nível 2** só é preenchido depois de validado com a cliente.
+O **Nível 1** deve ser preenchido pelos responsáveis técnicos antes de solicitar o merge ou review. O **Nível 2 e Nível 3** só devem ser preenchidos depois de validados com a cliente.
 
-### Nível 1 — Done Técnico (pronto para homologação)
+
+### Nível 1 — Done Técnico (implementado e pronto para homologação)
 
 #### Completude funcional
 
@@ -38,16 +39,20 @@ O **Nível 1** deve ser preenchido pelos responsáveis técnicos antes de solici
 #### Qualidade técnica e testes
 
 - [ ] O pipeline de CI/CD foi executado com sucesso, verificando build, testes automatizados e linting, sem alertas críticos.
-- [ ] Os testes automatizados cobrem o caminho feliz e os principais edge cases, respeitando a cobertura mínima definida para o projeto.
-- [ ] O code review foi aprovado por, no mínimo, um par da equipe.
+- [ ] Os testes automatizados cobrem o caminho feliz e os principais edge cases, respeitando a cobertura de 100%.
+- [ ] O code review foi aprovado por, no mínimo, um representante técnico da equipe.
 
 #### Integração, documentação e evidências
 
-- [ ] Os fluxos foram validados por print ou vídeo, anexado ao item de trabalho.
+- [ ] Os checklists técnicos foram totalmente preenchidos.
+- [ ] Os fluxos foram validados por print ou vídeo, anexado ao item de trabalho. Além de evidências da cobertura dos testes.
 - [ ] A rastreabilidade vertical (requisito → caso de uso → código → teste) foi mantida e atualizada na ferramenta de gestão.
-- [ ] A documentação técnica foi atualizada no Portal Orc.
-- [ ] O código foi integrado à branch principal sem conflitos, com o pipeline de build validado e deploy executado com sucesso no ambiente de Homologação/Staging.
+- [ ] A documentação técnica foi atualizada no GitPages.
 
-### Nível 2 — Done de Negócio (finalizado)
+### Nível 2 — Done de Negócio (homologado e aprovado conforme os requisitos de negócio)
 
 - [ ] O UAT (Teste de Aceitação do Usuário) foi realizado com a cliente, com o valor entregue pela funcionalidade claramente demonstrado.
+
+### Nível 3 - Done Definitivo (validado, aprovado e oficialmente entregue)
+
+- [ ] O código foi integrado à branch principal sem conflitos, com o pipeline de build validado e deploy executado com sucesso no ambiente de Homologação/Staging.
