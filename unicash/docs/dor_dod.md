@@ -11,6 +11,7 @@ Para que um caso de uso seja movido para **Pronto para Desenvolvimento**, todos 
 - [ ] O ator e o objetivo de negócio estão descritos e são compreendidos de forma inequívoca por toda a equipe.
 - [ ] Todas as regras de negócio relacionadas ao item estão catalogadas e vinculadas ao requisito correspondente.
 - [ ] As dependências técnicas (APIs, integrações e banco de dados) e os impedimentos de infraestrutura (acessos e ambientes) foram identificados e não bloqueiam o início do desenvolvimento.
+- [ ] A toda a equipe conseguiu compreender o que está escrito no caso de uso. Caso alguém não tenha compreendido, foi adicionado uma justificativa.
 
 ### Dimensão de Estimabilidade
 
@@ -18,14 +19,10 @@ Para que um caso de uso seja movido para **Pronto para Desenvolvimento**, todos 
 
 ### Dimensão de Escopo
 
-O item passa no checklist **INVEST**. Caso não passe em algum critério, há uma justificativa registrada.
-
-- [ ] **Independente:** o item pode ser desenvolvido, testado e entregue sem depender de outro item ainda não concluído.
-- [ ] **Negociável:** a descrição não é um contrato fechado; os detalhes de solução podem ser discutidos entre equipe e cliente até a entrega.
-- [ ] **Valiosa:** entrega valor claro e perceptível para a cliente ou para o negócio.
-- [ ] **Estimável:** a equipe possui informação suficiente para estimar o esforço com razoável confiança.
-- [ ] **Pequena (Small):** o item é pequeno o bastante para ser planejado e concluído dentro de uma única iteração.
-- [ ] **Testável:** possui critérios de aceitação claros, que permitem verificar objetivamente se foi implementado corretamente.
+- [ ] A descrição do caso de uso não é um contrato fechado; os detalhes de solução podem ser discutidos entre equipe e cliente até a entrega.
+- [ ] O caso de uso entrega valor claro e perceptível para a cliente ou para o negócio.
+- [ ] A equipe possui informação suficiente para estimar o esforço com razoável confiança.
+- [ ] O caso de uso possui checklists técnicos claros, que permitem a implementação paralela (duas frentes diferentes) e verificar objetivamente se foi implementado corretamente.
 
 ## DoD (Definition of Done) — Filtro de Saída
 
