@@ -117,11 +117,10 @@ O criador do grupo começa como Administrador, e o grupo deve ter sempre ao meno
 
 | Consumo do limite da categoria | Indicador |
 |---|---|
-| Abaixo de 80% | Verde |
-| De 80% a 100% | Amarelo |
+| Abaixo de 50% | Verde |
+| De 50% a 80% | Amarelo |
+| De 80% a 90% | Laranja |
 | Acima de 100% | Vermelho |
-
-*Pendente de validação com a cliente.*
 
 ### RN03: Disparo dos alertas de limite (RF37 e RF38)
 
@@ -153,6 +152,87 @@ A base local é a cópia principal dos dados; o servidor serve à sincronizaçã
 ### RN07: Resolução de conflitos
 
 Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo vale a mais recente por ordem lógica das alterações, não só pela hora do aparelho; em edição contra exclusão, a exclusão prevalece. Saldo, totais, progresso, pontos e selos são sempre recalculados a partir dos lançamentos, nunca sincronizados como contadores.
+
+### RN08: Campos obrigatórios de receita e despesa
+
+- **Campos obrigatórios:** data, título e valor são obrigatórios nos formulários de receita e despesa; descrição é opcional.
+- **Validação:** os campos são validados no cliente e no servidor (RNF04).
+- **Rejeição:** a rejeição informa o motivo por campo (RNF14).
+
+### RN09: Valor monetário
+
+- **Valor permitido:** maior que zero, com no máximo duas casas decimais e até R$ 999.999.999,99.
+- **Tipo de lançamento:** receita ou despesa é definida pelo tipo do lançamento, nunca pelo sinal do valor.
+- **Cálculos:** utilizam tipo decimal com arredondamento explícito (RNF07).
+
+### RN10: Tamanho dos textos
+
+- **Título:** de 1 a 80 caracteres após remover espaços das pontas; não pode conter apenas espaços.
+- **Descrição:** opcional, com até 255 caracteres.
+
+### RN11: Exclusão com confirmação
+
+- **Confirmação:** exige confirmação explícita do usuário.
+- **Recálculo:** após a exclusão, totais, saldo, indicadores e alertas são recalculados na mesma operação.
+- **Integridade:** falha em qualquer etapa não deixa o registro nem o saldo alterado (RNF05).
+- **Definitividade:** a exclusão é definitiva; a recuperação de registros excluídos fica fora do escopo atual.
+
+
+### RN12: Datas e períodos
+
+- **Consulta padrão:** sem filtro, mostra os registros do mês corrente.
+- **Filtros:** permite consulta por data única ou período, com data inicial menor ou igual à data final.
+- **Ordenação:** da data mais recente para a mais antiga.
+- **Datas futuras:** são aceitas e contabilizadas no mês correspondente à própria data do lançamento.
+
+### RN13: Categorias
+
+- **Categorias padrão:** Casa, Alimentação, Mobilidade, Estudos, Saúde, Lazer e Reserva financeira.
+- **Proteção:** as categorias padrão não podem ser editadas nem excluídas.
+- **Categorias próprias:** o usuário pode criar e editar categorias próprias, com nome único por usuário, sem diferenciar letras maiúsculas de minúsculas.
+- **Categoria opcional:** um lançamento pode não possuir categoria. Nesse caso, aparece como “Sem categoria” e não entra no cálculo dos limites por categoria.
+- **Classificação de despesas:** despesas podem ser classificadas como fixas ou variáveis e essenciais ou não essenciais; esses campos são opcionais.
+
+
+### RN14: Limite por categoria e renda
+
+- **Limite opcional:** definido por categoria em valor monetário (R$) ou percentual da renda mensal.
+- **Renda mensal:** soma das receitas com data no mês consultado.
+- **Consumo:** corresponde às despesas da categoria no mês divididas pelo limite efetivo.
+- **Categorias sem limite:** não geram alertas nem indicadores de consumo.
+- **Percentuais:** os percentuais de 50%, 70% e 90% citados na entrevista não são aplicados. Valem os percentuais definidos na RN02 e na RN03.
+
+
+### RN15: Saldo mensal
+
+- **Cálculo:** saldo do mês = saldo anterior + total de receitas do mês − total de despesas do mês.
+
+### RN16: Saldo anterior
+
+- **Cálculo automático:** corresponde ao saldo final do mês anterior.
+- **Saldo inicial:** o usuário pode informar um saldo inicial, inclusive negativo, com mês de referência.
+- **Referência:** o saldo informado corresponde ao saldo no início do mês de referência.
+- **Meses anteriores:** não possuem saldo anterior calculado, e os lançamentos anteriores ao mês de referência não entram no cálculo.
+- **Recálculo:** alterar o saldo inicial recalcula os saldos dos meses seguintes.
+
+### RN17: Cores do saldo
+
+| Condição do saldo | Cor |
+|---|---|
+| Maior ou igual a 20% das receitas do mês, ou positivo sem receitas | Verde |
+| Positivo e inferior a 20% das receitas do mês | Amarelo |
+| Igual a zero | Laranja |
+| Negativo | Vermelho |
+
+As faixas e cores devem ser parametrizáveis por configuração.
+
+### RN18: Alerta de saldo negativo
+
+- **Disparo:** ocorre quando o saldo mensal passa de maior ou igual a zero para negativo.
+- **Frequência:** no máximo uma vez por mês para cada transição de saldo não negativo para negativo. Se o saldo voltar a zero ou a um valor positivo e ficar negativo novamente, um novo alerta será emitido.
+- **Conteúdo:** a mensagem apresenta apenas valores monetários, sem termos de julgamento.
+- **Preferências:** como o RF58 não prevê esse tipo de alerta nas preferências, ele permanece sempre ativo até validação.
+
 
 ## Pontos para validação
 
