@@ -120,7 +120,7 @@ O criador do grupo começa como Administrador, e o grupo deve ter sempre ao meno
 | Abaixo de 50% | Verde |
 | De 50% a 80% | Amarelo |
 | De 80% a 90% | Laranja |
-| Acima de 100% | Vermelho |
+| Acima de 90% | Vermelho |
 
 ### RN03: Disparo dos alertas de limite (RF37 e RF38)
 
