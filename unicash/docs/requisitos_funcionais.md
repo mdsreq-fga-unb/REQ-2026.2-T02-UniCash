@@ -205,7 +205,7 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 
 ### RN15: Saldo mensal
 
-- **Cálculo:** saldo do mês = saldo anterior + total de receitas do mês − total de despesas do mês.
+- **Cálculo:** saldo do mês = total de receitas do mês − total de despesas do mês.
 
 ### RN16: Saldo anterior
 
