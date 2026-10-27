@@ -233,6 +233,13 @@ As faixas e cores devem ser parametrizáveis por configuração.
 - **Conteúdo:** a mensagem apresenta apenas valores monetários, sem termos de julgamento.
 - **Preferências:** como o RF58 não prevê esse tipo de alerta nas preferências, ele permanece sempre ativo até validação.
 
+### RN19: Recorrência de receitas e despesas
+
+- **Opção de recorrência:** o usuário pode definir uma recorrência ao cadastrar ou editar uma receita ou despesa.
+- **Configuração:** quando habilitada, a recorrência deve permitir definir a periodicidade do lançamento e, opcionalmente, uma data de término.
+- **Ausência de recorrência:** quando não configurada, a receita ou despesa é considerada um lançamento único.
+- **Geração de lançamentos:** os lançamentos recorrentes devem ser gerados conforme a periodicidade definida, respeitando a data de início e, quando informada, a data de término.
+- **Integridade:** cada ocorrência deve ser registrada individualmente, para que os totais, saldos, indicadores e alertas sejam calculados corretamente em cada período.
 
 ## Pontos para validação
 
