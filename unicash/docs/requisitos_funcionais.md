@@ -40,6 +40,9 @@ A tabela está ordenada por Característica de Produto.
 | **RF60** | **Extrair dados de comprovante:** Ler a imagem do comprovante indicado no RF50 e sugerir valor, data e descrição da despesa para confirmação ou correção pelo usuário. | CP1 |
 | **RF19** | **Criar categoria de despesas:** Permitir cadastrar uma categoria para classificar despesas e, quando aplicável, definir seu limite de gasto. | CP2 |
 | **RF47** | **Classificar lançamentos importados:** Sugerir a categoria de cada registro importado a partir de palavras-chave da descrição associadas às categorias do usuário e de lançamentos anteriores com a mesma descrição, permitindo revisão antes da confirmação; quando não houver correspondência, deixar o registro sem categoria sugerida. | CP2 |
+| **RF65** | **Consultar categorias:** Exibir ao usuário a lista de categorias disponíveis (padrão e próprias), identificando as categorias padrão e o limite de gasto de cada uma, quando definido, com a opção de ver os lançamentos classificados em cada categoria. | CP2 |
+| **RF66** | **Editar categoria:** Permitir alterar o nome e o limite de gasto de uma categoria própria, validar a unicidade do nome (RN13), salvar as mudanças e recalcular os indicadores e alertas de limite afetados (RF37, RF38 e RF39). As categorias padrão não podem ser editadas (RN13). | CP2 |
+| **RF67** | **Excluir categoria:** Permitir remover uma categoria própria mediante confirmação (RN11), mantendo os lançamentos associados, que passam a constar como “Sem categoria” (RN13), e atualizar os indicadores e alertas dependentes. As categorias padrão não podem ser excluídas (RN13). | CP2 |
 | **RF12** | **Criar meta financeira:** Permitir definir objetivo, valor alvo, prazo e tipo de meta de gasto ou investimento. | CP3 |
 | **RF13** | **Editar meta financeira:** Permitir alterar os parâmetros de uma meta existente e salvar as mudanças após a validação. | CP3 |
 | **RF14** | **Excluir meta financeira:** Permitir remover uma meta mediante confirmação, sem excluir os lançamentos financeiros associados. | CP3 |
@@ -192,6 +195,8 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 - **Categorias próprias:** o usuário pode criar e editar categorias próprias, com nome único por usuário, sem diferenciar letras maiúsculas de minúsculas.
 - **Categoria opcional:** um lançamento pode não possuir categoria. Nesse caso, aparece como “Sem categoria” e não entra no cálculo dos limites por categoria.
 - **Classificação de despesas:** despesas podem ser classificadas como fixas ou variáveis e essenciais ou não essenciais; esses campos são opcionais.
+- **Exclusão de categorias próprias:** o usuário pode excluir categorias próprias mediante confirmação (RN11). Os lançamentos associados não são excluídos e passam a aparecer como “Sem categoria”.
+- **Efeito na edição e exclusão:** ao editar o nome ou o limite, ou ao excluir uma categoria, os indicadores de consumo e os alertas de limite são recalculados na mesma operação (RN14).
 
 
 ### RN14: Limite por categoria e renda
