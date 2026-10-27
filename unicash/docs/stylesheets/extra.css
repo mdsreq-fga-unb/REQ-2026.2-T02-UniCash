@@ -498,3 +498,9 @@
     transition: none;
   }
 }
+
+body:has(.pagina-casos-de-uso)
+.md-sidebar--secondary .md-nav--secondary
+.md-nav__list .md-nav__list {
+    display: none !important;
+}
