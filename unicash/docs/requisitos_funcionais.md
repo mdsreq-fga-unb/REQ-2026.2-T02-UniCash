@@ -222,14 +222,16 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 
 ### RN17: Cores do saldo
 
-| Condição do saldo | Cor |
+| Saldo em relação às receitas do mês | Cor |
 |---|---|
-| Maior ou igual a 20% das receitas do mês, ou positivo sem receitas | Verde |
-| Positivo e inferior a 20% das receitas do mês | Amarelo |
-| Igual a zero | Laranja |
-| Negativo | Vermelho |
+| Acima de 90% | Verde |
+| Acima de 80% até 90% | Amarelo |
+| De 50% a 80% | Laranja |
+| Abaixo de 50% | Vermelho |
 
-As faixas e cores devem ser parametrizáveis por configuração.
+O indicador é calculado pela proporção do saldo mensal em relação ao total de receitas do mês. Quando não houver receitas no mês, o indicador deverá seguir uma regra específica de configuração.
+
+As faixas percentuais e as cores dos indicadores devem ser definidas na configuração do sistema, seguindo os valores estabelecidos nesta regra de negócio.
 
 ### RN18: Alerta de saldo negativo
 
