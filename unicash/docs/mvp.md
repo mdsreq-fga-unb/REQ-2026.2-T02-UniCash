@@ -6,7 +6,7 @@ Este documento apresenta a especificação atualizada do **Minimum Viable Produc
 
 ## 1. Priorização do backlog e definição do MVP
 
-A priorização do MVP foi realizada com base na planilha **planilha_priorizacao_unicash**, utilizando uma matriz 4 × 4 de **valor de negócio × esforço técnico**. Cada requisito foi avaliado pelas participantes em uma escala de 1 a 4:
+A priorização original ([R05 — 25/09/2026](registros.md#r05-priorizacao-do-mvp-com-a-cliente-e-representante-25092026)) usou a [planilha de priorização do UniCash](https://docs.google.com/spreadsheets/d/1uoo81vAhU673u4y6JfPPllNKDKD-qf1iN6xD9fmMXCw/edit?usp=sharing). As abas **valor**, **esforço** e **resumo** contêm RF01 a RF56. O gráfico desta página cruza as médias em uma matriz 4 × 4 de valor de negócio × esforço técnico. As notas de valor têm a seguinte interpretação:
 
 | Nota | Interpretação do valor de negócio |
 | :--- | :--- |
@@ -15,19 +15,32 @@ A priorização do MVP foi realizada com base na planilha **planilha_priorizacao
 | **2** | Could have: oportunidade de evolução, sem impacto no funcionamento básico |
 | **1** | Won't have now: não priorizado para a versão atual |
 
-Para obter o valor de negócio, foi calculada a média das três avaliações recebidas por cada requisito. O esforço técnico foi consolidado a partir da média dos três critérios avaliados por cada integrante e, posteriormente, da média entre as seis avaliações consideradas na planilha. Assim, a decisão não dependeu de uma única opinião e permitiu comparar o benefício esperado com a complexidade de implementação.
+As notas individuais de valor orientam a priorização MoSCoW. A média e a célula da matriz apoiam a seleção, mas não atribuem sozinhas uma decisão final de inclusão: dependências e decisões de escopo também precisam ser registradas.
 
-### 1.1 Métricas e fórmulas de cálculo
+### 1.1 Cálculo das médias
 
-As métricas foram calculadas por requisito, mantendo as casas decimais durante os cálculos e arredondando apenas para a classificação na matriz:
+As notas são calculadas em três passos:
 
-* **Média de valor de negócio (MVN):** soma das notas de valor atribuídas pelas três avaliadoras dividida por três. Para o requisito $RF_i$, a fórmula é $MVN_i = (V_{i1} + V_{i2} + V_{i3}) / 3$.
-* **Média de esforço por avaliador:** cada integrante avaliou três critérios de esforço técnico. Para a avaliadora $j$, a média é $E_{ij} = (C_{ij1} + C_{ij2} + C_{ij3}) / 3$.
-* **Média de esforço técnico (MET):** média das seis médias individuais de esforço: $MET_i = (E_{i1} + E_{i2} + E_{i3} + E_{i4} + E_{i5} + E_{i6} + E_{i7}) / 7$.
+1. **Valor de negócio:** somam-se as notas de Leinad, Alana e Maria e divide-se por três.
+2. **Esforço de cada integrante:** somam-se as notas de esforço, complexidade e lacuna de capacidade e divide-se por três. Cada critério recebe uma nota de 1 a 4; quanto maior a nota, maior a dificuldade.
+3. **Esforço técnico final:** calcula-se a média dos resultados de Natan, Dante, Erick, Evellyn e Caio, dividindo a soma por cinco. Todos têm o mesmo peso.
 
-As médias contínuas foram convertidas para as faixas da matriz pelo valor mais próximo na escala de 1 a 4. Para o valor de negócio, as faixas representam: 1,0–1,49 = **1 — baixo**; 1,5–2,49 = **2 — moderado**; 2,5–3,49 = **3 — alto**; e 3,5–4,0 = **4 — muito alto**. Para o esforço técnico, as mesmas faixas representam, respectivamente, esforço **baixo**, **moderado**, **alto** e **muito alto**.
+Os cinco integrantes preencheram os três critérios de RF01 a RF56. Bruno e Leonardo estão sem notas e não entram no cálculo; suas respostas ausentes não são consideradas zero.
 
-O quadrante foi obtido pelo cruzamento entre a faixa de valor e a faixa de esforço. Em seguida, a equipe analisou dependências, riscos e necessidade de funcionamento do produto: requisitos de alto valor e baixo ou moderado esforço foram priorizados para o MVP; requisitos de valor moderado ou esforço alto foram mantidos como evolução futura. A matriz abaixo apresenta a classificação calculada para todos os requisitos da tabela consolidada.
+Por exemplo, RF01 recebeu notas de valor **4, 4 e 2**, resultando em uma média de **3,33**. A média de esforço dos cinco integrantes é **1,93**. Isso coloca o requisito na faixa de valor alto e esforço moderado.
+
+As médias completas são usadas na classificação. Os números apresentados no gráfico são arredondados para duas casas decimais.
+
+| Média | Faixa | Valor de negócio | Esforço técnico |
+| :--- | :--- | :--- | :--- |
+| De 1 até menos de 1,5 | 1 | Baixo | Baixo |
+| De 1,5 até menos de 2,5 | 2 | Moderado | Moderado |
+| De 2,5 até menos de 3,5 | 3 | Alto | Alto |
+| De 3,5 a 4 | 4 | Muito alto | Muito alto |
+
+A aba **resumo** da planilha inclui os valores exatos de 1,5 e 2,5 nas faixas anteriores de esforço, enquanto o gráfico segue a tabela acima. Nenhum requisito tem esforço exatamente nesses limites, por isso a diferença não altera a classificação atual. Esse critério precisa ser unificado antes de novas avaliações.
+
+A planilha cobre apenas RF01 a RF56; RF57 a RF64 ainda não têm notas nessa priorização.
 
 ### 1.2 Critério de decisão
 
@@ -63,7 +76,7 @@ O quadrante foi obtido pelo cruzamento entre a faixa de valor e a faixa de esfor
     ["RF49","Consolidar extratos de contas",2,3.466666667],["RF50","Registrar despesa por comprovante",1,3.2],
     ["RF51","Definir papel de membro",3,2.133333333],["RF52","Consolidar dados do grupo",2,1.933333333],
     ["RF53","Comparar gastos do grupo",2,2.066666667],["RF54","Importar formatos de extrato",1,3.133333333],
-    ["RF55","Apresentar tutorial inicial",4,2.066666667],["RF56","Avisar manutenção programada",4,2.6]
+    ["RF55","Apresentar tutorial inicial",4,2.066666667],["RF56","Avisar manutenção programada",4,2.733333333]
   ];
   var fmt = function (n) { return n.toFixed(2).replace(".", ","); };
   // cor por célula [valor][esforço]
