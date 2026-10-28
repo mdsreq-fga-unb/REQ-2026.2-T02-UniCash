@@ -121,18 +121,18 @@ O criador do grupo começa como Administrador, e o grupo deve ter sempre ao meno
 | Consumo do limite da categoria | Indicador |
 |---|---|
 | Abaixo de 50% | Verde |
-| De 50% a 80% | Amarelo |
+| De 50% a 79% | Amarelo |
 | De 80% a 90% | Laranja |
 | Acima de 90% | Vermelho |
 
 ### RN03: Disparo dos alertas de limite (RF37 e RF38)
-
+ 
 Os alertas se aplicam a categorias com limite e a metas de gasto, usando os mesmos percentuais da RN02:
-
+ 
 - **Aproximação (RF37):** o gasto atinge 80% do limite da categoria ou do valor alvo da meta de gasto;
-- **Ultrapassagem (RF38):** o gasto supera 100% do limite da categoria ou do valor alvo da meta de gasto.
-
-Cada alerta é emitido uma vez por período em que a condição ocorre. *Pendente de validação com a cliente.*
+- **Ultrapassagem (RF38):** o gasto supera 100% do limite da categoria ou do valor alvo da meta de gasto;
+- **Salto entre faixas:** se uma única operação fizer o gasto passar de abaixo de 80% para acima de 100%, emite-se apenas um alerta (o de ultrapassagem).
+Cada alerta é emitido uma vez por mês em que a condição ocorre.
 
 ### RN04: Política de retenção na exclusão de perfil (RF05)
 
@@ -182,43 +182,43 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 
 
 ### RN12: Datas e períodos
-
+ 
 - **Consulta padrão:** sem filtro, mostra os registros do mês corrente.
 - **Filtros:** permite consulta por data única ou período, com data inicial menor ou igual à data final.
 - **Ordenação:** da data mais recente para a mais antiga.
 - **Datas futuras:** são aceitas e contabilizadas no mês correspondente à própria data do lançamento.
+- **Gráfico de evolução mensal:** mostra no máximo 6 meses.
 
 ### RN13: Categorias
-
+ 
 - **Categorias padrão:** Casa, Alimentação, Mobilidade, Estudos, Saúde, Lazer e Reserva financeira.
-- **Proteção:** as categorias padrão não podem ser editadas nem excluídas.
-- **Categorias próprias:** o usuário pode criar e editar categorias próprias, com nome único por usuário, sem diferenciar letras maiúsculas de minúsculas.
-- **Categoria opcional:** um lançamento pode não possuir categoria. Nesse caso, aparece como “Sem categoria” e não entra no cálculo dos limites por categoria.
+- **Proteção:** as categorias padrão não podem ser renomeadas nem excluídas; é permitido definir e alterar o limite delas (RN14).
+- **Categorias próprias:** o usuário pode criar e editar categorias próprias, com nome único por usuário, sem diferenciar letras maiúsculas de minúsculas, e com no máximo 30 caracteres.
+- **Categoria opcional:** uma despesa pode não possuir categoria. Nesse caso, aparece como “Sem categoria” e não entra no cálculo dos limites por categoria. Receitas não possuem categoria.
 - **Classificação de despesas:** despesas podem ser classificadas como fixas ou variáveis e essenciais ou não essenciais; esses campos são opcionais.
-- **Exclusão de categorias próprias:** o usuário pode excluir categorias próprias mediante confirmação (RN11). Os lançamentos associados não são excluídos e passam a aparecer como “Sem categoria”.
+- **Exclusão de categorias próprias:** o usuário pode excluir categorias próprias mediante confirmação (RN11). Os lançamentos associados não são excluídos e passam a aparecer como “Sem categoria”. A categoria excluída perde todo o seu histórico (limite, indicadores e alertas); criar depois uma categoria com o mesmo nome não recupera esse histórico.
 - **Efeito na edição e exclusão:** ao editar o nome ou o limite, ou ao excluir uma categoria, os indicadores de consumo e os alertas de limite são recalculados na mesma operação (RN14).
 
 
 ### RN14: Limite por categoria e renda
-
-- **Limite opcional:** definido por categoria em valor monetário (R$) ou percentual da renda mensal.
+ 
+- **Limite opcional:** definido por categoria, inclusive nas categorias padrão, em valor monetário (R$) ou percentual da renda mensal.
 - **Renda mensal:** soma das receitas com data no mês consultado.
 - **Consumo:** corresponde às despesas da categoria no mês divididas pelo limite efetivo.
 - **Categorias sem limite:** não geram alertas nem indicadores de consumo.
 - **Percentuais:** os percentuais de 50%, 70% e 90% citados na entrevista não são aplicados. Valem os percentuais definidos na RN02 e na RN03.
 
-
 ### RN15: Saldo mensal
-
+ 
 - **Cálculo:** saldo do mês = total de receitas do mês − total de despesas do mês.
+- **Saldo anterior:** não entra no cálculo do saldo do mês.
 
 ### RN16: Saldo anterior
-
-- **Cálculo automático:** corresponde ao saldo final do mês anterior.
+ 
+- **Cálculo automático:** corresponde ao saldo do mês anterior (RN15). Sem dado disponível, o sistema informa que não há dados.
 - **Saldo inicial:** o usuário pode informar um saldo inicial, inclusive negativo, com mês de referência.
 - **Referência:** o saldo informado corresponde ao saldo no início do mês de referência.
 - **Meses anteriores:** não possuem saldo anterior calculado, e os lançamentos anteriores ao mês de referência não entram no cálculo.
-- **Recálculo:** alterar o saldo inicial recalcula os saldos dos meses seguintes.
 
 ### RN17: Cores do saldo
 
@@ -228,9 +228,9 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 | Acima de 80% até 90% | Amarelo |
 | De 50% a 80% | Laranja |
 | Abaixo de 50% | Vermelho |
-
-O indicador é calculado pela proporção do saldo mensal em relação ao total de receitas do mês. Quando não houver receitas no mês, o indicador deverá seguir uma regra específica de configuração.
-
+ 
+O indicador é calculado pela proporção do saldo mensal em relação ao total de receitas do mês. Quando não houver receitas no mês, o indicador é preto.
+ 
 As faixas percentuais e as cores dos indicadores devem ser definidas na configuração do sistema, seguindo os valores estabelecidos nesta regra de negócio.
 
 ### RN18: Alerta de saldo negativo
@@ -243,10 +243,16 @@ As faixas percentuais e as cores dos indicadores devem ser definidas na configur
 ### RN19: Recorrência de receitas e despesas
 
 - **Opção de recorrência:** o usuário pode definir uma recorrência ao cadastrar ou editar uma receita ou despesa.
-- **Configuração:** quando habilitada, a recorrência deve permitir definir a periodicidade do lançamento e, opcionalmente, uma data de término.
+- **Configuração:** quando habilitada, a recorrência deve permitir definir a periodicidade do lançamento e, opcionalmente, uma data de término. Ao indicar a recorrência, o sistema abre um formulário para informar o intervalo (um número) e a unidade (dias, meses ou anos).
 - **Ausência de recorrência:** quando não configurada, a receita ou despesa é considerada um lançamento único.
 - **Geração de lançamentos:** os lançamentos recorrentes devem ser gerados conforme a periodicidade definida, respeitando a data de início e, quando informada, a data de término.
 - **Integridade:** cada ocorrência deve ser registrada individualmente, para que os totais, saldos, indicadores e alertas sejam calculados corretamente em cada período.
+- **Edição de recorrência**: quando solicitada a edição de uma despesa ou receita, deve-se solicitar se a edição ou exclusão será aplicada a todos os lançamentos registrar, todos os lançamentos futuros ou apenas ao selecioando.
+
+### RN20: Edição de receitas e despesas 
+ 
+- **Campos editáveis:** na edição de uma receita ou despesa, todos os campos do formulário podem ser alterados.
+- **Recálculo:** após a edição, totais, saldo, indicadores e alertas são recalculados na mesma operação (RN07, RN11).
 
 ## Pontos para validação
 
