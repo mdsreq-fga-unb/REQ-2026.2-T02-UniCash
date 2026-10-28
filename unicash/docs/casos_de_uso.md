@@ -73,5 +73,107 @@
 - **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN19, RN20.
 ----
 
+## UC02 - Gerenciar despesas e categorias
+ 
+- **Ator principal:** Usuário.
+- **Valor:** registrar e classificar os gastos, base de todos os totais, limites e alertas.
+- **Requisitos funcionais:** RF15, RF16, RF17, RF18, RF19, RF65, RF66, RF67.
+ 
+### Pré-condições
+ 
+- A base local está disponível (RN06).
+- As categorias padrão existem: Casa, Alimentação, Mobilidade, Estudos, Saúde, Lazer e Reserva financeira (RN13).
+- Para editar ou excluir uma despesa, existe ao menos uma despesa registrada.
+- Para renomear ou excluir uma categoria, existe ao menos uma categoria própria. As padrão não podem ser renomeadas nem excluídas, mas permitem definir limite (RN13, RN14).
+### Fluxo principal
+ 
+1. O usuário acessa a área de despesas.
+2. O sistema lista as despesas do mês corrente, da mais recente para a mais antiga (RN12), em tabela com data, título, valor e categoria.
+3. O usuário escolhe uma operação: **registrar** (A), **filtrar ou detalhar** (B), **editar** (C), **excluir** (D) ou **gerenciar categorias** (E).
+#### A - Registrar despesa (RF15)
+ 
+1. O usuário aciona "Nova despesa".
+2. O sistema apresenta o formulário com valor, data, título, descrição (opcional), categoria (opcional) e classificações opcionais (fixa ou variável, essencial ou não essencial, RN13) e a opção de recorrência. Se o usuário indica recorrência, o sistema abre um formulário para informar o intervalo (um número) e a unidade (dias, meses ou anos) e, opcionalmente, a data de término (RN19).
+3. O usuário preenche os campos e solicita o registro.
+4. O sistema valida no cliente e no servidor (RN08, RN09, RN10).
+5. O sistema persiste a despesa localmente e só então confirma (RNF35). Se houver recorrência, as ocorrências são geradas conforme a periodicidade e cada uma é registrada individualmente (RN19).
+6. O sistema recalcula totais, saldo, indicadores de limite e alertas afetados (UC04 e UC05).
+7. Se houver conexão, o sistema sincroniza a despesa.
+#### B - Filtrar e detalhar (RF16)
+ 
+1. O usuário filtra por data única, período e/ou categoria.
+2. O sistema valida o filtro e mostra os resultados ordenados (RN12).
+3. O usuário seleciona uma despesa e o sistema exibe seus detalhes.
+#### C - Editar despesa (RF17)
+ 
+1. O usuário seleciona a despesa e aciona "Editar".
+2. O sistema apresenta o formulário preenchido; o usuário altera os campos, qualquer um deles (RN20), e salva.
+3. O sistema valida (RN08, RN09, RN10), persiste localmente e recalcula saldo, totais, limites e alertas dos meses e categorias de origem e destino (RN07, RN12).
+4. Se houver conexão, sincroniza; o sistema confirma a edição.
+#### D - Excluir despesa (RF18)
+ 
+1. O usuário seleciona a despesa e aciona "Excluir".
+2. O sistema solicita confirmação explícita (RN11); o usuário confirma.
+3. O sistema exclui e recalcula saldo, totais, indicadores e alertas na mesma operação (RN11).
+4. Se houver conexão, sincroniza; o sistema informa a exclusão, que é definitiva.
+#### E - Gerenciar categorias (RF19, RF65, RF66, RF67)
+ 
+**E1 - Consultar categorias (RF65)**
+ 
+1. O usuário acessa a lista de categorias.
+2. O sistema exibe as categorias padrão e próprias, identificando as padrão e mostrando o limite de gasto de cada uma, quando definido.
+3. O usuário pode abrir uma categoria para ver os lançamentos classificados nela; o sistema exibe a consulta de despesas já filtrada por essa categoria (fluxo B).
+**E2 - Criar categoria própria (RF19)**
+ 
+1. O usuário aciona "Nova categoria" e informa o nome e, opcionalmente, um limite de gasto (valor em R$ ou percentual da renda mensal, RN14).
+2. O sistema valida a unicidade do nome por usuário, sem diferenciar maiúsculas e minúsculas, e o tamanho máximo de 30 caracteres (RN13), persiste e confirma.
+**E3 - Editar categoria (RF66)**
+ 
+1. O usuário seleciona uma categoria e altera o limite; em categoria própria, também o nome. Em categoria padrão, só o limite pode ser alterado (RN13, RN14).
+2. O sistema valida o nome, se alterado (unicidade e máximo de 30 caracteres, RN13), e o limite, e persiste a alteração.
+3. O sistema recalcula, na mesma operação, os indicadores de consumo e os alertas de limite afetados (RN14, UC05).
+4. O sistema confirma a edição.
+**E4 - Excluir categoria própria (RF67)**
+ 
+1. O usuário seleciona uma categoria própria e aciona "Excluir".
+2. O sistema solicita confirmação explícita (RN11) e informa que as despesas da categoria serão mantidas como "Sem categoria" e que o histórico da categoria (limite e alertas) será perdido (RN13).
+3. O usuário confirma.
+4. O sistema exclui a categoria com todo o seu histórico (limite, indicadores e alertas); as despesas associadas não são excluídas e passam a constar como "Sem categoria" (RN13).
+5. O sistema recalcula, na mesma operação, os indicadores e alertas dependentes (RN13, RN14).
+6. Se houver conexão, sincroniza; o sistema informa a exclusão, que é definitiva (RN11).
+### Fluxos alternativos
+ 
+- **FA01 - Sem categoria:** a despesa é registrada como "Sem categoria" e fica fora dos limites por categoria (RN13).
+- **FA02 - Operação offline:** grava localmente e fica pendente de sincronização (RN06).
+- **FA03 - Data futura:** contabilizada no mês da própria data (RN12).
+- **FA04 - Filtro por categoria sem resultados:** o sistema exibe "Nenhum registro" e sugere alterar o filtro.
+- **FA05 - Cancelamento:** edição descartada ou exclusão não confirmada não alteram nada.
+- **FA06 - Mudança de categoria na edição:** o sistema recalcula o consumo da categoria antiga e da nova.
+- **FA07 - Categoria sem lançamentos:** o sistema mostra a categoria com zero lançamentos e a consulta filtrada exibe "Nenhum registro".
+- **FA08 - Exclusão de categoria com lançamentos:** as despesas continuam registradas e passam a aparecer como "Sem categoria", fora dos limites por categoria (RN13).
+- **FA09 - Categoria sem limite:** a edição ou exclusão não gera recálculo de indicadores nem de alertas.
+- **FA10 - Cancelamento de edição ou de exclusão de categoria:** nada é alterado.
+- **FA11 - Despesa recorrente:** o sistema gera as ocorrências conforme a periodicidade informada, respeitando a data de início e, quando informada, a de término; cada ocorrência entra individualmente nos totais, saldos, limites e alertas (RN19).
+### Exceções
+ 
+- **EX01 - Campos inválidos:** rejeição com motivo por campo (RN08, RNF04, RNF14).
+- **EX02 - Nome de categoria duplicado:** o sistema rejeita a criação ou edição.
+- **EX03 - Categoria padrão:** o sistema impede renomear ou excluir categorias padrão; só o limite pode ser alterado (RN13, RN14, RF66, RF67).
+- **EX04 - Limite inválido:** valor em R$ fora do permitido pela RN09 ou formato incorreto; o sistema informa o motivo.
+- **EX05 - Falha em qualquer etapa de gravação ou recálculo:** nenhuma alteração parcial permanece (RN11, RNF05).
+- **EX06 - Falha na sincronização:** o registro permanece local e pendente.
+- **EX07 - Conflito de sincronização:** aplica-se a RN07; a exclusão prevalece sobre a edição.
+- **EX08 - Despesa inexistente ou já excluída:** o sistema informa que o registro não está disponível.
+- **EX09 - Acesso a dados de outro usuário:** o sistema nega (RNF03).
+- **EX10 - Período inválido ou falha na leitura local:** o sistema informa o erro.
+- **EX11 - Categoria inexistente ou já excluída:** o sistema informa que o registro não está disponível.
+- **EX12 - Despesa registrada em outro dispositivo com categoria já excluída:** na sincronização a despesa é mantida e passa a constar como "Sem categoria" (RN07, RN13).
+- **EX13 - Falha ao editar ou excluir categoria:** nenhuma alteração parcial permanece, nem na categoria, nem nos indicadores e alertas (RN11, RNF05).
+- **EX14 - Nome de categoria inválido:** vazio ou com mais de 30 caracteres (RN13); o sistema informa o motivo.
+### Requisitos e regras associados
+ 
+- **Funcionais:** RF15, RF16, RF17, RF18, RF19, RF65, RF66, RF67. Relacionados: RF34, RF37, RF38, RF39, RF59, RF62.
+- **Não funcionais específicos:** RNF04, RNF05 , RNF06, RNF08, RNF16, RNF26, RNF27, RNF33, RNF35, RNF36.
+- **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN14, RN19, RN20.
 
 </div>
