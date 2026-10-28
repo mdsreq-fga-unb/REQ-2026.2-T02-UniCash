@@ -214,4 +214,56 @@
 - **Não funcionais específicos:** RNF07, RNF08, RNF29.
 - **Regras de negócio:** RN06, RN07, RN09, RN12.
 ---
+
+## UC04 — Gerenciar saldo mensal e saldo inicial
+ 
+- **Ator principal:** Usuário.
+- **Valor:** saber quanto dinheiro sobra em cada mês e corrigir o ponto de partida do cálculo.
+- **Requisitos funcionais:** RF34 (calcular saldo mensal), RF35 (exibir saldo do mês anterior e permitir definir o saldo inicial).
+ 
+### Pré-condições
+ 
+- O usuário abriu a área de resumo ou a de configurações financeiras.
+- Para o saldo do mês: existem lançamentos e/ou um saldo inicial.
+### Fluxo principal
+ 
+1. O usuário acessa o resumo financeiro.
+2. O sistema identifica o mês de referência (mês corrente por padrão).
+3. O sistema obtém o **saldo anterior** (RN16): o saldo do mês anterior (RN15) ou, no mês do saldo inicial, o valor informado; sem dado disponível, o sistema informa que não há dados.
+4. O sistema soma as receitas e as despesas do mês.
+5. O sistema calcula o saldo do mês: total de receitas − total de despesas (RN15); o saldo anterior não entra nesse cálculo.
+6. O sistema apresenta o saldo do mês, o saldo anterior como referência (RF35) e o indicador de cor com texto (RN17).
+7. O sistema verifica se o saldo passou de maior ou igual a zero para negativo e, se sim, emite o alerta de saldo negativo (RN18).
+#### Subfluxo — Definir ou alterar o saldo inicial
+ 
+1. O usuário acessa "Saldo inicial".
+2. O sistema mostra o saldo inicial atual, se existir.
+3. O usuário informa o valor, que pode ser negativo, e o mês de referência.
+4. O sistema valida o valor e o mês de referência (RN16).
+5. O sistema persiste o saldo inicial localmente, recalcula os saldos dos meses seguintes (RN16) e confirma.
+6. Se houver conexão, sincroniza.
+### Fluxos alternativos
+ 
+- **FA01 — Mês sem lançamentos:** o saldo do mês é R$ 0,00 e o saldo anterior continua exibido como referência (RN15).
+- **FA02 — Mês anterior ao mês de referência do saldo inicial:** o sistema informa que não há dados de saldo anterior e ignora lançamentos anteriores àquele mês (RN16).
+- **FA03 — Sem saldo inicial e sem mês anterior com dados:** o sistema informa que não há dados de saldo anterior (RN16).
+- **FA04 — Saldo inicial negativo:** o sistema aceita (RN16).
+- **FA05 — Alteração do saldo inicial:** substitui o valor anterior e recalcula os meses seguintes (RN16).
+- **FA06 — Consulta offline:** o saldo é calculado localmente (RN06).
+- **FA07 — Lançamento criado, editado ou excluído:** o saldo é recalculado (UC01, UC02).
+- **FA08 — Saldo volta a zero ou positivo e fica negativo de novo:** um novo alerta é emitido (RN18).
+- **FA09 — Mês sem receitas:** o indicador de cor é preto (RN17).
+- **FA10 — Preferências de notificação:** o alerta de saldo negativo permanece sempre ativo, pois o RF58 não o prevê, até validação (RN18).
+### Exceções
+ 
+- **EX01 — Valor ou mês de referência inválido:** o sistema rejeita e informa o motivo (RNF14).
+- **EX02 — Falha ao salvar o saldo inicial:** o sistema não confirma e nenhum saldo fica parcialmente atualizado (RNF05).
+- **EX03 — Falha de cálculo:** o sistema informa que não foi possível calcular o saldo.
+- **EX04 — Dados inconsistentes:** o sistema recalcula a partir dos lançamentos e do saldo inicial (RN07).
+- **EX05 — Falha ao emitir o alerta:** o sistema trata a falha sem corromper saldo nem lançamentos.
+### Requisitos e regras associados
+ 
+- **Funcionais:** RF34, RF35. Relacionados: RF07, RF15, RF11, RF17, RF18.
+- **Não funcionais específicos:** RNF05, RNF07, RNF08, RNF29, RNF35.
+- **Regras de negócio:** RN06, RN07, RN15, RN16, RN17, RN18.
 </div>
