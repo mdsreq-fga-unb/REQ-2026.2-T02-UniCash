@@ -56,6 +56,7 @@ A coluna **Aplica-se a** indica se o requisito vale para o sistema inteiro ou pa
 | **RNF35** | **Persistir localmente com durabilidade:** Confirmar a gravação na base local antes de informar sucesso e mantê-la após fechar o app ou reiniciar o dispositivo. Verificar com encerramento forçado durante a gravação. | Confiabilidade | RF07, RF09, RF10, RF15, RF17, RF18, RF21, RF32, RF33, RF50, RF59 |
 | **RNF36** | **Garantir convergência da sincronização:** Aplicar alterações de forma idempotente e independente da ordem; após sincronizar, as réplicas ficam iguais, sem perda nem duplicidade. Verificar com réplicas alterando dados em paralelo e sem conexão. | Confiabilidade | RF27, RF28, RF29, RF51, RF52, RF53, RF59, RF62 |
 | **RNF37** | **Publicar sob licença livre:** Disponibilizar o código-fonte sob licença aprovada pela OSI, com dependências de licenças compatíveis. | Implementação | Sistema |
+| **RNF38** | **Aplicar paleta de cores definida:** Usar a paleta “Tesouraria Teal” (#082F49,#0E7490,#22C55E,#BAE6FD, #F0FDFF) como base das cores da interface, definida em um único conjunto de variáveis de tema; nenhum componente deve usar cor fixa fora da paleta, exceto cores semânticas de alerta e estado acordadas com as clientes. |	Restrições de design | Sistema |
 
 **Códigos descontinuados** (não reutilizados):
 
