@@ -175,5 +175,43 @@
 - **Funcionais:** RF15, RF16, RF17, RF18, RF19, RF65, RF66, RF67. Relacionados: RF34, RF37, RF38, RF39, RF59, RF62.
 - **Não funcionais específicos:** RNF04, RNF05 , RNF06, RNF08, RNF16, RNF26, RNF27, RNF33, RNF35, RNF36.
 - **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN14, RN19, RN20.
+---
 
+## UC03 - Consultar resumo financeiro e evolução mensal
+ 
+- **Ator principal:** Usuário.
+- **Valor:** dar uma visão rápida de quanto entrou em cada dia e mês e de como os meses se comparam.
+- **Requisitos funcionais:** RF11.
+ 
+### Pré-condições
+ 
+- Existem dados locais disponíveis (lançamentos registrados).
+- O usuário abriu a área de resumo.
+### Fluxo principal
+ 
+1. O usuário acessa o resumo financeiro.
+2. O sistema assume o mês corrente como período padrão (RN12).
+3. O sistema calcula, a partir dos lançamentos, o total de receitas **por dia** e o total **do mês**, com base na data de cada lançamento (RF11).
+4. O sistema apresenta os totais do período selecionado.
+5. O sistema apresenta o gráfico de evolução mensal, com receitas e despesas por mês. O gráfico mostra no máximo 6 meses (RN12).
+6. O usuário seleciona outro mês, pelo seletor ou tocando em uma barra do gráfico.
+7. O sistema recalcula e apresenta os totais do mês escolhido.
+### Fluxos alternativos
+ 
+- **FA01 - Mês sem receitas:** o sistema apresenta total igual a zero.
+- **FA02 - Sem nenhum lançamento:** o sistema exibe estado vazio com orientação para registrar a primeira receita ou despesa.
+- **FA03 - Consulta offline:** o sistema calcula com os lançamentos locais (RN06).
+- **FA04 - Mês futuro:** o sistema inclui lançamentos de data futura no mês correspondente (RN12).
+- **FA05 - Lançamento alterado ou excluído:** o resumo é recalculado ao reabrir ou voltar à tela (UC01, UC02).
+### Exceções
+ 
+- **EX01 - Falha no cálculo:** o sistema informa que não foi possível calcular os totais.
+- **EX02 - Dados inconsistentes:** o sistema recalcula a partir dos lançamentos e descarta contadores sincronizados (RN07).
+- **EX03 - Acesso a dados de outro usuário:** o sistema nega (RNF03).
+### Requisitos e regras associados
+ 
+- **Funcionais:** RF11. Relacionados: RF07, RF15, RF34, RF40, RF41, RF42.
+- **Não funcionais específicos:** RNF07, RNF08, RNF29.
+- **Regras de negócio:** RN06, RN07, RN09, RN12.
+---
 </div>
