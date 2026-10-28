@@ -18,10 +18,10 @@
 #### A - Registrar receita (RF07)
  
 1. O usuário aciona "Nova receita".
-2. O sistema apresenta o formulário com valor, data, título e descrição (opcional).
+2. O sistema apresenta o formulário com valor, data, título, descrição (opcional) e a opção de recorrência (RN19). Se o usuário indica recorrência, o sistema abre um formulário para informar o intervalo (um número) e a unidade (dias, meses ou anos) e, opcionalmente, a data de término (RN19).
 3. O usuário preenche os campos e solicita o registro.
 4. O sistema valida no cliente e no servidor: data, título e valor são obrigatórios (RN08); o valor respeita a RN09; título e descrição respeitam a RN10.
-5. O sistema persiste a receita na base local e só então confirma o registro (RNF35).
+5. O sistema persiste a receita na base local e só então confirma o registro (RNF35). Se houver recorrência, as ocorrências são geradas conforme a periodicidade e cada uma é registrada individualmente (RN19).
 6. O sistema recalcula totais, saldo e indicadores afetados.
 7. Se houver conexão, o sistema sincroniza a receita com o servidor.
 8. A nova receita aparece na lista.
@@ -34,9 +34,9 @@
  
 1. O usuário seleciona a receita e aciona "Editar".
 2. O sistema apresenta o formulário preenchido com os dados atuais.
-3. O usuário altera um ou mais campos e solicita o salvamento.
+3. O usuário altera um ou mais campos, qualquer um deles (RN20), inclusive a recorrência, e solicita o salvamento.
 4. O sistema valida os dados (RN08, RN09, RN10).
-5. O sistema persiste a alteração localmente e recalcula todos os totais afetados, inclusive o mês de origem e o de destino quando a data muda de mês (RN20).
+5. O sistema persiste a alteração localmente e recalcula todos os totais afetados, inclusive o mês de origem e o de destino quando a data muda de mês (RN07, RN12).
 6. Se houver conexão, o sistema sincroniza a alteração.
 7. O sistema confirma a edição.
 #### D - Excluir receita (RF10)
@@ -54,7 +54,8 @@
 - **FA03 - Sem filtro:** o sistema mostra o mês corrente (RN12).
 - **FA04 - Nenhum registro:** o sistema exibe "Nenhum registro" e sugere alterar o filtro.
 - **FA05 - Cancelamento:** se o usuário desiste da edição ou não confirma a exclusão, nada é alterado.
-- **FA06 - Edição que muda a data de mês:** o sistema recalcula o mês anterior e o novo mês (RN20).
+- **FA06 - Edição que muda a data de mês:** o sistema recalcula o mês anterior e o novo mês (RN07, RN12).
+- **FA07 - Receita recorrente:** o sistema gera as ocorrências conforme a periodicidade informada, respeitando a data de início e, quando informada, a de término; cada ocorrência entra individualmente nos totais, saldos e indicadores (RN19).
 ### Exceções
  
 - **EX01 - Dados inválidos:** o sistema rejeita o salvamento e informa o motivo por campo (RN08, RNF04, RNF14).
@@ -68,8 +69,8 @@
 ### Requisitos e regras associados
  
 - **Funcionais:** RF07, RF08, RF09, RF10. Relacionados: RF11, RF34, RF39 (recálculo), RF59, RF62.
-- **Não funcionais específicos:** RNF04 (validação), RNF05 (sem estado parcial), RNF06 (persistência confirmada), RNF07 (tipo decimal com arredondamento explícito, 2 casas), RNF08 (tempo ≤ 5 s), RNF16 (auditar exclusão), RNF26 e RNF35 (durabilidade e offline), RNF27 (registro em até 3 etapas), RNF33 (acessibilidade do formulário), RNF36 (convergência da sincronização).
-- **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, **RN20 (nova)**, **RN21 (nova)**.
+- **Não funcionais específicos:** RNF04, RNF05 , RNF06 , RNF07, RNF08 , RNF16, RNF26 e RNF35, RNF27, RNF33, RNF36.
+- **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN19, RN20.
 ----
 
 
