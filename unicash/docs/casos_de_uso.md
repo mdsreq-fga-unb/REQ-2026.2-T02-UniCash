@@ -266,4 +266,52 @@
 - **Funcionais:** RF34, RF35. Relacionados: RF07, RF15, RF11, RF17, RF18.
 - **Não funcionais específicos:** RNF05, RNF07, RNF08, RNF29, RNF35.
 - **Regras de negócio:** RN06, RN07, RN15, RN16, RN17, RN18.
+---
+
+## UC05 - Monitorar limites de gastos e consumo por categoria
+ 
+**Ator principal:** Usuário (o sistema dispara os alertas).
+**Valor:** o usuário enxerga quanto já gastou de cada limite e é avisado antes e depois de estourá-lo.
+**Requisitos funcionais:** RF37 (alerta de aproximação), RF38 (alerta de ultrapassagem), RF39 (indicador de consumo por categoria).
+ 
+### Pré-condições
+ 
+- Existe uma categoria com limite definido (UC02), própria ou padrão (RN13, RN14), ou uma meta de gasto com valor alvo (RF12, definida fora deste UC).
+- Para limite percentual, existe renda mensal no mês consultado (RN14).
+### Fluxo principal
+ 
+1. O usuário registra, edita ou exclui uma despesa ou uma categoria (UC02), altera um limite ou muda a renda do mês.
+2. O sistema calcula o gasto acumulado do mês de cada categoria com limite e de cada meta de gasto.
+3. O sistema determina o **limite efetivo**: o valor em R$ ou o percentual aplicado sobre a renda mensal (RN14).
+4. O sistema calcula o consumo do limite (gasto ÷ limite efetivo).
+5. O sistema atualiza o indicador visual da categoria conforme as faixas (RN02) (RF39).
+6. O sistema verifica os alertas (RN03):
+   - gasto que atinge 80% do limite da categoria ou do valor alvo da meta: alerta de aproximação (RF37);
+   - gasto que supera 100% do limite da categoria ou do valor alvo da meta: alerta de ultrapassagem (RF38).
+7. Se o tipo de alerta estiver ativado nas preferências (RF58), o sistema apresenta a notificação com apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e registra a emissão no período.
+8. O usuário consulta os indicadores no resumo e na lista de categorias e escolhe o período a visualizar.
+### Fluxos alternativos
+ 
+- **FA01 - Categoria sem limite:** o sistema não exibe indicador nem emite alerta (RN14).
+- **FA02 - Categoria sem despesas:** com limite definido, o indicador mostra consumo zero (verde).
+- **FA03 - Despesas "Sem categoria":** ficam fora do cálculo de limites por categoria (RN13).
+- **FA04 - Limite percentual:** o limite efetivo é o percentual da renda do mês (RN14).
+- **FA05 - Alerta já emitido no período:** o sistema não repete (RN03).
+- **FA06 - Salto direto de abaixo de 80% para acima de 100%:** o sistema emite apenas um alerta, o de ultrapassagem (RN03).
+- **FA07 - Alertas desativados em RF58:** o indicador continua sendo atualizado; apenas a notificação deixa de ser exibida.
+- **FA08 - Exclusão ou edição reduz o consumo:** o indicador é atualizado (RN07).
+- **FA09 - Novo período:** o consumo é recalculado para o novo período e os alertas voltam a poder ser emitidos (RN03).
+- **FA10 - Offline:** cálculo e alertas funcionam com os dados locais (RN06).
+- **FA11 - Categoria editada ou excluída:** indicadores e alertas são recalculados na mesma operação (RN13, RN14); se a categoria foi excluída, seu limite, indicador e alertas deixam de existir e as despesas passam a "Sem categoria", fora do cálculo de limites (RN13).
+### Exceções
+ 
+- **EX01 - Limite efetivo igual a zero** (limite percentual em mês sem receitas): o consumo não pode ser calculado e as regras de negócio não definem o comportamento (RN14; ver pontos para validação).
+- **EX02 - Falha no cálculo:** o sistema informa que o indicador não pôde ser atualizado.
+- **EX03 - Falha ao emitir o alerta:** o sistema trata a falha sem corromper lançamentos nem saldo, e não registra a emissão para poder tentar de novo.
+- **EX04 - Acesso a dados de outro usuário:** o sistema nega (RNF03).
+### Requisitos e regras associados
+ 
+- **Funcionais:** RF37, RF38, RF39. Relacionados: RF19, RF12, RF15, RF58, RF34.
+- **Não funcionais específicos:** RNF07, RNF08, RNF29. A exigência de não depender apenas da cor segue a mesma linha do RNF33, mesmo que a tela não conste na lista de telas principais dele.
+- **Regras de negócio:** RN02, RN03, RN06, RN07, RN13, RN14.
 </div>
