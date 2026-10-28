@@ -3,7 +3,7 @@
  
 - **Ator principal:** Usuário.
 - **Valor:** manter o registro fiel das entradas de dinheiro, para que totais, saldo e indicadores reflitam a realidade.
-- **Requisitos funcionais:** RF07 (registrar), RF08 (consultar), RF09 (editar), RF10 (excluir).
+- **Requisitos funcionais:** RF07, RF08 , RF09, RF10.
  
 ### Pré-condições
  
