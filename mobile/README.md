@@ -29,6 +29,19 @@ npm run start:tunnel
 
 Salvar um arquivo recarrega o app na hora. No terminal: `r` recarrega, `j` abre o debugger, `?` mostra os atalhos.
 
+### Alternativa: rodar com Docker
+
+Se preferir não instalar Node na máquina, use o Docker Compose (na raiz do repositório). Só precisa de Docker e do Expo Go no celular.
+
+```bash
+cp .env.example .env    # edite EXPO_HOST_IP com o IP da sua máquina na rede Wi-Fi (Linux: hostname -I)
+docker compose up mobile
+```
+
+Leia o QR code do log com o Expo Go. Editar os arquivos em `mobile/` recarrega o app normalmente. Na rede da UnB ou em VPN, use o túnel: `docker compose --profile tunnel up mobile-tunnel`.
+
+Depois de mudar o `package.json`, reconstrua a imagem: `docker compose build mobile`. Para instalar uma dependência pelo container: `docker compose run --rm mobile npx expo install <pacote>`.
+
 ## 3. Regras para continuar compatível com o Expo Go
 
 - Instale dependências **sempre** com `npx expo install <pacote>`, nunca com `npm install <pacote>`. Assim a versão sai compatível com o SDK.
