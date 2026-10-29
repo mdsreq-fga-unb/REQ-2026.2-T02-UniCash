@@ -64,6 +64,18 @@ A keystore do Android fica guardada no EAS (`eas credentials`). Não gere outra:
 
 **iOS:** sem uma conta Apple paga (US$ 99/ano), teste no iPhone só pelo Expo Go. Com a conta, registre cada aparelho com `eas device:create` antes de rodar `npm run build:ios`.
 
+## 6. GitHub Actions
+
+- **Mobile CI** (`.github/workflows/mobile-ci.yml`): roda lint, typecheck e `expo-doctor` em todo PR que mexe em `mobile/` e em push na `main`/`develop`. Não consome builds do EAS.
+- **Mobile EAS Build** (`.github/workflows/mobile-eas-build.yml`): manual. Em *Actions → Mobile EAS Build → Run workflow*, escolha o perfil (`preview` = APK, `production` = AAB) e a plataforma. O build roda no EAS; o link aparece no log da Action e em expo.dev. Cada execução consome um build da cota da sevenspecs.
+
+Configuração (uma vez, por quem é admin do repositório):
+
+1. Em expo.dev → organização **sevenspecs** → *Access tokens*, crie um token (de preferência de um *robot user* da organização).
+2. No GitHub, em *Settings → Secrets and variables → Actions*, crie o secret `EXPO_TOKEN` com esse valor.
+
+O botão *Run workflow* só aparece depois que o arquivo do workflow chega na branch padrão (`main`).
+
 ## Estrutura
 
 - `src/app/` — telas e rotas (Expo Router: cada arquivo é uma rota, `_layout.tsx` define a navegação)
