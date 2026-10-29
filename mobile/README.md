@@ -123,7 +123,6 @@ O botão *Run workflow* só aparece depois que o arquivo do workflow chega na br
 ## Estrutura
 
 - `src/app/` — telas e rotas (Expo Router: cada arquivo é uma rota, `_layout.tsx` define a navegação)
-- `src/components/`, `src/hooks/`, `src/constants/` — código que não é rota
-- `assets/` — ícones e splash
+- código que não é rota (componentes, hooks, banco) fica em `src/`, fora de `src/app/`
 - `app.json` — nome, identificadores (`br.unb.unicash`), plugins
 - `eas.json` — perfis de build
