@@ -69,6 +69,14 @@ A keystore do Android fica guardada no EAS (`eas credentials`). Não gere outra:
 - **Mobile CI** (`.github/workflows/mobile-ci.yml`): roda lint, typecheck e `expo-doctor` em todo PR que mexe em `mobile/` e em push na `main`/`develop`. Não consome builds do EAS.
 - **Mobile EAS Build** (`.github/workflows/mobile-eas-build.yml`): manual. Em *Actions → Mobile EAS Build → Run workflow*, escolha o perfil (`preview` = APK, `production` = AAB) e a plataforma. O build roda no EAS; o link aparece no log da Action e em expo.dev. Cada execução consome um build da cota da sevenspecs.
 
+- **Mobile Release** (`.github/workflows/mobile-release.yml`), o CD: ao enviar uma tag `v*`, roda lint e typecheck, gera o APK `preview` no EAS, espera terminar e publica uma release no GitHub com o APK anexado.
+
+  ```bash
+  git switch main && git pull
+  git tag v0.1.0
+  git push origin v0.1.0
+  ```
+
 Configuração (uma vez, por quem é admin do repositório):
 
 1. Em expo.dev → organização **sevenspecs** → *Access tokens*, crie um token (de preferência de um *robot user* da organização).

@@ -1,0 +1,72 @@
+name: Mobile Release
+
+# CD: criar e enviar uma tag v* (ex.: git tag v0.1.0 && git push origin v0.1.0)
+# gera o APK preview no EAS e publica uma release do GitHub com o APK anexado.
+# Cada tag consome um build da cota da organização sevenspecs no EAS.
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: APK ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Verificar EXPO_TOKEN
+        working-directory: .
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Crie o secret EXPO_TOKEN em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: mobile/.nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - run: npm run lint
+      - run: npm run typecheck
+
+      # Espera o build terminar para poder anexar o APK à release
+      - name: eas build
+        id: build
+        run: |
+          eas build --platform android --profile preview --non-interactive --wait --json > build.json
+          echo "apk_url=$(jq -r '.[0].artifacts.buildUrl' build.json)" >> "$GITHUB_OUTPUT"
+          echo "build_id=$(jq -r '.[0].id' build.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Baixar APK
+        run: curl -fsSL "${{ steps.build.outputs.apk_url }}" -o "unicash-${{ github.ref_name }}.apk"
+
+      - name: Publicar release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" "unicash-${{ github.ref_name }}.apk" \
+            --title "UniCash ${{ github.ref_name }}" \
+            --generate-notes \
+            --notes "APK de teste (perfil preview). Build no EAS: https://expo.dev/accounts/sevenspecs/projects/unicash/builds/${{ steps.build.outputs.build_id }}"
