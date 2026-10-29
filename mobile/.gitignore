@@ -43,4 +43,5 @@ example
 /android
 
 # editor config
-.vscode/
+.vscode/*
+!.vscode/extensions.json
