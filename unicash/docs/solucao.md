@@ -30,7 +30,7 @@ Para o desenvolvimento do UniCash, serão utilizadas tecnologias compatíveis co
 
 Os dados financeiros serão armazenados no próprio dispositivo, em um banco **SQLite**, de acordo com o princípio local-first. No MVP não haverá backend: as funcionalidades individuais operam sem servidor, e um serviço de sincronização poderá ser adotado em versões futuras, sem tecnologia definida neste momento.
 
-Durante o desenvolvimento, a equipe executará o aplicativo no **Expo Go**. As versões instaláveis (APK para Android e, quando houver conta Apple, IPA para iOS) serão geradas na nuvem pelo **EAS Build**, sem exigir Android Studio ou Xcode nas máquinas da equipe.
+Durante o desenvolvimento, a equipe executará o aplicativo no **Expo Go**. O ambiente de desenvolvimento será padronizado com **Docker** e **Docker Compose**, que executam o servidor de desenvolvimento do Expo em contêiner e dispensam a instalação local do Node.js. As versões instaláveis (APK para Android e, quando houver conta Apple, IPA para iOS) serão geradas na nuvem pelo **EAS Build**, sem exigir Android Studio ou Xcode nas máquinas da equipe.
 
 Como apoio ao desenvolvimento colaborativo serão utilizados **Git** e **GitHub** para controle de versão e gerenciamento do código-fonte, e **GitHub Actions** para integração e entrega contínuas: verificação de lint e tipos a cada pull request e geração do APK a cada versão publicada. Também serão adotadas boas práticas relacionadas à **proteção dos dados armazenados e organização do projeto**, de forma compatível com as características definidas para o UniCash.
 
