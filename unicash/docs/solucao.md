@@ -26,11 +26,13 @@ O objetivo do produto é **auxiliar estudantes universitários, famílias e dema
 
 ## 2.4 Tecnologias a Serem Utilizadas
 
-Para o desenvolvimento do UniCash, serão utilizadas tecnologias compatíveis com os objetivos do projeto e com o escopo previsto para a disciplina. O frontend será desenvolvido utilizando **React**, permitindo a construção de uma interface moderna, responsiva e reutilizável para o gerenciamento das informações financeiras dos usuários. No backend será utilizado **Python**, responsável pela implementação da lógica de negócio, autenticação dos usuários e disponibilização de APIs para comunicação com o cliente da aplicação.
+Para o desenvolvimento do UniCash, serão utilizadas tecnologias compatíveis com a arquitetura local-first do projeto e com o escopo previsto para a disciplina. O aplicativo será desenvolvido em **React Native** com **Expo** e **TypeScript**, a partir de uma única base de código para Android e iOS. A navegação entre telas utilizará o **Expo Router**.
 
-Para a persistência dos dados será utilizado o **PostgreSQL**, considerando sua flexibilidade para armazenar informações como receitas, despesas, categorias, metas financeiras e dados cadastrais dos usuários. A comunicação entre frontend e backend será realizada por meio de **APIs REST**, facilitando a integração entre os componentes do sistema.
+Os dados financeiros serão armazenados no próprio dispositivo, em um banco **SQLite**, de acordo com o princípio local-first. No MVP não haverá backend: as funcionalidades individuais operam sem servidor, e um serviço de sincronização poderá ser adotado em versões futuras, sem tecnologia definida neste momento.
 
-Como apoio ao desenvolvimento colaborativo serão utilizados **Git** e **GitHub** para controle de versão e gerenciamento do código-fonte. Também serão adotadas boas práticas relacionadas à **autenticação de usuários, proteção dos dados armazenados e organização do projeto**, de forma compatível com as características definidas para o UniCash.
+Durante o desenvolvimento, a equipe executará o aplicativo no **Expo Go**. As versões instaláveis (APK para Android e, quando houver conta Apple, IPA para iOS) serão geradas na nuvem pelo **EAS Build**, sem exigir Android Studio ou Xcode nas máquinas da equipe.
+
+Como apoio ao desenvolvimento colaborativo serão utilizados **Git** e **GitHub** para controle de versão e gerenciamento do código-fonte, e **GitHub Actions** para integração e entrega contínuas: verificação de lint e tipos a cada pull request e geração do APK a cada versão publicada. Também serão adotadas boas práticas relacionadas à **proteção dos dados armazenados e organização do projeto**, de forma compatível com as características definidas para o UniCash.
 
 ## 2.5 Pesquisa de Mercado e Análise Competitiva
 
