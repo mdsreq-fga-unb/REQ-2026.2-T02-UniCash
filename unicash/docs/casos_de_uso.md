@@ -69,7 +69,7 @@
 ### Requisitos e regras associados
  
 - **Funcionais:** RF07, RF08, RF09, RF10. Relacionados: RF11, RF34, RF39 (recálculo), RF59, RF62.
-- **Não funcionais específicos:** RNF04, RNF05 , RNF06 , RNF07, RNF08 , RNF16, RNF26 e RNF35, RNF27, RNF33, RNF36.
+- **Não funcionais específicos:** RNF04, RNF05 , RNF06 , RNF07, RNF08 , RNF16, RNF26 e RNF35, RNF27, RNF33, RNF36, RNF38.
 - **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN19, RN20.
 ----
 
@@ -173,7 +173,7 @@
 ### Requisitos e regras associados
  
 - **Funcionais:** RF15, RF16, RF17, RF18, RF19, RF65, RF66, RF67. Relacionados: RF34, RF37, RF38, RF39, RF59, RF62.
-- **Não funcionais específicos:** RNF04, RNF05 , RNF06, RNF08, RNF16, RNF26, RNF27, RNF33, RNF35, RNF36.
+- **Não funcionais específicos:** RNF04, RNF05 , RNF06, RNF08, RNF16, RNF26, RNF27, RNF33, RNF35, RNF36, RNF38.
 - **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN14, RN19, RN20.
 ---
 
@@ -193,7 +193,7 @@
 2. O sistema assume o mês corrente como período padrão (RN12).
 3. O sistema calcula, a partir dos lançamentos, o total de receitas **por dia** e o total **do mês**, com base na data de cada lançamento (RF11).
 4. O sistema apresenta os totais do período selecionado.
-5. O sistema apresenta o gráfico de evolução mensal, com receitas e despesas por mês. O gráfico mostra no máximo 6 meses (RN12).
+5. O sistema apresenta o gráfico de evolução mensal, com receitas e despesas por mês. O gráfico mostra no máximo 6 meses (RN12). As barras de receita e despesa precisam seguir a paleta (RNF38).
 6. O usuário seleciona outro mês, pelo seletor ou tocando em uma barra do gráfico.
 7. O sistema recalcula e apresenta os totais do mês escolhido.
 ### Fluxos alternativos
@@ -211,7 +211,7 @@
 ### Requisitos e regras associados
  
 - **Funcionais:** RF11. Relacionados: RF07, RF15, RF34, RF40, RF41, RF42.
-- **Não funcionais específicos:** RNF07, RNF08, RNF29.
+- **Não funcionais específicos:** RNF07, RNF08, RNF29, RNF38.
 - **Regras de negócio:** RN06, RN07, RN09, RN12.
 ---
 
@@ -219,7 +219,7 @@
  
 - **Ator principal:** Usuário.
 - **Valor:** saber quanto dinheiro sobra em cada mês e corrigir o ponto de partida do cálculo.
-- **Requisitos funcionais:** RF34 (calcular saldo mensal), RF35 (exibir saldo do mês anterior e permitir definir o saldo inicial).
+- **Requisitos funcionais:** RF34, RF35.
  
 ### Pré-condições
  
@@ -232,7 +232,7 @@
 3. O sistema obtém o **saldo anterior** (RN16): o saldo do mês anterior (RN15) ou, no mês do saldo inicial, o valor informado; sem dado disponível, o sistema informa que não há dados.
 4. O sistema soma as receitas e as despesas do mês.
 5. O sistema calcula o saldo do mês: total de receitas − total de despesas (RN15); o saldo anterior não entra nesse cálculo.
-6. O sistema apresenta o saldo do mês, o saldo anterior como referência (RF35) e o indicador de cor com texto (RN17).
+6. O sistema apresenta o saldo do mês, o saldo anterior como referência (RF35) e o indicador de cor com texto (RN17, RNF8).
 7. O sistema verifica se o saldo passou de maior ou igual a zero para negativo e, se sim, emite o alerta de saldo negativo (RN18).
 #### Subfluxo - Definir ou alterar o saldo inicial
  
@@ -264,7 +264,7 @@
 ### Requisitos e regras associados
  
 - **Funcionais:** RF34, RF35. Relacionados: RF07, RF15, RF11, RF17, RF18.
-- **Não funcionais específicos:** RNF05, RNF07, RNF08, RNF29, RNF35.
+- **Não funcionais específicos:** RNF05, RNF07, RNF08, RNF29, RNF35, RNF38.
 - **Regras de negócio:** RN06, RN07, RN15, RN16, RN17, RN18.
 ---
 
@@ -272,7 +272,7 @@
  
 **Ator principal:** Usuário (o sistema dispara os alertas).
 **Valor:** o usuário enxerga quanto já gastou de cada limite e é avisado antes e depois de estourá-lo.
-**Requisitos funcionais:** RF37 (alerta de aproximação), RF38 (alerta de ultrapassagem), RF39 (indicador de consumo por categoria).
+**Requisitos funcionais:** RF37, RF38, RF39.
  
 ### Pré-condições
  
@@ -284,7 +284,7 @@
 2. O sistema calcula o gasto acumulado do mês de cada categoria com limite e de cada meta de gasto.
 3. O sistema determina o **limite efetivo**: o valor em R$ ou o percentual aplicado sobre a renda mensal (RN14).
 4. O sistema calcula o consumo do limite (gasto ÷ limite efetivo).
-5. O sistema atualiza o indicador visual da categoria conforme as faixas (RN02) (RF39).
+5. O sistema atualiza o indicador visual da categoria conforme as faixas (RN02) (RF39) (RNF38).
 6. O sistema verifica os alertas (RN03):
    - gasto que atinge 80% do limite da categoria ou do valor alvo da meta: alerta de aproximação (RF37);
    - gasto que supera 100% do limite da categoria ou do valor alvo da meta: alerta de ultrapassagem (RF38).
@@ -312,6 +312,6 @@
 ### Requisitos e regras associados
  
 - **Funcionais:** RF37, RF38, RF39. Relacionados: RF19, RF12, RF15, RF58, RF34.
-- **Não funcionais específicos:** RNF07, RNF08, RNF29. A exigência de não depender apenas da cor segue a mesma linha do RNF33, mesmo que a tela não conste na lista de telas principais dele.
+- **Não funcionais específicos:** RNF07, RNF08, RNF29, RNF38. A exigência de não depender apenas da cor segue a mesma linha do RNF33, mesmo que a tela não conste na lista de telas principais dele.
 - **Regras de negócio:** RN02, RN03, RN06, RN07, RN13, RN14.
 </div>
