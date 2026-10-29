@@ -1,0 +1,53 @@
+name: Mobile EAS Build
+
+# Disparado manualmente em Actions > Mobile EAS Build > Run workflow.
+# Cada execução consome um build da cota da organização sevenspecs no EAS.
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Perfil do eas.json'
+        type: choice
+        options: [preview, production]
+        default: preview
+      platform:
+        description: 'Plataforma'
+        type: choice
+        options: [android, ios]
+        default: android
+
+jobs:
+  build:
+    name: eas build (${{ inputs.platform }} / ${{ inputs.profile }})
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Verificar EXPO_TOKEN
+        working-directory: .
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Crie o secret EXPO_TOKEN em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: mobile/.nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      # --no-wait: o build continua no EAS; o link aparece no log e em expo.dev
+      - run: eas build --platform ${{ inputs.platform }} --profile ${{ inputs.profile }} --non-interactive --no-wait
