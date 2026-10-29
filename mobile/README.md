@@ -1,56 +1,73 @@
-# Welcome to your Expo app 👋
+# UniCash — app mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+App Expo (SDK 58, Expo Router, React Native, TypeScript). No dia a dia, todo mundo desenvolve com o **Expo Go** no celular. Os builds instaláveis (APK, AAB, IPA) são gerados na nuvem pelo **EAS Build**, então ninguém precisa de Android Studio ou Xcode.
 
-## Get started
+## 1. Pré-requisitos
 
-1. Install dependencies
+- **Git**
+- **Node.js LTS** — recomendamos instalar com o [nvm](https://github.com/nvm-sh/nvm). Dentro de `mobile/`, rode `nvm use` (lê o `.nvmrc`).
+- **Expo Go** no celular ([Android](https://play.google.com/store/apps/details?id=host.exp.exponent) / [iOS](https://apps.apple.com/app/expo-go/id982107779)). A versão do Expo Go precisa suportar o **SDK 58**.
+- **VS Code** (opcional): ao abrir a pasta, aceite as extensões recomendadas (Expo Tools, ESLint, Prettier).
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## 2. Rodar o app
 
 ```bash
-npm run reset-project
+git clone git@github.com:mdsreq-fga-unb/REQ-2026.2-T02-UniCash.git
+cd REQ-2026.2-T02-UniCash/mobile
+nvm use
+npm install
+npm start
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Leia o QR code com o Expo Go (Android) ou com a câmera (iOS). O celular e o computador precisam estar na mesma rede Wi-Fi.
 
-### Other setup steps
+Se a rede bloquear a conexão (Wi-Fi da UnB, VPN, rede de visitantes), use o túnel:
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+```bash
+npm run start:tunnel
+```
 
-## Learn more
+Salvar um arquivo recarrega o app na hora. No terminal: `r` recarrega, `j` abre o debugger, `?` mostra os atalhos.
 
-To learn more about developing your project with Expo, look at the following resources:
+## 3. Regras para continuar compatível com o Expo Go
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+- Instale dependências **sempre** com `npx expo install <pacote>`, nunca com `npm install <pacote>`. Assim a versão sai compatível com o SDK.
+- Use só bibliotecas incluídas no Expo Go (módulos `expo-*` do SDK e as listadas na [documentação do SDK](https://docs.expo.dev/versions/v58.0.0/)). Uma biblioteca com código nativo próprio **não roda no Expo Go**. Antes de adicionar uma, discuta com a equipe: ela obriga a criar um *development build*.
+- Não crie as pastas `android/` e `ios/` à mão. A configuração nativa fica no `app.json`.
 
-## Join the community
+## 4. Antes de abrir um PR
 
-Join our community of developers creating universal apps.
+```bash
+npm run lint
+npm run typecheck
+npm run doctor
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 5. Gerar builds (EAS)
+
+O projeto fica na organização Expo **sevenspecs** ([@sevenspecs/unicash](https://expo.dev/accounts/sevenspecs/projects/unicash)). Para disparar builds, crie uma conta em expo.dev e peça para um Owner te convidar para a organização. Depois:
+
+```bash
+npm install -g eas-cli
+eas login
+```
+
+| Comando | Perfil | Gera | Para quê |
+| --- | --- | --- | --- |
+| `npm run build:apk` | `preview` | APK | instalar direto no Android (testes, apresentação) |
+| `npm run build:aab` | `production` | AAB | Google Play |
+| `npm run build:ios` | `preview` | IPA (ad hoc) | iPhones registrados; exige Apple Developer Program |
+
+Ao terminar, o terminal mostra um link e um QR code para baixar o APK. Os builds também aparecem em [expo.dev](https://expo.dev), na página do projeto, aba *Builds*. O plano gratuito usa fila e pode demorar.
+
+A keystore do Android fica guardada no EAS (`eas credentials`). Não gere outra: um APK assinado com outra chave não instala por cima do anterior.
+
+**iOS:** sem uma conta Apple paga (US$ 99/ano), teste no iPhone só pelo Expo Go. Com a conta, registre cada aparelho com `eas device:create` antes de rodar `npm run build:ios`.
+
+## Estrutura
+
+- `src/app/` — telas e rotas (Expo Router: cada arquivo é uma rota, `_layout.tsx` define a navegação)
+- `src/components/`, `src/hooks/`, `src/constants/` — código que não é rota
+- `assets/` — ícones e splash
+- `app.json` — nome, identificadores (`br.unb.unicash`), plugins
+- `eas.json` — perfis de build
