@@ -31,14 +31,37 @@ Salvar um arquivo recarrega o app na hora. No terminal: `r` recarrega, `j` abre 
 
 ### Alternativa: rodar com Docker
 
-Se preferir não instalar Node na máquina, use o Docker Compose (na raiz do repositório). Só precisa de Docker e do Expo Go no celular.
+Se preferir não instalar Node na máquina, use o Docker Compose (na raiz do repositório). Precisa de Docker, de uma conta Expo com acesso à organização **sevenspecs** e do Expo Go no celular.
 
-```bash
-cp .env.example .env    # edite EXPO_HOST_IP com o IP da sua máquina na rede Wi-Fi (Linux: hostname -I)
-docker compose up mobile
-```
+1. Crie o `.env` na raiz do repositório:
 
-Leia o QR code do log com o Expo Go. Editar os arquivos em `mobile/` recarrega o app normalmente. Na rede da UnB ou em VPN, use o túnel: `docker compose --profile tunnel up mobile-tunnel`.
+    ```bash
+    cp .env.example .env
+    ```
+
+2. Preencha as duas variáveis no `.env` (ele não vai para o git):
+
+    - `EXPO_HOST_IP`: o IP da **sua** máquina na rede Wi-Fi. Linux: `hostname -I`; macOS: `ipconfig getifaddr en0`; Windows: `ipconfig` (campo "Endereço IPv4"). Sem isso, o QR code aponta para o container e o celular não conecta.
+    - `EXPO_TOKEN`: um token **pessoal** criado em expo.dev → *Account settings* → *Access tokens*. O container não tem navegador para o login, e o projeto pertence à organização sevenspecs. Não use o token da organização (é só do GitHub Actions) nem compartilhe o seu.
+
+3. Suba o Expo:
+
+    ```bash
+    docker compose run --rm --service-ports mobile
+    ```
+
+    Use `run`, não `up`: no `up` o teclado vai para o Docker Compose e os atalhos do Expo (`r`, `j`, `?`) não funcionam. O `--service-ports` publica a porta 8081.
+
+4. Leia o QR code com o Expo Go. O log deve mostrar `exp://<seu IP>:8081`. Editar os arquivos em `mobile/` recarrega o app.
+
+Problemas comuns:
+
+| Sintoma | Correção |
+| --- | --- |
+| QR code com IP errado (ex.: `192.168.0.10`) | ajuste `EXPO_HOST_IP` no `.env` |
+| `spawn xdg-open ENOENT` / pede login | preencha `EXPO_TOKEN` no `.env` |
+| Celular não conecta | mesmo Wi-Fi do PC; libere a porta 8081 no firewall (`sudo ufw allow 8081/tcp`); ou use o túnel: `docker compose --profile tunnel run --rm mobile-tunnel` |
+| `w` não abre a web | abra `http://localhost:8081` no seu navegador |
 
 Depois de mudar o `package.json`, reconstrua a imagem: `docker compose build mobile`. Para instalar uma dependência pelo container: `docker compose run --rm mobile npx expo install <pacote>`.
 
