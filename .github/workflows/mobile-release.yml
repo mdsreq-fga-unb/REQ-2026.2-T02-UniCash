@@ -49,6 +49,8 @@ jobs:
       - run: npm ci
 
       - run: npm run lint
+      # expo-env.d.ts é gerado pelo `expo start` e fica fora do git; o typecheck precisa dele
+      - run: echo '/// <reference types="expo/types" />' > expo-env.d.ts
       - run: npm run typecheck
 
       # Espera o build terminar para poder anexar o APK à release
