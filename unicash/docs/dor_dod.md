@@ -11,7 +11,7 @@ Para que um caso de uso seja movido para **Pronto para Desenvolvimento**, todos 
 - [ ] O ator e o objetivo de negócio estão descritos e são compreendidos de forma inequívoca por toda a equipe.
 - [ ] Todas as regras de negócio relacionadas ao item estão catalogadas e vinculadas ao requisito correspondente.
 - [ ] As dependências técnicas (APIs, integrações e banco de dados) e os impedimentos de infraestrutura (acessos e ambientes) foram identificados e não bloqueiam o início do desenvolvimento.
-- [ ] A toda a equipe conseguiu compreender o que está escrito no caso de uso. Caso alguém não tenha compreendido, foi adicionado uma justificativa.
+- [ ] Toda a equipe conseguiu compreender o que está escrito no caso de uso. Caso alguém não tenha compreendido, foi adicionado uma justificativa.
 
 ### Dimensão de Estimabilidade
 

@@ -159,7 +159,7 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 ### RN08: Campos obrigatórios de receita e despesa
 
 - **Campos obrigatórios:** data, título e valor são obrigatórios nos formulários de receita e despesa; descrição é opcional.
-- **Validação:** os campos são validados no cliente e no servidor (RNF04).
+- **Validação:** os campos são validados no cliente e nas Firebase Security Rules (RNF04).
 - **Rejeição:** a rejeição informa o motivo por campo (RNF14).
 
 ### RN09: Valor monetário
