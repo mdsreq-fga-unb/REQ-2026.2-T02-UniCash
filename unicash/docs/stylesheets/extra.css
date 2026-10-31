@@ -212,6 +212,37 @@
   background: var(--uc-header);
 }
 
+/* Logo: o wordmark já traz o nome, então o título do site some do cabeçalho
+   (o título da página ao rolar continua aparecendo). */
+.md-header__button.md-logo img {
+  width: auto;
+  height: 1.4rem;
+}
+
+.md-header__button.md-logo {
+  display: inline-block;
+}
+
+/* No celular o botão do menu vem antes do logo */
+.md-header__button[for="__drawer"] {
+  order: -1;
+}
+
+.md-header__title .md-header__topic:first-child {
+  display: none;
+}
+
+/* Menu lateral no celular: mesmo fundo do cabeçalho e só o logo, sem o nome */
+.md-nav--primary > .md-nav__title[for="__drawer"] {
+  font-size: 0;
+  background: var(--uc-header);
+}
+
+.md-nav--primary > .md-nav__title .md-nav__button.md-logo img {
+  width: auto;
+  height: 1.8rem;
+}
+
 .md-tabs__link--active,
 .md-tabs__link:hover {
   color: var(--uc-sky);
