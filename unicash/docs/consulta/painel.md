@@ -30,7 +30,7 @@ Os gráficos abaixo são gerados a cada publicação a partir das tabelas de req
 
 ## Matriz valor × esforço
 
-Cada ponto é um requisito avaliado na priorização ([R05](../registros.md#r05-priorizacao-do-mvp-com-a-cliente-e-representante-25092026)). Arraste para selecionar uma região e veja os requisitos dela no tooltip.
+Cada ponto é um requisito avaliado na priorização ([R05](../atas/posts/r05.md)). Arraste para selecionar uma região e veja os requisitos dela no tooltip.
 
 ```vegalite
 {

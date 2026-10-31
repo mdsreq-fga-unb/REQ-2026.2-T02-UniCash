@@ -1,0 +1,235 @@
+/* ===== Largura útil, menu recolhível, consulta rápida, glossário, leitura ===== */
+
+/* Largura útil maior em telas largas */
+.md-grid { max-width: 90rem; }
+
+/* Tabelas largas rolam dentro do próprio bloco, sem estourar a página */
+.md-typeset__scrollwrap { overflow-x: auto; }
+.md-typeset table:not([class]) { display: table; }
+.md-content { min-width: 0; }
+
+/* Menu lateral esquerdo recolhível (só em telas largas) */
+.uc-recolher { display: none; }
+@media screen and (min-width: 76.25em) {
+    .uc-recolher {
+        display: grid;
+        place-items: center;
+        position: fixed;
+        left: 1.2rem;
+        bottom: 1.2rem;
+        z-index: 3;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        font-size: 1.2rem;
+        color: var(--md-default-fg-color--light);
+        background: var(--md-default-bg-color);
+        border: 1px solid var(--uc-borda);
+        border-radius: 50%;
+        box-shadow: 0 6px 16px rgb(0 0 0 / 15%);
+        cursor: pointer;
+    }
+    .uc-recolher:hover { color: var(--md-accent-fg-color); }
+    body.uc-sem-menu .md-sidebar--primary { display: none; }
+    /* folga para o botão de recolher não cobrir os últimos itens do menu */
+    .md-sidebar--primary .md-sidebar__scrollwrap { padding-bottom: 3.5rem; }
+    /* espaço para a aba do glossário não cobrir o índice da direita */
+    .md-sidebar--secondary .md-sidebar__scrollwrap { margin-right: 1.8rem; }
+}
+
+/* Botão flutuante */
+.uc-fab {
+    position: fixed;
+    right: 1.2rem;
+    bottom: 1.2rem;
+    z-index: 4;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 18px 12px 14px;
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #fff;
+    background: var(--uc-teal, #0e7490);
+    border: none;
+    border-radius: 999px;
+    box-shadow: 0 10px 25px rgb(8 47 73 / 30%);
+    cursor: pointer;
+    transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.uc-fab:hover { transform: translateY(-2px); box-shadow: 0 14px 30px rgb(8 47 73 / 38%); }
+.uc-fab svg { width: 20px; height: 20px; fill: currentColor; }
+[data-md-color-scheme="slate"] .uc-fab { color: #0b1220; background: #22d3ee; }
+@media screen and (max-width: 600px) {
+    .uc-fab span { display: none; }
+    .uc-fab { padding: 14px; }
+}
+
+/* Painel da consulta rápida */
+.uc-dialogo {
+    width: min(680px, calc(100vw - 2rem));
+    max-height: min(640px, calc(100vh - 4rem));
+    margin: 8vh auto auto;
+    padding: 0;
+    color: var(--md-default-fg-color);
+    background: var(--md-default-bg-color);
+    border: 1px solid var(--uc-borda);
+    border-radius: 16px;
+    box-shadow: 0 30px 80px rgb(0 0 0 / 35%);
+    overflow: hidden;
+}
+.uc-dialogo[open] { display: flex; flex-direction: column; }
+.uc-dialogo::backdrop { background: rgb(2 6 23 / 55%); backdrop-filter: blur(2px); }
+.uc-dialogo-topo { display: flex; gap: 8px; padding: 12px; border-bottom: 1px solid var(--uc-borda); }
+.uc-busca {
+    flex: 1;
+    width: 100%;
+    padding: 10px 14px;
+    font: inherit;
+    font-size: 0.85rem;
+    color: var(--md-default-fg-color);
+    background: var(--uc-fundo-suave);
+    border: 1px solid var(--uc-borda);
+    border-radius: 10px;
+    outline: none;
+}
+.uc-busca:focus { border-color: var(--md-accent-fg-color); }
+.uc-fechar {
+    width: 36px;
+    font-size: 1.3rem;
+    line-height: 1;
+    color: var(--md-default-fg-color--light);
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+.uc-resultados { flex: 1; margin: 0; padding: 6px; overflow-y: auto; list-style: none; }
+.uc-resultados li { margin: 0; }
+.uc-resultados a {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    font-size: 0.78rem;
+    color: var(--md-default-fg-color);
+    text-decoration: none;
+    border-radius: 8px;
+}
+.uc-resultados li[aria-selected="true"] a,
+.uc-resultados a:hover { background: var(--uc-fundo-suave); outline: 1px solid var(--uc-borda); }
+.uc-res-nome { flex: 1; }
+.uc-resultados .selo { flex: none; padding: 2px 8px; font-size: 0.65rem; font-weight: 700; border-radius: 999px; }
+.uc-vazio { padding: 16px; font-size: 0.8rem; color: var(--md-default-fg-color--light); }
+.uc-atalhos {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 14px;
+    padding: 10px 14px;
+    font-size: 0.72rem;
+    border-top: 1px solid var(--uc-borda);
+}
+.uc-atalhos a { font-weight: 700; color: var(--md-typeset-a-color); text-decoration: none; }
+.uc-dica { margin-left: auto; color: var(--md-default-fg-color--light); }
+.uc-dica kbd {
+    padding: 1px 5px;
+    font-size: 0.65rem;
+    border: 1px solid var(--uc-borda);
+    border-radius: 4px;
+}
+
+/* Glossário em painel lateral */
+.uc-aba-glossario {
+    position: fixed;
+    right: 0;
+    top: 45%;
+    z-index: 3;
+    padding: 12px 7px;
+    font: inherit;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    color: #fff;
+    background: var(--uc-navy, #082f49);
+    border: none;
+    border-radius: 0 10px 10px 0;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgb(8 47 73 / 25%);
+}
+[data-md-color-scheme="slate"] .uc-aba-glossario { color: #0b1220; background: #a5f3fc; }
+.uc-glossario {
+    position: fixed;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: min(340px, 90vw);
+    padding: 14px;
+    color: var(--md-default-fg-color);
+    background: var(--md-default-bg-color);
+    border-left: 1px solid var(--uc-borda);
+    box-shadow: -20px 0 50px rgb(0 0 0 / 25%);
+}
+.uc-glossario[hidden] { display: none; }
+.uc-glossario-topo { display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; }
+.uc-glossario-lista { flex: 1; margin: 0; overflow-y: auto; font-size: 0.75rem; }
+.uc-glossario-lista dt { margin-top: 10px; font-weight: 800; color: var(--md-typeset-a-color); }
+.uc-glossario-lista dd { margin: 2px 0 0; color: var(--md-default-fg-color--light); line-height: 1.5; }
+.uc-glossario-pagina { font-size: 0.72rem; font-weight: 700; }
+body.uc-glossario-aberto .uc-aba-glossario { display: none; }
+
+/* Alternância por páginas / leitura contínua */
+.uc-visao {
+    display: inline-flex;
+    flex: none;
+    margin: 0 0.6rem;
+    padding: 3px;
+    background: rgb(255 255 255 / 10%);
+    border-radius: 999px;
+}
+.uc-visao a {
+    padding: 4px 12px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    color: rgb(255 255 255 / 80%);
+    white-space: nowrap;
+    border-radius: 999px;
+}
+.uc-visao a:hover { color: #fff; }
+.uc-visao a[aria-current="true"] { color: #082f49; background: #a5f3fc; }
+@media screen and (max-width: 59.9844em) {
+    .uc-visao { display: none; }
+}
+.md-typeset .uc-imprimir { margin: 0 0 1.5rem; }
+body.uc-leitura-continua .uc-recolher { display: none; }
+@media print {
+    .uc-fab, .uc-aba-glossario, .uc-glossario, .uc-visao, .uc-recolher, .uc-imprimir, .uc-ouvir { display: none !important; }
+}
+
+/* Ouvir ata */
+.uc-ouvir { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 1.2rem; }
+.md-typeset .uc-ouvir .md-button { margin: 0; padding: 0.35em 1.1em; font-size: 0.72rem; }
+.md-typeset .uc-lendo {
+    outline: 2px solid var(--md-accent-fg-color);
+    outline-offset: 4px;
+    border-radius: 6px;
+    background: var(--uc-fundo-suave);
+}
+
+/* Selos dentro do painel (fora de .md-typeset) */
+.uc-resultados .selo-cp  { color: #fff; background: var(--uc-cp); }
+.uc-resultados .selo-uc  { color: #fff; background: var(--uc-uc); }
+.uc-resultados .selo-rf  { color: #fff; background: var(--uc-rf); }
+.uc-resultados .selo-rnf { color: #fff; background: var(--uc-rnf); }
+.uc-resultados .selo-rn  { color: #fff; background: var(--uc-rn); }
+.uc-resultados .selo-mvp  { color: #166534; background: #dcfce7; }
+.uc-resultados .selo-fora { color: #475569; background: #f1f5f9; }
+[data-md-color-scheme="slate"] .uc-resultados [class*="selo-"] { color: #0b1220; }
+[data-md-color-scheme="slate"] .uc-resultados .selo-mvp  { color: #86efac; background: #052e1a; }
+[data-md-color-scheme="slate"] .uc-resultados .selo-fora { color: #cbd5e1; background: #1e293b; }

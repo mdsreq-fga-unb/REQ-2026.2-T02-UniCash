@@ -264,6 +264,8 @@ def on_files(files, config, **kwargs):
 
     files.append(File.generated(config, "consulta/glossario.md", content=glossario(config)))
 
+    publica("glossario", [{"sigla": t, "significado": d} for t, d in termos_glossario(config)])
+
     publica("catalogo", {
         "itens": [publico(itens[c], mencoes.get(c, [])) for c in sorted(itens, key=ordem)],
         "tipos": TIPOS,
@@ -312,15 +314,21 @@ def on_page_content(html, page, config, files, **kwargs):
 # Geração de conteúdo
 # --------------------------------------------------------------------------- #
 
-def glossario(config) -> str:
-    """Gera a página de glossário a partir das abreviações usadas nos tooltips."""
+def termos_glossario(config) -> list[tuple[str, str]]:
+    """Lê as abreviações usadas nos tooltips (includes/abreviacoes.md)."""
     arquivo = Path(config["config_file_path"]).parent / "includes" / "abreviacoes.md"
     termos = re.findall(r"^\*\[(.+?)\]:\s*(.+)$", arquivo.read_text(encoding="utf-8"), re.M)
+    return sorted(termos, key=lambda x: x[0].lower())
+
+
+def glossario(config) -> str:
+    """Gera a página de glossário a partir das abreviações usadas nos tooltips."""
+    termos = termos_glossario(config)
     linhas = ["# Glossário", "",
               "Termos e siglas usados na documentação. Em qualquer página, passe o mouse sobre a sigla "
               "para ver o significado.", "",
               "| Sigla | Significado |", "|---|---|"]
-    linhas += [f"| `{t}` | {d} |" for t, d in sorted(termos, key=lambda x: x[0].lower())]
+    linhas += [f"| `{t}` | {d} |" for t, d in termos]
     return "\n".join(linhas) + "\n"
 
 

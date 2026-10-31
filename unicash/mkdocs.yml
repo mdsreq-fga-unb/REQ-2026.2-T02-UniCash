@@ -55,6 +55,23 @@ plugins:
   - search:
       lang: pt
   - tags
+  - blog:
+      blog_dir: atas
+      blog_toc: true
+      post_date_format: long
+      post_url_format: "{slug}"
+      post_excerpt: optional
+      post_readtime: true
+      post_readtime_words_per_minute: 200
+      archive_name: Arquivo
+      archive_date_format: MMMM 'de' yyyy
+      archive_url_date_format: yyyy/MM
+      categories_name: Categorias
+      categories_allowed:
+        - Cliente
+        - Equipe
+        - Requisitos
+      pagination_per_page: 10
   - glightbox:
       touchNavigation: true
       loop: false
@@ -70,15 +87,17 @@ plugins:
       type: date
       locale: pt
       enable_creation_date: true
+      enable_git_follow: false
       fallback_to_build_date: true
       exclude:
         - consulta/*
   - print-site:
-      add_to_navigation: true
-      print_page_title: Documento completo (impressão / PDF)
+      add_to_navigation: false
+      print_page_title: Leitura contínua
       add_print_site_banner: false
       exclude:
         - consulta/*
+        - atas/*
       add_cover_page: false
       enumerate_headings: false
 
@@ -144,7 +163,8 @@ nav:
 
   - Equipe:
       - Interação entre equipe e cliente: interacao.md
-      - Registros de engenharia de requisitos: registros.md
+      - Registros de engenharia de requisitos:
+          - atas/index.md
       - Lições aprendidas: licoes_aprendidas.md
       - Referências: referencias.md
 
@@ -154,6 +174,7 @@ extra:
 extra_css:
   - stylesheets/extra.css
   - stylesheets/consulta.css
+  - stylesheets/interface.css
 
 extra_javascript:
   - https://unpkg.com/mathjax@3.2.2/es5/tex-mml-chtml.js
@@ -164,3 +185,4 @@ extra_javascript:
   - https://cdn.jsdelivr.net/npm/vega-embed@6.26.0
   - javascripts/tabelas.js
   - javascripts/catalogo.js
+  - javascripts/interface.js

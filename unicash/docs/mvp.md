@@ -6,7 +6,7 @@ Este documento apresenta a especificação atualizada do **Minimum Viable Produc
 
 ## 1. Priorização do backlog e definição do MVP
 
-A priorização original ([R05 — 25/09/2026](registros.md#r05-priorizacao-do-mvp-com-a-cliente-e-representante-25092026)) usou a [planilha de priorização do UniCash](https://docs.google.com/spreadsheets/d/1uoo81vAhU673u4y6JfPPllNKDKD-qf1iN6xD9fmMXCw/edit?usp=sharing). As abas **valor**, **esforço** e **resumo** contêm RF01 a RF56. O gráfico desta página cruza as médias em uma matriz 4 × 4 de valor de negócio × esforço técnico. As notas de valor têm a seguinte interpretação:
+A priorização original ([R05 — 25/09/2026](atas/posts/r05.md)) usou a [planilha de priorização do UniCash](https://docs.google.com/spreadsheets/d/1uoo81vAhU673u4y6JfPPllNKDKD-qf1iN6xD9fmMXCw/edit?usp=sharing). As abas **valor**, **esforço** e **resumo** contêm RF01 a RF56. O gráfico desta página cruza as médias em uma matriz 4 × 4 de valor de negócio × esforço técnico. As notas de valor têm a seguinte interpretação:
 
 | Nota | Interpretação do valor de negócio |
 | :--- | :--- |
