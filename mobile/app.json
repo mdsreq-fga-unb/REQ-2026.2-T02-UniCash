@@ -1,0 +1,44 @@
+{
+  "expo": {
+    "name": "UniCash",
+    "slug": "unicash",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "unicash",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "br.unb.unicash"
+    },
+    "android": {
+      "package": "br.unb.unicash",
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "server"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#FFFFFF"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "5ce746ff-0969-4abd-8416-98b7a91d0f62"
+      }
+    },
+    "owner": "sevenspecs"
+  }
+}

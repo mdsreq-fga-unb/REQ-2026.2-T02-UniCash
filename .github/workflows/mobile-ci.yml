@@ -1,0 +1,41 @@
+name: Mobile CI
+
+on:
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+  push:
+    branches: [main, develop]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-ci.yml'
+
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint e typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: mobile/.nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - run: npm ci
+      - run: npm run lint
+      # expo-env.d.ts é gerado pelo `expo start` e fica fora do git; o typecheck precisa dele
+      - run: echo '/// <reference types="expo/types" />' > expo-env.d.ts
+      - run: npm run typecheck
+      # As versões esperadas vêm da API do Expo e mudam sem aviso; o doctor só alerta
+      - run: npx expo-doctor
+        continue-on-error: true
