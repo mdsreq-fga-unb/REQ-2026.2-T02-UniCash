@@ -1,0 +1,37 @@
+services:
+  mobile:
+    build: ./mobile
+    ports:
+      - "8081:8081"
+    environment:
+      # IP da sua máquina na rede Wi-Fi, para o QR code apontar para ela e não para o container.
+      # Defina no arquivo .env da raiz: EXPO_HOST_IP=192.168.x.y
+      REACT_NATIVE_PACKAGER_HOSTNAME: ${EXPO_HOST_IP:?defina EXPO_HOST_IP no .env}
+      # Login no Expo dentro do container (não há navegador para o login interativo).
+      # Token pessoal criado em expo.dev > Account settings > Access tokens.
+      EXPO_TOKEN: ${EXPO_TOKEN:-}
+      # Detecta mudanças nos arquivos montados do host
+      WATCHMAN_DISABLE: "1"
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./mobile:/app
+      # node_modules fica no container (não usa o do host)
+      - mobile_node_modules:/app/node_modules
+    stdin_open: true
+    tty: true
+
+  # Para redes que bloqueiam a LAN (Wi-Fi da UnB, VPN): docker compose --profile tunnel up mobile-tunnel
+  mobile-tunnel:
+    profiles: [tunnel]
+    build: ./mobile
+    command: ["npx", "expo", "start", "--tunnel"]
+    environment:
+      EXPO_TOKEN: ${EXPO_TOKEN:-}
+    volumes:
+      - ./mobile:/app
+      - mobile_node_modules:/app/node_modules
+    stdin_open: true
+    tty: true
+
+volumes:
+  mobile_node_modules:
