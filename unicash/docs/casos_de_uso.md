@@ -20,7 +20,7 @@
 1. O usuário aciona "Nova receita".
 2. O sistema apresenta o formulário com valor, data, título, descrição (opcional) e a opção de recorrência (RN19). Se o usuário indica recorrência, o sistema abre um formulário para informar o intervalo (um número) e a unidade (dias, meses ou anos) e, opcionalmente, a data de término (RN19).
 3. O usuário preenche os campos e solicita o registro.
-4. O sistema valida no cliente e no servidor: data, título e valor são obrigatórios (RN08); o valor respeita a RN09; título e descrição respeitam a RN10.
+4. O sistema valida no cliente e, na sincronização, nas Security Rules (RNF04): data, título e valor são obrigatórios (RN08); o valor respeita a RN09; título e descrição respeitam a RN10.
 5. O sistema persiste a receita na base local e só então confirma o registro (RNF35). Se houver recorrência, as ocorrências são geradas conforme a periodicidade e cada uma é registrada individualmente (RN19).
 6. O sistema recalcula totais, saldo e indicadores afetados.
 7. Se houver conexão, o sistema sincroniza a receita com o servidor.
@@ -95,7 +95,7 @@
 1. O usuário aciona "Nova despesa".
 2. O sistema apresenta o formulário com valor, data, título, descrição (opcional), categoria (opcional) e classificações opcionais (fixa ou variável, essencial ou não essencial, RN13) e a opção de recorrência. Se o usuário indica recorrência, o sistema abre um formulário para informar o intervalo (um número) e a unidade (dias, meses ou anos) e, opcionalmente, a data de término (RN19).
 3. O usuário preenche os campos e solicita o registro.
-4. O sistema valida no cliente e no servidor (RN08, RN09, RN10).
+4. O sistema valida no cliente e, na sincronização, nas Security Rules (RN08, RN09, RN10; RNF04).
 5. O sistema persiste a despesa localmente e só então confirma (RNF35). Se houver recorrência, as ocorrências são geradas conforme a periodicidade e cada uma é registrada individualmente (RN19).
 6. O sistema recalcula totais, saldo, indicadores de limite e alertas afetados (UC04 e UC05).
 7. Se houver conexão, o sistema sincroniza a despesa.
