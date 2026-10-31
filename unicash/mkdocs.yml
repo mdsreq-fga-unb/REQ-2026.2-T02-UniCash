@@ -87,10 +87,11 @@ plugins:
       type: date
       locale: pt
       enable_creation_date: true
-      enable_git_follow: false
       fallback_to_build_date: true
       exclude:
         - consulta/*
+        - atas/archive/*
+        - atas/category/*
   - print-site:
       add_to_navigation: false
       print_page_title: Leitura contínua
