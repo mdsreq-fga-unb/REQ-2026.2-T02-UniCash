@@ -1,0 +1,47 @@
+name: Relatar bug
+description: Algo no app não funciona como esperado
+labels: [bug]
+body:
+  - type: textarea
+    id: descricao
+    attributes:
+      label: O que aconteceu
+      description: Descreva o problema.
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir
+      placeholder: |
+        1. Abrir o app
+        2. Ir para ...
+        3. Tocar em ...
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: Comportamento esperado
+    validations:
+      required: true
+  - type: input
+    id: requisito
+    attributes:
+      label: Requisito relacionado
+      placeholder: "Ex.: RF07, RNF27"
+  - type: dropdown
+    id: plataforma
+    attributes:
+      label: Plataforma
+      options:
+        - Android (Expo Go)
+        - Android (APK)
+        - iOS (Expo Go)
+        - Web
+    validations:
+      required: true
+  - type: textarea
+    id: extras
+    attributes:
+      label: Capturas de tela ou logs
