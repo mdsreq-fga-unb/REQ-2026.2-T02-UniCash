@@ -350,3 +350,6 @@ body:has(.uc-landing) { overflow-x: hidden; }
     .ld-hero-celulares .ld-celular--frente { position: relative; margin: 0 auto; left: auto; }
     .ld-hero-celulares { height: auto; }
 }
+
+.ld-video video { object-fit: cover; background: #061B2B; }
+.md-typeset .ld-video-mais { margin: 1.2rem 0 0; text-align: center; font-size: 0.8rem; color: var(--ld-suave); }

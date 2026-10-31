@@ -150,11 +150,15 @@ hide:
 <section class="ld-secao" id="video">
   <header class="ld-cabecalho ld-revela">
     <span class="ld-rotulo">Em vídeo</span>
-    <h2>Conheça a proposta em poucos minutos</h2>
+    <h2>O UniCash em 20 segundos</h2>
   </header>
   <div class="ld-video ld-revela">
-    <iframe src="https://www.youtube-nocookie.com/embed/3qLZkL-_ePc" title="Apresentação da visão do produto UniCash" loading="lazy" allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+    <video controls playsinline preload="metadata" poster="videos/unicash-lancamento-capa.jpg" aria-label="Vídeo de lançamento do UniCash">
+      <source src="videos/unicash-lancamento.mp4" type="video/mp4">
+      Seu navegador não reproduz vídeos. <a href="videos/unicash-lancamento.mp4">Baixe o vídeo</a>.
+    </video>
   </div>
+  <p class="ld-video-mais ld-revela">Quer a apresentação completa da visão do produto? <a href="https://www.youtube.com/watch?v=3qLZkL-_ePc" target="_blank" rel="noopener">Assista no YouTube ↗</a></p>
 </section>
 
 <section class="ld-final ld-revela">
