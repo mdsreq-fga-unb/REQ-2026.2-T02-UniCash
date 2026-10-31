@@ -10,6 +10,11 @@
 - A base local está disponível (RN06).
 - O usuário abriu o aplicativo. A conexão só é necessária para sincronizar, não para operar localmente.
 - Para editar ou excluir, existe ao menos uma receita registrada.
+### Pós-condições
+ 
+- **Sucesso:** a receita (com todas as suas ocorrências, quando há recorrência) fica gravada na base local; totais, saldo e indicadores refletem a alteração; sem conexão, o registro fica marcado como pendente de sincronização (RN06, RF62). Na exclusão, a receita deixa de aparecer e um marcador de exclusão é guardado para ser sincronizado (RN07).
+- **Falha:** nenhum registro nem saldo é alterado (RN11, RNF05).
+- **Consulta (B):** nenhum dado é alterado.
 ### Fluxo principal
  
 1. O usuário acessa a área de receitas.
@@ -20,7 +25,7 @@
 1. O usuário aciona "Nova receita".
 2. O sistema apresenta o formulário com valor, data, título, descrição (opcional) e a opção de recorrência (RN19). Se o usuário indica recorrência, o sistema abre um formulário para informar o intervalo (um número) e a unidade (dias, meses ou anos) e, opcionalmente, a data de término (RN19).
 3. O usuário preenche os campos e solicita o registro.
-4. O sistema valida no cliente e no servidor: data, título e valor são obrigatórios (RN08); o valor respeita a RN09; título e descrição respeitam a RN10.
+4. O sistema valida no cliente e no servidor: data, título e valor são obrigatórios (RN08); o valor respeita a RN09; título e descrição respeitam a RN10. Se houver recorrência, o intervalo deve ser maior que zero e a data de término, quando informada, deve ser igual ou posterior à data de início (RN19).
 5. O sistema persiste a receita na base local e só então confirma o registro (RNF35). Se houver recorrência, as ocorrências são geradas conforme a periodicidade e cada uma é registrada individualmente (RN19).
 6. O sistema recalcula totais, saldo e indicadores afetados.
 7. Se houver conexão, o sistema sincroniza a receita com o servidor.
@@ -34,15 +39,15 @@
  
 1. O usuário seleciona a receita e aciona "Editar".
 2. O sistema apresenta o formulário preenchido com os dados atuais.
-3. O usuário altera um ou mais campos, qualquer um deles (RN20), inclusive a recorrência, e solicita o salvamento.
-4. O sistema valida os dados (RN08, RN09, RN10).
+3. O usuário altera um ou mais campos, qualquer um deles (RN20), inclusive a recorrência, e solicita o salvamento. Se a receita pertence a uma série recorrente, o sistema pergunta o alcance da alteração: só esta, esta e as próximas ou todas (FA08).
+4. O sistema valida os dados (RN08, RN09, RN10) e, se houver recorrência, o intervalo e a data de término (RN19).
 5. O sistema persiste a alteração localmente e recalcula todos os totais afetados, inclusive o mês de origem e o de destino quando a data muda de mês (RN07, RN12).
 6. Se houver conexão, o sistema sincroniza a alteração.
 7. O sistema confirma a edição.
 #### D - Excluir receita (RF10)
  
 1. O usuário seleciona a receita e aciona "Excluir".
-2. O sistema solicita confirmação explícita (RN11).
+2. Se a receita pertence a uma série recorrente, o sistema pergunta o alcance da exclusão: só esta, esta e as próximas ou todas (FA08). Em seguida, solicita confirmação explícita informando o alcance escolhido (RN11).
 3. O usuário confirma.
 4. O sistema exclui a receita e, na mesma operação, recalcula totais, saldo, indicadores e alertas (RN11).
 5. Se houver conexão, o sistema sincroniza a exclusão.
@@ -55,21 +60,33 @@
 - **FA04 - Nenhum registro:** o sistema exibe "Nenhum registro" e sugere alterar o filtro.
 - **FA05 - Cancelamento:** se o usuário desiste da edição ou não confirma a exclusão, nada é alterado.
 - **FA06 - Edição que muda a data de mês:** o sistema recalcula o mês anterior e o novo mês (RN07, RN12).
-- **FA07 - Receita recorrente:** o sistema gera as ocorrências conforme a periodicidade informada, respeitando a data de início e, quando informada, a de término; cada ocorrência entra individualmente nos totais, saldos e indicadores (RN19).
+- **FA07 - Receita recorrente:** o sistema gera as ocorrências conforme a periodicidade informada, respeitando a data de início e, quando informada, a de término; cada ocorrência entra individualmente nos totais, saldos e indicadores (RN19). Para recorrência sem data de término, o sistema gera as ocorrências até 12 meses à frente e completa a geração sempre que o aplicativo é aberto. Cada ocorrência tem identificador derivado da série e da data, de modo que a geração não duplica ocorrências, inclusive depois de restaurar os dados da nuvem (RN19, RNF26).
+- **FA08 - Edição ou exclusão de receita recorrente:** o sistema pergunta o alcance da operação: **só esta** (altera ou exclui apenas a ocorrência selecionada), **esta e as próximas** (aplica a partir da ocorrência selecionada, inclusive) ou **todas** (aplica a toda a série). O sistema recalcula os totais, saldos e indicadores dos meses afetados na mesma operação (RN11, RN19). Cancelar a pergunta de alcance ou a confirmação não altera nada (FA05).
 ### Exceções
  
-- **EX01 - Dados inválidos:** o sistema rejeita o salvamento e informa o motivo por campo (RN08, RNF04, RNF14).
-- **EX02 - Período inválido:** data inicial posterior à final; o sistema informa o erro.
-- **EX03 - Falha na persistência local ou no recálculo:** o sistema não confirma a operação e nenhum registro ou saldo permanece parcialmente alterado (RN11, RNF05).
-- **EX04 - Falha na sincronização:** a alteração permanece local e pendente.
-- **EX05 - Conflito de sincronização:** aplica-se a RN07; em edição contra exclusão, a exclusão prevalece.
-- **EX06 - Receita inexistente ou já excluída:** o sistema informa que o registro não está mais disponível.
-- **EX07 - Acesso a receita de outro usuário:** o sistema nega (RNF03).
-- **EX08 - Falha na leitura local:** o sistema informa que não foi possível recuperar os dados.
+Cada exceção indica o passo em que ocorre e o ponto de retorno.
+ 
+- **EX01 - Dados inválidos (A4 e C4):** o sistema não grava e mostra o motivo ao lado de cada campo inválido (RN08, RN09, RN10, RN19, RNF04, RNF14). **Retorno:** ao passo 3 do fluxo A ou C, com os dados digitados preservados. Mensagens:
+  - data não informada: "Informe a data da receita."
+  - título não informado ou só com espaços: "Informe o título da receita."
+  - título com mais de 80 caracteres: "O título deve ter até 80 caracteres."
+  - valor não informado: "Informe o valor da receita."
+  - valor menor ou igual a zero ou com mais de duas casas decimais: "O valor deve ser maior que zero, com no máximo duas casas decimais."
+  - valor acima do limite: "O valor máximo permitido é R$ 999.999.999,99."
+  - descrição com mais de 255 caracteres: "A descrição deve ter até 255 caracteres."
+  - intervalo da recorrência menor ou igual a zero: "O intervalo da recorrência deve ser maior que zero."
+  - término anterior ao início: "A data de término deve ser igual ou posterior à data de início."
+- **EX02 - Período inválido (B2):** a data inicial é posterior à final. O sistema não aplica o filtro e informa: "A data inicial deve ser anterior ou igual à data final." **Retorno:** ao passo 1 do fluxo B, com as datas digitadas preservadas.
+- **EX03 - Falha na persistência local ou no recálculo (A5 e A6, C5, D4):** o sistema não confirma a operação, nenhum registro ou saldo permanece parcialmente alterado (RN11, RNF05) e informa: "Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao passo 3 do fluxo A ou C, com os dados preservados; no fluxo D, à lista de receitas (passo 2 do fluxo principal).
+- **EX04 - Falha na sincronização (A7, C6, D5):** a operação já está concluída na base local. O registro permanece pendente de sincronização e é reenviado quando houver conexão. **Retorno:** o fluxo segue normalmente no passo seguinte (A8, C7 ou D6).
+- **EX05 - Conflito de sincronização (depois de A7, C6 ou D5):** aplica-se a RN07; em edição contra exclusão, a exclusão prevalece. **Retorno:** ao concluir a sincronização, a lista de receitas é atualizada (passo 2 do fluxo principal).
+- **EX06 - Receita inexistente ou já excluída (B3, C1, D1):** o sistema informa: "Esta receita não está mais disponível." **Retorno:** à lista de receitas atualizada (passo 2 do fluxo principal).
+- **EX07 - Acesso a receita de outro usuário (B3, C1, D1):** o sistema nega o acesso (RNF03) e informa: "Você não tem acesso a esta receita." **Retorno:** à lista de receitas (passo 2 do fluxo principal).
+- **EX08 - Falha na leitura local (passo 2 do fluxo principal, B2, B3 e C2):** o sistema informa: "Não foi possível carregar as receitas. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo principal, ao tentar novamente.
 ### Requisitos e regras associados
  
 - **Funcionais:** RF07, RF08, RF09, RF10. Relacionados: RF11, RF34, RF39 (recálculo), RF59, RF62.
-- **Não funcionais específicos:** RNF04, RNF05 , RNF06 , RNF07, RNF08 , RNF16, RNF26 e RNF35, RNF27, RNF33, RNF36, RNF38.
+- **Não funcionais específicos:** RNF04, RNF05 , RNF06 , RNF07, RNF08 , RNF26 e RNF35, RNF27, RNF33, RNF36, RNF38.
 - **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN19, RN20.
 ----
 
@@ -95,7 +112,7 @@
 1. O usuário aciona "Nova despesa".
 2. O sistema apresenta o formulário com valor, data, título, descrição (opcional), categoria (opcional) e classificações opcionais (fixa ou variável, essencial ou não essencial, RN13) e a opção de recorrência. Se o usuário indica recorrência, o sistema abre um formulário para informar o intervalo (um número) e a unidade (dias, meses ou anos) e, opcionalmente, a data de término (RN19).
 3. O usuário preenche os campos e solicita o registro.
-4. O sistema valida no cliente e no servidor (RN08, RN09, RN10).
+4. O sistema valida no cliente e no servidor (RN08, RN09, RN10) e, se houver recorrência, o intervalo (maior que zero) e a data de término (igual ou posterior ao início, RN19).
 5. O sistema persiste a despesa localmente e só então confirma (RNF35). Se houver recorrência, as ocorrências são geradas conforme a periodicidade e cada uma é registrada individualmente (RN19).
 6. O sistema recalcula totais, saldo, indicadores de limite e alertas afetados (UC04 e UC05).
 7. Se houver conexão, o sistema sincroniza a despesa.
@@ -107,13 +124,13 @@
 #### C - Editar despesa (RF17)
  
 1. O usuário seleciona a despesa e aciona "Editar".
-2. O sistema apresenta o formulário preenchido; o usuário altera os campos, qualquer um deles (RN20), e salva.
+2. O sistema apresenta o formulário preenchido; o usuário altera os campos, qualquer um deles (RN20), e salva. Se a despesa pertence a uma série recorrente, o sistema pergunta o alcance da alteração: só esta, esta e as próximas ou todas (FA12).
 3. O sistema valida (RN08, RN09, RN10), persiste localmente e recalcula saldo, totais, limites e alertas dos meses e categorias de origem e destino (RN07, RN12).
 4. Se houver conexão, sincroniza; o sistema confirma a edição.
 #### D - Excluir despesa (RF18)
  
 1. O usuário seleciona a despesa e aciona "Excluir".
-2. O sistema solicita confirmação explícita (RN11); o usuário confirma.
+2. Se a despesa pertence a uma série recorrente, o sistema pergunta o alcance da exclusão: só esta, esta e as próximas ou todas (FA12). Em seguida, solicita confirmação explícita informando o alcance escolhido (RN11); o usuário confirma.
 3. O sistema exclui e recalcula saldo, totais, indicadores e alertas na mesma operação (RN11).
 4. Se houver conexão, sincroniza; o sistema informa a exclusão, que é definitiva.
 #### E - Gerenciar categorias (RF19, RF65, RF66, RF67)
@@ -153,7 +170,8 @@
 - **FA08 - Exclusão de categoria com lançamentos:** as despesas continuam registradas e passam a aparecer como "Sem categoria", fora dos limites por categoria (RN13).
 - **FA09 - Categoria sem limite:** a edição ou exclusão não gera recálculo de indicadores nem de alertas.
 - **FA10 - Cancelamento de edição ou de exclusão de categoria:** nada é alterado.
-- **FA11 - Despesa recorrente:** o sistema gera as ocorrências conforme a periodicidade informada, respeitando a data de início e, quando informada, a de término; cada ocorrência entra individualmente nos totais, saldos, limites e alertas (RN19).
+- **FA11 - Despesa recorrente:** o sistema gera as ocorrências conforme a periodicidade informada, respeitando a data de início e, quando informada, a de término; cada ocorrência entra individualmente nos totais, saldos, limites e alertas (RN19). Para recorrência sem data de término, o sistema gera as ocorrências até 12 meses à frente e completa a geração sempre que o aplicativo é aberto; o identificador de cada ocorrência é derivado da série e da data, para não duplicar ocorrências, inclusive depois de restaurar os dados da nuvem (RN19, RNF26).
+- **FA12 - Edição ou exclusão de despesa recorrente:** o sistema pergunta o alcance da operação: **só esta**, **esta e as próximas** (a partir da ocorrência selecionada, inclusive) ou **todas** (toda a série). O sistema recalcula saldo, totais, indicadores, limites e alertas dos meses e categorias afetados na mesma operação (RN11, RN19). Cancelar a pergunta de alcance ou a confirmação não altera nada (FA05).
 ### Exceções
  
 - **EX01 - Campos inválidos:** rejeição com motivo por campo (RN08, RNF04, RNF14).
@@ -173,7 +191,7 @@
 ### Requisitos e regras associados
  
 - **Funcionais:** RF15, RF16, RF17, RF18, RF19, RF65, RF66, RF67. Relacionados: RF34, RF37, RF38, RF39, RF59, RF62.
-- **Não funcionais específicos:** RNF04, RNF05 , RNF06, RNF08, RNF16, RNF26, RNF27, RNF33, RNF35, RNF36, RNF38.
+- **Não funcionais específicos:** RNF04, RNF05 , RNF06, RNF08, RNF26, RNF27, RNF33, RNF35, RNF36, RNF38.
 - **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN14, RN19, RN20.
 ---
 
