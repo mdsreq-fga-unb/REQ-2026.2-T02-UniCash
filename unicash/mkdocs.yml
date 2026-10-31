@@ -144,7 +144,8 @@ markdown_extensions:
 
 nav:
   - Início:
-      - Apresentação: index.md
+      - Produto: index.md
+      - Documentação: inicio.md
 
   - Projeto:
       - Cenário atual: cenario.md
@@ -176,6 +177,7 @@ extra_css:
   - stylesheets/extra.css
   - stylesheets/consulta.css
   - stylesheets/interface.css
+  - stylesheets/landing.css
 
 extra_javascript:
   - https://unpkg.com/mathjax@3.2.2/es5/tex-mml-chtml.js
@@ -187,3 +189,4 @@ extra_javascript:
   - javascripts/tabelas.js
   - javascripts/catalogo.js
   - javascripts/interface.js
+  - javascripts/landing.js

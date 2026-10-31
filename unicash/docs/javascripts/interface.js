@@ -1,9 +1,8 @@
 /* Recursos de navegação presentes em todas as páginas:
  * - botão flutuante de consulta rápida (Ctrl+K), com busca de CP, UC, RF, RNF e RN;
- * - painel lateral recolhível com o glossário;
+ * - aba de pesquisa na borda direita, que abre o mesmo painel de busca;
  * - alternância entre a navegação por páginas e a leitura contínua;
- * - botão para recolher o menu lateral esquerdo;
- * - leitura em voz alta das atas (voz do navegador). */
+ * - botão para recolher o menu lateral esquerdo. */
 (function () {
   "use strict";
 
@@ -137,55 +136,12 @@
   });
 
   // ------------------------------------------------------------------ //
-  // Glossário em painel lateral recolhível
+  // Aba "Pesquisa" na borda direita: outro acesso ao mesmo painel
   // ------------------------------------------------------------------ //
-  var abaGlossario = el("button", { type: "button", class: "uc-aba-glossario", "aria-expanded": "false",
-    "aria-controls": "uc-glossario", texto: "Glossário" });
-  var buscaGlossario = el("input", { type: "search", class: "uc-busca", placeholder: "Filtrar siglas…",
-    "aria-label": "Filtrar glossário" });
-  var listaGlossario = el("dl", { class: "uc-glossario-lista" });
-  var painelGlossario = el("aside", { id: "uc-glossario", class: "uc-glossario", "aria-label": "Glossário", hidden: "" }, [
-    el("div", { class: "uc-glossario-topo" }, [
-      el("strong", { texto: "Glossário" }),
-      el("button", { type: "button", class: "uc-fechar", "aria-label": "Fechar glossário", texto: "×" })
-    ]),
-    buscaGlossario, listaGlossario,
-    el("a", { class: "uc-glossario-pagina", href: BASE + "consulta/glossario/", texto: "Abrir a página do glossário" })
-  ]);
-  document.body.appendChild(abaGlossario);
-  document.body.appendChild(painelGlossario);
-
-  var glossario = null;
-
-  function alternarGlossario(abrir) {
-    painelGlossario.hidden = !abrir;
-    abaGlossario.setAttribute("aria-expanded", abrir ? "true" : "false");
-    document.body.classList.toggle("uc-glossario-aberto", abrir);
-    if (!abrir) return;
-    buscaGlossario.focus();
-    if (glossario) return;
-    fetch(BASE + "consulta/dados/glossario.json").then(function (r) { return r.json(); }).then(function (d) {
-      glossario = d;
-      desenharGlossario();
-    });
-  }
-
-  function desenharGlossario() {
-    var termo = normalizar(buscaGlossario.value);
-    listaGlossario.innerHTML = "";
-    glossario.filter(function (g) { return normalizar(g.sigla + " " + g.significado).indexOf(termo) >= 0; })
-      .forEach(function (g) {
-        listaGlossario.appendChild(el("dt", { texto: g.sigla }));
-        listaGlossario.appendChild(el("dd", { texto: g.significado }));
-      });
-  }
-
-  abaGlossario.addEventListener("click", function () { alternarGlossario(painelGlossario.hidden); });
-  painelGlossario.querySelector(".uc-fechar").addEventListener("click", function () { alternarGlossario(false); });
-  buscaGlossario.addEventListener("input", function () { if (glossario) desenharGlossario(); });
-  document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape" && !painelGlossario.hidden) alternarGlossario(false);
-  });
+  var abaPesquisa = el("button", { type: "button", class: "uc-aba-lateral", "aria-haspopup": "dialog",
+    title: "Pesquisa rápida (Ctrl+K)", texto: "Pesquisa" });
+  abaPesquisa.addEventListener("click", abrirConsulta);
+  document.body.appendChild(abaPesquisa);
 
   // ------------------------------------------------------------------ //
   // Alternância: navegação por páginas ⇄ leitura contínua
@@ -239,94 +195,10 @@
   }
 
   // ------------------------------------------------------------------ //
-  // Ouvir ata (Web Speech API)
+  // Áudio do resumo das atas: o caminho é montado a partir da raiz do site
+  // para funcionar tanto no post quanto no índice do blog (excerto).
   // ------------------------------------------------------------------ //
-  var artigo = document.querySelector(".md-content--post article");
-  if (artigo && "speechSynthesis" in window) {
-    var fala = window.speechSynthesis;
-    var blocos = [], atual = 0, tocando = false;
-    var controles = el("div", { class: "uc-ouvir", role: "group", "aria-label": "Ouvir ata" });
-    var tocar = el("button", { type: "button", class: "md-button md-button--primary", texto: "▶ Ouvir ata" });
-    var parar = el("button", { type: "button", class: "md-button", texto: "■ Parar", disabled: "" });
-    var velocidade = el("select", { "aria-label": "Velocidade da leitura", class: "catalogo-select" });
-    [["0.9", "0,9×"], ["1", "1×"], ["1.2", "1,2×"], ["1.5", "1,5×"]].forEach(function (v) {
-      velocidade.appendChild(el("option", { value: v[0], texto: v[1] }));
-    });
-    velocidade.value = ler("velocidadeFala") || "1";
-    controles.appendChild(tocar);
-    controles.appendChild(parar);
-    controles.appendChild(velocidade);
-    var titulo = artigo.querySelector("h1");
-    (titulo || artigo.firstChild).insertAdjacentElement("afterend", controles);
-
-    function voz() {
-      var vozes = fala.getVoices().filter(function (v) { return /^pt(-|_)BR/i.test(v.lang); });
-      return vozes.find(function (v) { return /natural|google|online/i.test(v.name); }) || vozes[0] || null;
-    }
-
-    function textoDe(no) {
-      if (no.tagName === "TABLE") {
-        var cab = Array.prototype.map.call(no.querySelectorAll("thead th"), function (th) { return th.textContent.trim(); });
-        return Array.prototype.map.call(no.querySelectorAll("tbody tr"), function (tr) {
-          return Array.prototype.map.call(tr.cells, function (td, i) {
-            return (cab.length > 1 && cab[i] && i > 0 ? cab[i] + ": " : "") + td.textContent.trim();
-          }).join(". ");
-        }).join(". ");
-      }
-      return no.textContent.trim();
-    }
-
-    function montarBlocos() {
-      blocos = [];
-      if (titulo) blocos.push({ no: titulo, texto: titulo.textContent.replace("¶", "").trim() });
-      artigo.querySelectorAll(".md-typeset > p, .md-typeset > ul > li, .md-typeset > ol > li, .md-typeset > table, .md-typeset .md-typeset__table table, .md-typeset > h2, .md-typeset > h3")
-        .forEach(function (no) {
-          if (no.closest(".uc-ouvir")) return;
-          var t = textoDe(no).replace(/¶/g, "");
-          if (t) blocos.push({ no: no.closest(".md-typeset__scrollwrap") || no, texto: t });
-        });
-    }
-
-    function marcar(i) {
-      artigo.querySelectorAll(".uc-lendo").forEach(function (n) { n.classList.remove("uc-lendo"); });
-      if (blocos[i]) {
-        blocos[i].no.classList.add("uc-lendo");
-        blocos[i].no.scrollIntoView({ block: "center", behavior: "smooth" });
-      }
-    }
-
-    function falar(i) {
-      if (i >= blocos.length) { encerrar(); return; }
-      atual = i;
-      marcar(i);
-      var u = new SpeechSynthesisUtterance(blocos[i].texto);
-      u.lang = "pt-BR";
-      u.voice = voz();
-      u.rate = parseFloat(velocidade.value);
-      u.onend = function () { if (tocando) falar(i + 1); };
-      fala.speak(u);
-    }
-
-    function encerrar() {
-      tocando = false;
-      fala.cancel();
-      marcar(-1);
-      tocar.textContent = "▶ Ouvir ata";
-      parar.disabled = true;
-    }
-
-    tocar.addEventListener("click", function () {
-      if (tocando && !fala.paused) { fala.pause(); tocar.textContent = "▶ Continuar"; return; }
-      if (tocando && fala.paused) { fala.resume(); tocar.textContent = "❚❚ Pausar"; return; }
-      montarBlocos();
-      tocando = true;
-      parar.disabled = false;
-      tocar.textContent = "❚❚ Pausar";
-      fala.cancel();
-      falar(0);
-    });
-    parar.addEventListener("click", encerrar);
-    velocidade.addEventListener("change", function () { guardar("velocidadeFala", velocidade.value); });
-    window.addEventListener("beforeunload", function () { fala.cancel(); });
-  }
+  document.querySelectorAll("audio.uc-audio[data-ata]").forEach(function (a) {
+    a.src = BASE + "atas/audio/" + a.dataset.ata + ".mp3";
+  });
 })();

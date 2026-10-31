@@ -112,8 +112,8 @@
 }
 /* ===== Identidade visual UniCash ===== */
 
-/* Tokens de cor. O tema claro mantém a identidade original; o escuro
-   (navy + ciano) redefine os mesmos tokens em [data-md-color-scheme="slate"]. */
+/* Tokens de cor da paleta Tesouraria Teal (RNF38). O tema claro mantém a identidade original; o escuro
+   (navy + céu + verde) redefine os mesmos tokens em [data-md-color-scheme="slate"]. */
 :root {
   --uc-navy: #082F49;
   --uc-teal: #0E7490;
@@ -142,8 +142,8 @@
 }
 
 [data-md-color-scheme="slate"] {
-  --uc-teal: #22D3EE;
-  --uc-sky: #A5F3FC;
+  --uc-teal: #0E7490;
+  --uc-sky: #BAE6FD;
   --uc-bg: #0B1220;
   --uc-border: #1E3048;
   --uc-muted: #94A3B8;
@@ -156,12 +156,12 @@
   --uc-row-border: #1A2A40;
   --uc-table-text: #CBD5E1;
   --uc-th-bg: #0A1628;
-  --uc-link: #67E8F9;
-  --uc-link-hover: #A5F3FC;
+  --uc-link: #BAE6FD;
+  --uc-link-hover: #F0FDFF;
   --uc-icon-bg: #0E2A3A;
   --uc-embed-bg: #0F1729;
   --uc-mission-bg: linear-gradient(135deg, #0E2A3A, #111A2E);
-  --uc-card-hover-border: #22D3EE;
+  --uc-card-hover-border: #BAE6FD;
   --uc-shadow: rgb(0 0 0 / 35%);
   --uc-avatar-border: #1E3048;
 
@@ -172,8 +172,8 @@
   --md-default-fg-color--lighter: rgb(203 213 225 / 40%);
   --md-default-fg-color--lightest: rgb(203 213 225 / 14%);
   --md-typeset-color: #E2E8F0;
-  --md-typeset-a-color: #67E8F9;
-  --md-accent-fg-color: #22D3EE;
+  --md-typeset-a-color: #BAE6FD;
+  --md-accent-fg-color: #22C55E;
   --md-primary-fg-color: #0E7490;
   --md-code-bg-color: #111A2E;
   --md-footer-bg-color: #070D18;

@@ -264,8 +264,6 @@ def on_files(files, config, **kwargs):
 
     files.append(File.generated(config, "consulta/glossario.md", content=glossario(config)))
 
-    publica("glossario", [{"sigla": t, "significado": d} for t, d in termos_glossario(config)])
-
     publica("catalogo", {
         "itens": [publico(itens[c], mencoes.get(c, [])) for c in sorted(itens, key=ordem)],
         "tipos": TIPOS,
