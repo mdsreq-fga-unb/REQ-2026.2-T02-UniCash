@@ -1,0 +1,141 @@
+/* ===== CONSULTA RÁPIDA: catálogo, grafo, selos, links de requisitos ===== */
+
+:root {
+    --uc-cp: #7c3aed;
+    --uc-uc: #0891b2;
+    --uc-rf: #2563eb;
+    --uc-rnf: #ea580c;
+    --uc-rn: #16a34a;
+    --uc-borda: #bae6fd;
+    --uc-fundo-suave: #f0f9ff;
+}
+
+[data-md-color-scheme="slate"] {
+    --uc-borda: #334155;
+    --uc-fundo-suave: #1e293b;
+}
+
+/* Links automáticos para requisitos */
+.md-typeset a.ref {
+    font-weight: 600;
+    white-space: nowrap;
+    text-decoration: none;
+    border-bottom: 1px dotted currentColor;
+}
+.md-typeset a.ref-cp  { color: var(--uc-cp); }
+.md-typeset a.ref-uc  { color: var(--uc-uc); }
+.md-typeset a.ref-rf  { color: var(--uc-rf); }
+.md-typeset a.ref-rnf { color: var(--uc-rnf); }
+.md-typeset a.ref-rn  { color: var(--uc-rn); }
+[data-md-color-scheme="slate"] .md-typeset a.ref { filter: brightness(1.45); }
+
+/* Selos */
+.selos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 1rem; }
+.md-typeset .selo {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    background: var(--uc-fundo-suave);
+    border: 1px solid var(--uc-borda);
+}
+.md-typeset .selo-cp  { background: var(--uc-cp);  color: #fff; border-color: transparent; }
+.md-typeset .selo-uc  { background: var(--uc-uc);  color: #fff; border-color: transparent; }
+.md-typeset .selo-rf  { background: var(--uc-rf);  color: #fff; border-color: transparent; }
+.md-typeset .selo-rnf { background: var(--uc-rnf); color: #fff; border-color: transparent; }
+.md-typeset .selo-rn  { background: var(--uc-rn);  color: #fff; border-color: transparent; }
+.md-typeset .selo-mvp  { background: #dcfce7; color: #166534; border-color: #86efac; }
+.md-typeset .selo-fora { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+
+/* Filtro das tabelas comuns */
+.filtro-barra { display: flex; align-items: center; gap: 10px; margin: 0.6rem 0 0.4rem; }
+.md-typeset .md-input,
+.filtro-tabela,
+.catalogo-busca,
+.grafo-busca {
+    width: 100%;
+    max-width: 420px;
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 0.8rem;
+    color: var(--md-default-fg-color);
+    background: var(--md-default-bg-color);
+    border: 1px solid var(--uc-borda);
+    border-radius: 8px;
+}
+.filtro-contagem { font-size: 0.75rem; color: var(--md-default-fg-color--light); }
+
+/* Cabeçalhos ordenáveis (tablesort) */
+.md-typeset table th[role="columnheader"]:not(.no-sort) { cursor: pointer; }
+.md-typeset table th[aria-sort="ascending"]::after  { content: " ▲"; font-size: 0.7em; }
+.md-typeset table th[aria-sort="descending"]::after { content: " ▼"; font-size: 0.7em; }
+
+/* Catálogo */
+.catalogo { margin-top: 1.5rem; }
+.catalogo .catalogo-busca { max-width: 100%; font-size: 0.9rem; padding: 10px 14px; }
+.catalogo-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 0.8rem 0; }
+.catalogo-chips .chip {
+    padding: 4px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--uc-borda);
+    background: var(--md-default-bg-color);
+    color: var(--md-default-fg-color);
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+.catalogo-chips .chip[aria-pressed="true"] { background: var(--md-primary-fg-color); color: #fff; border-color: transparent; }
+.catalogo-filtros { display: flex; flex-wrap: wrap; gap: 8px; }
+.catalogo-select {
+    padding: 6px 10px;
+    font: inherit;
+    font-size: 0.75rem;
+    border: 1px solid var(--uc-borda);
+    border-radius: 8px;
+    background: var(--md-default-bg-color);
+    color: var(--md-default-fg-color);
+    max-width: 100%;
+}
+.catalogo-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0.8rem 0; }
+.catalogo-contagem { margin: 0 auto 0 0 !important; font-weight: 600; }
+.md-typeset .catalogo-acoes .md-button { padding: 0.3em 1em; font-size: 0.7rem; }
+.catalogo-rolagem { overflow-x: auto; }
+.md-typeset table.catalogo-tabela { display: table; width: 100%; font-size: 0.78rem; border-collapse: collapse; }
+.md-typeset table.catalogo-tabela th,
+.md-typeset table.catalogo-tabela td { padding: 8px 10px; border-bottom: 1px solid var(--uc-borda); vertical-align: top; }
+.md-typeset table.catalogo-tabela th { position: sticky; top: 0; background: var(--md-default-bg-color); text-align: left; }
+.md-typeset table.catalogo-tabela details { margin: 0; border: none; box-shadow: none; background: none; font-size: inherit; }
+.md-typeset table.catalogo-tabela summary { padding: 0; cursor: pointer; font-weight: 600; background: none; }
+.md-typeset table.catalogo-tabela summary::before,
+.md-typeset table.catalogo-tabela summary::after { display: none; }
+.md-typeset table.catalogo-tabela details p { margin: 0.4em 0 0; color: var(--md-default-fg-color--light); }
+
+/* Grafo */
+.grafo { display: grid; grid-template-columns: 1fr 280px; gap: 12px; margin: 1rem 0; }
+.grafo-controles { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.grafo-tipos { display: flex; flex-wrap: wrap; gap: 10px; }
+.grafo-opcao { display: inline-flex; align-items: center; gap: 4px; font-size: 0.75rem; cursor: pointer; }
+.grafo-cor { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.md-typeset .grafo-controles .md-button { padding: 0.3em 1em; font-size: 0.7rem; margin: 0; }
+.grafo-area { min-height: 420px; border: 1px solid var(--uc-borda); border-radius: 12px; overflow: hidden; }
+.grafo-detalhe {
+    font-size: 0.75rem;
+    padding: 12px;
+    border: 1px solid var(--uc-borda);
+    border-radius: 12px;
+    background: var(--uc-fundo-suave);
+    max-height: 680px;
+    overflow-y: auto;
+}
+.md-typeset .grafo-detalhe h3 { margin: 0.2em 0 0.5em; font-size: 0.9rem; }
+.md-typeset .grafo-detalhe .md-button { font-size: 0.7rem; padding: 0.3em 1em; }
+@media (max-width: 960px) {
+    .grafo { grid-template-columns: 1fr; }
+}
+
+/* Planilha incorporada */
+.md-typeset iframe.planilha { width: 100%; height: 520px; border: 1px solid var(--uc-borda); border-radius: 12px; }
+
+/* Gráficos Vega-Lite ocupam a largura disponível */
+.md-typeset .vegalite { width: 100%; }
+.md-typeset .vegalite .vega-embed { width: 100%; }

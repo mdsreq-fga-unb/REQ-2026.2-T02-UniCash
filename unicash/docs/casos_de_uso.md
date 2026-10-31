@@ -1,3 +1,5 @@
+# Casos de Uso
+
 <div class="pagina-casos-de-uso" markdown="1">
 ## UC01 - Gerenciar receitas
  

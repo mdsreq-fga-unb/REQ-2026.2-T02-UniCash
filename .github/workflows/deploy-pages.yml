@@ -24,6 +24,9 @@ jobs:
     steps:
       - name: Baixar o código
         uses: actions/checkout@v4
+        with:
+          # Histórico completo para as datas de atualização de cada página.
+          fetch-depth: 0
 
       - name: Configurar Python
         uses: actions/setup-python@v5

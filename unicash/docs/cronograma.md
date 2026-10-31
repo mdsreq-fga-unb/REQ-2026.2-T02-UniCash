@@ -4,6 +4,31 @@ O desenvolvimento do UniCash será conduzido como um projeto de software, seguin
 
 O planejamento considera prazo e equipe como restrições fixas. O escopo é ajustado por meio da priorização MoSCoW, enquanto os ciclos são orientados pelo Backlog do Produto e pelos resultados das validações. Cada timebox busca produzir um incremento utilizável ou um resultado de Engenharia de Requisitos necessário para o ciclo seguinte.
 
+## Linha do tempo
+
+```mermaid
+gantt
+    title Fases e timeboxes do UniCash (DSDM)
+    dateFormat YYYY-MM-DD
+    axisFormat %d/%m
+    todayMarker stroke-width:3px,stroke:#f59e0b
+    section Preparação
+    Pré-projeto                     :done, pp, 2026-08-29, 2026-08-31
+    Viabilidade                     :done, vb, 2026-09-01, 2026-09-04
+    Fundamentos                     :done, fd, 2026-09-05, 2026-09-10
+    section Desenvolvimento Evolutivo
+    Timebox 1                       :done, tb1, 2026-09-15, 2026-09-24
+    Timebox 2                       :done, tb2, 2026-09-25, 2026-10-08
+    Consolidação                    :done, cs1, 2026-10-09, 2026-10-15
+    Timebox 3                       :done, tb3, 2026-10-20, 2026-10-29
+    Timebox 4                       :active, tb4, 2026-10-30, 2026-11-12
+    Revisão e validação             :rv, 2026-11-13, 2026-11-19
+    Timebox 5                       :tb5, 2026-11-24, 2026-12-03
+    section Encerramento
+    Implantação (Timebox 6)         :crit, im, 2026-12-04, 2026-12-10
+    Pós-projeto                     :pos, 2026-12-11, 2026-12-17
+```
+
 ## Desenvolvimento e Entregas
 
 O desenvolvimento do UniCash é organizado em etapas de Engenharia de Requisitos e timeboxes de aproximadamente duas semanas, contemplando tanto as atividades já realizadas quanto as previstas para a evolução do produto. Em cada ciclo, os itens selecionados do Backlog do Produto são refinados, preparados para desenvolvimento, implementados e validados conforme a necessidade.
