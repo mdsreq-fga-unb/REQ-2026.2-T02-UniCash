@@ -105,9 +105,9 @@ Cada ponto é um requisito avaliado na priorização ([R05](../registros.md#r05-
 
 === "Tabela"
 
-    A tabela é lida do arquivo `docs/dados/priorizacao.csv`, exportado da planilha de priorização. Clique no cabeçalho para ordenar e use o campo de filtro para buscar.
+    A tabela é lida do arquivo `docs/dados/priorizacao.csv`, exportado da planilha de priorização. Esse arquivo é a fonte única das notas: alimenta também a matriz do [Escopo do MVP](../mvp.md), o gráfico acima e as páginas de cada requisito. Clique no cabeçalho para ordenar e use o campo de filtro para buscar.
 
-    {{ read_csv('priorizacao.csv', decimal=',') }}
+    {{ read_csv('priorizacao.csv', floatfmt='.2f') }}
 
 === "Planilha original"
 

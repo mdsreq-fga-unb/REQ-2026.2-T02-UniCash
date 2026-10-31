@@ -48,36 +48,13 @@ A planilha cobre apenas RF01 a RF56; RF57 a RF64 ainda não têm notas nessa pri
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 <script>
 (function () {
-  var D = [
-    ["RF01","Cadastrar usuário",3.333333333,1.933333333],["RF02","Autenticar usuário",3.333333333,2],
-    ["RF03","Visualizar perfil de usuário",3.666666667,1],["RF04","Editar perfil de usuário",3.666666667,1],
-    ["RF05","Excluir perfil de usuário",4,1.266666667],["RF06","Encerrar sessão",4,1.533333333],
-    ["RF07","Registrar receita",4,1.066666667],["RF08","Consultar receitas",4,1.066666667],
-    ["RF09","Editar receita",4,1.066666667],["RF10","Excluir receita",4,1.066666667],
-    ["RF11","Calcular total de receitas",4,1],["RF12","Criar meta financeira",4,1.466666667],
-    ["RF13","Editar meta financeira",4,1],["RF14","Excluir meta financeira",4,1],
-    ["RF15","Registrar despesa",4,1],["RF16","Consultar despesas",4,1.2],
-    ["RF17","Editar despesa",4,1],["RF18","Excluir despesa",4,1],
-    ["RF19","Criar categoria de despesas",4,1],["RF20","Visualizar metas financeiras",4,1],
-    ["RF21","Importar extrato bancário",2.333333333,3.266666667],["RF22","Criar grupo de amigos ou família",3,2],
-    ["RF23","Entrar em grupo de amigos ou família",2,1.933333333],["RF24","Convidar membro para grupo",2,2.333333333],
-    ["RF25","Sair de grupo de amigos ou família",3,1.733333333],["RF26","Tornar controle financeiro privado",4,1.866666667],
-    ["RF27","Visualizar metas de membros do grupo",2,2],["RF28","Criar meta do grupo",2,1.8],
-    ["RF29","Visualizar metas do grupo",2,1.4],["RF30","Classificar usuários do grupo",2,1.666666667],
-    ["RF31","Recuperar senha",3,2.533333333],["RF32","Definir lançamento recorrente",4,2.066666667],
-    ["RF33","Editar ocorrência de lançamento recorrente",4,1.733333333],["RF34","Calcular saldo mensal",4,1.266666667],
-    ["RF35","Reportar saldo anterior",4,1.4],["RF36","Acompanhar progresso da meta",4,1.2],
-    ["RF37","Notificar aproximação do limite",4,2.266666667],["RF38","Notificar ultrapassagem do limite",4,2.266666667],
-    ["RF39","Exibir indicador de categoria",3.666666667,1.933333333],["RF40","Gerar resumo financeiro inicial",4,1.866666667],
-    ["RF41","Exibir gráfico de despesas",3.666666667,1.933333333],["RF42","Exibir percentual por categoria",3.666666667,1.666666667],
-    ["RF43","Exibir previsão de faturas",2,2.2],["RF44","Conceder conquistas financeiras",4,2.266666667],
-    ["RF45","Atribuir pontuação por metas",4,2.133333333],["RF46","Notificar conquista obtida",4,2.466666667],
-    ["RF47","Classificar lançamentos importados",2,2.8],["RF48","Identificar lançamento duplicado",4,2.8],
-    ["RF49","Consolidar extratos de contas",2,3.466666667],["RF50","Registrar despesa por comprovante",1,3.2],
-    ["RF51","Definir papel de membro",3,2.133333333],["RF52","Consolidar dados do grupo",2,1.933333333],
-    ["RF53","Comparar gastos do grupo",2,2.066666667],["RF54","Importar formatos de extrato",1,3.133333333],
-    ["RF55","Apresentar tutorial inicial",4,2.066666667],["RF56","Avisar manutenção programada",4,2.733333333]
-  ];
+  // Notas de priorização: fonte única em docs/dados/priorizacao.csv
+  // (exportado da planilha; também usado pelo painel e pelas páginas de requisitos).
+  fetch("../dados/priorizacao.csv").then(function (r) { return r.text(); }).then(function (texto) {
+  var D = texto.trim().split(/\r?\n/).slice(1).map(function (linha) {
+    var c = linha.split(",");
+    return [c[0], c[1], parseFloat(c[2]), parseFloat(c[3])];
+  });
   var fmt = function (n) { return n.toFixed(2).replace(".", ","); };
   // cor por célula [valor][esforço]
   var C = {4:{1:"p",2:"m",3:"a",4:"pl"},3:{1:"m",2:"m",3:"a",4:"f"},2:{1:"a",2:"f",3:"f",4:"b"},1:{1:"a",2:"b",3:"b",4:"b"}};
@@ -123,6 +100,7 @@ A planilha cobre apenas RF01 a RF56; RF57 a RF64 ainda não têm notas nessa pri
     margin:{t:300,r:30,b:70,l:70}, paper_bgcolor:"#fff", plot_bgcolor:"#fff", hovermode:"closest"
   };
   Plotly.newPlot("matriz-valor-esforco", [trace], layout, {responsive:true, displayModeBar:false});
+  });
 })();
 </script>
 

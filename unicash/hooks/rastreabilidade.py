@@ -15,6 +15,7 @@ editado à mão, basta alterar as tabelas originais.
 
 from __future__ import annotations
 
+import csv
 import json
 import posixpath
 import re
@@ -155,8 +156,9 @@ def ler_requisitos(docs: Path) -> None:
 
     # MVP: RFs listados na tabela "Resultado da priorização".
     mvp = set(codigos(secao(mvp_md, "1.3 Resultado da priorização")))
-    notas = {m.group(1): (float(m.group(2)), float(m.group(3)))
-             for m in re.finditer(r'\["(RF\d{2})","[^"]*",([\d.]+),([\d.]+)\]', mvp_md)}
+    # Notas de priorização: fonte única em docs/dados/priorizacao.csv.
+    with open(docs / "dados" / "priorizacao.csv", encoding="utf-8", newline="") as arq:
+        notas = {linha[0]: (float(linha[2]), float(linha[3])) for linha in list(csv.reader(arq))[1:]}
     for cod, item in itens.items():
         if item["tipo"] == "RF":
             item["mvp"] = cod in mvp
