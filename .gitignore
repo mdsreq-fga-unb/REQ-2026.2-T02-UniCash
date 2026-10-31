@@ -1,0 +1,4 @@
+/.venv
+unicash/.venv/
+unicash/site/
+__pycache__/
