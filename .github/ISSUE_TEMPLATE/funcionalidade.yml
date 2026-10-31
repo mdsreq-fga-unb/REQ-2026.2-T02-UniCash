@@ -1,0 +1,32 @@
+name: Funcionalidade
+description: Implementar ou melhorar uma funcionalidade
+labels: [enhancement]
+body:
+  - type: input
+    id: requisito
+    attributes:
+      label: Requisito
+      description: Requisito da documentação que esta issue atende.
+      placeholder: "Ex.: RF07 - Registrar despesa"
+    validations:
+      required: true
+  - type: textarea
+    id: historia
+    attributes:
+      label: História de usuário
+      placeholder: "Como <tipo de usuário>, quero <objetivo> para <benefício>."
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Critérios de aceitação
+      placeholder: |
+        - Dado ..., quando ..., então ...
+    validations:
+      required: true
+  - type: textarea
+    id: notas
+    attributes:
+      label: Notas técnicas
+      description: Telas, dados, dependências ou dúvidas.
