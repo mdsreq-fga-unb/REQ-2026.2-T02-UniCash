@@ -165,7 +165,7 @@ Os elementos abaixo participam do processo, mas não são técnicas de Engenhari
 | Separação em RF, RNF e RN | Análise e classificação | Tratada como técnica de classificação dentro de Análise e Consenso. |
 | Definição do MVP | Resultado da priorização | Decorre da priorização MoSCoW com a matriz valor × esforço. |
 | Temas, épicos e histórias | Estrutura de declaração e organização | Substituídos por casos de uso como forma de declaração e pelo backlog de requisitos organizado por CP ([R08](atas/posts/r08.md)). |
-| Quadro Kanban | Ferramenta de organização e acompanhamento | Mostra o andamento das atividades no GitHub Projects; não substitui a rastreabilidade (seção 5.5). |
+| Quadro Kanban | Ferramenta de organização e acompanhamento | Mostra o andamento das atividades no [GitHub Projects](https://github.com/orgs/mdsreq-fga-unb/projects/123/views/6); não substitui a rastreabilidade (seção 5.5). |
 | Definição das timeboxes | Planejamento do projeto | Definida no cronograma, fora das atividades de ER. |
 | Critérios de aceitação | Condições para aceitação | Declarados junto a cada caso de uso e usados na validação do incremento. |
 | Definition of Ready (DoR) | Critério de prontidão | Usada como checklist na inspeção dos requisitos. |
@@ -193,8 +193,8 @@ Como a equipe adotou casos de uso em vez de histórias de usuário ([R08](atas/p
 | Característica de Produto | CP1 a CP8 | [Solução proposta](solucao.md), seção 2.3 | Colunas de contribuição principal e secundária |
 | Requisito funcional | RFxx | [Requisitos Funcionais](requisitos_funcionais.md) | Coluna "Característica de Produto" |
 | Requisito não funcional | RNFxx | [Requisitos Não Funcionais](requisitos_nao_funcionais.md) | Coluna "Aplica-se a", que indica os RFs ou o sistema inteiro |
-| Caso de uso | UCxx | Backlog de requisitos (GitHub Project) | Cada caso de uso cita o RF de origem |
-| Critério de aceitação | UCxx-CAy | Backlog de requisitos, junto ao caso de uso | Pertence a um caso de uso |
+| Caso de uso | UCxx | [Backlog de requisitos (GitHub Project)](https://github.com/orgs/mdsreq-fga-unb/projects/130) | Cada caso de uso cita o RF de origem |
+| Critério de aceitação | UCxx-CAy | [Backlog de requisitos](https://github.com/orgs/mdsreq-fga-unb/projects/130), junto ao caso de uso | Pertence a um caso de uso |
 | Incremento | Timebox e pull request | Repositório | O pull request cita os casos de uso implementados |
 | Validação | Data e registro da revisão | Ata da revisão do incremento ou do teste de aceitação | Registra o resultado de cada critério de aceitação |
 

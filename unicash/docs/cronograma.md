@@ -54,4 +54,11 @@ As consolidações previstas no calendário da disciplina são tratadas como mar
 
 O Kanban será utilizado para visualizar o fluxo de trabalho, identificar gargalos e acompanhar o trabalho em andamento durante os timeboxes. Será adotado limite de WIP de 3 itens simultâneos na etapa de desenvolvimento, com possibilidade de revisão durante as retrospectivas caso sejam identificados gargalos recorrentes.
 
+!!! tip "Acompanhe no GitHub Projects"
+    - [Kanban do timebox](https://github.com/orgs/mdsreq-fga-unb/projects/123/views/6){ target="_blank" rel="noopener" }: fluxo de trabalho atual e limite de WIP.
+    - [Backlog do Produto (MoSCoW)](https://github.com/orgs/mdsreq-fga-unb/projects/123/views/7){ target="_blank" rel="noopener" }: itens priorizados para o MVP e os próximos timeboxes.
+    - [Backlog de casos de uso](https://github.com/orgs/mdsreq-fga-unb/projects/130){ target="_blank" rel="noopener" }: casos de uso e critérios de aceitação por CP.
+
+    Os quadros ficam na organização `mdsreq-fga-unb` e só aparecem para quem é membro dela.
+
 As revisões de timebox e as validações serão realizadas com a cliente conforme os objetivos de cada ciclo. Os usuários finais considerados para validação são estudantes universitários e representantes de famílias, representados por Maria Vitória e Alana França. As práticas de testes automatizados, integração contínua e revisão por pull request serão mantidas durante os ciclos de desenvolvimento.

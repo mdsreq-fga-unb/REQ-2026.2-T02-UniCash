@@ -164,6 +164,10 @@ nav:
       - Escopo do MVP: mvp.md
       - Casos de uso: casos_de_uso.md
       - Cronograma e entregas: cronograma.md
+      - Acompanhamento:
+          - Kanban do timebox ↗: https://github.com/orgs/mdsreq-fga-unb/projects/123/views/6
+          - Backlog do Produto ↗: https://github.com/orgs/mdsreq-fga-unb/projects/123/views/7
+          - Backlog de casos de uso ↗: https://github.com/orgs/mdsreq-fga-unb/projects/130
 
   - Equipe:
       - Interação entre equipe e cliente: interacao.md
