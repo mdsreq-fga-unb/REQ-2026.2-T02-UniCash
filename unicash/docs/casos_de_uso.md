@@ -219,38 +219,42 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno. O código EX13
 ## UC03 - Consultar resumo financeiro e evolução mensal
  
 - **Ator principal:** Usuário.
-- **Valor:** dar uma visão rápida de quanto entrou em cada dia e mês e de como os meses se comparam.
-- **Requisitos funcionais:** RF11.
+- **Valor:** dar uma visão rápida de quanto entrou e saiu em cada dia e mês e de como os meses se comparam.
+- **Requisitos funcionais:** RF11, RF40, RF68.
  
 ### Pré-condições
  
-- Existem dados locais disponíveis (lançamentos registrados).
-- O usuário abriu a área de resumo.
+- A base local está disponível (RN06).
+- O usuário abriu o aplicativo.
+### Pós-condições
+ 
+- **Consulta:** nenhum dado é alterado; a tela apresenta os totais e o gráfico do mês selecionado.
 ### Fluxo principal
  
-1. O usuário acessa o resumo financeiro.
+1. O usuário abre o aplicativo ou acessa o resumo financeiro.
 2. O sistema assume o mês corrente como período padrão (RN12).
-3. O sistema calcula, a partir dos lançamentos, o total de receitas **por dia** e o total **do mês**, com base na data de cada lançamento (RF11).
-4. O sistema apresenta os totais do período selecionado.
-5. O sistema apresenta o gráfico de evolução mensal, com receitas e despesas por mês. O gráfico mostra no máximo 6 meses (RN12). As barras de receita e despesa precisam seguir a paleta (RNF38).
+3. O sistema calcula, a partir dos lançamentos da base local, o total de receitas por dia e do mês (RF11); o saldo (UC04), o total de despesas e o progresso das metas do período (RF40); e, para cada mês do gráfico, o total de receitas e o total de despesas (RF68).
+4. O sistema apresenta o saldo, o total de receitas, o total de despesas e o progresso das metas do período selecionado (RF40) e o total de receitas de cada dia que tem lançamento (RF11).
+5. O sistema apresenta o gráfico de barras de evolução mensal, com o total de receitas e o total de despesas de cada mês (RF68), limitado a 6 meses (RN12): o mês selecionado e os 5 anteriores. As barras de receita e despesa seguem a paleta (RNF38).
 6. O usuário seleciona outro mês, pelo seletor ou tocando em uma barra do gráfico.
-7. O sistema recalcula e apresenta os totais do mês escolhido.
+7. O sistema recalcula e apresenta os valores do mês escolhido. Se o mês estava fora da janela do gráfico, a janela se desloca para terminar nele (FA06).
 ### Fluxos alternativos
  
 - **FA01 - Mês sem receitas:** o sistema apresenta total igual a zero.
-- **FA02 - Sem nenhum lançamento:** o sistema exibe estado vazio com orientação para registrar a primeira receita ou despesa.
+- **FA02 - Sem nenhum lançamento:** o sistema exibe estado vazio com atalho para o tutorial (RF55).
 - **FA03 - Consulta offline:** o sistema calcula com os lançamentos locais (RN06).
 - **FA04 - Mês futuro:** o sistema inclui lançamentos de data futura no mês correspondente (RN12).
 - **FA05 - Lançamento alterado ou excluído:** o resumo é recalculado ao reabrir ou voltar à tela (UC01, UC02).
+- **FA06 - Mês fora da janela do gráfico:** ao escolher no seletor um mês fora dos 6 exibidos, o gráfico passa a mostrar esse mês e os 5 anteriores.
 ### Exceções
  
-- **EX01 - Falha no cálculo:** o sistema informa que não foi possível calcular os totais.
-- **EX02 - Dados inconsistentes:** o sistema recalcula a partir dos lançamentos e descarta contadores sincronizados (RN07).
-- **EX03 - Acesso a dados de outro usuário:** o sistema nega (RNF03).
+Cada exceção indica o passo em que ocorre e o ponto de retorno.
+ 
+- **EX01 - Falha na leitura ou no cálculo (passos 3 e 7):** o sistema informa: "Não foi possível calcular os totais. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 2 do fluxo principal, ao tentar novamente.
 ### Requisitos e regras associados
  
-- **Funcionais:** RF11. Relacionados: RF07, RF15, RF34, RF40, RF41, RF42.
-- **Não funcionais específicos:** RNF07, RNF08, RNF29, RNF38.
+- **Funcionais:** RF11, RF40, RF68. Relacionados: RF07, RF12, RF15, RF34, RF41, RF42, RF55.
+- **Não funcionais específicos:** RNF07, RNF08, RNF20, RNF29, RNF33, RNF34, RNF38.
 - **Regras de negócio:** RN06, RN07, RN09, RN12.
 ---
 
