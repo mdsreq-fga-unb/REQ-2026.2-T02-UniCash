@@ -289,11 +289,24 @@ body:has(.uc-landing) { overflow-x: hidden; }
 .ld-galeria figure:hover .ld-celular { transform: translateY(-8px) rotate(-1deg); }
 .md-typeset .ld-galeria figcaption { max-width: 270px; margin-top: 1rem; font-size: 0.78rem; color: var(--ld-suave); }
 
-.ld-wireframes { max-width: 60rem; margin: 3rem auto 0; padding: 1rem 1.4rem; border: 1px dashed var(--ld-borda); border-radius: 16px; }
-.ld-wireframes summary { font-weight: 700; cursor: pointer; }
-.ld-wireframes-grade { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-top: 1rem; }
-.ld-wireframes-grade img { width: 100%; border: 1px solid var(--ld-borda); border-radius: 12px; transition: transform 200ms ease; }
-.ld-wireframes-grade a:hover img { transform: scale(1.04); }
+.ld-wireframes { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem 1.25rem; max-width: 62rem; margin: 0 auto; }
+.md-typeset .ld-wireframes figure { width: 150px; margin: 0; }
+.ld-wireframes a { display: block; }
+.ld-wireframes img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 9 / 20;
+    object-fit: cover;
+    object-position: top;
+    background: #fff;
+    border: 1px solid var(--ld-borda);
+    border-radius: 14px;
+    box-shadow: 0 8px 22px rgb(8 47 73 / 10%);
+    transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.ld-wireframes a:hover img { transform: translateY(-6px); box-shadow: 0 16px 32px rgb(8 47 73 / 18%); }
+.md-typeset .ld-wireframes figcaption { margin-top: 0.6rem; font-size: 0.74rem; color: var(--ld-suave); }
+.md-typeset .ld-wireframes-link { margin-top: 2rem; text-align: center; font-weight: 600; }
 
 .ld-video {
     position: relative;

@@ -131,20 +131,24 @@ hide:
       <figcaption>Limites por categoria com indicador em semáforo</figcaption>
     </figure>
   </div>
+</section>
 
-  <details class="ld-wireframes ld-revela">
-    <summary>Ver os wireframes originais (baixa fidelidade, Figma)</summary>
-    <div class="ld-wireframes-grade">
-      <a class="glightbox" href="images/wireframes/resumo.png" data-gallery="wireframes" data-title="Resumo financeiro"><img src="images/wireframes/resumo.png" alt="Wireframe do resumo financeiro" loading="lazy"></a>
-      <a class="glightbox" href="images/wireframes/movimentacoes.png" data-gallery="wireframes" data-title="Movimentações"><img src="images/wireframes/movimentacoes.png" alt="Wireframe das movimentações" loading="lazy"></a>
-      <a class="glightbox" href="images/wireframes/nova-despesa.png" data-gallery="wireframes" data-title="Nova despesa"><img src="images/wireframes/nova-despesa.png" alt="Wireframe do registro de despesa" loading="lazy"></a>
-      <a class="glightbox" href="images/wireframes/categorias.png" data-gallery="wireframes" data-title="Categorias e orçamento"><img src="images/wireframes/categorias.png" alt="Wireframe de categorias e orçamento" loading="lazy"></a>
-      <a class="glightbox" href="images/wireframes/metas.png" data-gallery="wireframes" data-title="Metas financeiras"><img src="images/wireframes/metas.png" alt="Wireframe das metas" loading="lazy"></a>
-      <a class="glightbox" href="images/wireframes/relatorios.png" data-gallery="wireframes" data-title="Relatórios"><img src="images/wireframes/relatorios.png" alt="Wireframe dos relatórios" loading="lazy"></a>
-      <a class="glightbox" href="images/wireframes/importacao.png" data-gallery="wireframes" data-title="Importação de extrato"><img src="images/wireframes/importacao.png" alt="Wireframe da importação de extrato" loading="lazy"></a>
-    </div>
-    <p><a href="https://www.figma.com/design/FCpcvcFIixiiutEYruNAJe/" target="_blank" rel="noopener">Abrir o wireframe navegável no Figma ↗</a></p>
-  </details>
+<section class="ld-secao" id="wireframes">
+  <header class="ld-cabecalho ld-revela">
+    <span class="ld-rotulo">Do papel ao app</span>
+    <h2>Wireframes de baixa fidelidade</h2>
+    <p>Os primeiros esboços das telas, feitos no Figma e validados com as clientes antes do protótipo. Clique em uma tela para ampliar.</p>
+  </header>
+  <div class="ld-wireframes ld-revela">
+    <figure><a class="glightbox" href="images/wireframes/resumo.png" data-gallery="wireframes" data-title="Resumo financeiro"><img src="images/wireframes/resumo.png" alt="Wireframe do resumo financeiro" loading="lazy"></a><figcaption>Resumo financeiro</figcaption></figure>
+    <figure><a class="glightbox" href="images/wireframes/movimentacoes.png" data-gallery="wireframes" data-title="Movimentações"><img src="images/wireframes/movimentacoes.png" alt="Wireframe das movimentações" loading="lazy"></a><figcaption>Movimentações</figcaption></figure>
+    <figure><a class="glightbox" href="images/wireframes/nova-despesa.png" data-gallery="wireframes" data-title="Nova despesa"><img src="images/wireframes/nova-despesa.png" alt="Wireframe do registro de despesa" loading="lazy"></a><figcaption>Nova despesa</figcaption></figure>
+    <figure><a class="glightbox" href="images/wireframes/categorias.png" data-gallery="wireframes" data-title="Categorias e orçamento"><img src="images/wireframes/categorias.png" alt="Wireframe de categorias e orçamento" loading="lazy"></a><figcaption>Categorias e orçamento</figcaption></figure>
+    <figure><a class="glightbox" href="images/wireframes/metas.png" data-gallery="wireframes" data-title="Metas financeiras"><img src="images/wireframes/metas.png" alt="Wireframe das metas" loading="lazy"></a><figcaption>Metas financeiras</figcaption></figure>
+    <figure><a class="glightbox" href="images/wireframes/relatorios.png" data-gallery="wireframes" data-title="Relatórios"><img src="images/wireframes/relatorios.png" alt="Wireframe dos relatórios" loading="lazy"></a><figcaption>Relatórios</figcaption></figure>
+    <figure><a class="glightbox" href="images/wireframes/importacao.png" data-gallery="wireframes" data-title="Importação de extrato"><img src="images/wireframes/importacao.png" alt="Wireframe da importação de extrato" loading="lazy"></a><figcaption>Importação de extrato</figcaption></figure>
+  </div>
+  <p class="ld-wireframes-link ld-revela"><a href="https://www.figma.com/design/FCpcvcFIixiiutEYruNAJe/" target="_blank" rel="noopener">Abrir o wireframe navegável no Figma ↗</a></p>
 </section>
 
 <section class="ld-secao" id="video">
