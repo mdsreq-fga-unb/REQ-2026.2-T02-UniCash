@@ -173,6 +173,7 @@ nav:
       - Interação entre equipe e cliente: interacao.md
       - Registros de engenharia de requisitos:
           - atas/index.md
+          - Registro de decisões: decisoes.md
       - Lições aprendidas: licoes_aprendidas.md
       - Referências: referencias.md
 

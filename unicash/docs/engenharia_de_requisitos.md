@@ -217,7 +217,7 @@ As decisões das atividades de ER são registradas em atas com os seguintes camp
 
 A seção 5.1 descreve o processo planejado, organizado pelas fases do DSDM. A coluna "Fase" da tabela abaixo indica quando cada atividade foi de fato executada, conforme os registros. Por isso, atividades previstas para Viabilidade e Fundamentos (como a análise de soluções existentes, a classificação dos requisitos e a priorização do MVP) aparecem aqui nos Timeboxes 1 e 2 do Desenvolvimento Evolutivo.
 
-A tabela relaciona as atividades já realizadas às evidências correspondentes. Os registros R01 a R08 estão na página [Registros de Engenharia de Requisitos](atas/index.md).
+A tabela relaciona as atividades já realizadas às evidências correspondentes. Os registros R01 a R08 estão na página [Registros de Engenharia de Requisitos](atas/index.md). As decisões que mudaram o escopo, os requisitos, o processo ou a arquitetura estão consolidadas no [Registro de decisões](decisoes.md), com origem, motivo, requisitos afetados e comunicação.
 
 | Data | Fase | Atividade | Evidência | Situação |
 | :--- | :--- | :--- | :--- | :--- |
@@ -235,6 +235,20 @@ A tabela relaciona as atividades já realizadas às evidências correspondentes.
 | 30/09/2026 e 05/10/2026 | Desenvolvimento Evolutivo — Timebox 2 | Avaliação cruzada dos requisitos | Tabela de aceite e justificativa de cada feedback ([R06](atas/posts/r06.md), [R08](atas/posts/r08.md)) | Sem registro no site |
 | 02/10/2026 | Desenvolvimento Evolutivo — Timebox 2 | Validação do escopo do MVP com a cliente e as representantes | [R07](atas/posts/r07.md) | Registrada |
 | 05/10/2026 | Desenvolvimento Evolutivo — Timebox 2 | Adoção de casos de uso como forma de declaração | [R08](atas/posts/r08.md) | Registrada |
+| 29/10/2026 e 30/10/2026 | Desenvolvimento Evolutivo — Timeboxes 3 e 4 | Decisão da stack e da sincronização | [D18](decisoes.md#d18), [D19](decisoes.md#d19) e [PR #34](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/34) | Registrada; comunicação à cliente sem registro |
 | — | Fundamentos | Casos de uso em formato breve | Casos de uso (UCxx) vinculados aos RFs *Must have* | Sem registro (previsto) |
 | — | Fundamentos | Matriz de rastreabilidade (versão inicial) | Matriz descrita na seção 5.5 | Sem registro (previsto) |
 | — | Fundamentos | Prototipação de baixa fidelidade | Wireframes no Figma | Sem registro (previsto) |
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 07/09/2026 | Adiciona topico de engenharia de requisitos | Natan França |
+| 1.1 | 10/10/2026 | Explicita metodos de declaração de requisitos | Natan França |
+| 1.2 | 10/10/2026 | Reestrutura processo de ER conforme issue #5 | Bruno Duarte |
+| 1.3 | 12/10/2026 | Atualiza as referências entre seções e esclarece as pendências | Erick Alves |
+| 1.4 | 23/10/2026 | Corrige checklist do DoR | Natan França |
+| 1.5 | 31/10/2026 | Tema escuro, consulta flutuante, leitura contínua e atas em blog | Bruno Duarte |
+| 1.6 | 31/10/2026 | Adiciona links para o Kanban e os backlogs no GitHub Projects | Bruno Duarte |
+| 1.7 | 03/11/2026 | Referencia o Registro de decisões e registra a decisão da stack na seção 5.6; inclui o histórico de versões | Bruno Duarte |

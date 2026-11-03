@@ -17,80 +17,101 @@ Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usu
 | CP7 | Colaboração em grupo de amigos ou família |
 | CP8 | Engajamento e incentivo ao cumprimento de metas |
 
+## Situação dos requisitos { #situacao-dos-requisitos }
+
+A coluna **Origem** aponta a ata em que o requisito surgiu ou foi alterado e a decisão que o motivou, registrada no [Registro de decisões](decisoes.md). [R04](atas/posts/r04.md) indica a primeira versão consolidada pela equipe, quando não houve reunião específica de origem.
+
+A coluna **Situação** separa o que está valendo do que ainda é proposta:
+
+| Situação | Significado |
+|---|---|
+| **Proposto** | Incluído pela equipe e ainda não confirmado com a cliente. Consta em [Pontos para validação](#pontos-para-validacao). |
+| **Vigente** | Integra o escopo atual e não tem pendência de confirmação. |
+| **Entregue** | Implementado no aplicativo e aceito conforme a [Definition of Done](dor_dod.md). Nenhum requisito está nesta situação ainda. |
+| **Retirado** | Fundido a outro requisito ou removido do escopo. O código não é reutilizado e fica na tabela de requisitos retirados. |
+
+A inclusão no MVP é uma informação à parte, registrada no [Escopo do MVP](mvp.md).
+
 ## Requisitos Funcionais
 
 A tabela está ordenada por Característica de Produto.
 
-| Código | Nome e descrição | Característica de Produto |
-|---|---|---|
-| **RF07** | **Registrar receita:** Permitir informar valor, data, descrição e demais campos definidos para uma receita; validar e salvar o lançamento. | CP1 |
-| **RF08** | **Consultar receitas:** Exibir as receitas registradas pelo usuário, com consulta por período e detalhe de cada lançamento. | CP1 |
-| **RF09** | **Editar receita:** Permitir alterar os dados de uma receita existente e recalcular os totais afetados após salvar. | CP1 |
-| **RF10** | **Excluir receita:** Permitir remover uma receita mediante confirmação e atualizar os totais relacionados. | CP1 |
-| **RF15** | **Registrar despesa:** Permitir informar valor, data, descrição e categoria de uma despesa; validar e salvar o lançamento. | CP1 |
-| **RF16** | **Consultar despesas:** Exibir as despesas registradas pelo usuário, com consulta por período, categoria e detalhe. | CP1 |
-| **RF17** | **Editar despesa:** Permitir alterar os dados de uma despesa existente e salvar as mudanças após a validação. | CP1 |
-| **RF18** | **Excluir despesa:** Permitir remover uma despesa mediante confirmação e atualizar os cálculos dependentes. | CP1 |
-| **RF21** | **Importar extrato bancário:** Permitir selecionar um arquivo de extrato em um dos formatos aceitos (RN05), apresentar prévia dos lançamentos reconhecidos, solicitar revisão quando a leitura for ambígua e confirmar sua incorporação aos dados financeiros. | CP1 |
-| **RF32** | **Definir lançamento recorrente:** Permitir marcar receita ou despesa como fixa ou recorrente e informar sua periodicidade para gerar lançamentos nos meses seguintes. | CP1 |
-| **RF33** | **Editar ocorrência de lançamento recorrente:** Permitir alterar apenas o lançamento de um mês específico sem modificar as demais ocorrências da série. | CP1 |
-| **RF48** | **Identificar lançamento duplicado:** Comparar cada registro importado com os lançamentos já registrados e considerar possível duplicidade quando o valor for idêntico e a data diferir em até 1 dia; para cada possível duplicidade, exibir os dois registros lado a lado e pedir ao usuário que escolha entre descartar o importado ou mantê-lo como lançamento distinto, antes de consolidar. | CP1 |
-| **RF50** | **Registrar despesa por comprovante:** Permitir fotografar ou selecionar um comprovante, anexá-lo ao lançamento e confirmar ou informar os dados da despesa antes de salvar. | CP1 |
-| **RF59** | **Registrar lançamento sem conexão:** Permitir ao usuário autenticado registrar receita ou despesa sem conexão, guardá-lo localmente, informar seu estado de envio e enviá-lo ao servidor quando a conexão voltar. | CP1 |
-| **RF60** | **Extrair dados de comprovante:** Ler a imagem do comprovante indicado no RF50 e sugerir valor, data e descrição da despesa para confirmação ou correção pelo usuário. | CP1 |
-| **RF19** | **Criar categoria de despesas:** Permitir cadastrar uma categoria para classificar despesas e, quando aplicável, definir seu limite de gasto. | CP2 |
-| **RF47** | **Classificar lançamentos importados:** Sugerir a categoria de cada registro importado a partir de palavras-chave da descrição associadas às categorias do usuário e de lançamentos anteriores com a mesma descrição, permitindo revisão antes da confirmação; quando não houver correspondência, deixar o registro sem categoria sugerida. | CP2 |
-| **RF65** | **Consultar categorias:** Exibir ao usuário a lista de categorias disponíveis (padrão e próprias), identificando as categorias padrão e o limite de gasto de cada uma, quando definido, com a opção de ver os lançamentos classificados em cada categoria. | CP2 |
-| **RF66** | **Editar categoria:** Permitir alterar o nome e o limite de gasto de uma categoria própria, validar a unicidade do nome (RN13), salvar as mudanças e recalcular os indicadores e alertas de limite afetados (RF37, RF38 e RF39). As categorias padrão não podem ser editadas (RN13). | CP2 |
-| **RF67** | **Excluir categoria:** Permitir remover uma categoria própria mediante confirmação (RN11), mantendo os lançamentos associados, que passam a constar como “Sem categoria” (RN13), e atualizar os indicadores e alertas dependentes. As categorias padrão não podem ser excluídas (RN13). | CP2 |
-| **RF12** | **Criar meta financeira:** Permitir definir objetivo, valor alvo, prazo e tipo de meta de gasto ou investimento. | CP3 |
-| **RF13** | **Editar meta financeira:** Permitir alterar os parâmetros de uma meta existente e salvar as mudanças após a validação. | CP3 |
-| **RF14** | **Excluir meta financeira:** Permitir remover uma meta mediante confirmação, sem excluir os lançamentos financeiros associados. | CP3 |
-| **RF20** | **Visualizar metas financeiras:** Exibir as metas do usuário com valor alvo, prazo, valor realizado e situação atual. | CP3 |
-| **RF36** | **Acompanhar progresso da meta:** Comparar o valor realizado com o valor alvo e apresentar progresso e valor restante da meta. | CP3 |
-| **RF37** | **Notificar aproximação do limite:** Emitir alerta quando o gasto atingir o limiar de aproximação definido na RN03 para a meta de gasto ou categoria, apresentando apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e respeitando as preferências do RF58. | CP3 |
-| **RF38** | **Notificar ultrapassagem do limite:** Emitir alerta quando o gasto superar o limite definido na RN03 para a meta de gasto ou categoria, apresentando apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e respeitando as preferências do RF58. | CP3 |
-| **RF39** | **Exibir indicador de consumo do limite da categoria:** Apresentar, para cada categoria com limite definido, um indicador visual do consumo do limite no período selecionado, conforme as faixas da RN02. | CP3 |
-| **RF11** | **Calcular total de receitas:** Exibir ao usuário autenticado a soma das receitas do período selecionado como valor de entrada correspondente. | CP4 |
-| **RF34** | **Calcular saldo mensal:** Exibir ao usuário autenticado o saldo do mês, calculado a partir do saldo inicial, das receitas e das despesas registradas no período. | CP4 |
-| **RF35** | **Exibir saldo do mês anterior:** Exibir ao usuário autenticado o saldo remanescente do mês anterior como referência na apresentação do mês atual. | CP4 |
-| **RF40** | **Gerar resumo financeiro inicial:** Ao abrir o aplicativo, exibir ao usuário autenticado o saldo, o total de receitas, o total de despesas e o progresso das metas do período selecionado, sendo o mês corrente o período padrão; quando não houver lançamentos, exibir estado vazio com atalho para o tutorial (RF55). | CP4 |
-| **RF41** | **Exibir gráfico de despesas:** Exibir ao usuário autenticado um gráfico de barras com o total de despesas por categoria no período selecionado, com o valor de cada barra apresentado como rótulo e a categoria identificada na legenda. | CP4 |
-| **RF42** | **Exibir percentual por categoria:** Exibir ao usuário autenticado o percentual do total de despesas do período que cada categoria representa; quando não houver despesas no período, não apresentar percentual. | CP4 |
-| **RF43** | **Exibir previsão de despesas recorrentes:** Exibir ao usuário autenticado as despesas recorrentes já cadastradas (RF32) previstas para os próximos 30 dias, identificadas como valores previstos. | CP4 |
-| **RF49** | **Consolidar extratos de contas:** Exibir ao usuário, em uma visão única, os lançamentos confirmados de diferentes extratos importados, identificando em cada um a instituição de origem informada na importação. | CP4 |
-| **RF01** | **Cadastrar usuário:** Permitir que uma pessoa crie uma conta ao informar os dados obrigatórios e uma senha; após a validação, registrar o perfil e confirmar o cadastro. | CP5 |
-| **RF02** | **Autenticar usuário:** Permitir o acesso com credenciais válidas, iniciar a sessão e informar o motivo quando a autenticação for rejeitada. | CP5 |
-| **RF03** | **Visualizar perfil de usuário:** Exibir ao usuário autenticado os dados do próprio perfil. | CP5 |
-| **RF04** | **Editar perfil de usuário:** Permitir ao usuário autenticado alterar seus dados de perfil e salvar as mudanças após a validação. | CP5 |
-| **RF05** | **Excluir perfil de usuário:** Solicitar confirmação antes da exclusão da conta e executar a remoção dos dados associados conforme a política de retenção da RN04. | CP5 |
-| **RF06** | **Encerrar sessão:** Permitir ao usuário sair da conta e invalidar a sessão ativa no aplicativo. | CP5 |
-| **RF31** | **Recuperar senha:** Permitir solicitar redefinição por um canal verificado e cadastrar uma nova senha por meio de ligação temporária de uso único. | CP5 |
-| **RF61** | **Usar sem conta:** Permitir usar todas as funcionalidades individuais sem cadastro, com os dados somente no dispositivo; a conta é necessária só para sincronizar e participar de grupos. | CP5 |
-| **RF55** | **Apresentar tutorial inicial:** No primeiro acesso, oferecer tutorial interativo que informe o que o aplicativo faz e o que não faz (organiza e apresenta as informações financeiras, sem aumentar a renda nem garantir a redução de dívidas) e guie o usuário por registrar receita (RF07), registrar despesa (RF15), criar meta financeira (RF12) e ler o resumo inicial (RF40), explicando em linguagem simples os termos financeiros usados e com opção de avançar ou encerrar a qualquer etapa; permitir reabrir o tutorial pelo menu de ajuda. | CP6 |
-| **RF56** | **Avisar manutenção programada:** Exibir aos usuários, ao abrir o aplicativo, aviso prévio com período e impacto previsto de uma manutenção programada, informada pela equipe de operação por configuração do sistema, sem tela de cadastro no produto. | CP6 |
-| **RF58** | **Configurar notificações:** Permitir ao usuário ativar ou desativar cada tipo de alerta (aproximação do limite, ultrapassagem do limite e conquistas) e alterar a escolha a qualquer momento. | CP6 |
-| **RF62** | **Acompanhar sincronização:** Exibir o estado (sincronizado, pendente, sem conexão, erro), a última sincronização e as alterações pendentes, com opção de sincronizar na hora; generaliza o “estado de envio” do RF59. | CP6 |
-| **RF63** | **Gerar backup:** Criar um arquivo completo e restaurável dos dados do usuário, sem exigir conexão. | CP6 |
-| **RF64** | **Restaurar backup:** Validar o arquivo, mostrar prévia e permitir substituir ou mesclar com os dados atuais. | CP6 |
-| **RF22** | **Criar grupo de amigos ou família:** Permitir ao usuário criar um grupo, definir seu nome e assumir o papel inicial de administração. | CP7 |
-| **RF23** | **Entrar em grupo de amigos ou família:** Permitir ao usuário aceitar um convite válido para integrar um grupo e passar a acessar o conteúdo permitido ao seu papel (RN01). | CP7 |
-| **RF24** | **Convidar membro para grupo:** Permitir ao Administrador do grupo (RN01) enviar convite e acompanhar sua situação até o aceite ou cancelamento. | CP7 |
-| **RF25** | **Sair de grupo de amigos ou família:** Permitir ao membro sair do grupo, com confirmação e atualização de suas permissões de acesso. | CP7 |
-| **RF26** | **Tornar controle financeiro privado:** Permitir ao usuário marcar seus dados financeiros como privados para impedir sua visualização pelos demais integrantes do grupo. | CP7 |
-| **RF27** | **Visualizar metas de membros do grupo:** Exibir aos integrantes do grupo as metas compartilhadas pelos membros, conforme o papel de quem consulta (RN01) e a privacidade definida no RF26. | CP7 |
-| **RF28** | **Criar meta do grupo:** Permitir ao Administrador do grupo (RN01) definir objetivo, valor alvo e prazo para uma meta coletiva. | CP7 |
-| **RF29** | **Visualizar metas do grupo:** Exibir as metas coletivas com seu progresso e prazo aos integrantes do grupo (RN01). | CP7 |
-| **RF51** | **Definir papel de membro:** Permitir ao administrador do grupo atribuir ou alterar o papel de cada integrante (Administrador ou Membro) e aplicar as permissões do papel, conforme a RN01. | CP7 |
-| **RF52** | **Consolidar dados do grupo:** Exibir aos integrantes do grupo o total de receitas, o total de despesas e o saldo dos lançamentos que cada integrante tornou compartilhados, respeitando a privacidade definida no RF26; a comparação entre membros é tratada no RF53. | CP7 |
-| **RF53** | **Comparar gastos do grupo:** Exibir aos integrantes do grupo, no período selecionado, um gráfico de barras com o total de despesas compartilhadas e o percentual de participação nas despesas do grupo dos membros que optaram por participar da comparação, de acordo com a escolha registrada no RF57. | CP7 |
-| **RF57** | **Configurar participação em comparações do grupo:** Permitir ao usuário escolher se seus dados aparecem na classificação do grupo (RF30) e na comparação de gastos do grupo (RF53), mantendo a participação desativada por padrão e permitindo alterar a escolha a qualquer momento. | CP7 |
-| **RF30** | **Classificar usuários do grupo:** Ordenar os membros que optaram por participar da classificação, conforme a pontuação acumulada, e exibir sua posição no grupo, de acordo com a escolha registrada no RF57. | CP8 |
-| **RF44** | **Conceder conquistas financeiras:** Identificar o cumprimento dos marcos financeiros definidos e registrar no perfil do usuário os selos correspondentes. | CP8 |
-| **RF45** | **Atribuir pontuação por metas:** Somar ao usuário os pontos definidos para cada meta concluída e atualizar e exibir seu total. | CP8 |
-| **RF46** | **Notificar conquista obtida:** Informar ao usuário quando um selo ou conquista for concedido, com identificação do marco atingido, respeitando as preferências do RF58. | CP8 |
+| Código | Nome e descrição | Característica de Produto | Origem | Situação |
+|---|---|---|---|---|
+| **RF07** | **Registrar receita:** Permitir informar valor, data, descrição e demais campos definidos para uma receita; validar e salvar o lançamento. | CP1 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
+| **RF08** | **Consultar receitas:** Exibir as receitas registradas pelo usuário, com consulta por período e detalhe de cada lançamento. | CP1 | [R03](atas/posts/r03.md) | Vigente |
+| **RF09** | **Editar receita:** Permitir alterar os dados de uma receita existente e recalcular os totais afetados após salvar. | CP1 | [R04](atas/posts/r04.md) | Vigente |
+| **RF10** | **Excluir receita:** Permitir remover uma receita mediante confirmação e atualizar os totais relacionados. | CP1 | [R04](atas/posts/r04.md) | Vigente |
+| **RF15** | **Registrar despesa:** Permitir informar valor, data, descrição e categoria de uma despesa; validar e salvar o lançamento. | CP1 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
+| **RF16** | **Consultar despesas:** Exibir as despesas registradas pelo usuário, com consulta por período, categoria e detalhe. | CP1 | [R03](atas/posts/r03.md) | Vigente |
+| **RF17** | **Editar despesa:** Permitir alterar os dados de uma despesa existente e salvar as mudanças após a validação. | CP1 | [R04](atas/posts/r04.md) | Vigente |
+| **RF18** | **Excluir despesa:** Permitir remover uma despesa mediante confirmação e atualizar os cálculos dependentes. | CP1 | [R04](atas/posts/r04.md) | Vigente |
+| **RF21** | **Importar extrato bancário:** Permitir selecionar um arquivo de extrato em um dos formatos aceitos (RN05), apresentar prévia dos lançamentos reconhecidos, solicitar revisão quando a leitura for ambígua e confirmar sua incorporação aos dados financeiros. | CP1 | [R03](atas/posts/r03.md) | Vigente |
+| **RF32** | **Definir lançamento recorrente:** Permitir marcar receita ou despesa como fixa ou recorrente e informar sua periodicidade para gerar lançamentos nos meses seguintes. | CP1 | [R03](atas/posts/r03.md) | Vigente |
+| **RF33** | **Editar ocorrência de lançamento recorrente:** Permitir alterar apenas o lançamento de um mês específico sem modificar as demais ocorrências da série. | CP1 | [R03](atas/posts/r03.md) | Vigente |
+| **RF48** | **Identificar lançamento duplicado:** Comparar cada registro importado com os lançamentos já registrados e considerar possível duplicidade quando o valor for idêntico e a data diferir em até 1 dia; para cada possível duplicidade, exibir os dois registros lado a lado e pedir ao usuário que escolha entre descartar o importado ou mantê-lo como lançamento distinto, antes de consolidar. | CP1 | [R03](atas/posts/r03.md) | Vigente |
+| **RF50** | **Registrar despesa por comprovante:** Permitir fotografar ou selecionar um comprovante, anexá-lo ao lançamento e confirmar ou informar os dados da despesa antes de salvar. | CP1 | [R03](atas/posts/r03.md) | Vigente |
+| **RF59** | **Registrar lançamento sem conexão:** Permitir ao usuário autenticado registrar receita ou despesa sem conexão, guardá-lo localmente, informar seu estado de envio e enviá-lo ao servidor quando a conexão voltar. | CP1 | [R07](atas/posts/r07.md), [D07](decisoes.md#d07), [D10](decisoes.md#d10) | Proposto |
+| **RF60** | **Extrair dados de comprovante:** Ler a imagem do comprovante indicado no RF50 e sugerir valor, data e descrição da despesa para confirmação ou correção pelo usuário. | CP1 | [R03](atas/posts/r03.md), [D07](decisoes.md#d07) | Proposto |
+| **RF19** | **Criar categoria de despesas:** Permitir cadastrar uma categoria para classificar despesas e, quando aplicável, definir seu limite de gasto. | CP2 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
+| **RF47** | **Classificar lançamentos importados:** Sugerir a categoria de cada registro importado a partir de palavras-chave da descrição associadas às categorias do usuário e de lançamentos anteriores com a mesma descrição, permitindo revisão antes da confirmação; quando não houver correspondência, deixar o registro sem categoria sugerida. | CP2 | [R03](atas/posts/r03.md) | Vigente |
+| **RF65** | **Consultar categorias:** Exibir ao usuário a lista de categorias disponíveis (padrão e próprias), identificando as categorias padrão e o limite de gasto de cada uma, quando definido, com a opção de ver os lançamentos classificados em cada categoria. | CP2 | [D16](decisoes.md#d16) | Proposto |
+| **RF66** | **Editar categoria:** Permitir alterar o nome e o limite de gasto de uma categoria própria, validar a unicidade do nome (RN13), salvar as mudanças e recalcular os indicadores e alertas de limite afetados (RF37, RF38 e RF39). As categorias padrão não podem ser editadas (RN13). | CP2 | [D16](decisoes.md#d16) | Proposto |
+| **RF67** | **Excluir categoria:** Permitir remover uma categoria própria mediante confirmação (RN11), mantendo os lançamentos associados, que passam a constar como “Sem categoria” (RN13), e atualizar os indicadores e alertas dependentes. As categorias padrão não podem ser excluídas (RN13). | CP2 | [D16](decisoes.md#d16) | Proposto |
+| **RF12** | **Criar meta financeira:** Permitir definir objetivo, valor alvo, prazo e tipo de meta de gasto ou investimento. | CP3 | [R05](atas/posts/r05.md) | Vigente |
+| **RF13** | **Editar meta financeira:** Permitir alterar os parâmetros de uma meta existente e salvar as mudanças após a validação. | CP3 | [R04](atas/posts/r04.md) | Vigente |
+| **RF14** | **Excluir meta financeira:** Permitir remover uma meta mediante confirmação, sem excluir os lançamentos financeiros associados. | CP3 | [R04](atas/posts/r04.md) | Vigente |
+| **RF20** | **Visualizar metas financeiras:** Exibir as metas do usuário com valor alvo, prazo, valor realizado e situação atual. | CP3 | [R04](atas/posts/r04.md) | Vigente |
+| **RF36** | **Acompanhar progresso da meta:** Comparar o valor realizado com o valor alvo e apresentar progresso e valor restante da meta. | CP3 | [R05](atas/posts/r05.md) | Vigente |
+| **RF37** | **Notificar aproximação do limite:** Emitir alerta quando o gasto atingir o limiar de aproximação definido na RN03 para a meta de gasto ou categoria, apresentando apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e respeitando as preferências do RF58. | CP3 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
+| **RF38** | **Notificar ultrapassagem do limite:** Emitir alerta quando o gasto superar o limite definido na RN03 para a meta de gasto ou categoria, apresentando apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e respeitando as preferências do RF58. | CP3 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
+| **RF39** | **Exibir indicador de consumo do limite da categoria:** Apresentar, para cada categoria com limite definido, um indicador visual do consumo do limite no período selecionado, conforme as faixas da RN02. | CP3 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
+| **RF11** | **Calcular total de receitas:** Exibir ao usuário autenticado a soma das receitas do período selecionado como valor de entrada correspondente. | CP4 | [R03](atas/posts/r03.md) | Vigente |
+| **RF34** | **Calcular saldo mensal:** Exibir ao usuário autenticado o saldo do mês, calculado a partir do saldo inicial, das receitas e das despesas registradas no período. | CP4 | [R03](atas/posts/r03.md) | Vigente |
+| **RF35** | **Exibir saldo do mês anterior:** Exibir ao usuário autenticado o saldo remanescente do mês anterior como referência na apresentação do mês atual. | CP4 | [R03](atas/posts/r03.md) | Vigente |
+| **RF40** | **Gerar resumo financeiro inicial:** Ao abrir o aplicativo, exibir ao usuário autenticado o saldo, o total de receitas, o total de despesas e o progresso das metas do período selecionado, sendo o mês corrente o período padrão; quando não houver lançamentos, exibir estado vazio com atalho para o tutorial (RF55). | CP4 | [R04](atas/posts/r04.md) | Vigente |
+| **RF41** | **Exibir gráfico de despesas:** Exibir ao usuário autenticado um gráfico de barras com o total de despesas por categoria no período selecionado, com o valor de cada barra apresentado como rótulo e a categoria identificada na legenda. | CP4 | [R01](atas/posts/r01.md) | Vigente |
+| **RF42** | **Exibir percentual por categoria:** Exibir ao usuário autenticado o percentual do total de despesas do período que cada categoria representa; quando não houver despesas no período, não apresentar percentual. | CP4 | [R04](atas/posts/r04.md) | Vigente |
+| **RF43** | **Exibir previsão de despesas recorrentes:** Exibir ao usuário autenticado as despesas recorrentes já cadastradas (RF32) previstas para os próximos 30 dias, identificadas como valores previstos. | CP4 | [R03](atas/posts/r03.md) | Vigente |
+| **RF49** | **Consolidar extratos de contas:** Exibir ao usuário, em uma visão única, os lançamentos confirmados de diferentes extratos importados, identificando em cada um a instituição de origem informada na importação. | CP4 | [R03](atas/posts/r03.md) | Vigente |
+| **RF01** | **Cadastrar usuário:** Permitir que uma pessoa crie uma conta ao informar os dados obrigatórios e uma senha; após a validação, registrar o perfil e confirmar o cadastro. | CP5 | [R03](atas/posts/r03.md), [R07](atas/posts/r07.md), [D12](decisoes.md#d12) | Vigente |
+| **RF02** | **Autenticar usuário:** Permitir o acesso com credenciais válidas, iniciar a sessão e informar o motivo quando a autenticação for rejeitada. | CP5 | [R03](atas/posts/r03.md) | Vigente |
+| **RF03** | **Visualizar perfil de usuário:** Exibir ao usuário autenticado os dados do próprio perfil. | CP5 | [R04](atas/posts/r04.md) | Vigente |
+| **RF04** | **Editar perfil de usuário:** Permitir ao usuário autenticado alterar seus dados de perfil e salvar as mudanças após a validação. | CP5 | [R04](atas/posts/r04.md) | Vigente |
+| **RF05** | **Excluir perfil de usuário:** Solicitar confirmação antes da exclusão da conta e executar a remoção dos dados associados conforme a política de retenção da RN04. | CP5 | [R04](atas/posts/r04.md) | Vigente |
+| **RF06** | **Encerrar sessão:** Permitir ao usuário sair da conta e invalidar a sessão ativa no aplicativo. | CP5 | [R04](atas/posts/r04.md) | Vigente |
+| **RF31** | **Recuperar senha:** Permitir solicitar redefinição por um canal verificado e cadastrar uma nova senha por meio de ligação temporária de uso único. | CP5 | [R04](atas/posts/r04.md) | Vigente |
+| **RF61** | **Usar sem conta:** Permitir usar todas as funcionalidades individuais sem cadastro, com os dados somente no dispositivo; a conta é necessária só para sincronizar e participar de grupos. | CP5 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D12](decisoes.md#d12) | Vigente |
+| **RF55** | **Apresentar tutorial inicial:** No primeiro acesso, oferecer tutorial interativo que informe o que o aplicativo faz e o que não faz (organiza e apresenta as informações financeiras, sem aumentar a renda nem garantir a redução de dívidas) e guie o usuário por registrar receita (RF07), registrar despesa (RF15), criar meta financeira (RF12) e ler o resumo inicial (RF40), explicando em linguagem simples os termos financeiros usados e com opção de avançar ou encerrar a qualquer etapa; permitir reabrir o tutorial pelo menu de ajuda. | CP6 | [R04](atas/posts/r04.md) | Vigente |
+| **RF56** | **Avisar manutenção programada:** Exibir aos usuários, ao abrir o aplicativo, aviso prévio com período e impacto previsto de uma manutenção programada, informada pela equipe de operação por configuração do sistema, sem tela de cadastro no produto. | CP6 | [R04](atas/posts/r04.md) | Vigente |
+| **RF58** | **Configurar notificações:** Permitir ao usuário ativar ou desativar cada tipo de alerta (aproximação do limite, ultrapassagem do limite e conquistas) e alterar a escolha a qualquer momento. | CP6 | [D07](decisoes.md#d07) | Proposto |
+| **RF62** | **Acompanhar sincronização:** Exibir o estado (sincronizado, pendente, sem conexão, erro), a última sincronização e as alterações pendentes, com opção de sincronizar na hora; generaliza o “estado de envio” do RF59. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10) | Vigente |
+| **RF63** | **Gerar backup:** Criar um arquivo completo e restaurável dos dados do usuário, sem exigir conexão. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10) | Vigente |
+| **RF64** | **Restaurar backup:** Validar o arquivo, mostrar prévia e permitir substituir ou mesclar com os dados atuais. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10) | Vigente |
+| **RF22** | **Criar grupo de amigos ou família:** Permitir ao usuário criar um grupo, definir seu nome e assumir o papel inicial de administração. | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF23** | **Entrar em grupo de amigos ou família:** Permitir ao usuário aceitar um convite válido para integrar um grupo e passar a acessar o conteúdo permitido ao seu papel (RN01). | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF24** | **Convidar membro para grupo:** Permitir ao Administrador do grupo (RN01) enviar convite e acompanhar sua situação até o aceite ou cancelamento. | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF25** | **Sair de grupo de amigos ou família:** Permitir ao membro sair do grupo, com confirmação e atualização de suas permissões de acesso. | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF26** | **Tornar controle financeiro privado:** Permitir ao usuário marcar seus dados financeiros como privados para impedir sua visualização pelos demais integrantes do grupo. | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF27** | **Visualizar metas de membros do grupo:** Exibir aos integrantes do grupo as metas compartilhadas pelos membros, conforme o papel de quem consulta (RN01) e a privacidade definida no RF26. | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF28** | **Criar meta do grupo:** Permitir ao Administrador do grupo (RN01) definir objetivo, valor alvo e prazo para uma meta coletiva. | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF29** | **Visualizar metas do grupo:** Exibir as metas coletivas com seu progresso e prazo aos integrantes do grupo (RN01). | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF51** | **Definir papel de membro:** Permitir ao administrador do grupo atribuir ou alterar o papel de cada integrante (Administrador ou Membro) e aplicar as permissões do papel, conforme a RN01. | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF52** | **Consolidar dados do grupo:** Exibir aos integrantes do grupo o total de receitas, o total de despesas e o saldo dos lançamentos que cada integrante tornou compartilhados, respeitando a privacidade definida no RF26; a comparação entre membros é tratada no RF53. | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF53** | **Comparar gastos do grupo:** Exibir aos integrantes do grupo, no período selecionado, um gráfico de barras com o total de despesas compartilhadas e o percentual de participação nas despesas do grupo dos membros que optaram por participar da comparação, de acordo com a escolha registrada no RF57. | CP7 | [R03](atas/posts/r03.md) | Vigente |
+| **RF57** | **Configurar participação em comparações do grupo:** Permitir ao usuário escolher se seus dados aparecem na classificação do grupo (RF30) e na comparação de gastos do grupo (RF53), mantendo a participação desativada por padrão e permitindo alterar a escolha a qualquer momento. | CP7 | [D07](decisoes.md#d07) | Proposto |
+| **RF30** | **Classificar usuários do grupo:** Ordenar os membros que optaram por participar da classificação, conforme a pontuação acumulada, e exibir sua posição no grupo, de acordo com a escolha registrada no RF57. | CP8 | [R03](atas/posts/r03.md) | Vigente |
+| **RF44** | **Conceder conquistas financeiras:** Identificar o cumprimento dos marcos financeiros definidos e registrar no perfil do usuário os selos correspondentes. | CP8 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
+| **RF45** | **Atribuir pontuação por metas:** Somar ao usuário os pontos definidos para cada meta concluída e atualizar e exibir seu total. | CP8 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
+| **RF46** | **Notificar conquista obtida:** Informar ao usuário quando um selo ou conquista for concedido, com identificação do marco atingido, respeitando as preferências do RF58. | CP8 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
 
-**Códigos descontinuados** (não reutilizados): **RF54** foi fundido ao RF21; os formatos aceitos passaram para a RN05.
+### Requisitos retirados
+
+Os códigos retirados não são reutilizados.
+
+| Código | Situação | Destino | Decisão |
+|---|---|---|---|
+| RF54 | Retirado | Fundido ao RF21; os formatos aceitos passaram para a RN05. | [D07](decisoes.md#d07) |
 
 ## Feedback do grupo Cybersetor
 
@@ -261,5 +282,31 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 - Faixas do indicador (RN02) e limiares de disparo dos alertas (RN03);
 - Política de retenção proposta na RN04;
 - Formatos de extrato aceitos (RN05);
-- Viabilidade e escopo do registro sem conexão (RF59) e da leitura automática de comprovantes (RF60), por envolverem esforço e incerteza maiores;
+- Viabilidade e escopo do registro sem conexão (RF59) e da leitura automática de comprovantes (RF60), por envolverem esforço e incerteza maiores; na [R07](atas/posts/r07.md), Alana França considerou a importação por foto pouco útil;
+- RF57 e RF58, incluídos na revisão da avaliação cruzada para mitigar riscos ([D07](decisoes.md#d07)), ainda sem confirmação da cliente;
+- RF65, RF66 e RF67, requisitos latentes de categoria identificados pela equipe na escrita dos casos de uso ([D16](decisoes.md#d16));
+- Inclusão do alerta de saldo negativo (RN18) entre as preferências do RF58;
 - Características CP7 e CP8 e o objetivo do projeto que cada uma atende.
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 22/09/2026 | Adiciona requisitos funcionais e não funcionais | Evellyn Rocha |
+| 1.1 | 22/09/2026 | Ajusta relação CP/RF conforme a versão atual das CPs | Dante Scarpati |
+| 1.2 | 28/09/2026 | Correção inicial de requisitos e formatação [RNF05/RNF23, RNF (tabela), RNF08/RNF09/RNF31, RNF14, RF (lista), RF22/RF30/RF51/RF53, RF39, RF42] | Caio Pacheco |
+| 1.3 | 28/09/2026 | Reverte "correção inicial de requisitos e formatação [RNF05/RNF23, RNF (tabela), RNF08/RNF09/RNF31, RNF14, RF (lista), RF22/RF30/RF51/RF53, RF39, RF42]" | Caio Pacheco |
+| 1.4 | 28/09/2026 | Ajuste de requisitos de acordo com o feedback do grupo anterior | Erick Alves |
+| 1.5 | 28/09/2026 | Atualiza os requisitos funcionais com o feedback do monitor e do grupo externo | Erick Alves |
+| 1.6 | 29/09/2026 | Adiciona correção dos requisitos | Natan França |
+| 1.7 | 10/10/2026 | Adiciona feedback do grupo Cybersetor | Natan França |
+| 1.8 | 13/10/2026 | Corrige a seção 2.5, adiciona requisitos e regras de negócio e adiciona o vídeo da apresentação da Unidade II | Dante Scarpati |
+| 1.9 | 26/10/2026 | Adiciona novas regras de negócio | Natan França |
+| 1.10 | 26/10/2026 | Corrige a fórmula da RN15 | Natan França |
+| 1.11 | 26/10/2026 | Corrige RN02 | Natan França |
+| 1.12 | 27/10/2026 | Adiciona regra de negócio de recorrência de despesas e receitas | Natan França |
+| 1.13 | 27/10/2026 | Adiciona requisitos latentes de categoria | Natan França |
+| 1.14 | 27/10/2026 | Ajusta regra de negócio em relação às cores | Natan França |
+| 1.15 | 27/10/2026 | Atualiza regras de negócio | Natan França |
+| 1.16 | 31/10/2026 | Ajusta RNFs à arquitetura com Firebase e app móvel | Bruno Duarte |
+| 1.17 | 03/11/2026 | Inclui as colunas Origem e Situação, a legenda da situação, a tabela de requisitos retirados e novos pontos para validação; inclui o histórico de versões | Bruno Duarte |

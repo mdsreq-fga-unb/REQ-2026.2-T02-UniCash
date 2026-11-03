@@ -117,19 +117,22 @@ def ler_requisitos(docs: Path) -> None:
         if not re.match(r"^\|\s*\*\*RF\d{2}\*\*\s*\|", linha):
             continue
         partes = celulas(linha)
-        cod, cp = partes[0].strip("*"), partes[-1]
-        nome, desc = nome_e_descricao("|".join(partes[1:-1]))
+        cod, cp, origem, situacao = partes[0].strip("*"), partes[-3], partes[-2], partes[-1]
+        nome, desc = nome_e_descricao("|".join(partes[1:-3]))
         itens[cod] = {"codigo": cod, "tipo": "RF", "nome": nome, "descricao": desc,
-                      "cp": cp, "ancora": cod.lower()}
+                      "cp": cp, "origem": origem, "situacao": limpar(situacao),
+                      "ancora": cod.lower()}
 
     for linha in rnf_md.splitlines():
         if not re.match(r"^\|\s*\*\*RNF\d{2}\*\*\s*\|", linha):
             continue
         partes = celulas(linha)
-        cod, classe, aplica = partes[0].strip("*"), partes[-2], partes[-1]
-        nome, desc = nome_e_descricao("|".join(partes[1:-2]))
+        cod, classe, aplica = partes[0].strip("*"), partes[-4], partes[-3]
+        origem, situacao = partes[-2], partes[-1]
+        nome, desc = nome_e_descricao("|".join(partes[1:-4]))
         itens[cod] = {"codigo": cod, "tipo": "RNF", "nome": nome, "descricao": desc,
                       "classificacao": limpar(classe), "aplica": limpar(aplica),
+                      "origem": origem, "situacao": limpar(situacao),
                       "sistema": aplica.strip().lower().startswith("sistema"),
                       "ancora": cod.lower()}
 
@@ -348,8 +351,10 @@ def mapear_mencoes(files) -> dict[str, list[tuple[str, str]]]:
 
 def publico(item: dict, mencoes: list) -> dict:
     campos = ("codigo", "tipo", "nome", "descricao", "cp", "classificacao", "aplica",
-              "sistema", "mvp", "valor", "esforco", "relacoes")
+              "sistema", "mvp", "situacao", "valor", "esforco", "relacoes")
     dado = {k: item[k] for k in campos if k in item}
+    if "origem" in item:
+        dado["origem"] = limpar(item["origem"])
     if item["tipo"] == "RN":
         texto = re.sub(r"^\|.*\|$", "", item["descricao"], flags=re.M)
         dado["descricao"] = limpar(re.sub(r"^\s*[-*]\s+", "", texto, flags=re.M))
@@ -372,6 +377,8 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
         etiquetas += [item["cp"], "MVP" if item.get("mvp") else "Fora do MVP"]
     if tipo == "RNF":
         etiquetas.append(item["classificacao"])
+    if "situacao" in item:
+        etiquetas.append(item["situacao"])
 
     titulo = f"{cod} — {item['nome']}".replace('"', "'")
     linhas = ["---", f'title: "{titulo}"', "tags:"]
@@ -385,6 +392,8 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
                      else '<span class="selo selo-fora">Fora do MVP</span>')
     if tipo == "RNF":
         selos.append(f'<span class="selo">{item["classificacao"]}</span>')
+    if "situacao" in item:
+        selos.append(f'<span class="selo selo-{slugify(item["situacao"], "-")}">{item["situacao"]}</span>')
     linhas += ['<div class="selos">' + " ".join(selos) + "</div>", ""]
 
     if tipo == "RN":
@@ -399,6 +408,12 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
                    f"dos quais **{no_mvp}** estão no MVP.", ""]
     if tipo == "RNF":
         linhas += [f"**Aplica-se a:** {item['aplica']}", ""]
+    if item.get("origem"):
+        # Os links da origem são relativos à raiz de docs/; reescreve para a página gerada.
+        origem_md = re.sub(r"\]\(([^)#]+)(#[^)]*)?\)",
+                           lambda m: f"]({relativo(m.group(1), origem)}{m.group(2) or ''})", item["origem"])
+        linhas += [f"**Origem:** {origem_md} · **Situação:** {item['situacao']} "
+                   f"([legenda]({relativo(FONTE[tipo], origem)}#situacao-dos-requisitos))", ""]
     if tipo == "RF" and "valor" in item:
         v, e = (str(item[k]).replace(".", ",") for k in ("valor", "esforco"))
         linhas += [f"**Priorização:** valor de negócio **{v}** · esforço técnico **{e}** "

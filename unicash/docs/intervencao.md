@@ -31,3 +31,12 @@ Diante dos riscos identificados, a equipe pretende:
 - Tratar a comparação entre membros de grupo como funcionalidade opcional/configurável, evitando impor rankings a usuários que não desejem esse tipo de exposição;
 - Definir, junto à cliente, controles de privacidade claros sobre o que é visível entre membros de um mesmo grupo;
 - Acompanhar indicadores de uso (retenção, frequência de registro, abandono) ao longo do desenvolvimento incremental, como forma de identificar precocemente sinais de efeitos não intencionais.
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 06/09/2026 | Adiciona documentação para entrega 1 | Natan França |
+| 1.1 | 24/09/2026 | Revisão da sessão de intervenção social | Erick Alves |
+| 1.2 | 24/09/2026 | Ajuste de estrutura | Erick Alves |
+| 1.3 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |

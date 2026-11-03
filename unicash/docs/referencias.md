@@ -17,3 +17,12 @@ PARSA. Parsa – A PFM for the Open Finance era. [S. l.], 2026. Disponível em: 
 MONEKIN. Monekin – Track your money, not your data. [S. l.], 2026. Disponível em: https://github.com/enrique-lozano/Monekin. Acesso em: 8 out. 2026.
 
 OPEN SOURCE INITIATIVE. The Open Source Definition. [S. l.], 2024. Disponível em: https://opensource.org/osd. Acesso em: 8 out. 2026.
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 08/10/2026 | Adiciona a secao de referencias e aprimora a secao 2.5 | Dante Scarpati |
+| 1.1 | 08/10/2026 | Corrige formatação | Dante Scarpati |
+| 1.2 | 13/10/2026 | Corrige a seção 2.5, adiciona requisitos e regras de negócio e adiciona o vídeo da apresentação da Unidade II | Dante Scarpati |
+| 1.3 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |

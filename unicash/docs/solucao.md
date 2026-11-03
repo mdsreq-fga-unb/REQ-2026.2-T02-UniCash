@@ -70,3 +70,21 @@ Para garantir a viabilidade técnica, o cumprimento do prazo de desenvolvimento 
 - **Para o cliente:** disponibilizar uma solução de gestão financeira que atenda às necessidades identificadas durante o levantamento de requisitos, oferecendo uma ferramenta acessível para auxiliar estudantes universitários, famílias e demais usuários no controle de suas finanças. A solução também permitirá a evolução contínua do produto a partir do feedback dos usuários e da validação de novas funcionalidades ao longo do desenvolvimento.
 
 - **Para os usuários:** proporcionar uma forma simples e intuitiva de registrar receitas e despesas, acompanhar o orçamento, visualizar indicadores financeiros e estabelecer metas de economia. Espera-se que o UniCash contribua para o desenvolvimento de hábitos financeiros mais saudáveis, reduzindo o descontrole dos gastos e auxiliando na construção de uma reserva financeira.
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 06/09/2026 | Adiciona documentação para entrega 1 | Natan França |
+| 1.1 | 08/09/2026 | Adiciona video e slides utilizados | Natan França |
+| 1.2 | 08/09/2026 | Corrige tabela de objetivos especificos | Natan França |
+| 1.3 | 22/09/2026 | Aplica correções de revisão no documento de Visão do Produto | Dante Scarpati |
+| 1.4 | 22/09/2026 | Corrige formatação | Dante Scarpati |
+| 1.5 | 08/10/2026 | Adiciona a secao de referencias e aprimora a secao 2.5 | Dante Scarpati |
+| 1.6 | 08/10/2026 | Corrige tabela da secao 2.5 | Dante Scarpati |
+| 1.7 | 13/10/2026 | Corrige a seção 2.5, adiciona requisitos e regras de negócio e adiciona o vídeo da apresentação da Unidade II | Dante Scarpati |
+| 1.8 | 29/10/2026 | Atualiza stack tecnológica para Expo/React Native local-first | Bruno Duarte |
+| 1.9 | 29/10/2026 | Inclui Docker e Docker Compose na stack tecnológica | Bruno Duarte |
+| 1.10 | 29/10/2026 | Define Supabase para sincronização e grupos | Bruno Duarte |
+| 1.11 | 30/10/2026 | Troca Supabase por Firebase na sincronização e nos grupos | Bruno Duarte |
+| 1.12 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |

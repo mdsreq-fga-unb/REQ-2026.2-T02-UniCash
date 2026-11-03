@@ -52,6 +52,8 @@
 .md-typeset .selo-rn  { background: var(--uc-rn);  color: #fff; border-color: transparent; }
 .md-typeset .selo-mvp  { background: #dcfce7; color: #166534; border-color: #86efac; }
 .md-typeset .selo-fora { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+.md-typeset .selo-vigente  { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
+.md-typeset .selo-proposto { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
 [data-md-color-scheme="slate"] .md-typeset .selo-cp,
 [data-md-color-scheme="slate"] .md-typeset .selo-uc,
 [data-md-color-scheme="slate"] .md-typeset .selo-rf,
@@ -59,6 +61,8 @@
 [data-md-color-scheme="slate"] .md-typeset .selo-rn { color: #0b1220; }
 [data-md-color-scheme="slate"] .md-typeset .selo-mvp  { background: #052e1a; color: #86efac; border-color: #166534; }
 [data-md-color-scheme="slate"] .md-typeset .selo-fora { background: #1e293b; color: #cbd5e1; border-color: #334155; }
+[data-md-color-scheme="slate"] .md-typeset .selo-vigente  { background: #082f49; color: #7dd3fc; border-color: #075985; }
+[data-md-color-scheme="slate"] .md-typeset .selo-proposto { background: #3b2a06; color: #fcd34d; border-color: #92400e; }
 
 /* Filtro das tabelas comuns */
 .filtro-barra { display: flex; align-items: center; gap: 10px; margin: 0.6rem 0 0.4rem; }

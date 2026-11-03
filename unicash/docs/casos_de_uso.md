@@ -358,3 +358,23 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Não funcionais específicos:** RNF07, RNF08, RNF29, RNF38. A exigência de não depender apenas da cor segue a mesma linha do RNF33, mesmo que a tela não conste na lista de telas principais dele.
 - **Regras de negócio:** RN02, RN03, RN06, RN07, RN13, RN14.
 </div>
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 27/10/2026 | Adiciona UC01 | Natan França |
+| 1.1 | 27/10/2026 | Atualiza UC01 | Natan França |
+| 1.2 | 27/10/2026 | Remove texto redundante | Natan França |
+| 1.3 | 27/10/2026 | Adiciona UC02 | Natan França |
+| 1.4 | 27/10/2026 | Adiciona UC03 | Natan França |
+| 1.5 | 27/10/2026 | Adiciona UC04 | Natan França |
+| 1.6 | 27/10/2026 | Altera símbolo do UC04 | Natan França |
+| 1.7 | 27/10/2026 | Adiciona UC05 | Natan França |
+| 1.8 | 28/10/2026 | Atualiza os casos de uso com o RNF38 | Natan França |
+| 1.9 | 31/10/2026 | Ajusta RNFs à arquitetura com Firebase e app móvel | Bruno Duarte |
+| 1.10 | 31/10/2026 | Adiciona mais detalhes aos casos de usos 1-5 | Natan França |
+| 1.11 | 31/10/2026 | Adiciona consulta rápida de requisitos e plugins de navegação | Bruno Duarte |
+| 1.12 | 01/11/2026 | Adiciona mais detalhes ao uc02 | Natan França |
+| 1.13 | 01/11/2026 | Adiciona mais detalhes ao uc03 | Natan França |
+| 1.14 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |

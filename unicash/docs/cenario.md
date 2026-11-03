@@ -59,3 +59,12 @@ Foram identificados os seguintes perfis de usuários:
 - **Famílias:** Pessoas que necessitam de maior organização no controle de contas fixas, gastos domésticos e despesas imprevistas do lar;
 - **Comunidade universitária em geral:** Um público abrangente que engloba professores, técnicos e demais pessoas interessadas em organizar finanças.
 - **Pessoas com dificuldade de controle financeiro:** Público potencial de mercado que inclui pessoas com dificuldade de organizar receitas e despesas, manter o hábito de registro ou planejar o uso do próprio dinheiro.
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 06/09/2026 | Adiciona documentação para entrega 1 | Natan França |
+| 1.1 | 28/09/2026 | Corrige os tópicos do cenário de acordo com feedback do professor | Natan França |
+| 1.2 | 01/10/2026 | Correção da issue 1 | Natan França |
+| 1.3 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |

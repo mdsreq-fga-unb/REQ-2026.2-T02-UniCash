@@ -47,3 +47,14 @@ Além disso, o aprofundamento na escrita dos requisitos trouxe a necessidade de 
 - Continuar explorando oportunidades de melhoria para o produto, avaliando propostas que agreguem valor às usuárias e contribuam para estabelecer um diferencial para a solução;
 - Reforçar a distinção entre requisitos de negócio, de produto e de usuário durante a elaboração da documentação, garantindo que cada requisito represente adequadamente seu propósito e nível de detalhamento;
 - Reservar momentos para revisar e aprimorar a escrita dos requisitos, buscando maior clareza, consistência e alinhamento com as necessidades identificadas junto às clientes.
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 24/09/2026 | Adiciona lições aprendidas e ações para melhoria | Erick Alves |
+| 1.1 | 24/09/2026 | Ajuste de cabeçalho | Erick Alves |
+| 1.2 | 24/09/2026 | Revise section title for clarity | Erick Alves |
+| 1.3 | 24/09/2026 | Ajustes de texto e cabeçalho | Erick Alves |
+| 1.4 | 12/10/2026 | Adiciona liçoes aprendidas da unidade 2 | Natan França |
+| 1.5 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |

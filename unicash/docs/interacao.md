@@ -137,3 +137,14 @@ As avaliações também devem considerar se o UniCash contribui para facilitar o
 Na reunião de requisitos de **2 de outubro de 2026**, a equipe apresentou o MVP às clientes e solicitou a validação do escopo, verificando se a seleção de funcionalidades fazia sentido para resolver o problema do projeto. A apresentação do MVP e o pedido de validação ocorreram entre **00:04:47 e 00:05:20**. Após a discussão das funcionalidades, a concordância final com o escopo foi registrada entre **00:21:49 e 00:22:02**.
 
 [Assistir ao vídeo da reunião de validação do MVP no Microsoft Teams](https://teams.cloud.microsoft/l/meetingrecap?driveId=b%21gVRg82qYskS7W_wygN91oGGhi9q0mmJMhQjNs7iR7diB_7vy5dgSSoHTePCaxco4&driveItemId=01ZK2KMNXKYUNTUH3PL5FZI43HLIDJOPQZ&sitePath=https%3A%2F%2Funbbr-my.sharepoint.com%2F%3Av%3A%2Fg%2Fpersonal%2F241011537_aluno_unb_br%2FIQDqxRs6H29fS5RzZ1oGlz4ZAalE-eGOr7cw-rYbTRSaQU0&fileUrl=https%3A%2F%2Funbbr-my.sharepoint.com%2Fpersonal%2F241011537_aluno_unb_br%2FDocuments%2FGrava%C3%A7%C3%B5es%2FReuni%C3%A3o+Requisitos-20261002_160855-Grava%C3%A7%C3%A3o+de+Reuni%C3%A3o.mp4%3Fweb%3D1&iCalUid=040000008200E00074C5B7101A82E00807EA0A02AC557D269452DD010000000000000000100000004BCCF5D691AD0A4FB162402FC8839E26&masterICalUid=040000008200E00074C5B7101A82E00800000000AC557D269452DD010000000000000000100000004BCCF5D691AD0A4FB162402FC8839E26&threadId=19%3Ameeting_MDg3MTA5NDktNTE5OC00NTNhLWIzMmUtMzMyNjNhN2RhMWE1%40thread.v2&organizerId=04cecbca-018a-4e0d-8207-bb52dde662a3&tenantId=ec359ba1-630b-4d2b-b833-c8e6d48f8059&callId=ff594feb-3886-45c7-b8e6-4b9fc5fd0f3c&threadType=Meeting&meetingType=Recurring&subType=RecapSharingLink_RecapCore&recapType=RecordingAndTranscript)
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 06/09/2026 | Adiciona documentação para entrega 1 | Natan França |
+| 1.1 | 09/10/2026 | Atualiza interação entre equipe e cliente | Evellyn Rocha |
+| 1.2 | 10/10/2026 | Adiciona interações com as clientes | Natan França |
+| 1.3 | 12/10/2026 | Corrige horario das reuniões e app de comunicação | Natan França |
+| 1.4 | 12/10/2026 | Corrige interação | Evellyn Rocha |
+| 1.5 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |

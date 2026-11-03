@@ -145,3 +145,17 @@ Funcionalidades com menor valor médio, esforço técnico alto ou dependências 
 | **RF39 a RF42** | RNF09, RNF15, RNF19 (Acessibilidade / UX) | Relatórios e Gráficos |
 | **RF44 a RF46** | RNF18, RNF20 (Engajamento / Feedback) | Gamificação |
 | **RF55** | RNF04 (Usabilidade) | Onboarding |
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 29/09/2026 | Adiciona escopo do mvp | Natan França |
+| 1.1 | 05/10/2026 | Adiciona matriz de priorização do mvp | Natan França |
+| 1.2 | 05/10/2026 | Altera numeração e corrige requisito que estava em falta | Natan França |
+| 1.3 | 05/10/2026 | Adiciona grafico de esforço x valor | Natan França |
+| 1.4 | 08/10/2026 | Relaciona os topicos do mvp com os IDs dos requisitos priorizados | Natan França |
+| 1.5 | 27/10/2026 | Corrige cálculo da priorização do MVP | Caio Pacheco |
+| 1.6 | 31/10/2026 | Usa priorizacao.csv como fonte única das notas de priorização | Bruno Duarte |
+| 1.7 | 31/10/2026 | Tema escuro, consulta flutuante, leitura contínua e atas em blog | Bruno Duarte |
+| 1.8 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
