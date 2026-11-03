@@ -56,3 +56,13 @@ O **Nível 1** deve ser preenchido pelos responsáveis técnicos antes de solici
 ### Nível 3 - Done Definitivo (validado, aprovado e oficialmente entregue)
 
 - [ ] O código foi integrado à branch principal sem conflitos, com o pipeline de build validado e deploy executado com sucesso no ambiente de Homologação/Staging.
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 10/10/2026 | Adiciona dor e dod | Natan França |
+| 1.1 | 23/10/2026 | Corrige checklist do DoR | Natan França |
+| 1.2 | 23/10/2026 | Corrige o fluxo e a clareza do DoD | Natan França |
+| 1.3 | 31/10/2026 | Corrige gramaticalmente o texto | Natan França |
+| 1.4 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |

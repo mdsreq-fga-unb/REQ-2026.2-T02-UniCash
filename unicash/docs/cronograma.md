@@ -62,3 +62,16 @@ O Kanban será utilizado para visualizar o fluxo de trabalho, identificar gargal
     Os quadros ficam na organização `mdsreq-fga-unb` e só aparecem para quem é membro dela.
 
 As revisões de timebox e as validações serão realizadas com a cliente conforme os objetivos de cada ciclo. Os usuários finais considerados para validação são estudantes universitários e representantes de famílias, representados por Maria Vitória e Alana França. As práticas de testes automatizados, integração contínua e revisão por pull request serão mantidas durante os ciclos de desenvolvimento.
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 06/09/2026 | Adiciona documentação para entrega 1 | Natan França |
+| 1.1 | 09/10/2026 | Cronograma atualizado da issue #6 | Leonardo Ramiro |
+| 1.2 | 10/10/2026 | Explicita metodos de declaração de requisitos | Natan França |
+| 1.3 | 12/10/2026 | Atualiza cronograma conforme feedback | Leonardo Ramiro |
+| 1.4 | 12/10/2026 | Ajusta validações do cronograma | Leonardo Ramiro |
+| 1.5 | 31/10/2026 | Adiciona consulta rápida de requisitos e plugins de navegação | Bruno Duarte |
+| 1.6 | 31/10/2026 | Adiciona links para o Kanban e os backlogs no GitHub Projects | Bruno Duarte |
+| 1.7 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |

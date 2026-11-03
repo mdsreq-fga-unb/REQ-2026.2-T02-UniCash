@@ -67,3 +67,15 @@ A equipe optou pelo DSDM pela aderência de seus mecanismos de gestão às condi
 O OpenUP permanece uma alternativa viável, pois é leve, adaptável, iterativo e adequado a equipes pequenas (KROLL; MACISAAC, 2006). A existência de fases em ambos os processos não constitui um critério suficiente para preferir um deles. No contexto do UniCash, a preferência pelo DSDM decorre principalmente da combinação explícita entre controle de prazo–custo–escopo, priorização MoSCoW e envolvimento do negócio, mecanismos que correspondem às restrições e à disponibilidade da cliente.
 
 **Kanban:** A escolha decorre da mesma restrição de fundo: com prazo e equipe fixos, a equipe precisa de visibilidade contínua sobre o fluxo para redirecionar esforço a tempo de proteger o escopo *Must have*, algo que o ritmo de duas semanas do timebox, por si só, não garante entre uma revisão e outra. Por não prescrever fases, papéis ou vocabulário próprios, o Kanban se soma ao DSDM sem conflito de governança, funcionando como camada de execução dentro da estrutura de fases e prioridades já estabelecida.
+
+## Histórico de versões
+
+| Versão | Data | Descrição | Autor |
+|---|---|---|---|
+| 1.0 | 06/09/2026 | Adiciona documentação para entrega 1 | Natan França |
+| 1.1 | 28/09/2026 | Correções do professor - Estratégias de ES | Caio Pacheco |
+| 1.2 | 30/09/2026 | Adição dos papéis do DSDM | Caio Pacheco |
+| 1.3 | 12/10/2026 | Alinha fases do DSDM na estratégia | Leonardo Ramiro |
+| 1.4 | 12/10/2026 | Atualiza estratégia | Evellyn Rocha |
+| 1.5 | 12/10/2026 | Alinha estrutura do DSDM na estratégia | Leonardo Ramiro |
+| 1.6 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
