@@ -2,6 +2,10 @@
 
 Este documento define os critérios de entrada e de saída dos casos de uso e itens do Backlog do Produto do UniCash. Os critérios apoiam o refinamento, o fluxo de trabalho no Kanban e a validação das entregas nos timeboxes.
 
+Os registros que comprovam a aplicação do DoR estão organizados em
+[Evidências da Definition of Ready](evidencias_dor.md), separadamente dos
+critérios desta página.
+
 ## DoR (Definition of Ready) — Filtro de Entrada
 
 Para que um caso de uso seja movido para **Pronto para Desenvolvimento**, todos os itens abaixo devem estar marcados durante o refinamento.
