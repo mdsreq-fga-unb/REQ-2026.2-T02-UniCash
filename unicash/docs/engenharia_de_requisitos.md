@@ -4,7 +4,7 @@ O processo de Engenharia de Requisitos (ER) do UniCash é organizado em seis ati
 
 1. **Elicitação e Descoberta:** obter necessidades, problemas e informações do domínio junto à cliente e aos usuários.
 2. **Análise e Consenso:** analisar, classificar, negociar e priorizar os requisitos, chegando a decisões acordadas com a cliente.
-3. **Declaração:** registrar os requisitos em uma forma definida (texto em linguagem natural, casos de uso e critérios de aceitação).
+3. **Declaração:** registrar os requisitos em uma forma definida (texto em linguagem natural, casos de uso e checklist estruturado).
 4. **Representação:** produzir modelos e protótipos que tornem os requisitos compreensíveis para a equipe e para a cliente.
 5. **Verificação e Validação:** verificar se os requisitos estão bem escritos e prontos, e validar se atendem às necessidades reais.
 6. **Organização e Atualização:** manter o backlog e a rastreabilidade atualizados à medida que os requisitos mudam.
@@ -77,12 +77,12 @@ Objetivo: refinar, validar e entregar os requisitos de cada timebox. As técnica
 | Elicitação e Descoberta | Questionário | Estudantes e famílias recrutados pelas representantes dos segmentos | Dúvidas em aberto sobre os requisitos do timebox | Leonardo | Respostas consolidadas e requisitos ajustados |
 | Análise e Consenso | Análise de tarefas | Equipe | Diários e notas das entrevistas contextuais | Bruno | Decomposição das tarefas principais (registrar despesa, consultar saldo do mês, acompanhar meta), usada nos casos de uso, nos protótipos e no roteiro do teste de protótipo |
 | Análise e Consenso | Negociação e repriorização MoSCoW | Cliente e equipe | Feedback, respostas do questionário e capacidade do timebox | Erick e Leonardo | Prioridades atualizadas e registradas na ata |
-| Declaração | Casos de uso detalhados (fluxo principal, fluxos alternativos, pré e pós-condições) e critérios de aceitação | Leonardo, com a cliente e as representantes para definir os dados de cada funcionalidade | Casos de uso breves selecionados para o timebox | Leonardo | Casos de uso detalhados e critérios com identificador, vinculados ao caso de uso |
-| Representação | Prototipação evolutiva (média fidelidade) | Bruno; consenso das telas com a cliente e as representantes conduzido por Dante | Casos de uso, critérios de aceitação e resultados dos testes de protótipo | Bruno e Dante | Protótipos versionados no Figma |
-| Verificação e Validação | Inspeção dos requisitos com checklist da Definition of Ready (DoR) | Toda a equipe técnica | Casos de uso e critérios de aceitação | Evellyn | Checklist preenchido; caso de uso marcado como pronto |
+| Declaração | Casos de uso detalhados (fluxo principal, fluxos alternativos, pré e pós-condições) e checklist estruturado | Leonardo, com a cliente e as representantes para definir os dados de cada funcionalidade | Casos de uso breves selecionados para o timebox | Leonardo | Casos de uso detalhados e checklist com identificador, vinculados ao caso de uso |
+| Representação | Prototipação evolutiva (média fidelidade) | Bruno; consenso das telas com a cliente e as representantes conduzido por Dante | Casos de uso, checklist estruturado e resultados dos testes de protótipo | Bruno e Dante | Protótipos versionados no Figma |
+| Verificação e Validação | Inspeção dos requisitos com checklist da Definition of Ready (DoR) | Toda a equipe técnica | Casos de uso e checklist estruturado | Evellyn | Checklist preenchido; caso de uso marcado como pronto |
 | Verificação e Validação | Avaliação cruzada dos requisitos por outra equipe da disciplina | Equipe revisora externa; revisores internos Caio, Dante, Evellyn e Erick | Páginas de requisitos | Revisores internos | Tabela com cada feedback, decisão de aceite e justificativa ([R06](atas/posts/r06.md), [R08](atas/posts/r08.md)) |
 | Verificação e Validação | Teste de protótipo com tarefas específicas | Cinco estudantes e três representantes de famílias | Roteiro de tarefas, como "registre uma despesa de xerox", "descubra quanto sobrou no mês" e "crie uma meta de reserva" | Bruno (condução) e Leonardo (observação) | Taxa de conclusão, erros e comentários por tarefa; ajustes nos requisitos |
-| Verificação e Validação | Revisão do incremento (*Timebox Review/Demo*) | Cliente e usuários representativos | Incremento entregue e critérios de aceitação | Equipe | Registro de aceite ou rejeição por critério de aceitação |
+| Verificação e Validação | Revisão do incremento (*Timebox Review/Demo*) | Cliente e usuários representativos | Incremento entregue e checklist estruturado | Equipe | Registro do resultado de cada item do checklist |
 | Organização e Atualização | Atualização do backlog e da matriz de rastreabilidade | Leonardo | Atas, resultados de validação e mudanças aprovadas | Leonardo; divulgação por Dante | Backlog e matriz atualizados, com histórico das mudanças |
 
 ---
@@ -93,8 +93,8 @@ Objetivo: confirmar que o MVP atende aos requisitos priorizados e consolidar a v
 
 | Atividade de ER | Técnica | Participantes | Entradas analisadas | Responsável | Registro e evidência |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Verificação e Validação | Teste de aceitação | Cliente e representantes dos segmentos | Critérios de aceitação de todos os casos de uso *Must have* | Equipe | Registro de aceite por critério |
-| Verificação e Validação | Verificação de cobertura pela matriz de rastreabilidade | Leonardo e Natan | Matriz de rastreabilidade | Leonardo | Confirmação de que todo requisito *Must have* tem caso de uso, critério, incremento e validação |
+| Verificação e Validação | Verificação final com checklist estruturado | Cliente e representantes dos segmentos | Checklist estruturado de todos os casos de uso *Must have* | Equipe | Registro do resultado de cada item do checklist |
+| Verificação e Validação | Verificação de cobertura pela matriz de rastreabilidade | Leonardo e Natan | Matriz de rastreabilidade | Leonardo | Confirmação de que todo requisito *Must have* tem caso de uso, checklist, incremento e validação |
 | Organização e Atualização | Consolidação da linha de base dos requisitos | Erick e Evellyn | Páginas de requisitos e matriz de rastreabilidade | Erick | Versão final dos requisitos e da matriz, identificada no repositório |
 
 ---
@@ -121,7 +121,9 @@ Os requisitos do UniCash serão declarados em diferentes níveis de detalhamento
 | **Requisitos de usuário** | Texto livre em linguagem natural com declarações curtas | Descrever de forma simples as necessidades e capacidades esperadas pelos usuários. |
 | **Requisitos de usuário** | Lista de requisitos com declarações curtas | Organizar e identificar as necessidades dos usuários para priorização, rastreabilidade e acompanhamento no Backlog. |
 | **Requisitos de produto** | Casos de uso detalhados | Descrever atores, objetivos, pré-condições, pós-condições, fluxo principal, fluxos alternativos, fluxos de exceção e regras de negócio. |
-| **Requisitos de produto** | Critérios de aceitação | Definir as condições objetivas que devem ser verificadas para confirmar que o caso de uso foi implementado corretamente. |
+| **Requisitos de produto** | Checklist estruturado | Organizar as condições objetivas, regras, resultados esperados e evidências que devem ser verificados para confirmar que o caso de uso foi implementado corretamente. |
+
+O checklist estruturado de cada caso de uso deve conter, no mínimo, identificador, item verificável, resultado esperado, evidência, responsável pela verificação e situação (*pendente*, *atendido* ou *não atendido*).
 
 ---
 
@@ -143,7 +145,7 @@ Os requisitos do UniCash serão declarados em diferentes níveis de detalhamento
 | | Organização e Atualização | Estruturação do backlog de requisitos por CP e caso de uso | Backlog organizado e matriz de rastreabilidade iniciada. |
 | **Desenvolvimento Evolutivo** | Elicitação e Descoberta | Workshop facilitado, diário financeiro, entrevista contextual e questionário | Requisitos do timebox refinados e hábitos reais do público-alvo compreendidos. |
 | | Análise e Consenso | Análise de tarefas e negociação e repriorização MoSCoW | Tarefas principais decompostas e prioridades do timebox acordadas com a cliente. |
-| | Declaração | Casos de uso detalhados e critérios de aceitação | Casos de uso com fluxos e critérios verificáveis. |
+| | Declaração | Casos de uso detalhados e checklist estruturado | Casos de uso com fluxos e itens verificáveis organizados em checklist. |
 | | Representação | Prototipação evolutiva | Protótipos de média fidelidade atualizados. |
 | | Verificação e Validação | Inspeção com checklist DoR, avaliação cruzada, teste de protótipo com tarefas e revisão do incremento | Casos de uso prontos para desenvolvimento e requisitos revisados e validados pelos usuários. |
 | | Organização e Atualização | Atualização do backlog e da matriz de rastreabilidade | Backlog e rastreabilidade coerentes com as decisões do timebox. |
@@ -167,7 +169,7 @@ Os elementos abaixo participam do processo, mas não são técnicas de Engenhari
 | Temas, épicos e histórias | Estrutura de declaração e organização | Substituídos por casos de uso como forma de declaração e pelo backlog de requisitos organizado por CP ([R08](atas/posts/r08.md)). |
 | Quadro Kanban | Ferramenta de organização e acompanhamento | Mostra o andamento das atividades no [GitHub Projects](https://github.com/orgs/mdsreq-fga-unb/projects/123/views/6); não substitui a rastreabilidade (seção 5.5). |
 | Definição das timeboxes | Planejamento do projeto | Definida no cronograma, fora das atividades de ER. |
-| Critérios de aceitação | Condições para aceitação | Declarados junto a cada caso de uso e usados na validação do incremento. |
+| Checklist estruturado | Verificação das condições do caso de uso | Declarado junto a cada caso de uso e usado na validação do incremento. |
 | Definition of Ready (DoR) | Critério de prontidão | Usada como checklist na inspeção dos requisitos. |
 | Wireframes e protótipos | Representações produzidas | Resultado da técnica de prototipação. |
 | Atualização do backlog | Prática de organização e atualização | Executada ao final de cada timebox. |
@@ -182,7 +184,7 @@ Os elementos abaixo participam do processo, mas não são técnicas de Engenhari
 
 A rastreabilidade permite identificar a necessidade que justifica cada requisito, os objetivos para os quais ele contribui e as evidências de sua implementação e validação. A cadeia de referência é:
 
-**Problema → Objetivo Geral (OG) → Objetivos Específicos (OE) → Características de Produto (CP) → RF/RNF → caso de uso → critério de aceitação → incremento → validação**
+**Problema → Objetivo Geral (OG) → Objetivos Específicos (OE) → Características de Produto (CP) → RF/RNF → caso de uso → checklist estruturado → incremento → validação**
 
 O objetivo geral expressa a resposta pretendida ao problema; os objetivos específicos desdobram esse objetivo em contribuições mais delimitadas. As CPs indicam as capacidades do produto que apoiam esses objetivos, e os RFs descrevem os comportamentos associados a cada capacidade. Os RNFs qualificam os RFs indicados no catálogo ou estabelecem propriedades e restrições transversais ao sistema. Portanto, um RNF transversal não precisa ter uma única CP de origem nem um caso de uso exclusivo.
 
@@ -197,9 +199,9 @@ Como a equipe adotou casos de uso em vez de histórias de usuário ([R08](atas/p
 | Requisito funcional | RFxx | [Requisitos Funcionais](requisitos_funcionais.md) | A coluna **Característica de Produto** identifica a CP de origem. |
 | Requisito não funcional | RNFxx | [Requisitos Não Funcionais](requisitos_nao_funcionais.md) | A coluna **Aplica-se a** identifica os RFs qualificados ou a aplicação transversal ao sistema, com suas exceções. |
 | Caso de uso | UCxx | [Casos de uso](casos_de_uso.md) e [backlog de casos de uso](https://github.com/orgs/mdsreq-fga-unb/projects/130) | Identifica os RFs atendidos, os requisitos relacionados, os RNFs e as regras que condicionam os fluxos. |
-| Critério de aceitação | UCxx-CAy, conforme o padrão previsto | Backlog de requisitos, junto ao caso de uso | Deve identificar a condição verificável do caso de uso e o requisito que será avaliado. A identificação e a cobertura completas ainda precisam ser consolidadas. |
-| Incremento | Timebox, pull request e versão | Repositório | Deve identificar os casos de uso e critérios implementados, com referência ao código e aos testes correspondentes. |
-| Validação | Data, versão avaliada e registro da revisão | Ata da revisão do incremento ou do teste de aceitação | Deve registrar o resultado por critério, a evidência e os participantes, distinguindo aceite, rejeição e pendência. |
+| Checklist estruturado | UCxx-CKy, conforme o padrão previsto | Backlog de requisitos, junto ao caso de uso | Deve identificar o item verificável, o resultado esperado, a evidência e o requisito avaliado. A identificação e a cobertura completas ainda precisam ser consolidadas. |
+| Incremento | Timebox, pull request e versão | Repositório | Deve identificar os casos de uso e itens do checklist implementados, com referência ao código e aos testes correspondentes. |
+| Validação | Data, versão avaliada e registro da revisão | Ata da revisão do incremento ou da verificação final | Deve registrar o resultado por item do checklist, a evidência e os participantes, distinguindo atendimento, não atendimento e pendência. |
 
 ### Vínculos já disponíveis
 
@@ -215,7 +217,7 @@ Os vínculos estão distribuídos entre os documentos de origem e a consulta do 
 
 ### Continuidade até a implementação e a validação
 
-Os casos de uso já existem; a consolidação da rastreabilidade posterior aos RFs/RNFs permanece parcial. A matriz detalhada prevista deve ter uma linha por critério de aceitação e referências aos elementos da cadeia acima, incluindo o OG, os OEs e as CPs pertinentes, os RFs/RNFs, o caso de uso, o incremento, os testes e a validação.
+Os casos de uso já existem; a consolidação da rastreabilidade posterior aos RFs/RNFs permanece parcial. A matriz detalhada prevista deve ter uma linha por item do checklist estruturado e referências aos elementos da cadeia acima, incluindo o OG, os OEs e as CPs pertinentes, os RFs/RNFs, o caso de uso, o incremento, os testes e a validação.
 
 Quando não houver critério identificado, implementação ou validação registrada, o campo correspondente deve indicar a pendência. Relações no catálogo, checklists de prontidão e inclusão no MVP não equivalem à entrega. A prontidão é avaliada pela [Definition of Ready](dor_dod.md), com registros em [Evidências da DoR](evidencias_dor.md); a conclusão e o aceite dependem das evidências previstas na Definition of Done.
 
@@ -224,9 +226,9 @@ Quando não houver critério identificado, implementação ou validação regist
 - Manter o OG e os OEs coerentes com o problema e conferir os vínculos OE–CP quando os objetivos ou o escopo mudarem.
 - Nenhum RF é incluído sem uma CP associada, e nenhum caso de uso é incluído sem os RFs que atende.
 - Manter as associações RF–RNF coerentes com a coluna **Aplica-se a**, preservando as exceções, a situação dos requisitos e os códigos retirados.
-- Todo pull request que implementa funcionalidades cita os casos de uso e os critérios atendidos, com as evidências de teste correspondentes.
+- Todo pull request que implementa funcionalidades cita os casos de uso e os itens do checklist atendidos, com as evidências de teste correspondentes.
 - Toda mudança aprovada em ata é refletida no backlog e nos documentos de origem até o final do timebox, para que a consulta gerada acompanhe as alterações.
-- Leonardo mantém a matriz detalhada atualizada; na revisão de cada timebox, a equipe verifica se há RF sem CP, requisito *Must have* sem caso de uso, caso de uso sem critério de aceitação e critério sem evidência de implementação ou validação, registrando as pendências.
+- Leonardo mantém a matriz detalhada atualizada; na revisão de cada timebox, a equipe verifica se há RF sem CP, requisito *Must have* sem caso de uso, caso de uso sem checklist estruturado e item do checklist sem evidência de implementação ou validação, registrando as pendências.
 
 O quadro Kanban acompanha o fluxo de trabalho, mas não substitui a rastreabilidade: ele mostra em que etapa uma atividade está, e não de qual objetivo um requisito se origina nem como foi validado.
 

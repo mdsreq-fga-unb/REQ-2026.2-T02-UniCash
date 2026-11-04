@@ -88,7 +88,7 @@ Para organizar a comunicação e estabelecer prazos verificáveis, a equipe adot
 | Workshop de início de fase (*Kickoff*) | No primeiro dia útil de cada fase | Equipe, cliente e responsável pela visão do negócio | Definir o escopo, alinhar os objetivos e levantar requisitos iniciais |
 | Reuniões de alinhamento da equipe | Segundas e quartas-feiras, das 20h às 21h | Sete integrantes da equipe técnica | Refinar requisitos, elaborar casos de uso detalhados e atualizar o Kanban |
 | Reuniões com a cliente | Sextas-feiras, das 16h às 18h | Equipe técnica, cliente e representantes dos usuários | Apresentar protótipos, levantar necessidades e validar requisitos |
-| Revisão de final de *timebox* (*Timebox Review/Demo*) | A cada duas semanas, ao término do ciclo | Equipe, cliente e usuários representativos | Demonstrar o incremento desenvolvido e verificar os critérios de aceitação |
+| Revisão de final de *timebox* (*Timebox Review/Demo*) | A cada duas semanas, ao término do ciclo | Equipe, cliente e usuários representativos | Demonstrar o incremento desenvolvido e verificar o checklist estruturado |
 
 #### Prazos para feedback
 
@@ -120,13 +120,13 @@ Como referência para os testes de usabilidade, o projeto prevê a participaçã
 
 ### 3. Validação da solução
 
-A validação da solução deve considerar se as funcionalidades desenvolvidas correspondem aos requisitos definidos e aos critérios de aceitação acordados.
+A validação da solução deve considerar se as funcionalidades desenvolvidas correspondem aos requisitos definidos e aos itens do checklist estruturado acordado.
 
 As atividades de validação incluem:
 
 - Apresentação dos protótipos e das funcionalidades desenvolvidas;
 - Coleta de feedback da cliente e dos usuários representativos;
-- Verificação dos critérios de aceitação;
+- Verificação dos itens do checklist estruturado;
 - Registro dos problemas identificados e das melhorias necessárias;
 - Atualização dos requisitos e da documentação, quando necessário.
 
