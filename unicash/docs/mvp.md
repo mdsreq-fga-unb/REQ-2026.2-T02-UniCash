@@ -133,18 +133,86 @@ Funcionalidades com menor valor médio, esforço técnico alto ou dependências 
 
 ## 2. Matriz de Rastreabilidade Resumida
 
-| Requisito Funcional (RF) | Requisito Não-Funcional (RNF) Principal | Categoria |
+Esta matriz relaciona os RFs selecionados na seção 1.3 aos RNFs do [catálogo de requisitos não funcionais](requisitos_nao_funcionais.md). Os nomes dos RFs seguem o [catálogo de requisitos funcionais](requisitos_funcionais.md). A matriz distingue os requisitos transversais das associações específicas, evitando atribuir a todas as funções de um grupo uma relação que só existe para algumas delas.
+
+As associações específicas reproduzem a coluna **Aplica-se a** do catálogo, incluindo os intervalos de códigos. A ausência de associação específica significa que o catálogo não declara um vínculo individual; os requisitos transversais continuam aplicáveis conforme seu escopo. Esta síntese não cria requisitos nem altera a seleção do MVP.
+
+**Legenda:** o asterisco (`*`) identifica RNF com situação **Proposto**, ainda pendente de confirmação. A presença na matriz não significa validação, implementação ou entrega. Os demais RNFs relacionados estão **Vigentes** no catálogo; suas ressalvas de aplicação continuam valendo.
+
+### 2.1 Requisitos transversais
+
+Estes RNFs têm aplicação declarada ao sistema e complementam a tabela por RF. As exceções e condições abaixo devem ser observadas; não se presume que toda operação local utiliza a rede.
+
+| RNF | Propriedade ou restrição | Aplicação e ressalvas |
 | :--- | :--- | :--- |
-| **RF01, RF02, RF06** | RNF01, RNF03, RNF07 (Segurança) | Gestão de Usuário e Acesso |
-| **RF03, RF04, RF05** | RNF02, RNF05, RNF06 (Desempenho / LGPD) | Perfil e Privacidade |
-| **RF07 a RF11** | RNF08, RNF09, RNF11 (Offline / Precisão) | Gestão de Receitas |
-| **RF12 a RF14, RF20, RF36**| RNF12, RNF13, RNF15 (Usabilidade / UX) | Metas Financeiras |
-| **RF15 a RF19** | RNF08, RNF09, RNF14 (Offline / Flexibilidade)| Despesas e Categorias |
-| **RF31 a RF35** | RNF10, RNF16, RNF17 (Automação / Integridade)| Recorrência e Saldos |
-| **RF37, RF38** | RNF18 (Push / Desempenho) | Alertas e Limites |
-| **RF39 a RF42** | RNF09, RNF15, RNF19 (Acessibilidade / UX) | Relatórios e Gráficos |
-| **RF44 a RF46** | RNF18, RNF20 (Engajamento / Feedback) | Gamificação |
-| **RF55** | RNF04 (Usabilidade) | Onboarding |
+| RNF02 | Exigir autenticação | Requisições protegidas; o catálogo excetua RF01, RF02 e RF31. A exigência de autenticação precisa ser conciliada com RF61 e RNF34; ver ressalvas abaixo. |
+| RNF03 | Isolar dados privados | Sistema |
+| RNF09 (proposto) | Suportar usuários simultâneos | Sistema; meta de 100 usuários simultâneos ainda proposta, com premissas de carga a confirmar. |
+| RNF14 | Explicar operações rejeitadas | Sistema |
+| RNF17 | Realizar backup periódico | Dados financeiros do sistema; a distinção entre cópia local, arquivo do usuário e backup remoto permanece pendente de esclarecimento. |
+| RNF18 | Restaurar backup válido | Recuperação dos dados do sistema; observar a mesma pendência de delimitação dos backups do RNF17. |
+| RNF19 | Proteger dados em trânsito | Comunicação com o Firebase, quando utilizada; não exige conexão para as operações locais. |
+| RNF20 (proposto) | Adaptar interface a telas | Sistema |
+| RNF21 (proposto) | Assegurar compatibilidade de plataformas | Sistema |
+| RNF24 | Adotar tecnologias definidas | Sistema |
+| RNF25 | Criptografar dados armazenados | Sistema |
+| RNF28 | Organizar módulos da aplicação | Sistema |
+| RNF30 | Acessar o Firebase pelo SDK oficial | Comunicação com o Firebase, quando utilizada, e versionamento e testes das Security Rules. |
+| RNF34 | Operar sem conexão | Funcionalidades individuais sem rede; o catálogo excetua RF01, RF22 a RF25, RF31 e RF51. No recorte atual do MVP, as exceções são RF01 e RF31. |
+| RNF37 | Publicar sob licença livre | Sistema |
+| RNF38 | Aplicar paleta de cores definida | Sistema |
+
+### 2.2 Associações específicas por requisito funcional
+
+Cada linha contém somente os RNFs que citam aquele RF na coluna **Aplica-se a**, além dos transversais da seção anterior. RNFs específicos propostos são identificados por asterisco.
+
+| Requisito funcional | Nome | RNFs específicos associados |
+| :--- | :--- | :--- |
+| **RF01** | Cadastrar usuário | RNF01, RNF04, RNF32\*, RNF33\* |
+| **RF02** | Autenticar usuário | RNF33\* |
+| **RF03** | Visualizar perfil de usuário | RNF32\* |
+| **RF04** | Editar perfil de usuário | RNF01, RNF04, RNF32\* |
+| **RF05** | Excluir perfil de usuário | RNF16\*, RNF32\* |
+| **RF06** | Encerrar sessão | Sem associação específica declarada; aplicam-se os transversais. |
+| **RF07** | Registrar receita | RNF04, RNF05, RNF06, RNF08\*, RNF27\*, RNF33\*, RNF35 |
+| **RF08** | Consultar receitas | RNF08\* |
+| **RF09** | Editar receita | RNF05, RNF08\*, RNF35 |
+| **RF10** | Excluir receita | RNF05, RNF08\*, RNF16\*, RNF35 |
+| **RF11** | Calcular total de receitas | RNF07, RNF08\*, RNF29 |
+| **RF12** | Criar meta financeira | RNF04 |
+| **RF13** | Editar meta financeira | RNF04, RNF16\* |
+| **RF14** | Excluir meta financeira | RNF16\* |
+| **RF15** | Registrar despesa | RNF04, RNF05, RNF06, RNF08\*, RNF27\*, RNF33\*, RNF35 |
+| **RF16** | Consultar despesas | RNF08\* |
+| **RF17** | Editar despesa | RNF05, RNF08\*, RNF35 |
+| **RF18** | Excluir despesa | RNF05, RNF08\*, RNF16\*, RNF35 |
+| **RF19** | Criar categoria de despesas | RNF04 |
+| **RF20** | Visualizar metas financeiras | Sem associação específica declarada; aplicam-se os transversais. |
+| **RF31** | Recuperar senha | RNF01 |
+| **RF32** | Definir lançamento recorrente | RNF05, RNF06, RNF35 |
+| **RF33** | Editar ocorrência de lançamento recorrente | RNF05, RNF35 |
+| **RF34** | Calcular saldo mensal | RNF07, RNF08\*, RNF29 |
+| **RF35** | Exibir saldo do mês anterior | RNF07 |
+| **RF36** | Acompanhar progresso da meta | RNF07, RNF29 |
+| **RF37** | Notificar aproximação do limite | RNF29 |
+| **RF38** | Notificar ultrapassagem do limite | RNF29 |
+| **RF39** | Exibir indicador de consumo do limite da categoria | RNF29 |
+| **RF40** | Gerar resumo financeiro inicial | RNF33\* |
+| **RF41** | Exibir gráfico de despesas | RNF07 |
+| **RF42** | Exibir percentual por categoria | RNF07 |
+| **RF44** | Conceder conquistas financeiras | Sem associação específica declarada; aplicam-se os transversais. |
+| **RF45** | Atribuir pontuação por metas | RNF22\* |
+| **RF46** | Notificar conquista obtida | Sem associação específica declarada; aplicam-se os transversais. |
+| **RF55** | Apresentar tutorial inicial | Sem associação específica declarada; aplicam-se os transversais. |
+
+### 2.3 Ressalvas e dependências para revisão
+
+- **Autenticação e uso local:** RNF02 ainda exige autenticação para acesso aos dados financeiros, enquanto RF61 e RNF34 permitem uso individual sem conta ou com sessão expirada. A RN06 estabelece precedência para operações locais, mas a conciliação das declarações permanece nas issues #20 e #21. Esta matriz registra a divergência sem criar uma nova regra de acesso.
+- **Gamificação individual e classificação em grupo:** RNF22 cita RF45, mas seu prazo de atualização se refere à classificação do grupo (RF30), fora do MVP atual. A relação foi preservada por constar no catálogo; não implica incluir grupos no MVP nem aplicar esse prazo à pontuação exclusivamente local.
+- **Alertas e tutorial:** não há RNF específico associado a RF55 na coluna **Aplica-se a**; valem os transversais. RF37 e RF38 têm vínculo específico com RNF29. As condições de disparo e o conteúdo dos alertas estão nos próprios RFs e na RN03, e não no RNF18, que trata de restauração de backup.
+- **Preferências de notificação:** RF37, RF38 e RF46 dependem do RF58, ainda proposto e ausente do recorte da seção 1.3. Essa decisão de escopo permanece pendente na issue #25; a correção da matriz não inclui nem exclui funcionalidades.
+- **Backup e recuperação:** RNF17 e RNF18 são transversais de confiabilidade. A delimitação das cópias e da recuperação no uso sem conta permanece na issue #21.
+- **Códigos retirados:** RNF13, RNF15 e RNF23 não são usados como requisitos ativos nesta matriz. Seus destinos constam no catálogo.
 
 ## Histórico de versões
 
@@ -159,3 +227,4 @@ Funcionalidades com menor valor médio, esforço técnico alto ou dependências 
 | 1.6 | 31/10/2026 | Usa priorizacao.csv como fonte única das notas de priorização | Bruno Duarte |
 | 1.7 | 31/10/2026 | Tema escuro, consulta flutuante, leitura contínua e atas em blog | Bruno Duarte |
 | 1.8 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
+| 1.9 | 04/11/2026 | Corrige a matriz RF–RNF conforme o catálogo atual, separa requisitos transversais e específicos e explicita propostas e pendências de aplicação (issue #19). | Erick Alves |
