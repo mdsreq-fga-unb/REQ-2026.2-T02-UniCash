@@ -198,3 +198,5 @@ extra_javascript:
   - javascripts/catalogo.js
   - javascripts/interface.js
   - javascripts/landing.js
+  - https://cdn.plot.ly/plotly-2.35.2.min.js
+  - javascripts/mvp.js

@@ -44,65 +44,8 @@ A planilha cobre apenas RF01 a RF56; RF57 a RF64 ainda não têm notas nessa pri
 
 ### 1.2 Critério de decisão
 
-<div id="matriz-valor-esforco" style="width:100%;height:1050px;"></div>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-<script>
-(function () {
-  // Notas de priorização: fonte única em docs/dados/priorizacao.csv
-  // (exportado da planilha; também usado pelo painel e pelas páginas de requisitos).
-  fetch("../dados/priorizacao.csv").then(function (r) { return r.text(); }).then(function (texto) {
-  var D = texto.trim().split(/\r?\n/).slice(1).map(function (linha) {
-    var c = linha.split(",");
-    return [c[0], c[1], parseFloat(c[2]), parseFloat(c[3])];
-  });
-  var fmt = function (n) { return n.toFixed(2).replace(".", ","); };
-  // cor por célula [valor][esforço]
-  var C = {4:{1:"p",2:"m",3:"a",4:"pl"},3:{1:"m",2:"m",3:"a",4:"f"},2:{1:"a",2:"f",3:"f",4:"b"},1:{1:"a",2:"b",3:"b",4:"b"}};
-  var COL = {p:"#8fdca3",m:"#cdeed3",a:"#cfe0fb",pl:"#fbe9b0",f:"#ececef",b:"#f6c9c9"};
-  var xe = [0.8,1.5,2.5,3.5,4.2], ye = [0.8,1.5,2.5,3.5,4.0], shapes = [];
-  for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) {
-    shapes.push({type:"rect",xref:"x",yref:"y",x0:xe[i],x1:xe[i+1],y0:ye[j],y1:ye[j+1],
-      fillcolor:COL[C[j+1][i+1]],line:{color:"#fff",width:2},layer:"below"});
-  }
-  // agrupa requisitos com médias idênticas
-  var G = {};
-  D.forEach(function (r) {
-    var k = r[2].toFixed(3) + "|" + r[3].toFixed(3);
-    (G[k] = G[k] || {v:r[2], e:r[3], r:[]}).r.push(r);
-  });
-  var pts = Object.keys(G).map(function (k) { return G[k]; });
-  var trace = {
-    type:"scatter", mode:"markers",
-    x: pts.map(function (p) { return p.e; }),
-    y: pts.map(function (p) { return p.v; }),
-    marker:{size:9,color:"#1c1c1e",line:{color:"#fff",width:1}},
-    customdata: pts.map(function (p) {
-      return p.r.map(function (r) { return "<b>" + r[0] + "</b> " + r[1]; }).join("<br>")
-        + "<br><br>Valor: " + fmt(p.v) + " | Esforço: " + fmt(p.e);
-    }),
-    hovertemplate: "%{customdata}<extra></extra>"
-  };
-  var notes = pts.map(function (p) {
-    var lado = p.v > 3.5 && p.v < 3.9; // linha 3,67: rótulo horizontal, à direita
-    return {x:p.e, y:p.v, xref:"x", yref:"y", showarrow:false,
-      text: p.r.map(function (r) { return r[0]; }).join(" "),
-      font:{size:11,color:"#1c1c1e"},
-      textangle: lado ? 0 : -90,
-      xanchor: lado ? "left" : "center",
-      yanchor: lado ? "middle" : "bottom",
-      xshift: lado ? 8 : 0, yshift: lado ? 0 : 8};
-  });
-  var layout = {
-    title:{text:"Valor de Negócio × Esforço Técnico — Unicash",font:{size:25}},
-    xaxis:{title:"Esforço técnico (média) →",range:[0.8,4.2],tickvals:[1,2,3,4],zeroline:false,showgrid:false,fixedrange:true},
-    yaxis:{title:"Valor de negócio (média) →",range:[0.8,4.0],tickvals:[1,2,3,4],zeroline:false,showgrid:false,fixedrange:true},
-    shapes:shapes, annotations:notes, showlegend:false,
-    margin:{t:300,r:30,b:70,l:70}, paper_bgcolor:"#fff", plot_bgcolor:"#fff", hovermode:"closest"
-  };
-  Plotly.newPlot("matriz-valor-esforco", [trace], layout, {responsive:true, displayModeBar:false});
-  });
-})();
-</script>
+<div id="matriz-valor-esforco" style="width:100%;height:1050px;" role="region" aria-label="Matriz de valor de negócio e esforço técnico">O gráfico interativo é exibido no site publicado. As notas também podem ser consultadas na planilha de priorização indicada no início desta página.</div>
+
 
 <p style="font-size:13px;line-height:2">
 <span style="background:#8fdca3;color:#1c1c1e;padding:3px 10px;border-radius:4px;display:inline-block;margin:2px">Prioridade máxima</span>
@@ -112,6 +55,7 @@ A planilha cobre apenas RF01 a RF56; RF57 a RF64 ainda não têm notas nessa pri
 <span style="background:#ececef;color:#1c1c1e;padding:3px 10px;border-radius:4px;display:inline-block;margin:2px">Entrega futura</span>
 <span style="background:#f6c9c9;color:#1c1c1e;padding:3px 10px;border-radius:4px;display:inline-block;margin:2px">Baixa prioridade</span>
 </p>
+
 Foram priorizados para o MVP os requisitos com valor médio igual ou aproximado a **4** e esforço baixo ou moderado, pois eles entregam alto valor com menor risco e permitem validar rapidamente a proposta central do aplicativo. A planilha classificou como prioridade principal os requisitos de gestão de perfil, receitas, metas, despesas, saldos, limites, relatórios, gamificação e onboarding que se encontram nesses quadrantes. Cadastro e autenticação foram mantidos como dependências estruturais do MVP, pois são necessários para proteger os dados financeiros e garantir que as demais funcionalidades sejam utilizadas por um usuário identificado.
 
 ### 1.3 Resultado da priorização
@@ -133,18 +77,86 @@ Funcionalidades com menor valor médio, esforço técnico alto ou dependências 
 
 ## 2. Matriz de Rastreabilidade Resumida
 
-| Requisito Funcional (RF) | Requisito Não-Funcional (RNF) Principal | Categoria |
+Esta matriz relaciona os RFs selecionados na seção 1.3 aos RNFs do [catálogo de requisitos não funcionais](requisitos_nao_funcionais.md). Os nomes dos RFs seguem o [catálogo de requisitos funcionais](requisitos_funcionais.md). A matriz distingue os requisitos transversais das associações específicas, evitando atribuir a todas as funções de um grupo uma relação que só existe para algumas delas.
+
+As associações específicas reproduzem a coluna **Aplica-se a** do catálogo, incluindo os intervalos de códigos. A ausência de associação específica significa que o catálogo não declara um vínculo individual; os requisitos transversais continuam aplicáveis conforme seu escopo. Esta síntese não cria requisitos nem altera a seleção do MVP.
+
+**Legenda:** o asterisco (`*`) identifica RNF com situação **Proposto**, ainda pendente de confirmação. A presença na matriz não significa validação, implementação ou entrega. Os demais RNFs relacionados estão **Vigentes** no catálogo; suas ressalvas de aplicação continuam valendo.
+
+### 2.1 Requisitos transversais
+
+Estes RNFs têm aplicação declarada ao sistema e complementam a tabela por RF. As exceções e condições abaixo devem ser observadas; não se presume que toda operação local utiliza a rede.
+
+| RNF | Propriedade ou restrição | Aplicação e ressalvas |
 | :--- | :--- | :--- |
-| **RF01, RF02, RF06** | RNF01, RNF03, RNF07 (Segurança) | Gestão de Usuário e Acesso |
-| **RF03, RF04, RF05** | RNF02, RNF05, RNF06 (Desempenho / LGPD) | Perfil e Privacidade |
-| **RF07 a RF11** | RNF08, RNF09, RNF11 (Offline / Precisão) | Gestão de Receitas |
-| **RF12 a RF14, RF20, RF36**| RNF12, RNF13, RNF15 (Usabilidade / UX) | Metas Financeiras |
-| **RF15 a RF19** | RNF08, RNF09, RNF14 (Offline / Flexibilidade)| Despesas e Categorias |
-| **RF31 a RF35** | RNF10, RNF16, RNF17 (Automação / Integridade)| Recorrência e Saldos |
-| **RF37, RF38** | RNF18 (Push / Desempenho) | Alertas e Limites |
-| **RF39 a RF42** | RNF09, RNF15, RNF19 (Acessibilidade / UX) | Relatórios e Gráficos |
-| **RF44 a RF46** | RNF18, RNF20 (Engajamento / Feedback) | Gamificação |
-| **RF55** | RNF04 (Usabilidade) | Onboarding |
+| RNF02 | Exigir autenticação | Requisições protegidas; o catálogo excetua RF01, RF02 e RF31. A exigência de autenticação precisa ser conciliada com RF61 e RNF34; ver ressalvas abaixo. |
+| RNF03 | Isolar dados privados | Sistema |
+| RNF09 (proposto) | Suportar usuários simultâneos | Sistema; meta de 100 usuários simultâneos ainda proposta, com premissas de carga a confirmar. |
+| RNF14 | Explicar operações rejeitadas | Sistema |
+| RNF17 | Realizar backup periódico | Dados financeiros do sistema; a distinção entre cópia local, arquivo do usuário e backup remoto permanece pendente de esclarecimento. |
+| RNF18 | Restaurar backup válido | Recuperação dos dados do sistema; observar a mesma pendência de delimitação dos backups do RNF17. |
+| RNF19 | Proteger dados em trânsito | Comunicação com o Firebase, quando utilizada; não exige conexão para as operações locais. |
+| RNF20 (proposto) | Adaptar interface a telas | Sistema |
+| RNF21 (proposto) | Assegurar compatibilidade de plataformas | Sistema |
+| RNF24 | Adotar tecnologias definidas | Sistema |
+| RNF25 | Criptografar dados armazenados | Sistema |
+| RNF28 | Organizar módulos da aplicação | Sistema |
+| RNF30 | Acessar o Firebase pelo SDK oficial | Comunicação com o Firebase, quando utilizada, e versionamento e testes das Security Rules. |
+| RNF34 | Operar sem conexão | Funcionalidades individuais sem rede; o catálogo excetua RF01, RF22 a RF25, RF31 e RF51. No recorte atual do MVP, as exceções são RF01 e RF31. |
+| RNF37 | Publicar sob licença livre | Sistema |
+| RNF38 | Aplicar paleta de cores definida | Sistema |
+
+### 2.2 Associações específicas por requisito funcional
+
+Cada linha contém somente os RNFs que citam aquele RF na coluna **Aplica-se a**, além dos transversais da seção anterior. RNFs específicos propostos são identificados por asterisco.
+
+| Requisito funcional | Nome | RNFs específicos associados |
+| :--- | :--- | :--- |
+| **RF01** | Cadastrar usuário | RNF01, RNF04, RNF32\*, RNF33\* |
+| **RF02** | Autenticar usuário | RNF33\* |
+| **RF03** | Visualizar perfil de usuário | RNF32\* |
+| **RF04** | Editar perfil de usuário | RNF01, RNF04, RNF32\* |
+| **RF05** | Excluir perfil de usuário | RNF16\*, RNF32\* |
+| **RF06** | Encerrar sessão | Sem associação específica declarada; aplicam-se os transversais. |
+| **RF07** | Registrar receita | RNF04, RNF05, RNF06, RNF08\*, RNF27\*, RNF33\*, RNF35 |
+| **RF08** | Consultar receitas | RNF08\* |
+| **RF09** | Editar receita | RNF05, RNF08\*, RNF35 |
+| **RF10** | Excluir receita | RNF05, RNF08\*, RNF16\*, RNF35 |
+| **RF11** | Calcular total de receitas | RNF07, RNF08\*, RNF29 |
+| **RF12** | Criar meta financeira | RNF04 |
+| **RF13** | Editar meta financeira | RNF04, RNF16\* |
+| **RF14** | Excluir meta financeira | RNF16\* |
+| **RF15** | Registrar despesa | RNF04, RNF05, RNF06, RNF08\*, RNF27\*, RNF33\*, RNF35 |
+| **RF16** | Consultar despesas | RNF08\* |
+| **RF17** | Editar despesa | RNF05, RNF08\*, RNF35 |
+| **RF18** | Excluir despesa | RNF05, RNF08\*, RNF16\*, RNF35 |
+| **RF19** | Criar categoria de despesas | RNF04 |
+| **RF20** | Visualizar metas financeiras | Sem associação específica declarada; aplicam-se os transversais. |
+| **RF31** | Recuperar senha | RNF01 |
+| **RF32** | Definir lançamento recorrente | RNF05, RNF06, RNF35 |
+| **RF33** | Editar ocorrência de lançamento recorrente | RNF05, RNF35 |
+| **RF34** | Calcular saldo mensal | RNF07, RNF08\*, RNF29 |
+| **RF35** | Exibir saldo do mês anterior | RNF07 |
+| **RF36** | Acompanhar progresso da meta | RNF07, RNF29 |
+| **RF37** | Notificar aproximação do limite | RNF29 |
+| **RF38** | Notificar ultrapassagem do limite | RNF29 |
+| **RF39** | Exibir indicador de consumo do limite da categoria | RNF29 |
+| **RF40** | Gerar resumo financeiro inicial | RNF33\* |
+| **RF41** | Exibir gráfico de despesas | RNF07 |
+| **RF42** | Exibir percentual por categoria | RNF07 |
+| **RF44** | Conceder conquistas financeiras | Sem associação específica declarada; aplicam-se os transversais. |
+| **RF45** | Atribuir pontuação por metas | RNF22\* |
+| **RF46** | Notificar conquista obtida | Sem associação específica declarada; aplicam-se os transversais. |
+| **RF55** | Apresentar tutorial inicial | Sem associação específica declarada; aplicam-se os transversais. |
+
+### 2.3 Ressalvas e dependências para revisão
+
+- **Autenticação e uso local:** RNF02 ainda exige autenticação para acesso aos dados financeiros, enquanto RF61 e RNF34 permitem uso individual sem conta ou com sessão expirada. A RN06 estabelece precedência para operações locais, mas a conciliação das declarações permanece nas issues #20 e #21. Esta matriz registra a divergência sem criar uma nova regra de acesso.
+- **Gamificação individual e classificação em grupo:** RNF22 cita RF45, mas seu prazo de atualização se refere à classificação do grupo (RF30), fora do MVP atual. A relação foi preservada por constar no catálogo; não implica incluir grupos no MVP nem aplicar esse prazo à pontuação exclusivamente local.
+- **Alertas e tutorial:** não há RNF específico associado a RF55 na coluna **Aplica-se a**; valem os transversais. RF37 e RF38 têm vínculo específico com RNF29. As condições de disparo e o conteúdo dos alertas estão nos próprios RFs e na RN03, e não no RNF18, que trata de restauração de backup.
+- **Preferências de notificação:** RF37, RF38 e RF46 dependem do RF58, ainda proposto e ausente do recorte da seção 1.3. Essa decisão de escopo permanece pendente na issue #25; a correção da matriz não inclui nem exclui funcionalidades.
+- **Backup e recuperação:** RNF17 e RNF18 são transversais de confiabilidade. A delimitação das cópias e da recuperação no uso sem conta permanece na issue #21.
+- **Códigos retirados:** RNF13, RNF15 e RNF23 não são usados como requisitos ativos nesta matriz. Seus destinos constam no catálogo.
 
 ## Histórico de versões
 
@@ -159,3 +171,5 @@ Funcionalidades com menor valor médio, esforço técnico alto ou dependências 
 | 1.6 | 31/10/2026 | Usa priorizacao.csv como fonte única das notas de priorização | Bruno Duarte |
 | 1.7 | 31/10/2026 | Tema escuro, consulta flutuante, leitura contínua e atas em blog | Bruno Duarte |
 | 1.8 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
+| 1.9 | 04/11/2026 | Corrige a matriz RF–RNF conforme o catálogo atual, separa requisitos transversais e específicos e explicita propostas e pendências de aplicação (issue #19). | Erick Alves |
+| 1.10 | 04/11/2026 | Move o código do gráfico de priorização para arquivo JavaScript carregado pelo MkDocs e inclui orientação para prévias sem suporte a scripts. | Erick Alves |
