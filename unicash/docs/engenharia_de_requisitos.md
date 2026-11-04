@@ -180,32 +180,53 @@ Os elementos abaixo participam do processo, mas não são técnicas de Engenhari
 
 ## 5.5 Rastreabilidade dos Requisitos
 
-A rastreabilidade liga cada requisito à sua origem e à sua validação, seguindo a cadeia:
+A rastreabilidade permite identificar a necessidade que justifica cada requisito, os objetivos para os quais ele contribui e as evidências de sua implementação e validação. A cadeia de referência é:
 
-**Problema → OE → CP → RF/RNF → caso de uso → critério de aceitação → incremento → validação**
+**Problema → Objetivo Geral (OG) → Objetivos Específicos (OE) → Características de Produto (CP) → RF/RNF → caso de uso → critério de aceitação → incremento → validação**
+
+O objetivo geral expressa a resposta pretendida ao problema; os objetivos específicos desdobram esse objetivo em contribuições mais delimitadas. As CPs indicam as capacidades do produto que apoiam esses objetivos, e os RFs descrevem os comportamentos associados a cada capacidade. Os RNFs qualificam os RFs indicados no catálogo ou estabelecem propriedades e restrições transversais ao sistema. Portanto, um RNF transversal não precisa ter uma única CP de origem nem um caso de uso exclusivo.
 
 Como a equipe adotou casos de uso em vez de histórias de usuário ([R08](atas/posts/r08.md)), o caso de uso ocupa na cadeia a posição da história.
 
-| Elemento | Identificador | Onde é registrado | Vínculo com o elemento anterior |
+| Elemento | Identificador ou referência | Onde é registrado | Relação de rastreabilidade |
 | :--- | :--- | :--- | :--- |
-| Problema | Seção 1.4 | [Cenário atual](cenario.md) | — |
-| Objetivo Específico | OE1 a OE4 | [Solução proposta](solucao.md), seção 2.2 | Cada OE responde ao problema descrito na seção 1.4 |
-| Característica de Produto | CP1 a CP8 | [Solução proposta](solucao.md), seção 2.3 | Colunas de contribuição principal e secundária |
-| Requisito funcional | RFxx | [Requisitos Funcionais](requisitos_funcionais.md) | Coluna "Característica de Produto" |
-| Requisito não funcional | RNFxx | [Requisitos Não Funcionais](requisitos_nao_funcionais.md) | Coluna "Aplica-se a", que indica os RFs ou o sistema inteiro |
-| Caso de uso | UCxx | [Backlog de requisitos (GitHub Project)](https://github.com/orgs/mdsreq-fga-unb/projects/130) | Cada caso de uso cita o RF de origem |
-| Critério de aceitação | UCxx-CAy | [Backlog de requisitos](https://github.com/orgs/mdsreq-fga-unb/projects/130), junto ao caso de uso | Pertence a um caso de uso |
-| Incremento | Timebox e pull request | Repositório | O pull request cita os casos de uso implementados |
-| Validação | Data e registro da revisão | Ata da revisão do incremento ou do teste de aceitação | Registra o resultado de cada critério de aceitação |
+| Problema | Seção 1.4 | [Cenário atual](cenario.md#14-identificacao-da-oportunidade-ou-problema) | Descreve as dificuldades de organização, registro e acompanhamento financeiro que motivam o produto. |
+| Objetivo Geral | OG — referência à seção 2.1 | [Solução proposta](solucao.md#21-objetivo-geral-do-produto) | Responde ao problema com a proposta de auxiliar estudantes, famílias e demais usuários a organizar receitas, despesas e metas financeiras. |
+| Objetivo Específico | OE1 a OE4 | [Solução proposta](solucao.md#22-objetivos-especificos-oe-do-produto) | Desdobra o objetivo geral em registro e acompanhamento, planejamento, compreensão das informações e incentivo à organização financeira. |
+| Característica de Produto | CP1 a CP8 | [Solução proposta](solucao.md#23-caracteristicas-de-produto-mapeadas-com-os-objetivos-especificos-do-produto) | As colunas de contribuição principal e secundária indicam os OEs apoiados por cada CP. |
+| Requisito funcional | RFxx | [Requisitos Funcionais](requisitos_funcionais.md) | A coluna **Característica de Produto** identifica a CP de origem. |
+| Requisito não funcional | RNFxx | [Requisitos Não Funcionais](requisitos_nao_funcionais.md) | A coluna **Aplica-se a** identifica os RFs qualificados ou a aplicação transversal ao sistema, com suas exceções. |
+| Caso de uso | UCxx | [Casos de uso](casos_de_uso.md) e [backlog de casos de uso](https://github.com/orgs/mdsreq-fga-unb/projects/130) | Identifica os RFs atendidos, os requisitos relacionados, os RNFs e as regras que condicionam os fluxos. |
+| Critério de aceitação | UCxx-CAy, conforme o padrão previsto | Backlog de requisitos, junto ao caso de uso | Deve identificar a condição verificável do caso de uso e o requisito que será avaliado. A identificação e a cobertura completas ainda precisam ser consolidadas. |
+| Incremento | Timebox, pull request e versão | Repositório | Deve identificar os casos de uso e critérios implementados, com referência ao código e aos testes correspondentes. |
+| Validação | Data, versão avaliada e registro da revisão | Ata da revisão do incremento ou do teste de aceitação | Deve registrar o resultado por critério, a evidência e os participantes, distinguindo aceite, rejeição e pendência. |
 
-Os vínculos de Problema até RF/RNF já estão registrados nas páginas indicadas. A partir dos casos de uso, os vínculos serão consolidados em uma **matriz de rastreabilidade**, com uma linha por critério de aceitação e as colunas da cadeia acima. Os casos de uso e a matriz ainda não foram produzidos e serão adicionados nos próximos timeboxes.
+### Vínculos já disponíveis
+
+Os vínculos estão distribuídos entre os documentos de origem e a consulta do site:
+
+- **Problema, OG e OEs:** o problema está na seção 1.4 do Cenário; o objetivo geral e seus desdobramentos estão nas seções 2.1 e 2.2 da Solução Proposta.
+- **OE → CP:** a seção 2.3 da Solução Proposta registra a contribuição principal e secundária de cada CP. A existência desse vínculo documentado não substitui a confirmação com a cliente quando houver pendência de validação.
+- **CP → RF e RF ↔ RNF:** as tabelas dos catálogos registram as associações. A [matriz resumida do MVP](mvp.md#2-matriz-de-rastreabilidade-resumida) organiza as relações RF–RNF do recorte selecionado.
+- **Casos de uso → requisitos:** UC01 a UC05 estão publicados, com fluxos e referências a requisitos e regras. Essa publicação não comprova, por si só, cobertura de todos os RFs do MVP, implementação ou aceite.
+- **Consulta dos vínculos:** o [catálogo](consulta/index.md) e o [grafo de rastreabilidade](consulta/rastreabilidade.md) apresentam relações extraídas dos documentos. As páginas individuais permitem consultar CPs, RFs, RNFs, regras e casos de uso relacionados. Os vínculos com objetivos continuam registrados na Solução Proposta; não se presume que toda a cadeia esteja representada no grafo.
+
+**Exemplo de percurso já documentado:** a dificuldade de registrar e acompanhar as finanças (Cenário, seção 1.4) motiva o objetivo geral de organização financeira (Solução, seção 2.1). O OE1 desdobra esse objetivo ao tratar do registro e acompanhamento de receitas e despesas. A CP1 contribui principalmente para OE1 e secundariamente para OE3. O RF07 — Registrar receita pertence à CP1 e é detalhado no fluxo de registro da UC01 — Gerenciar receitas. Entre os RNFs específicos associados ao RF07 estão RNF04 (validação dos campos), RNF05 (integridade da operação) e RNF35 (durabilidade local). Esse percurso pode ser conferido nas fontes indicadas e na [consulta do RF07](consulta/rf/RF07/index.md).
+
+### Continuidade até a implementação e a validação
+
+Os casos de uso já existem; a consolidação da rastreabilidade posterior aos RFs/RNFs permanece parcial. A matriz detalhada prevista deve ter uma linha por critério de aceitação e referências aos elementos da cadeia acima, incluindo o OG, os OEs e as CPs pertinentes, os RFs/RNFs, o caso de uso, o incremento, os testes e a validação.
+
+Quando não houver critério identificado, implementação ou validação registrada, o campo correspondente deve indicar a pendência. Relações no catálogo, checklists de prontidão e inclusão no MVP não equivalem à entrega. A prontidão é avaliada pela [Definition of Ready](dor_dod.md), com registros em [Evidências da DoR](evidencias_dor.md); a conclusão e o aceite dependem das evidências previstas na Definition of Done.
 
 **Regras de manutenção:**
 
-- Nenhum RF é incluído sem uma CP associada, e nenhum caso de uso é incluído sem o RF de origem.
-- Todo pull request cita os casos de uso que implementa.
-- Toda mudança aprovada em ata é refletida no backlog e na matriz até o final do timebox.
-- Leonardo mantém a matriz atualizada; na revisão de cada timebox, a equipe verifica se há RF sem CP, requisito *Must have* sem caso de uso, caso de uso sem critério de aceitação e critério de aceitação sem validação.
+- Manter o OG e os OEs coerentes com o problema e conferir os vínculos OE–CP quando os objetivos ou o escopo mudarem.
+- Nenhum RF é incluído sem uma CP associada, e nenhum caso de uso é incluído sem os RFs que atende.
+- Manter as associações RF–RNF coerentes com a coluna **Aplica-se a**, preservando as exceções, a situação dos requisitos e os códigos retirados.
+- Todo pull request que implementa funcionalidades cita os casos de uso e os critérios atendidos, com as evidências de teste correspondentes.
+- Toda mudança aprovada em ata é refletida no backlog e nos documentos de origem até o final do timebox, para que a consulta gerada acompanhe as alterações.
+- Leonardo mantém a matriz detalhada atualizada; na revisão de cada timebox, a equipe verifica se há RF sem CP, requisito *Must have* sem caso de uso, caso de uso sem critério de aceitação e critério sem evidência de implementação ou validação, registrando as pendências.
 
 O quadro Kanban acompanha o fluxo de trabalho, mas não substitui a rastreabilidade: ele mostra em que etapa uma atividade está, e não de qual objetivo um requisito se origina nem como foi validado.
 
