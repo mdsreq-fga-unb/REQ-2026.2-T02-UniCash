@@ -1,5 +1,46 @@
 # Casos de Uso
 
+## Visão geral
+
+O diagrama a seguir apresenta o ator principal, os casos de uso do UniCash e os relacionamentos de inclusão e extensão entre eles.
+
+
+```mermaid
+flowchart LR
+    U(("👤<br/>Usuário"))
+ 
+    subgraph UniCash["Sistema UniCash"]
+        UC01([UC01<br/>Gerenciar receitas])
+        UC02([UC02<br/>Gerenciar despesas])
+        UC03([UC03<br/>Consultar resumo financeiro])
+        UC04([UC04<br/>Gerenciar saldo mensal])
+        UC05([UC05<br/>Monitorar limites de gastos])
+        UC06([UC06<br/>Gerenciar categorias])
+        UC07([UC07<br/>Consultar evolução mensal])
+        UC08([UC08<br/>Gerenciar saldo inicial])
+        UC09([UC09<br/>Monitorar consumo por categoria])
+    end
+ 
+    U --- UC01
+    U --- UC02
+    U --- UC03
+    U --- UC04
+    U --- UC05
+    U --- UC06
+    U --- UC07
+    U --- UC08
+    U --- UC09
+ 
+    UC04 -.->|"«include»"| UC01
+    UC04 -.->|"«include»"| UC02
+    UC03 -.->|"«include»"| UC04
+    UC05 -.->|"«include»"| UC09
+    UC07 -.->|"«extend»"| UC03
+    UC08 -.->|"«extend»"| UC04
+    UC05 -.->|"«extend»"| UC02
+    UC05 -.->|"«extend»"| UC06
+```
+
 <div class="pagina-casos-de-uso" markdown="1">
 ## UC01 - Gerenciar receitas
  
