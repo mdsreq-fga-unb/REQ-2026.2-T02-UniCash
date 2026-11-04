@@ -28,6 +28,10 @@ Para que um caso de uso seja movido para **Pronto para Desenvolvimento**, todos 
 - [ ] A equipe possui informação suficiente para estimar o esforço com razoável confiança.
 - [ ] O caso de uso possui checklists técnicos claros, que permitem a implementação paralela (duas frentes diferentes) e verificar objetivamente se foi implementado corretamente.
 
+### Tratamento de dependências planejadas
+
+Quando um caso de uso depende de outro que ainda não foi concluído, de um requisito que ainda não tem caso de uso ou de um acesso ou ambiente ainda não disponível, a dependência é registrada no próprio caso de uso, com a forma de tratá-la, em vez de ser dispensada com uma justificativa genérica. O checklist técnico é o instrumento que facilita o desenvolvimento nesses casos: o contrato definido nele (modelo de dados, funções de cálculo compartilhadas, formato das mensagens e eventos) é aprovado no início do timebox, e as duas frentes e os casos de uso dependentes trabalham em paralelo sobre esse mesmo contrato, usando dados de teste ou versões simuladas até que a implementação real fique pronta. O que só pode ser verificado depois que a dependência for concluída fica explícito no caso de uso, como integração posterior, e nos testes marcados do checklist, e não impede que o item seja considerado pronto para desenvolvimento. Dependências sem solução definida são registradas como pendência, com a decisão correspondente.
+
 ## DoD (Definition of Done) — Filtro de Saída
 
 O **Nível 1** deve ser preenchido pelos responsáveis técnicos antes de solicitar o merge ou review. O **Nível 2 e Nível 3** só devem ser preenchidos depois de validados com a cliente.
