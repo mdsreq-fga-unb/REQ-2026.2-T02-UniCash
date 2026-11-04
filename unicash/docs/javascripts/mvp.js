@@ -52,12 +52,18 @@
       xshift: lado ? 8 : 0, yshift: lado ? 0 : 8};
   });
   var layout = {
+    height:1050, autosize:true,
     title:{text:"Valor de Negócio × Esforço Técnico — Unicash",font:{size:25}},
     xaxis:{title:"Esforço técnico (média) →",range:[0.8,4.2],tickvals:[1,2,3,4],zeroline:false,showgrid:false,fixedrange:true},
     yaxis:{title:"Valor de negócio (média) →",range:[0.8,4.0],tickvals:[1,2,3,4],zeroline:false,showgrid:false,fixedrange:true},
     shapes:shapes, annotations:notes, showlegend:false,
     margin:{t:300,r:30,b:70,l:70}, paper_bgcolor:"#fff", plot_bgcolor:"#fff", hovermode:"closest"
   };
+  // Plotly acrescenta o gráfico ao conteúdo existente: remover o aviso de prévia
+  // evita que sua linha extra faça o gráfico ultrapassar a altura reservada.
+  container.textContent = "";
+  container.style.height = layout.height + "px";
+  container.style.marginBottom = "32px";
   return Plotly.newPlot(container, [trace], layout, {responsive:true, displayModeBar:false});
   }).catch(function () {
     container.textContent = "Não foi possível carregar o gráfico. Consulte a planilha de priorização no início desta página.";
