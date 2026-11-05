@@ -27,6 +27,7 @@ Esta página reúne as decisões que mudaram o escopo, os requisitos, o processo
 | [D17](#d17) | 28/10/2026 | Paleta de cores da interface | Equipe | Vigente |
 | [D18](#d18) | 29/10/2026 | Aplicativo móvel em React Native com Expo e SQLite local | [PR #34](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/34) | Vigente |
 | [D19](#d19) | 30/10/2026 | Firebase para sincronização e grupos | [PR #34](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/34) | Vigente |
+| [D20](#d20) | 05/11/2026 | Arquitetura local-first com suporte offline-first e sincronização opcional | Equipe | Vigente |
 
 A situação **Proposta** indica uma decisão da equipe que ainda depende de confirmação da cliente.
 
@@ -245,6 +246,18 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | **Requisitos afetados** | RNF03, RNF04, RNF10, RNF19, RNF20, RNF21, RNF24, RNF26, RNF30 (reescrito de “Expor API RESTful” para “Acessar o Firebase pelo SDK oficial”); RN08; casos de uso que citavam servidor ou API |
 | **Comunicação** | Revisada pela equipe no PR #34; os RNFs foram ajustados em 31/10/2026. Sem registro de comunicação à cliente. |
 
+### D20 — Arquitetura local-first com suporte offline-first e sincronização opcional { #d20 }
+
+| Campo | Registro |
+| :--- | :--- |
+| **Data** | 05/11/2026 |
+| **Origem** | Equipe, revisão da documentação da solução |
+| **Decisão** | O UniCash adota uma arquitetura local-first com suporte aos princípios offline-first. O SQLite é o armazenamento principal e sustenta o cadastro, a edição, a exclusão, as consultas, os cálculos e os relatórios localmente. O Firebase é utilizado apenas de forma opcional, quando o usuário opta por uma conta e pela sincronização em nuvem. |
+| **Motivo** | Essa definição representa melhor o funcionamento do produto: as funcionalidades principais não dependem de conta, internet ou Firebase, enquanto a sincronização em nuvem permanece como recurso adicional para uso em vários dispositivos e em grupos. |
+| **Alternativas descartadas** | Tratar o Firebase como dependência obrigatória da aplicação; classificar o produto como exclusivamente offline-first ou exclusivamente local-only. |
+| **Requisitos afetados** | RF59, RF61 a RF64, RNF26, RNF34 a RNF36, RN06, RN07; seção 2.4 da [Solução proposta](solucao.md) |
+| **Comunicação** | Registrada na documentação pela equipe. Sem registro de comunicação à cliente. |
+
 ## Pendências do registro
 
 - Registrar o motivo da [D15](#d15) e da escolha da paleta na [D17](#d17);
@@ -256,3 +269,4 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | Versão | Data | Descrição | Autor |
 |---|---|---|---|
 | 1.0 | 03/11/2026 | Cria o Registro de decisões com as decisões D01 a D19 | Bruno Duarte |
+| 1.1 | 05/11/2026 | Registra a decisão D20 sobre a arquitetura local-first com suporte offline-first | Equipe UniCash |
