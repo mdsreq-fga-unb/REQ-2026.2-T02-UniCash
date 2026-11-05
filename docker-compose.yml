@@ -3,6 +3,10 @@ services:
     build: ./mobile
     ports:
       - "8081:8081"
+    command: npx expo start --host lan
+    # Variáveis EXPO_PUBLIC_FIREBASE_* e demais do .env da raiz
+    env_file:
+      - .env
     environment:
       # IP da sua máquina na rede Wi-Fi, para o QR code apontar para ela e não para o container.
       # Defina no arquivo .env da raiz: EXPO_HOST_IP=192.168.x.y
@@ -25,6 +29,8 @@ services:
     profiles: [tunnel]
     build: ./mobile
     command: ["npx", "expo", "start", "--tunnel"]
+    env_file:
+      - .env
     environment:
       EXPO_TOKEN: ${EXPO_TOKEN:-}
     volumes:
