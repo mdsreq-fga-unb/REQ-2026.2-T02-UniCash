@@ -28,10 +28,11 @@ A visão do produto, os requisitos (funcionais, não funcionais e regras de neg�
 
 | Onde | O quê |
 | --- | --- |
-| [`mobile/`](mobile/) | app em React Native com Expo (SDK 58), Expo Router e TypeScript |
+| [`mobile/`](mobile/) | app em React Native com Expo (SDK 58), Expo Router e TypeScript, com Firebase (Auth e Firestore) |
 | branch [`docs`](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/tree/docs) | documentação em MkDocs Material, publicada no GitHub Pages |
 | [`.github/`](.github/) | CI/CD, templates de issue e PR, políticas do repositório |
 | `docker-compose.yml` | ambiente de desenvolvimento do app em container |
+| `.env.example` | modelo das variáveis de ambiente (Docker e Firebase); o `.env` real não vai para o git |
 
 ## Rodar o app
 
@@ -40,10 +41,11 @@ git clone git@github.com:mdsreq-fga-unb/REQ-2026.2-T02-UniCash.git
 cd REQ-2026.2-T02-UniCash/mobile
 nvm use
 npm install
+cp ../.env.example .env   # preencha as chaves do Firebase
 npm start
 ```
 
-Leia o QR code com o [Expo Go](https://expo.dev/go) no celular. Para rodar com Docker, gerar builds no EAS ou entender os workflows do GitHub Actions, veja o [README do app](mobile/README.md).
+Leia o QR code com o [Expo Go](https://expo.dev/go) no celular. As chaves do Firebase, o uso do Docker, a geração de builds no EAS e os workflows do GitHub Actions estão explicados no [README do app](mobile/README.md).
 
 ## Contribuir
 
