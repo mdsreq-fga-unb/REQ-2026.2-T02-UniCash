@@ -5,3 +5,4 @@ web-build
 .git
 *.apk
 *.aab
+.env*
