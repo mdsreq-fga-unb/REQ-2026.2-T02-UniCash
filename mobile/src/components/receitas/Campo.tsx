@@ -1,14 +1,17 @@
 import { StyleSheet, Text, TextInput, View, type TextInputProps } from 'react-native';
-import { cores } from '@/lib/theme';
+import { cores, raio } from '@/lib/theme';
 
 interface Props extends TextInputProps {
   rotulo: string;
   erro?: string;
   prefixo?: string;
+  /** Elemento à direita, dentro do campo (ex.: ícone de calendário). */
   acao?: React.ReactNode;
+  /** Elemento logo abaixo do campo (ex.: atalho "Hoje"). */
+  abaixo?: React.ReactNode;
 }
 
-export function Campo({ rotulo, erro, prefixo, acao, style, ...rest }: Props) {
+export function Campo({ rotulo, erro, prefixo, acao, abaixo, style, ...rest }: Props) {
   return (
     <View style={estilos.bloco}>
       <Text style={estilos.rotulo}>{rotulo}</Text>
@@ -22,6 +25,7 @@ export function Campo({ rotulo, erro, prefixo, acao, style, ...rest }: Props) {
         />
         {acao}
       </View>
+      {abaixo}
       {erro ? (
         <Text style={estilos.erro} accessibilityRole="alert">
           {erro}
@@ -32,19 +36,19 @@ export function Campo({ rotulo, erro, prefixo, acao, style, ...rest }: Props) {
 }
 
 const estilos = StyleSheet.create({
-  bloco: { marginBottom: 16 },
-  rotulo: { fontSize: 14, fontWeight: '600', color: cores.marinho, marginBottom: 6 },
+  bloco: { marginBottom: 14 },
+  rotulo: { fontSize: 13, fontWeight: '600', color: cores.marinho, marginBottom: 6 },
   entrada: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: cores.borda,
-    borderRadius: 12,
+    borderRadius: raio.campo,
     backgroundColor: cores.branco,
     paddingHorizontal: 14,
   },
   entradaErro: { borderColor: cores.erro },
-  prefixo: { fontSize: 16, color: cores.textoSuave, marginRight: 6 },
-  input: { flex: 1, fontSize: 16, color: cores.marinho, paddingVertical: 12 },
-  erro: { color: cores.erro, fontSize: 13, marginTop: 4 },
+  prefixo: { fontSize: 15, color: cores.textoSuave, marginRight: 8 },
+  input: { flex: 1, fontSize: 15, color: cores.marinho, paddingVertical: 12 },
+  erro: { color: cores.erro, fontSize: 12, marginTop: 4 },
 });

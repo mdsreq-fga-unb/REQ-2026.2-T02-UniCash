@@ -4,24 +4,33 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { ReceitaForm } from '@/components/receitas/ReceitaForm';
 import { OpcoesModal } from '@/components/receitas/OpcoesModal';
+import { useExclusao } from '@/components/receitas/useExclusao';
 import { buscarReceita, editarReceita, ReceitaIndisponivel } from '@/features/receitas/service';
 import { formatarBR } from '@/features/receitas/dates';
 import { centavosParaTexto } from '@/features/receitas/money';
 import { setFeedback } from '@/features/receitas/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
-import type { EscopoSerie, FormValores, ReceitaInput } from '@/features/receitas/types';
+import type { EscopoSerie, FormValores, Receita, ReceitaInput } from '@/features/receitas/types';
 import { cores } from '@/lib/theme';
 
 export default function EditarReceita() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const [receita, setReceita] = useState<Receita | null>(null);
   const [inicial, setInicial] = useState<FormValores | null>(null);
-  const [emSerie, setEmSerie] = useState(false);
   const [carregando, setCarregando] = useState(true);
   const [erroLeitura, setErroLeitura] = useState(false);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [pendente, setPendente] = useState<ReceitaInput | null>(null); // aguardando escolha de alcance
+
+  const emSerie = !!receita?.recorrencia_id;
+
+  const exclusao = useExclusao(
+    receita
+      ? { id, titulo: receita.titulo, valorCentavos: receita.valor_centavos, data: receita.data, emSerie }
+      : null,
+  );
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -34,7 +43,7 @@ export default function EditarReceita() {
         router.replace('/receitas');
         return;
       }
-      setEmSerie(!!r.receita.recorrencia_id);
+      setReceita(r.receita);
       setInicial({
         valor: centavosParaTexto(r.receita.valor_centavos),
         data: formatarBR(r.receita.data),
@@ -64,9 +73,9 @@ export default function EditarReceita() {
     setErro(null);
     try {
       await editarReceita(id, dados, escopo);
-      setFeedback({ tipo: 'sucesso', texto: 'Receita atualizada.' });
+      setFeedback({ tipo: 'sucesso', texto: 'Salvo no dispositivo. Sincronização pendente.' });
       sincronizarEmSegundoPlano();
-      router.back();
+      router.dismissTo('/receitas');
     } catch (e) {
       if (e instanceof ReceitaIndisponivel) {
         setFeedback({ tipo: 'erro', texto: MSG.indisponivel });
@@ -83,7 +92,7 @@ export default function EditarReceita() {
     else void gravar(dados, 'esta');
   }
 
-  if (carregando) {
+  if (carregando && !inicial) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', backgroundColor: cores.fundo }}>
         <ActivityIndicator color={cores.primaria} />
@@ -104,7 +113,7 @@ export default function EditarReceita() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: cores.fundo }} edges={['top', 'bottom']}>
       <ReceitaForm
-        titulo="Editar receita"
+        titulo="Editar lançamento"
         textoSalvar="Salvar alterações"
         inicial={inicial}
         emSerie={emSerie}
@@ -112,6 +121,7 @@ export default function EditarReceita() {
         erroGeral={erro}
         onSalvar={aoSalvar}
         onCancelar={() => router.back()}
+        onExcluir={exclusao.iniciar}
       />
       <OpcoesModal
         visivel={!!pendente}
@@ -124,6 +134,7 @@ export default function EditarReceita() {
         ]}
         onCancelar={() => setPendente(null)}
       />
+      {exclusao.dialogos}
     </SafeAreaView>
   );
 }

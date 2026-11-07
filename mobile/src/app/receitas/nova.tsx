@@ -18,7 +18,7 @@ export default function NovaReceita() {
     setErro(null);
     try {
       await registrarReceita(dados); // só confirma após o commit (RNF35)
-      setFeedback({ tipo: 'sucesso', texto: 'Receita registrada.' });
+      setFeedback({ tipo: 'sucesso', texto: 'Salvo no dispositivo. Sincronização pendente.' });
       sincronizarEmSegundoPlano(); // falha aqui não afeta o registro (EX04)
       router.back();
     } catch {

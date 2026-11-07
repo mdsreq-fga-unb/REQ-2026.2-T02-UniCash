@@ -1,132 +1,177 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { cores } from '@/lib/theme';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { cores, raio } from '@/lib/theme';
 import { Campo } from './Campo';
-import { mascararData, mesAnterior, nomeMes, parseBR, proximoMes, formatarBR } from '@/features/receitas/dates';
+import { Segmentado } from './Segmentado';
+import { formatarBR, mascararData, mesAnterior, nomeMes, parseBR, proximoMes } from '@/features/receitas/dates';
 import { MSG } from '@/features/receitas/validation';
 import type { Filtro } from '@/features/receitas/types';
 
-type Modo = Filtro['modo'];
+type Modo = 'dia' | 'mes' | 'personalizado';
+
+function mesAtual() {
+  const n = new Date();
+  return { ano: n.getFullYear(), mes: n.getMonth() + 1 };
+}
+
+function rotuloDoFiltro(f: Filtro): string {
+  if (f.modo === 'mes') return nomeMes(f.ano, f.mes);
+  if (f.modo === 'data') return formatarBR(f.data);
+  return `${formatarBR(f.de)} – ${formatarBR(f.ate)}`;
+}
 
 interface Props {
   filtro: Filtro;
   onChange: (f: Filtro) => void;
 }
 
+/** Chip do filtro (protótipo F6) + folha "Filtrar" (protótipo M2). */
 export function FiltroReceitas({ filtro, onChange }: Props) {
-  const [modo, setModo] = useState<Modo>(filtro.modo);
-  const [data, setData] = useState('');
+  const [aberto, setAberto] = useState(false);
+  const [modo, setModo] = useState<Modo>('mes');
+  const [mes, setMes] = useState(mesAtual());
+  const [dia, setDia] = useState('');
   const [de, setDe] = useState('');
   const [ate, setAte] = useState('');
   const [erro, setErro] = useState<string | null>(null);
 
-  function escolherModo(m: Modo) {
-    setModo(m);
+  function abrir() {
     setErro(null);
-    if (m === 'mes') {
-      const n = new Date();
-      onChange({ modo: 'mes', ano: n.getFullYear(), mes: n.getMonth() + 1 });
+    if (filtro.modo === 'mes') {
+      setModo('mes');
+      setMes({ ano: filtro.ano, mes: filtro.mes });
+    } else if (filtro.modo === 'data') {
+      setModo('dia');
+      setDia(formatarBR(filtro.data));
+    } else {
+      setModo('personalizado');
+      setDe(formatarBR(filtro.de));
+      setAte(formatarBR(filtro.ate));
     }
+    setAberto(true);
   }
 
   function aplicar() {
-    if (modo === 'data') {
-      const d = parseBR(data);
+    if (modo === 'mes') {
+      onChange({ modo: 'mes', ...mes });
+    } else if (modo === 'dia') {
+      const d = parseBR(dia);
       if (!d) return setErro(MSG.dataInvalida);
-      setErro(null);
       onChange({ modo: 'data', data: d });
-      return;
+    } else {
+      const i = parseBR(de);
+      const f = parseBR(ate);
+      if (!i || !f) return setErro(MSG.dataInvalida);
+      if (i > f) return setErro(MSG.periodoInvalido); // EX02: não aplica; datas digitadas permanecem
+      onChange({ modo: 'periodo', de: i, ate: f });
     }
-    const i = parseBR(de);
-    const f = parseBR(ate);
-    if (!i || !f) return setErro(MSG.dataInvalida);
-    if (i > f) return setErro(MSG.periodoInvalido); // EX02: datas digitadas permanecem
     setErro(null);
-    onChange({ modo: 'periodo', de: i, ate: f });
+    setAberto(false);
+  }
+
+  function limpar() {
+    setErro(null);
+    onChange({ modo: 'mes', ...mesAtual() });
+    setAberto(false);
   }
 
   return (
-    <View style={estilos.caixa}>
-      <View style={estilos.segmentos}>
-        {(['mes', 'data', 'periodo'] as const).map((m) => (
-          <Pressable
-            key={m}
-            onPress={() => escolherModo(m)}
-            style={[estilos.segmento, modo === m && estilos.segmentoAtivo]}
-            accessibilityRole="button"
-          >
-            <Text style={[estilos.segmentoTexto, modo === m && estilos.segmentoTextoAtivo]}>
-              {m === 'mes' ? 'Mês' : m === 'data' ? 'Data' : 'Período'}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
+    <>
+      <Pressable onPress={abrir} style={estilos.chip} accessibilityRole="button" accessibilityLabel="Filtrar receitas">
+        <Text style={estilos.chipIcone}>🗓</Text>
+        <Text style={estilos.chipTexto}>{rotuloDoFiltro(filtro)}</Text>
+        <Text style={estilos.chipSeta}>▾</Text>
+      </Pressable>
 
-      {modo === 'mes' && filtro.modo === 'mes' ? (
-        <View style={estilos.navMes}>
-          <Pressable
-            onPress={() => onChange({ modo: 'mes', ...mesAnterior(filtro.ano, filtro.mes) })}
-            accessibilityLabel="Mês anterior"
-            style={estilos.seta}
-          >
-            <Text style={estilos.setaTexto}>‹</Text>
-          </Pressable>
-          <Text style={estilos.mes}>{nomeMes(filtro.ano, filtro.mes)}</Text>
-          <Pressable
-            onPress={() => onChange({ modo: 'mes', ...proximoMes(filtro.ano, filtro.mes) })}
-            accessibilityLabel="Próximo mês"
-            style={estilos.seta}
-          >
-            <Text style={estilos.setaTexto}>›</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <Modal visible={aberto} transparent animationType="slide" onRequestClose={() => setAberto(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={estilos.fundo}>
+          <View style={estilos.folha}>
+            <Text style={estilos.titulo}>Filtrar receitas</Text>
+            <Text style={estilos.secao}>Período</Text>
+            <Segmentado
+              valor={modo}
+              onChange={(m) => {
+                setModo(m);
+                setErro(null);
+              }}
+              opcoes={[
+                { valor: 'dia', rotulo: 'Dia' },
+                { valor: 'mes', rotulo: 'Mês' },
+                { valor: 'personalizado', rotulo: 'Personalizado' },
+              ]}
+            />
 
-      {modo === 'data' ? (
-        <Campo rotulo="Data" value={data} onChangeText={(t) => setData(mascararData(t))} placeholder="DD/MM/AAAA" keyboardType="number-pad" />
-      ) : null}
+            <View style={{ marginTop: 16 }}>
+              {modo === 'mes' ? (
+                <View style={estilos.navMes}>
+                  <Pressable onPress={() => setMes((m) => mesAnterior(m.ano, m.mes))} accessibilityLabel="Mês anterior" style={estilos.setaNav}>
+                    <Text style={estilos.setaNavTexto}>‹</Text>
+                  </Pressable>
+                  <Text style={estilos.mes}>{nomeMes(mes.ano, mes.mes)}</Text>
+                  <Pressable onPress={() => setMes((m) => proximoMes(m.ano, m.mes))} accessibilityLabel="Próximo mês" style={estilos.setaNav}>
+                    <Text style={estilos.setaNavTexto}>›</Text>
+                  </Pressable>
+                </View>
+              ) : null}
+              {modo === 'dia' ? (
+                <Campo rotulo="Data" value={dia} onChangeText={(t) => setDia(mascararData(t))} placeholder="DD/MM/AAAA" keyboardType="number-pad" />
+              ) : null}
+              {modo === 'personalizado' ? (
+                <>
+                  <Campo rotulo="De" value={de} onChangeText={(t) => setDe(mascararData(t))} placeholder="DD/MM/AAAA" keyboardType="number-pad" />
+                  <Campo rotulo="Até" value={ate} onChangeText={(t) => setAte(mascararData(t))} placeholder="DD/MM/AAAA" keyboardType="number-pad" />
+                </>
+              ) : null}
+            </View>
 
-      {modo === 'periodo' ? (
-        <>
-          <Campo rotulo="De" value={de} onChangeText={(t) => setDe(mascararData(t))} placeholder="DD/MM/AAAA" keyboardType="number-pad" />
-          <Campo rotulo="Até" value={ate} onChangeText={(t) => setAte(mascararData(t))} placeholder="DD/MM/AAAA" keyboardType="number-pad" />
-        </>
-      ) : null}
+            {erro ? (
+              <Text style={estilos.erro} accessibilityRole="alert">
+                {erro}
+              </Text>
+            ) : null}
 
-      {modo !== 'mes' ? (
-        <>
-          {erro ? (
-            <Text style={estilos.erro} accessibilityRole="alert">
-              {erro}
-            </Text>
-          ) : null}
-          <Pressable onPress={aplicar} style={estilos.aplicar} accessibilityRole="button">
-            <Text style={estilos.aplicarTexto}>Aplicar filtro</Text>
-          </Pressable>
-          {filtro.modo !== 'mes' ? (
-            <Text style={estilos.ativo}>
-              Exibindo: {filtro.modo === 'data' ? formatarBR(filtro.data) : `${formatarBR(filtro.de)} a ${formatarBR(filtro.ate)}`}
-            </Text>
-          ) : null}
-        </>
-      ) : null}
-    </View>
+            <View style={estilos.botoes}>
+              <Pressable onPress={limpar} style={estilos.limpar} accessibilityRole="button">
+                <Text style={estilos.limparTexto}>Limpar</Text>
+              </Pressable>
+              <Pressable onPress={aplicar} style={estilos.aplicar} accessibilityRole="button">
+                <Text style={estilos.aplicarTexto}>Aplicar filtros</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
 const estilos = StyleSheet.create({
-  caixa: { marginBottom: 8 },
-  segmentos: { flexDirection: 'row', backgroundColor: cores.claro, borderRadius: 12, padding: 3, marginBottom: 12 },
-  segmento: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
-  segmentoAtivo: { backgroundColor: cores.primaria },
-  segmentoTexto: { color: cores.marinho, fontWeight: '600' },
-  segmentoTextoAtivo: { color: cores.branco },
-  navMes: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 },
-  seta: { paddingHorizontal: 16, paddingVertical: 4 },
-  setaTexto: { fontSize: 28, color: cores.primaria, fontWeight: '700' },
-  mes: { fontSize: 17, fontWeight: '700', color: cores.marinho },
-  erro: { color: cores.erro, fontSize: 13, marginBottom: 8 },
-  aplicar: { backgroundColor: cores.primaria, borderRadius: 12, paddingVertical: 11, alignItems: 'center' },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: cores.claro,
+    borderRadius: raio.pilula,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: cores.branco,
+  },
+  chipIcone: { fontSize: 12, marginRight: 6 },
+  chipTexto: { fontSize: 12, color: cores.marinho, fontWeight: '600' },
+  chipSeta: { fontSize: 11, color: cores.primaria, marginLeft: 6 },
+  fundo: { flex: 1, backgroundColor: 'rgba(8,47,73,0.55)', justifyContent: 'flex-end' },
+  folha: { backgroundColor: cores.branco, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 28 },
+  titulo: { fontSize: 18, fontWeight: '700', color: cores.marinho, marginBottom: 14 },
+  secao: { fontSize: 13, fontWeight: '600', color: cores.marinho, marginBottom: 6 },
+  navMes: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  setaNav: { paddingHorizontal: 16 },
+  setaNavTexto: { fontSize: 28, color: cores.primaria, fontWeight: '700' },
+  mes: { fontSize: 16, fontWeight: '700', color: cores.marinho },
+  erro: { color: cores.erro, fontSize: 12, marginTop: 4 },
+  botoes: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  limpar: { flex: 1, borderWidth: 1.5, borderColor: cores.primaria, borderRadius: raio.botao, paddingVertical: 13, alignItems: 'center' },
+  limparTexto: { color: cores.primaria, fontWeight: '700' },
+  aplicar: { flex: 2, backgroundColor: cores.primaria, borderRadius: raio.botao, paddingVertical: 13, alignItems: 'center' },
   aplicarTexto: { color: cores.branco, fontWeight: '700' },
-  ativo: { fontSize: 13, color: cores.textoSuave, marginTop: 8 },
 });

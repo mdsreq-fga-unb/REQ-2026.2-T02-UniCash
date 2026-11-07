@@ -1,7 +1,18 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
-import { cores } from '@/lib/theme';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { cores, raio } from '@/lib/theme';
 import { Campo } from './Campo';
+import { Segmentado } from './Segmentado';
 import { hojeISO, formatarBR, mascararData } from '@/features/receitas/dates';
 import { validarFormulario, type ErrosForm } from '@/features/receitas/validation';
 import type { FormValores, ReceitaInput, UnidadeRecorrencia } from '@/features/receitas/types';
@@ -21,31 +32,45 @@ interface Props {
   titulo: string;
   textoSalvar: string;
   inicial?: FormValores;
-  /** Edição de ocorrência de série: exibe aviso sobre o alcance. */
   emSerie?: boolean;
   salvando: boolean;
   erroGeral?: string | null;
   onSalvar: (dados: ReceitaInput) => void;
   onCancelar: () => void;
+  /** Se informado, o rodapé mostra "Excluir lançamento" no lugar de "Cancelar" (tela de edição). */
+  onExcluir?: () => void;
 }
 
-const UNIDADES: { v: UnidadeRecorrencia; r: string }[] = [
-  { v: 'dia', r: 'Dias' },
-  { v: 'mes', r: 'Meses' },
-  { v: 'ano', r: 'Anos' },
+const UNIDADES: { valor: UnidadeRecorrencia; rotulo: string; um: string; varios: string }[] = [
+  { valor: 'dia', rotulo: 'Dias', um: 'dia', varios: 'dias' },
+  { valor: 'mes', rotulo: 'Meses', um: 'mês', varios: 'meses' },
+  { valor: 'ano', rotulo: 'Anos', um: 'ano', varios: 'anos' },
 ];
 
-/** Formulário único para registrar e editar (A e C). Os dados digitados nunca são limpos em caso de erro. */
-export function ReceitaForm({ titulo, textoSalvar, inicial, emSerie, salvando, erroGeral, onSalvar, onCancelar }: Props) {
+function resumoRepeticao(v: FormValores): string {
+  if (!v.recorrente) return 'Não se repete';
+  const n = Number(v.intervalo) || 0;
+  const u = UNIDADES.find((x) => x.valor === v.unidade)!;
+  const base = `A cada ${v.intervalo || '?'} ${n === 1 ? u.um : u.varios}`;
+  return v.termino ? `${base} · até ${v.termino}` : base;
+}
+
+/** Formulário único para registrar e editar (A e C), conforme os protótipos F4 e F5. */
+export function ReceitaForm({
+  titulo, textoSalvar, inicial, emSerie, salvando, erroGeral, onSalvar, onCancelar, onExcluir,
+}: Props) {
   const [v, setV] = useState<FormValores>(inicial ?? FORM_VAZIO);
   const [erros, setErros] = useState<ErrosForm>({});
+  const [repeticaoAberta, setRepeticaoAberta] = useState(false);
   const set = <K extends keyof FormValores>(k: K, valor: FormValores[K]) => setV((p) => ({ ...p, [k]: valor }));
 
   function salvar() {
     const { erros: e, dados } = validarFormulario(v, { permitirRecorrencia: true });
     setErros(e);
-    if (dados) onSalvar(dados); // EX01: sem dados, nada é gravado e o formulário permanece
+    if (dados) onSalvar(dados); // EX01: sem dados nada é gravado; o formulário permanece preenchido
   }
+
+  const erroRepeticao = erros.intervalo ?? erros.termino;
 
   return (
     <View style={estilos.tela}>
@@ -57,11 +82,21 @@ export function ReceitaForm({ titulo, textoSalvar, inicial, emSerie, salvando, e
       </View>
 
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
+        <View style={{ marginBottom: 16 }}>
+          <Segmentado
+            valor="receita"
+            opcoes={[
+              { valor: 'despesa', rotulo: 'Despesa', inerte: true },
+              { valor: 'receita', rotulo: 'Receita' },
+            ]}
+          />
+        </View>
+
         <Campo
           rotulo="Título"
           value={v.titulo}
           onChangeText={(t) => set('titulo', t)}
-          placeholder="Ex.: Freela de design"
+          placeholder="Freela de design"
           erro={erros.titulo}
         />
         <Campo
@@ -80,8 +115,9 @@ export function ReceitaForm({ titulo, textoSalvar, inicial, emSerie, salvando, e
           placeholder="DD/MM/AAAA"
           keyboardType="number-pad"
           erro={erros.data}
-          acao={
-            <Pressable onPress={() => set('data', formatarBR(hojeISO()))} accessibilityRole="button">
+          acao={<Text style={estilos.icone}>🗓</Text>}
+          abaixo={
+            <Pressable onPress={() => set('data', formatarBR(hojeISO()))} accessibilityRole="button" style={estilos.hojeBotao}>
               <Text style={estilos.hoje}>Hoje</Text>
             </Pressable>
           }
@@ -90,27 +126,81 @@ export function ReceitaForm({ titulo, textoSalvar, inicial, emSerie, salvando, e
           rotulo="Descrição (opcional)"
           value={v.descricao}
           onChangeText={(t) => set('descricao', t)}
-          placeholder="Ex.: Logo para a empresa júnior"
+          placeholder="Logo para a empresa júnior"
           multiline
           erro={erros.descricao}
         />
 
-        {emSerie ? (
-          <Text style={estilos.nota}>
-            Esta receita faz parte de uma série. Alterações na repetição valem ao escolher “Esta e as próximas” ou “Todas”.
+        <View style={estilos.bloco}>
+          <Text style={estilos.rotulo}>Repetição (opcional)</Text>
+          <Pressable
+            onPress={() => setRepeticaoAberta(true)}
+            style={[estilos.seletor, erroRepeticao ? estilos.seletorErro : null]}
+            accessibilityRole="button"
+            accessibilityLabel="Repetição"
+          >
+            <Text style={estilos.seletorTexto}>{resumoRepeticao(v)}</Text>
+            <Text style={estilos.seta}>▾</Text>
+          </Pressable>
+          {erroRepeticao ? (
+            <Text style={estilos.erro} accessibilityRole="alert">
+              {erroRepeticao}
+            </Text>
+          ) : (
+            <Text style={estilos.dica}>Opcional · Dias, meses ou anos</Text>
+          )}
+          {emSerie ? (
+            <Text style={estilos.dica}>
+              Receita de uma série: mudanças na repetição valem em “Esta e as próximas” ou “Todas”.
+            </Text>
+          ) : null}
+        </View>
+
+        <Text style={estilos.dica}>Salvo primeiro no dispositivo: funciona sem internet.</Text>
+        {erroGeral ? (
+          <Text style={estilos.erroGeral} accessibilityRole="alert">
+            {erroGeral}
           </Text>
         ) : null}
-          <View style={estilos.bloco}>
-            <View style={estilos.linhaSwitch}>
-              <Text style={estilos.rotuloSwitch}>Receita recorrente</Text>
-              <Switch
-                value={v.recorrente}
-                onValueChange={(x) => set('recorrente', x)}
-                trackColor={{ true: cores.primaria, false: '#CBD5E1' }}
-              />
-            </View>
+      </ScrollView>
+
+      <View style={estilos.rodape}>
+        <Pressable
+          onPress={salvar}
+          disabled={salvando}
+          style={[estilos.salvar, salvando && { opacity: 0.6 }]}
+          accessibilityRole="button"
+        >
+          {salvando ? <ActivityIndicator color={cores.branco} /> : <Text style={estilos.salvarTexto}>{textoSalvar}</Text>}
+        </Pressable>
+        {onExcluir ? (
+          <Pressable onPress={onExcluir} disabled={salvando} style={estilos.secundario} accessibilityRole="button">
+            <Text style={estilos.secundarioTexto}>🗑  Excluir lançamento</Text>
+          </Pressable>
+        ) : (
+          <Pressable onPress={onCancelar} disabled={salvando} style={estilos.secundario} accessibilityRole="button">
+            <Text style={estilos.secundarioTexto}>Cancelar</Text>
+          </Pressable>
+        )}
+      </View>
+
+      <Modal visible={repeticaoAberta} transparent animationType="slide" onRequestClose={() => setRepeticaoAberta(false)}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={estilos.modalFundo}
+        >
+          <View style={estilos.modalCartao}>
+            <Text style={estilos.modalTitulo}>Repetição</Text>
+            <Segmentado
+              valor={v.recorrente ? 'sim' : 'nao'}
+              onChange={(x) => set('recorrente', x === 'sim')}
+              opcoes={[
+                { valor: 'nao', rotulo: 'Não se repete' },
+                { valor: 'sim', rotulo: 'Repete' },
+              ]}
+            />
             {v.recorrente ? (
-              <View style={estilos.recorrencia}>
+              <View style={{ marginTop: 16 }}>
                 <Campo
                   rotulo="Repetir a cada"
                   value={v.intervalo}
@@ -118,17 +208,12 @@ export function ReceitaForm({ titulo, textoSalvar, inicial, emSerie, salvando, e
                   keyboardType="number-pad"
                   erro={erros.intervalo}
                 />
-                <View style={estilos.segmentos}>
-                  {UNIDADES.map((u) => (
-                    <Pressable
-                      key={u.v}
-                      onPress={() => set('unidade', u.v)}
-                      style={[estilos.segmento, v.unidade === u.v && estilos.segmentoAtivo]}
-                      accessibilityRole="button"
-                    >
-                      <Text style={[estilos.segmentoTexto, v.unidade === u.v && estilos.segmentoTextoAtivo]}>{u.r}</Text>
-                    </Pressable>
-                  ))}
+                <View style={{ marginBottom: 14 }}>
+                  <Segmentado
+                    valor={v.unidade}
+                    onChange={(u) => set('unidade', u)}
+                    opcoes={UNIDADES.map((u) => ({ valor: u.valor, rotulo: u.rotulo }))}
+                  />
                 </View>
                 <Campo
                   rotulo="Data de término (opcional)"
@@ -140,50 +225,51 @@ export function ReceitaForm({ titulo, textoSalvar, inicial, emSerie, salvando, e
                 />
               </View>
             ) : null}
-        </View>
-
-        <Text style={estilos.nota}>Salvo primeiro no dispositivo: funciona sem internet.</Text>
-        {erroGeral ? (
-          <Text style={estilos.erroGeral} accessibilityRole="alert">
-            {erroGeral}
-          </Text>
-        ) : null}
-      </ScrollView>
-
-      <View style={estilos.acoes}>
-        <Pressable onPress={salvar} disabled={salvando} style={[estilos.salvar, salvando && { opacity: 0.6 }]} accessibilityRole="button">
-          {salvando ? <ActivityIndicator color={cores.branco} /> : <Text style={estilos.salvarTexto}>{textoSalvar}</Text>}
-        </Pressable>
-        <Pressable onPress={onCancelar} disabled={salvando} style={estilos.cancelar} accessibilityRole="button">
-          <Text style={estilos.cancelarTexto}>Cancelar</Text>
-        </Pressable>
-      </View>
+            <Pressable onPress={() => setRepeticaoAberta(false)} style={estilos.salvar} accessibilityRole="button">
+              <Text style={estilos.salvarTexto}>Concluir</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
-  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 10 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12 },
   voltar: { paddingHorizontal: 10 },
-  voltarTexto: { fontSize: 32, color: cores.primaria, fontWeight: '700' },
-  titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho },
-  conteudo: { padding: 20, paddingBottom: 32 },
-  hoje: { color: cores.primaria, fontWeight: '700', paddingLeft: 8 },
-  bloco: { marginBottom: 8 },
-  linhaSwitch: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  rotuloSwitch: { fontSize: 15, fontWeight: '600', color: cores.marinho },
-  recorrencia: { backgroundColor: cores.branco, borderRadius: 14, borderWidth: 1, borderColor: cores.borda, padding: 14 },
-  segmentos: { flexDirection: 'row', backgroundColor: cores.claro, borderRadius: 12, padding: 3, marginBottom: 16 },
-  segmento: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 10 },
-  segmentoAtivo: { backgroundColor: cores.primaria },
-  segmentoTexto: { color: cores.marinho, fontWeight: '600' },
-  segmentoTextoAtivo: { color: cores.branco },
-  nota: { fontSize: 13, color: cores.textoSuave, marginTop: 8 },
+  voltarTexto: { fontSize: 30, color: cores.primaria, fontWeight: '700', lineHeight: 32 },
+  titulo: { fontSize: 18, fontWeight: '700', color: cores.marinho },
+  conteudo: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
+  icone: { fontSize: 16, marginLeft: 8 },
+  hojeBotao: { alignSelf: 'flex-start', paddingTop: 6 },
+  hoje: { color: cores.primaria, fontSize: 12, fontWeight: '600' },
+  bloco: { marginBottom: 14 },
+  rotulo: { fontSize: 13, fontWeight: '600', color: cores.marinho, marginBottom: 6 },
+  seletor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.campo,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    backgroundColor: cores.branco,
+  },
+  seletorErro: { borderColor: cores.erro },
+  seletorTexto: { fontSize: 15, color: cores.marinho },
+  seta: { fontSize: 14, color: cores.primaria },
+  dica: { fontSize: 12, color: cores.primaria, marginTop: 6 },
+  erro: { color: cores.erro, fontSize: 12, marginTop: 4 },
   erroGeral: { color: cores.erro, fontSize: 14, fontWeight: '600', marginTop: 12 },
-  acoes: { padding: 20, paddingTop: 8 },
-  salvar: { backgroundColor: cores.primaria, borderRadius: 14, paddingVertical: 15, alignItems: 'center' },
-  salvarTexto: { color: cores.branco, fontWeight: '700', fontSize: 16 },
-  cancelar: { alignItems: 'center', paddingVertical: 12 },
-  cancelarTexto: { color: cores.textoSuave, fontWeight: '600' },
+  rodape: { padding: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: cores.borda },
+  salvar: { backgroundColor: cores.primaria, borderRadius: raio.botao, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
+  salvarTexto: { color: cores.branco, fontWeight: '700', fontSize: 15 },
+  secundario: { alignItems: 'center', paddingVertical: 14 },
+  secundarioTexto: { color: cores.primaria, fontWeight: '600', fontSize: 14 },
+  modalFundo: { flex: 1, backgroundColor: 'rgba(8,47,73,0.55)', justifyContent: 'flex-end' },
+  modalCartao: { backgroundColor: cores.branco, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 28 },
+  modalTitulo: { fontSize: 18, fontWeight: '700', color: cores.marinho, marginBottom: 14 },
 });

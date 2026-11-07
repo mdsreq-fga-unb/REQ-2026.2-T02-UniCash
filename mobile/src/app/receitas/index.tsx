@@ -2,11 +2,12 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
-import { cores } from '@/lib/theme';
+import { cores, raio } from '@/lib/theme';
 import { FiltroReceitas } from '@/components/receitas/FiltroReceitas';
 import { ReceitaItem } from '@/components/receitas/ReceitaItem';
 import { formatarBRL } from '@/features/receitas/money';
 import { consumirFeedback, type Feedback } from '@/features/receitas/feedback';
+import { contarPendentes } from '@/features/receitas/pendencias';
 import { useReceitas } from '@/features/receitas/useReceitas';
 import { sincronizarPendentes } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
@@ -21,21 +22,41 @@ export default function ListaReceitas() {
   const [filtro, setFiltro] = useState<Filtro>(filtroMesCorrente);
   const { itens, total, carregando, erroLeitura, recarregar } = useReceitas(filtro);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [pendentes, setPendentes] = useState(0);
+
+  const atualizarPendentes = useCallback(async () => {
+    try {
+      setPendentes(await contarPendentes());
+    } catch {
+      // indicador é informativo
+    }
+  }, []);
 
   // Ao voltar de outra tela: mostra mensagem pendente, recarrega e tenta sincronizar (EX05).
   useFocusEffect(
     useCallback(() => {
       setFeedback(consumirFeedback());
       void recarregar();
+      void atualizarPendentes();
       void sincronizarPendentes().then((mudou) => {
         if (mudou) void recarregar();
+        void atualizarPendentes();
       });
-    }, [recarregar]),
+    }, [recarregar, atualizarPendentes]),
   );
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <Text style={estilos.titulo}>Receitas</Text>
+      <View style={estilos.cabecalho}>
+        <Text style={estilos.titulo}>Receitas</Text>
+        {pendentes > 0 ? (
+          <View style={estilos.pendentes}>
+            <Text style={estilos.pendentesTexto}>
+              ↻ {pendentes} {pendentes === 1 ? 'pendente' : 'pendentes'}
+            </Text>
+          </View>
+        ) : null}
+      </View>
 
       <FlatList
         data={itens}
@@ -43,14 +64,21 @@ export default function ListaReceitas() {
         contentContainerStyle={estilos.conteudo}
         ListHeaderComponent={
           <View>
-            <FiltroReceitas filtro={filtro} onChange={setFiltro} />
             {feedback ? (
-              <Text style={[estilos.feedback, feedback.tipo === 'erro' ? estilos.feedbackErro : estilos.feedbackOk]}>
-                {feedback.texto}
-              </Text>
+              <View style={[estilos.banner, feedback.tipo === 'erro' ? estilos.bannerErro : estilos.bannerOk]}>
+                <Text style={estilos.bannerTexto}>
+                  {feedback.tipo === 'erro' ? '!  ' : '✓  '}
+                  {feedback.texto}
+                </Text>
+              </View>
             ) : null}
+
+            <View style={estilos.chips}>
+              <FiltroReceitas filtro={filtro} onChange={setFiltro} />
+            </View>
+
             <View style={estilos.total}>
-              <Text style={estilos.totalRotulo}>Total do período</Text>
+              <Text style={estilos.totalRotulo}>Receitas</Text>
               <Text style={estilos.totalValor}>+ {formatarBRL(total)}</Text>
             </View>
           </View>
@@ -61,6 +89,11 @@ export default function ListaReceitas() {
             onPress={() => router.push({ pathname: '/receitas/[id]', params: { id: item.id } })}
           />
         )}
+        ListFooterComponent={
+          itens.length > 0 ? (
+            <Text style={estilos.dica}>Toque em uma receita para consultar, editar ou excluir.</Text>
+          ) : undefined
+        }
         ListEmptyComponent={
           carregando ? (
             <ActivityIndicator color={cores.primaria} style={{ marginTop: 32 }} />
@@ -74,7 +107,7 @@ export default function ListaReceitas() {
           ) : (
             <View style={estilos.vazio}>
               <Text style={estilos.vazioTitulo}>Nenhuma receita neste período</Text>
-              <Text style={estilos.vazioTexto}>Toque em “Nova receita” para registrar a primeira.</Text>
+              <Text style={estilos.vazioTexto}>Toque em + para registrar uma receita.</Text>
             </View>
           )
         }
@@ -86,7 +119,7 @@ export default function ListaReceitas() {
         accessibilityRole="button"
         accessibilityLabel="Nova receita"
       >
-        <Text style={estilos.fabTexto}>+ Nova receita</Text>
+        <Text style={estilos.fabTexto}>+</Text>
       </Pressable>
     </SafeAreaView>
   );
@@ -94,36 +127,56 @@ export default function ListaReceitas() {
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
-  titulo: { fontSize: 24, fontWeight: '700', color: cores.marinho, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
-  conteudo: { paddingHorizontal: 20, paddingBottom: 100 },
-  total: {
+  cabecalho: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: cores.marinho,
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 14,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
-  totalRotulo: { color: cores.claro, fontSize: 14 },
-  totalValor: { color: cores.branco, fontSize: 16, fontWeight: '700' },
-  feedback: { padding: 12, borderRadius: 12, marginBottom: 12, fontSize: 14, fontWeight: '600', overflow: 'hidden' },
-  feedbackOk: { backgroundColor: '#DCFCE7', color: cores.sucesso },
-  feedbackErro: { backgroundColor: '#FEE2E2', color: cores.erro },
+  titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho },
+  pendentes: {
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: cores.primaria,
+    borderRadius: raio.pilula,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  pendentesTexto: { fontSize: 12, color: cores.primaria, fontWeight: '600' },
+  conteudo: { paddingHorizontal: 20, paddingBottom: 110 },
+  banner: { borderRadius: raio.cartao, padding: 14, marginBottom: 12 },
+  bannerOk: { backgroundColor: cores.primaria },
+  bannerErro: { backgroundColor: cores.erro },
+  bannerTexto: { color: cores.branco, fontSize: 13, fontWeight: '600' },
+  chips: { flexDirection: 'row', marginBottom: 12 },
+  total: {
+    backgroundColor: cores.fundoSuave,
+    borderRadius: raio.cartao,
+    padding: 14,
+    marginBottom: 6,
+  },
+  totalRotulo: { fontSize: 12, color: cores.textoSuave },
+  totalValor: { fontSize: 18, fontWeight: '800', color: cores.sucesso, marginTop: 2 },
+  dica: { fontSize: 12, color: cores.textoSuave, textAlign: 'center', marginTop: 16 },
   vazio: { alignItems: 'center', paddingVertical: 40 },
   vazioTitulo: { fontSize: 16, fontWeight: '700', color: cores.marinho },
   vazioTexto: { fontSize: 14, color: cores.textoSuave, marginTop: 6, textAlign: 'center' },
   erro: { color: cores.erro, fontSize: 14, textAlign: 'center' },
-  tentar: { marginTop: 12, borderWidth: 1.5, borderColor: cores.primaria, borderRadius: 12, paddingVertical: 10, paddingHorizontal: 20 },
+  tentar: { marginTop: 12, borderWidth: 1.5, borderColor: cores.primaria, borderRadius: raio.botao, paddingVertical: 10, paddingHorizontal: 20 },
   tentarTexto: { color: cores.primaria, fontWeight: '700' },
   fab: {
     position: 'absolute',
     right: 20,
     bottom: 28,
-    backgroundColor: cores.primaria,
+    width: 56,
+    height: 56,
     borderRadius: 28,
-    paddingVertical: 14,
-    paddingHorizontal: 22,
+    backgroundColor: cores.primaria,
+    alignItems: 'center',
+    justifyContent: 'center',
     elevation: 4,
   },
-  fabTexto: { color: cores.branco, fontWeight: '700', fontSize: 15 },
+  fabTexto: { color: cores.branco, fontSize: 30, lineHeight: 34, fontWeight: '400' },
 });
