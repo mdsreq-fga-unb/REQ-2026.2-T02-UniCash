@@ -21,7 +21,7 @@ interface Props {
   titulo: string;
   textoSalvar: string;
   inicial?: FormValores;
-  /** Edição de ocorrência de série: a recorrência não é reconfigurada aqui. */
+  /** Edição de ocorrência de série: exibe aviso sobre o alcance. */
   emSerie?: boolean;
   salvando: boolean;
   erroGeral?: string | null;
@@ -42,7 +42,7 @@ export function ReceitaForm({ titulo, textoSalvar, inicial, emSerie, salvando, e
   const set = <K extends keyof FormValores>(k: K, valor: FormValores[K]) => setV((p) => ({ ...p, [k]: valor }));
 
   function salvar() {
-    const { erros: e, dados } = validarFormulario(v, { permitirRecorrencia: !emSerie });
+    const { erros: e, dados } = validarFormulario(v, { permitirRecorrencia: true });
     setErros(e);
     if (dados) onSalvar(dados); // EX01: sem dados, nada é gravado e o formulário permanece
   }
@@ -96,8 +96,10 @@ export function ReceitaForm({ titulo, textoSalvar, inicial, emSerie, salvando, e
         />
 
         {emSerie ? (
-          <Text style={estilos.nota}>Esta receita faz parte de uma série recorrente.</Text>
-        ) : (
+          <Text style={estilos.nota}>
+            Esta receita faz parte de uma série. Alterações na repetição valem ao escolher “Esta e as próximas” ou “Todas”.
+          </Text>
+        ) : null}
           <View style={estilos.bloco}>
             <View style={estilos.linhaSwitch}>
               <Text style={estilos.rotuloSwitch}>Receita recorrente</Text>
@@ -138,8 +140,7 @@ export function ReceitaForm({ titulo, textoSalvar, inicial, emSerie, salvando, e
                 />
               </View>
             ) : null}
-          </View>
-        )}
+        </View>
 
         <Text style={estilos.nota}>Salvo primeiro no dispositivo: funciona sem internet.</Text>
         {erroGeral ? (

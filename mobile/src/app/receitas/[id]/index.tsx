@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { OpcoesModal } from '@/components/receitas/OpcoesModal';
 import { buscarReceita, excluirReceita, ReceitaIndisponivel } from '@/features/receitas/service';
-import { formatarBR } from '@/features/receitas/dates';
+import { formatarBR, formatarDataHora } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { setFeedback } from '@/features/receitas/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
@@ -111,6 +111,8 @@ export default function DetalheReceita() {
               : 'Não se repete'
           }
         />
+        <Linha rotulo="Registrada em" valor={formatarDataHora(receita.criado_em)} />
+        <Linha rotulo="Última alteração" valor={formatarDataHora(receita.atualizado_em)} />
         <Linha rotulo="Sincronização" valor={receita.sync_status === 'pendente' ? 'Pendente de sincronização' : 'Sincronizado'} />
       </ScrollView>
 

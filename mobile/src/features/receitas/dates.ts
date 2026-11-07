@@ -76,3 +76,10 @@ const NOMES_MES = [
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ];
 export const nomeMes = (ano: number, mes: number) => `${NOMES_MES[mes - 1]}/${ano}`;
+
+/** "2026-10-16T14:05:00.000Z" -> "16/10/2026 11:05" (horário local). */
+export function formatarDataHora(isoTimestamp: string): string {
+  const d = new Date(isoTimestamp);
+  if (isNaN(d.getTime())) return '—';
+  return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+}

@@ -108,47 +108,88 @@ export function completarRecorrencias() {
   });
 }
 
+// ---------------------------------------------------------------- séries
+
+const LAPIDE = `UPDATE receitas SET excluido_em = ?, sync_status = 'pendente', atualizado_em = ?`;
+type DadosSerie = Omit<ReceitaInput, 'recorrencia'> & { recorrencia: NonNullable<ReceitaInput['recorrencia']> };
+
+/** Cria a série e gera as ocorrências (sem término: 12 meses; a primeira sempre é gerada). */
+async function criarSerie(tx: SQLiteDatabase, d: DadosSerie, ts: string) {
+  const rec: Recorrencia = {
+    id: gerarId(),
+    intervalo: d.recorrencia.intervalo,
+    unidade: d.recorrencia.unidade,
+    inicio: d.data,
+    termino: d.recorrencia.termino,
+    ativa: 1,
+    valor_centavos: d.valorCentavos,
+    titulo: d.titulo,
+    descricao: d.descricao,
+    sync_status: 'pendente',
+    atualizado_em: ts,
+  };
+  await tx.runAsync(
+    `INSERT INTO recorrencias
+      (id, intervalo, unidade, inicio, termino, ativa, valor_centavos, titulo, descricao, sync_status, atualizado_em)
+     VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'pendente', ?)`,
+    [rec.id, rec.intervalo, rec.unidade, rec.inicio, rec.termino, rec.valor_centavos, rec.titulo, rec.descricao, ts],
+  );
+  const horizonte = rec.termino ?? adicionarMeses(hojeISO(), HORIZONTE_MESES);
+  await gerarOcorrencias(tx, rec, horizonte < rec.inicio ? rec.inicio : horizonte);
+}
+
+/** Série deixa de existir a partir de `dataCorte` (exclusive no que já foi gerado antes dela). */
+async function encerrarSerieAntes(tx: SQLiteDatabase, rec: Recorrencia, dataCorte: string, ts: string) {
+  const anterior = adicionarDias(dataCorte, -1);
+  if (anterior < rec.inicio) {
+    await tx.runAsync(
+      `UPDATE recorrencias SET ativa = 0, sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
+      [ts, rec.id],
+    );
+  } else {
+    await tx.runAsync(
+      `UPDATE recorrencias SET termino = ?, sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
+      [anterior, ts, rec.id],
+    );
+  }
+}
+
+async function desativarSerie(tx: SQLiteDatabase, recId: string, ts: string) {
+  await tx.runAsync(
+    `UPDATE recorrencias SET ativa = 0, sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
+    [ts, recId],
+  );
+}
+
 // ---------------------------------------------------------------- registrar (A)
 
 export function registrarReceita(input: ReceitaInput) {
   return transacao(async (tx) => {
     const ts = agora();
-    if (!input.recorrencia) {
-      await tx.runAsync(
-        `INSERT INTO receitas
-          (id, valor_centavos, data, titulo, descricao, recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
-         VALUES (?, ?, ?, ?, ?, NULL, 'pendente', NULL, ?, ?)`,
-        [gerarId(), input.valorCentavos, input.data, input.titulo, input.descricao, ts, ts],
-      );
+    if (input.recorrencia) {
+      await criarSerie(tx, { ...input, recorrencia: input.recorrencia }, ts);
       return;
     }
-    const rec: Recorrencia = {
-      id: gerarId(),
-      intervalo: input.recorrencia.intervalo,
-      unidade: input.recorrencia.unidade,
-      inicio: input.data,
-      termino: input.recorrencia.termino,
-      ativa: 1,
-      valor_centavos: input.valorCentavos,
-      titulo: input.titulo,
-      descricao: input.descricao,
-      sync_status: 'pendente',
-      atualizado_em: ts,
-    };
     await tx.runAsync(
-      `INSERT INTO recorrencias
-        (id, intervalo, unidade, inicio, termino, ativa, valor_centavos, titulo, descricao, sync_status, atualizado_em)
-       VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, 'pendente', ?)`,
-      [rec.id, rec.intervalo, rec.unidade, rec.inicio, rec.termino, rec.valor_centavos, rec.titulo, rec.descricao, ts],
+      `INSERT INTO receitas
+        (id, valor_centavos, data, titulo, descricao, recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
+       VALUES (?, ?, ?, ?, ?, NULL, 'pendente', NULL, ?, ?)`,
+      [gerarId(), input.valorCentavos, input.data, input.titulo, input.descricao, ts, ts],
     );
-    // Sem término: 12 meses à frente; a primeira ocorrência sempre é gerada.
-    const horizonte = rec.termino ?? adicionarMeses(hojeISO(), HORIZONTE_MESES);
-    await gerarOcorrencias(tx, rec, horizonte < rec.inicio ? rec.inicio : horizonte);
   });
 }
 
 // ---------------------------------------------------------------- editar (C)
 
+/**
+ * Edita qualquer campo (RN20), inclusive a recorrência.
+ * - Receita única + recorrência: a receita é substituída por uma nova série.
+ * - Série, só alterando dados: 'esta' altera a ocorrência; 'proximas' e 'todas' propagam valor, título e descrição.
+ * - Série com repetição alterada ou removida ('proximas' ou 'todas'): a série é refeita.
+ *   Em 'todas' o início da série é preservado (a data editada vale só para a ocorrência, quando não há refação).
+ * - Em 'esta' a repetição não é alterada.
+ * Totais são calculados por consulta, então os meses de origem e destino já refletem a mudança.
+ */
 export function editarReceita(id: string, input: ReceitaInput, escopo: EscopoSerie = 'esta') {
   return transacao(async (tx) => {
     const atual = await tx.getFirstAsync<Receita>(
@@ -157,20 +198,39 @@ export function editarReceita(id: string, input: ReceitaInput, escopo: EscopoSer
     );
     if (!atual) throw new ReceitaIndisponivel();
     const ts = agora();
+    const rec = atual.recorrencia_id
+      ? await tx.getFirstAsync<Recorrencia>('SELECT * FROM recorrencias WHERE id = ?', [atual.recorrencia_id])
+      : null;
 
-    // A ocorrência selecionada recebe todos os campos (incluindo a data).
-    await tx.runAsync(
-      `UPDATE receitas SET valor_centavos = ?, data = ?, titulo = ?, descricao = ?,
-         sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
-      [input.valorCentavos, input.data, input.titulo, input.descricao, ts, id],
-    );
+    const atualizarSelecionada = (desvincular = false) =>
+      tx.runAsync(
+        `UPDATE receitas SET valor_centavos = ?, data = ?, titulo = ?, descricao = ?
+           ${desvincular ? ', recorrencia_id = NULL' : ''},
+           sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
+        [input.valorCentavos, input.data, input.titulo, input.descricao, ts, id],
+      );
 
-    if (atual.recorrencia_id && escopo !== 'esta') {
-      // Demais ocorrências: valor, título e descrição (a data de cada uma é preservada).
+    // Receita única
+    if (!rec) {
+      if (input.recorrencia) {
+        await tx.runAsync(`${LAPIDE} WHERE id = ?`, [ts, ts, id]);
+        await criarSerie(tx, { ...input, recorrencia: input.recorrencia }, ts);
+      } else {
+        await atualizarSelecionada();
+      }
+      return;
+    }
+
+    const r = input.recorrencia;
+    const mudouRecorrencia =
+      !r || r.intervalo !== rec.intervalo || r.unidade !== rec.unidade || (r.termino ?? null) !== (rec.termino ?? null);
+
+    // Série, sem refazer a repetição
+    if (escopo === 'esta' || !mudouRecorrencia) {
+      await atualizarSelecionada();
+      if (escopo === 'esta') return;
       const filtroData = escopo === 'proximas' ? 'AND data >= ?' : '';
-      const params: (string | number | null)[] = [
-        input.valorCentavos, input.titulo, input.descricao, ts, atual.recorrencia_id, id,
-      ];
+      const params: (string | number | null)[] = [input.valorCentavos, input.titulo, input.descricao, ts, rec.id, id];
       if (escopo === 'proximas') params.push(atual.data);
       await tx.runAsync(
         `UPDATE receitas SET valor_centavos = ?, titulo = ?, descricao = ?,
@@ -178,12 +238,45 @@ export function editarReceita(id: string, input: ReceitaInput, escopo: EscopoSer
          WHERE recorrencia_id = ? AND id <> ? AND excluido_em IS NULL ${filtroData}`,
         params,
       );
-      // Modelo da série: ocorrências geradas depois seguem os novos dados.
       await tx.runAsync(
         `UPDATE recorrencias SET valor_centavos = ?, titulo = ?, descricao = ?,
            sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
-        [input.valorCentavos, input.titulo, input.descricao, ts, atual.recorrencia_id],
+        [input.valorCentavos, input.titulo, input.descricao, ts, rec.id],
       );
+      return;
+    }
+
+    // Série deixa de repetir
+    if (!r) {
+      if (escopo === 'proximas') {
+        await atualizarSelecionada();
+        await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND data > ? AND excluido_em IS NULL`, [
+          ts, ts, rec.id, atual.data,
+        ]);
+        const fim = input.data > atual.data ? input.data : atual.data;
+        await tx.runAsync(
+          `UPDATE recorrencias SET termino = ?, sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
+          [fim, ts, rec.id],
+        );
+      } else {
+        await atualizarSelecionada(true);
+        await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND id <> ? AND excluido_em IS NULL`, [ts, ts, rec.id, id]);
+        await desativarSerie(tx, rec.id, ts);
+      }
+      return;
+    }
+
+    // Série com nova repetição: refaz a série
+    if (escopo === 'proximas') {
+      await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND data >= ? AND excluido_em IS NULL`, [
+        ts, ts, rec.id, atual.data,
+      ]);
+      await encerrarSerieAntes(tx, rec, atual.data, ts);
+      await criarSerie(tx, { ...input, recorrencia: r }, ts);
+    } else {
+      await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND excluido_em IS NULL`, [ts, ts, rec.id]);
+      await desativarSerie(tx, rec.id, ts);
+      await criarSerie(tx, { ...input, data: rec.inicio, recorrencia: r }, ts);
     }
   });
 }
@@ -198,41 +291,24 @@ export function excluirReceita(id: string, escopo: EscopoSerie = 'esta') {
     );
     if (!atual) throw new ReceitaIndisponivel();
     const ts = agora();
-    // Tombstone: a exclusão precisa chegar à nuvem (RN07).
-    const lapide = `UPDATE receitas SET excluido_em = ?, sync_status = 'pendente', atualizado_em = ?`;
 
+    // Tombstone: a exclusão precisa chegar à nuvem (RN07).
     if (!atual.recorrencia_id || escopo === 'esta') {
-      await tx.runAsync(`${lapide} WHERE id = ?`, [ts, ts, id]);
+      await tx.runAsync(`${LAPIDE} WHERE id = ?`, [ts, ts, id]);
       return;
     }
 
-    const rec = await tx.getFirstAsync<Recorrencia>('SELECT * FROM recorrencias WHERE id = ?', [
-      atual.recorrencia_id,
-    ]);
+    const rec = await tx.getFirstAsync<Recorrencia>('SELECT * FROM recorrencias WHERE id = ?', [atual.recorrencia_id]);
     if (escopo === 'todas') {
-      await tx.runAsync(`${lapide} WHERE recorrencia_id = ? AND excluido_em IS NULL`, [ts, ts, atual.recorrencia_id]);
-      await tx.runAsync(
-        `UPDATE recorrencias SET ativa = 0, sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
-        [ts, atual.recorrencia_id],
-      );
+      await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND excluido_em IS NULL`, [ts, ts, atual.recorrencia_id]);
+      await desativarSerie(tx, atual.recorrencia_id, ts);
       return;
     }
 
     // 'proximas': da data selecionada em diante; a série deixa de gerar novas ocorrências.
-    await tx.runAsync(`${lapide} WHERE recorrencia_id = ? AND data >= ? AND excluido_em IS NULL`, [
+    await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND data >= ? AND excluido_em IS NULL`, [
       ts, ts, atual.recorrencia_id, atual.data,
     ]);
-    const anterior = adicionarDias(atual.data, -1);
-    if (rec && anterior < rec.inicio) {
-      await tx.runAsync(
-        `UPDATE recorrencias SET ativa = 0, sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
-        [ts, rec.id],
-      );
-    } else {
-      await tx.runAsync(
-        `UPDATE recorrencias SET termino = ?, sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
-        [anterior, ts, atual.recorrencia_id],
-      );
-    }
+    if (rec) await encerrarSerieAntes(tx, rec, atual.data, ts);
   });
 }

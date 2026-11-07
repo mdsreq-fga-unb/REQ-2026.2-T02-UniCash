@@ -40,10 +40,10 @@ export default function EditarReceita() {
         data: formatarBR(r.receita.data),
         titulo: r.receita.titulo,
         descricao: r.receita.descricao ?? '',
-        recorrente: false,
-        intervalo: '1',
-        unidade: 'mes',
-        termino: '',
+        recorrente: !!r.recorrencia,
+        intervalo: String(r.recorrencia?.intervalo ?? 1),
+        unidade: r.recorrencia?.unidade ?? 'mes',
+        termino: r.recorrencia?.termino ? formatarBR(r.recorrencia.termino) : '',
       });
     } catch {
       setErroLeitura(true); // EX08
@@ -116,6 +116,7 @@ export default function EditarReceita() {
       <OpcoesModal
         visivel={!!pendente}
         titulo="Aplicar alterações a quais receitas?"
+        mensagem="Mudanças na repetição só valem em “Esta e as próximas” ou “Todas”."
         opcoes={[
           { rotulo: 'Só esta', onPress: () => pendente && void gravar(pendente, 'esta') },
           { rotulo: 'Esta e as próximas', onPress: () => pendente && void gravar(pendente, 'proximas') },
