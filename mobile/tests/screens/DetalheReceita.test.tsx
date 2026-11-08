@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import Detalhe from '@/app/receitas/[id]/index';
 import {
   buscarReceita,
@@ -38,7 +38,7 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
     consumirFeedback();
   });
 
-  it('exibe todos os dados da receita', async async () => {
+  it('exibe todos os dados da receita', async () => {
     buscar.mockResolvedValue(unica());
     await render(<Detalhe />);
     expect(await screen.findByText('Detalhe do lançamento')).toBeTruthy();
@@ -54,13 +54,13 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
     expect(screen.getByText('Última alteração')).toBeTruthy();
   });
 
-  it('receita recorrente mostra a repetição', async async () => {
+  it('receita recorrente mostra a repetição', async () => {
     buscar.mockResolvedValue(emSerie());
     await render(<Detalhe />);
     expect(await screen.findByText('A cada 1 mês · até 16/01/2027')).toBeTruthy();
   });
 
-  it('"Editar lançamento" abre a edição', async async () => {
+  it('"Editar lançamento" abre a edição', async () => {
     buscar.mockResolvedValue(unica());
     await render(<Detalhe />);
     await fireEvent.press(await screen.findByText(/Editar lançamento/));
@@ -68,7 +68,7 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
   });
 
   describe('EX06: receita inexistente ou já excluída', () => {
-    it('informa e volta à lista', async async () => {
+    it('informa e volta à lista', async () => {
       buscar.mockResolvedValue(null);
       await render(<Detalhe />);
       await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/receitas'));
@@ -77,7 +77,7 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
   });
 
   describe('EX08: falha na leitura local', () => {
-    it('mostra a mensagem e "Tentar novamente", que recarrega', async async () => {
+    it('mostra a mensagem e "Tentar novamente", que recarrega', async () => {
       buscar.mockRejectedValueOnce(new Error('disco'));
       buscar.mockResolvedValue(unica());
       await render(<Detalhe />);
@@ -89,7 +89,7 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
   });
 
   describe('Excluir receita (fluxo D)', () => {
-    it('pede confirmação explícita e cancelar não exclui', async async () => {
+    it('pede confirmação explícita e cancelar não exclui', async () => {
       buscar.mockResolvedValue(unica());
       await render(<Detalhe />);
       await fireEvent.press(await screen.findByText(/Excluir lançamento/));
@@ -102,7 +102,7 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
       expect(screen.queryByText('Excluir lançamento?')).toBeNull();
     });
 
-    it('confirmar exclui, informa e volta à lista', async async () => {
+    it('confirmar exclui, informa e volta à lista', async () => {
       buscar.mockResolvedValue(unica());
       excluir.mockResolvedValue(undefined);
       await render(<Detalhe />);
@@ -114,7 +114,7 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
       expect(consumirFeedback()).toEqual({ tipo: 'sucesso', texto: 'Receita excluída.' });
     });
 
-    it('série: pergunta o alcance e a confirmação informa o alcance escolhido', async async () => {
+    it('série: pergunta o alcance e a confirmação informa o alcance escolhido', async () => {
       buscar.mockResolvedValue(emSerie());
       excluir.mockResolvedValue(undefined);
       await render(<Detalhe />);
@@ -144,7 +144,7 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
       await waitFor(() => expect(excluir).toHaveBeenCalledWith('abc', escopo));
     });
 
-    it('cancelar na pergunta de alcance não exclui', async async () => {
+    it('cancelar na pergunta de alcance não exclui', async () => {
       buscar.mockResolvedValue(emSerie());
       await render(<Detalhe />);
       await fireEvent.press(await screen.findByText(/Excluir lançamento/));
@@ -152,7 +152,7 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
       expect(excluir).not.toHaveBeenCalled();
     });
 
-    it('EX03: falha ao excluir informa e volta à lista', async async () => {
+    it('EX03: falha ao excluir informa e volta à lista', async () => {
       buscar.mockResolvedValue(unica());
       excluir.mockRejectedValue(new FalhaPersistencia('x'));
       await render(<Detalhe />);
@@ -162,7 +162,7 @@ describe('Detalhe da receita (fluxo B3, protótipo M4)', () => {
       expect(consumirFeedback()).toEqual({ tipo: 'erro', texto: MSG.falhaSalvar });
     });
 
-    it('EX06: receita já excluída ao confirmar informa e volta à lista', async async () => {
+    it('EX06: receita já excluída ao confirmar informa e volta à lista', async () => {
       buscar.mockResolvedValue(unica());
       excluir.mockRejectedValue(new ReceitaIndisponivel());
       await render(<Detalhe />);

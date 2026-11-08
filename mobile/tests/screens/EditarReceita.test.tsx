@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import Editar from '@/app/receitas/[id]/editar';
 import {
   buscarReceita,
@@ -39,7 +39,7 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
     consumirFeedback();
   });
 
-  it('apresenta o formulário preenchido com os dados atuais', async async () => {
+  it('apresenta o formulário preenchido com os dados atuais', async () => {
     buscar.mockResolvedValue(unica());
     await render(<Editar />);
     expect(await screen.findByText('Editar lançamento')).toBeTruthy();
@@ -50,13 +50,13 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
     expect(screen.getByText('Não se repete')).toBeTruthy();
   });
 
-  it('receita de série vem com a repetição atual', async async () => {
+  it('receita de série vem com a repetição atual', async () => {
     buscar.mockResolvedValue(emSerie());
     await render(<Editar />);
     expect(await screen.findByText('A cada 1 mês')).toBeTruthy();
   });
 
-  it('receita única: salva sem perguntar alcance, confirma e volta à lista', async async () => {
+  it('receita única: salva sem perguntar alcance, confirma e volta à lista', async () => {
     buscar.mockResolvedValue(unica());
     editar.mockResolvedValue(undefined);
     await render(<Editar />);
@@ -71,7 +71,7 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
     expect(consumirFeedback()?.tipo).toBe('sucesso');
   });
 
-  it('EX01 na edição: dados inválidos não gravam', async async () => {
+  it('EX01 na edição: dados inválidos não gravam', async () => {
     buscar.mockResolvedValue(unica());
     await render(<Editar />);
     await screen.findByText('Editar lançamento');
@@ -100,7 +100,7 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
       await waitFor(() => expect(editar).toHaveBeenCalledWith('abc', expect.objectContaining({ titulo: 'Mesada' }), escopo));
     });
 
-    it('cancelar na pergunta de alcance não grava', async async () => {
+    it('cancelar na pergunta de alcance não grava', async () => {
       buscar.mockResolvedValue(emSerie());
       await render(<Editar />);
       await screen.findByText('Editar lançamento');
@@ -111,7 +111,7 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
   });
 
   describe('EX03: falha na persistência', () => {
-    it('informa, não confirma e mantém os dados digitados', async async () => {
+    it('informa, não confirma e mantém os dados digitados', async () => {
       buscar.mockResolvedValue(unica());
       editar.mockRejectedValue(new FalhaPersistencia('x'));
       await render(<Editar />);
@@ -126,14 +126,14 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
   });
 
   describe('EX06: receita excluída', () => {
-    it('ao abrir a edição de receita inexistente, informa e volta à lista', async async () => {
+    it('ao abrir a edição de receita inexistente, informa e volta à lista', async () => {
       buscar.mockResolvedValue(null);
       await render(<Editar />);
       await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/receitas'));
       expect(consumirFeedback()).toEqual({ tipo: 'erro', texto: MSG.indisponivel });
     });
 
-    it('receita excluída entre abrir e salvar: informa e volta à lista', async async () => {
+    it('receita excluída entre abrir e salvar: informa e volta à lista', async () => {
       buscar.mockResolvedValue(unica());
       editar.mockRejectedValue(new ReceitaIndisponivel());
       await render(<Editar />);
@@ -145,7 +145,7 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
   });
 
   describe('EX08: falha na leitura local', () => {
-    it('mostra a mensagem e "Tentar novamente" recarrega o formulário', async async () => {
+    it('mostra a mensagem e "Tentar novamente" recarrega o formulário', async () => {
       buscar.mockRejectedValueOnce(new Error('disco'));
       buscar.mockResolvedValue(unica());
       await render(<Editar />);
