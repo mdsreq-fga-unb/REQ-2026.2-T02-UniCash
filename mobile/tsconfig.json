@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "ignoreDeprecations": "6.0",
-    "types": ["node"],
+    "types": ["jest", "node"],
     "paths": {
       "@/*": [
         "./src/*"

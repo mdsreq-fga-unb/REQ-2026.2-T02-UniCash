@@ -46,14 +46,28 @@ const serie = (extra: Record<string, unknown> = {}) => ({
 
 let env: RulesTestEnvironment;
 
+/**
+ * Host e porta do emulador do Firestore. O `firebase emulators:exec` define FIRESTORE_EMULATOR_HOST
+ * (ex.: 127.0.0.1:8080). Informar os dois evita depender da descoberta pelo Emulator Hub.
+ */
+function enderecoDoEmulador(): { host: string; port: number } {
+  const bruto = process.env.FIRESTORE_EMULATOR_HOST ?? '127.0.0.1:8080';
+  const i = bruto.lastIndexOf(':');
+  return { host: bruto.slice(0, i).replace(/^\[|\]$/g, ''), port: Number(bruto.slice(i + 1)) };
+}
+
 beforeAll(async () => {
   env = await initializeTestEnvironment({
     projectId: 'unicash-rules-test',
-    firestore: { rules: readFileSync(localizarRegras(), 'utf8') },
+    firestore: { rules: readFileSync(localizarRegras(), 'utf8'), ...enderecoDoEmulador() },
   });
 });
-afterAll(async () => env.cleanup());
-beforeEach(async () => env.clearFirestore());
+afterAll(async () => {
+  await env?.cleanup();
+});
+beforeEach(async () => {
+  await env.clearFirestore();
+});
 
 const db = (uid: string) => env.authenticatedContext(uid).firestore();
 const anonimo = () => env.unauthenticatedContext().firestore();
