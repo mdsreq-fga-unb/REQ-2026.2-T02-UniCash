@@ -27,7 +27,7 @@ describe('Lista de receitas (protótipo F6)', () => {
     (contarPendentes as jest.Mock).mockResolvedValue(0);
   });
 
-  it('lista com data completa, título e valor, mais o total', async () => {
+  it('lista com data completa, título e valor, mais o total', async async () => {
     listar.mockResolvedValue({
       itens: [
         receitaLinha({ id: '1', titulo: 'Bolsa de monitoria', data: '2026-10-10', valor_centavos: 10000 }),
@@ -35,7 +35,7 @@ describe('Lista de receitas (protótipo F6)', () => {
       ],
       total: 15000,
     });
-    render(<ListaReceitas />);
+    await render(<ListaReceitas />);
 
     expect(await screen.findByText('Bolsa de monitoria')).toBeTruthy();
     expect(screen.getByText('Receita · 10/10/2026')).toBeTruthy();
@@ -44,77 +44,77 @@ describe('Lista de receitas (protótipo F6)', () => {
     expect(screen.getByText('+ R$ 150,00')).toBeTruthy(); // total
   });
 
-  it('estado vazio', async () => {
+  it('estado vazio', async async () => {
     listar.mockResolvedValue({ itens: [], total: 0 });
-    render(<ListaReceitas />);
+    await render(<ListaReceitas />);
     expect(await screen.findByText('Nenhuma receita neste período')).toBeTruthy();
   });
 
-  it('abre o detalhe ao tocar em uma receita', async () => {
+  it('abre o detalhe ao tocar em uma receita', async async () => {
     listar.mockResolvedValue({ itens: [receitaLinha({ id: 'xyz', titulo: 'Estágio' })], total: 15000 });
-    render(<ListaReceitas />);
-    fireEvent.press(await screen.findByText('Estágio'));
+    await render(<ListaReceitas />);
+    await fireEvent.press(await screen.findByText('Estágio'));
     expect(router.push).toHaveBeenCalledWith({ pathname: '/receitas/[id]', params: { id: 'xyz' } });
   });
 
-  it('o botão + abre o registro de nova receita', async () => {
+  it('o botão + abre o registro de nova receita', async async () => {
     listar.mockResolvedValue({ itens: [], total: 0 });
-    render(<ListaReceitas />);
+    await render(<ListaReceitas />);
     await screen.findByText('Nenhuma receita neste período');
-    fireEvent.press(screen.getByLabelText('Nova receita'));
+    await fireEvent.press(screen.getByLabelText('Nova receita'));
     expect(router.push).toHaveBeenCalledWith('/receitas/nova');
   });
 
   describe('indicadores de sincronização', () => {
-    it('receita pendente mostra "Sincronização pendente"', async () => {
+    it('receita pendente mostra "Sincronização pendente"', async async () => {
       listar.mockResolvedValue({ itens: [receitaLinha({ sync_status: 'pendente' })], total: 15000 });
-      render(<ListaReceitas />);
+      await render(<ListaReceitas />);
       expect(await screen.findByText('Sincronização pendente')).toBeTruthy();
     });
 
-    it('receita sincronizada não mostra o indicador', async () => {
+    it('receita sincronizada não mostra o indicador', async async () => {
       listar.mockResolvedValue({ itens: [receitaLinha({ sync_status: 'sincronizado' })], total: 15000 });
-      render(<ListaReceitas />);
+      await render(<ListaReceitas />);
       await screen.findByText('Freela de design');
       expect(screen.queryByText('Sincronização pendente')).toBeNull();
     });
 
-    it('o cabeçalho mostra quantos registros estão pendentes', async () => {
+    it('o cabeçalho mostra quantos registros estão pendentes', async async () => {
       (contarPendentes as jest.Mock).mockResolvedValue(2);
       listar.mockResolvedValue({ itens: [], total: 0 });
-      render(<ListaReceitas />);
+      await render(<ListaReceitas />);
       expect(await screen.findByText(/2 pendentes/)).toBeTruthy();
     });
   });
 
-  it('mostra a mensagem de sucesso uma única vez ao voltar do registro', async () => {
+  it('mostra a mensagem de sucesso uma única vez ao voltar do registro', async async () => {
     setFeedback({ tipo: 'sucesso', texto: 'Salvo no dispositivo. Sincronização pendente.' });
     listar.mockResolvedValue({ itens: [], total: 0 });
-    render(<ListaReceitas />);
+    await render(<ListaReceitas />);
     expect(await screen.findByText(/Salvo no dispositivo\. Sincronização pendente\./)).toBeTruthy();
   });
 
-  it('EX06/EX03: mensagem de erro vinda de outra tela aparece na lista', async () => {
+  it('EX06/EX03: mensagem de erro vinda de outra tela aparece na lista', async async () => {
     setFeedback({ tipo: 'erro', texto: MSG.indisponivel });
     listar.mockResolvedValue({ itens: [], total: 0 });
-    render(<ListaReceitas />);
+    await render(<ListaReceitas />);
     expect(await screen.findByText(/Esta receita não está mais disponível\./)).toBeTruthy();
   });
 
   describe('EX08: falha na leitura local', () => {
-    it('mostra a mensagem e a ação "Tentar novamente"', async () => {
+    it('mostra a mensagem e a ação "Tentar novamente"', async async () => {
       listar.mockRejectedValue(new FalhaLeitura('disco'));
-      render(<ListaReceitas />);
+      await render(<ListaReceitas />);
       expect(await screen.findByText('Não foi possível carregar as receitas. Tente novamente.')).toBeTruthy();
       expect(screen.getByText('Tentar novamente')).toBeTruthy();
     });
 
-    it('ao tentar novamente, volta a carregar a lista (passo 1)', async () => {
+    it('ao tentar novamente, volta a carregar a lista (passo 1)', async async () => {
       listar.mockRejectedValueOnce(new FalhaLeitura('disco'));
       listar.mockResolvedValue({ itens: [receitaLinha({ titulo: 'Recuperada' })], total: 15000 });
-      render(<ListaReceitas />);
+      await render(<ListaReceitas />);
 
-      fireEvent.press(await screen.findByText('Tentar novamente'));
+      await fireEvent.press(await screen.findByText('Tentar novamente'));
 
       expect(await screen.findByText('Recuperada')).toBeTruthy();
       await waitFor(() => expect(screen.queryByText(MSG.falhaLeitura)).toBeNull());

@@ -3,10 +3,10 @@ import { ReceitaForm } from '@/components/receitas/ReceitaForm';
 import { formatarBR, hojeISO } from '@/features/receitas/dates';
 import { MSG } from '@/features/receitas/validation';
 
-function montar(props: Partial<React.ComponentProps<typeof ReceitaForm>> = {}) {
+async function montar(props: Partial<React.ComponentProps<typeof ReceitaForm>> = {}) {
   const onSalvar = jest.fn();
   const onCancelar = jest.fn();
-  render(
+  await render(
     <ReceitaForm
       titulo="Nova receita"
       textoSalvar="Salvar receita"
@@ -22,15 +22,15 @@ function montar(props: Partial<React.ComponentProps<typeof ReceitaForm>> = {}) {
 const digitar = (rotulo: string, texto: string) => fireEvent.changeText(screen.getByLabelText(rotulo), texto);
 const salvar = () => fireEvent.press(screen.getByText('Salvar receita'));
 
-function preencherValido() {
-  digitar('Título', 'Freela de design');
-  digitar('Valor', '150,00');
-  digitar('Data', '16102026');
+async function preencherValido() {
+  await digitar('Título', 'Freela de design');
+  await digitar('Valor', '150,00');
+  await digitar('Data', '16102026');
 }
 
 describe('Formulário de receita (registrar e editar)', () => {
-  it('mostra os campos do protótipo F4', () => {
-    montar();
+  it('mostra os campos do protótipo F4', async () => {
+    await montar();
     expect(screen.getByText('Nova receita')).toBeTruthy();
     for (const r of ['Título', 'Valor', 'Data', 'Descrição (opcional)']) expect(screen.getByLabelText(r)).toBeTruthy();
     expect(screen.getByText('Hoje')).toBeTruthy();
@@ -41,67 +41,67 @@ describe('Formulário de receita (registrar e editar)', () => {
   });
 
   describe('EX01: dados inválidos', () => {
-    it('mostra o motivo ao lado de cada campo obrigatório vazio e não salva', () => {
-      const { onSalvar } = montar();
-      salvar();
+    it('mostra o motivo ao lado de cada campo obrigatório vazio e não salva', async () => {
+      const { onSalvar } = await montar();
+      await salvar();
       expect(screen.getByText('Informe a data da receita.')).toBeTruthy();
       expect(screen.getByText('Informe o título da receita.')).toBeTruthy();
       expect(screen.getByText('Informe o valor da receita.')).toBeTruthy();
       expect(onSalvar).not.toHaveBeenCalled();
     });
 
-    it('valor inválido: mostra a mensagem literal', () => {
-      montar();
-      preencherValido();
-      digitar('Valor', '0');
-      salvar();
+    it('valor inválido: mostra a mensagem literal', async () => {
+      await montar();
+      await preencherValido();
+      await digitar('Valor', '0');
+      await salvar();
       expect(screen.getByText('O valor deve ser maior que zero, com no máximo duas casas decimais.')).toBeTruthy();
     });
 
-    it('valor acima do limite', () => {
-      montar();
-      preencherValido();
-      digitar('Valor', '1.000.000.000,00');
-      salvar();
+    it('valor acima do limite', async () => {
+      await montar();
+      await preencherValido();
+      await digitar('Valor', '1.000.000.000,00');
+      await salvar();
       expect(screen.getByText('O valor máximo permitido é R$ 999.999.999,99.')).toBeTruthy();
     });
 
-    it('título longo e descrição longa', () => {
-      montar();
-      preencherValido();
-      digitar('Título', 'a'.repeat(81));
-      digitar('Descrição (opcional)', 'd'.repeat(256));
-      salvar();
+    it('título longo e descrição longa', async () => {
+      await montar();
+      await preencherValido();
+      await digitar('Título', 'a'.repeat(81));
+      await digitar('Descrição (opcional)', 'd'.repeat(256));
+      await salvar();
       expect(screen.getByText('O título deve ter até 80 caracteres.')).toBeTruthy();
       expect(screen.getByText('A descrição deve ter até 255 caracteres.')).toBeTruthy();
     });
 
-    it('preserva os dados digitados após o erro', () => {
-      montar();
-      digitar('Título', 'Freela');
-      digitar('Descrição (opcional)', 'Minha descrição');
-      digitar('Valor', '0');
-      salvar();
+    it('preserva os dados digitados após o erro', async () => {
+      await montar();
+      await digitar('Título', 'Freela');
+      await digitar('Descrição (opcional)', 'Minha descrição');
+      await digitar('Valor', '0');
+      await salvar();
       expect(screen.getByLabelText('Título').props.value).toBe('Freela');
       expect(screen.getByLabelText('Descrição (opcional)').props.value).toBe('Minha descrição');
       expect(screen.getByLabelText('Valor').props.value).toBe('0');
     });
 
-    it('a mensagem some quando o campo é corrigido e salvo', () => {
-      const { onSalvar } = montar();
-      salvar();
+    it('a mensagem some quando o campo é corrigido e salvo', async () => {
+      const { onSalvar } = await montar();
+      await salvar();
       expect(screen.getByText('Informe o título da receita.')).toBeTruthy();
-      preencherValido();
-      salvar();
+      await preencherValido();
+      await salvar();
       expect(screen.queryByText('Informe o título da receita.')).toBeNull();
       expect(onSalvar).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('salva com campos válidos entregando dados normalizados', () => {
-    const { onSalvar } = montar();
-    preencherValido();
-    salvar();
+  it('salva com campos válidos entregando dados normalizados', async () => {
+    const { onSalvar } = await montar();
+    await preencherValido();
+    await salvar();
     expect(onSalvar).toHaveBeenCalledWith({
       data: '2026-10-16',
       titulo: 'Freela de design',
@@ -111,28 +111,28 @@ describe('Formulário de receita (registrar e editar)', () => {
     });
   });
 
-  it('aplica a máscara na data', () => {
-    montar();
-    digitar('Data', '16102026');
+  it('aplica a máscara na data', async () => {
+    await montar();
+    await digitar('Data', '16102026');
     expect(screen.getByLabelText('Data').props.value).toBe('16/10/2026');
   });
 
-  it('"Hoje" preenche a data atual', () => {
-    montar();
-    fireEvent.press(screen.getByText('Hoje'));
+  it('"Hoje" preenche a data atual', async () => {
+    await montar();
+    await fireEvent.press(screen.getByText('Hoje'));
     expect(screen.getByLabelText('Data').props.value).toBe(formatarBR(hojeISO()));
   });
 
-  it('exibe a falha de gravação (EX03) mantendo o formulário preenchido', () => {
-    montar({ erroGeral: MSG.falhaSalvar, inicial: undefined });
-    digitar('Título', 'Freela');
+  it('exibe a falha de gravação (EX03) mantendo o formulário preenchido', async () => {
+    await montar({ erroGeral: MSG.falhaSalvar, inicial: undefined });
+    await digitar('Título', 'Freela');
     expect(screen.getByText('Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente.')).toBeTruthy();
     expect(screen.getByLabelText('Título').props.value).toBe('Freela');
   });
 
-  it('cancelar não salva', () => {
-    const { onSalvar, onCancelar } = montar();
-    fireEvent.press(screen.getByText('Cancelar'));
+  it('cancelar não salva', async () => {
+    const { onSalvar, onCancelar } = await montar();
+    await fireEvent.press(screen.getByText('Cancelar'));
     expect(onCancelar).toHaveBeenCalled();
     expect(onSalvar).not.toHaveBeenCalled();
   });
@@ -140,10 +140,10 @@ describe('Formulário de receita (registrar e editar)', () => {
   describe('recorrência (RN19)', () => {
     const abrirRepeticao = () => fireEvent.press(screen.getByLabelText('Repetição'));
 
-    it('abre o formulário de repetição com intervalo, unidade e término opcional', () => {
-      montar();
-      abrirRepeticao();
-      fireEvent.press(screen.getByText('Repete'));
+    it('abre o formulário de repetição com intervalo, unidade e término opcional', async () => {
+      await montar();
+      await abrirRepeticao();
+      await fireEvent.press(screen.getByText('Repete'));
       expect(screen.getByLabelText('Repetir a cada')).toBeTruthy();
       expect(screen.getByText('Dias')).toBeTruthy();
       expect(screen.getByText('Meses')).toBeTruthy();
@@ -151,48 +151,48 @@ describe('Formulário de receita (registrar e editar)', () => {
       expect(screen.getByLabelText('Data de término (opcional)')).toBeTruthy();
     });
 
-    it('resume a repetição escolhida no campo', () => {
-      montar();
-      abrirRepeticao();
-      fireEvent.press(screen.getByText('Repete'));
-      digitar('Repetir a cada', '2');
-      fireEvent.press(screen.getByText('Meses'));
-      digitar('Data de término (opcional)', '16102027');
-      fireEvent.press(screen.getByText('Concluir'));
+    it('resume a repetição escolhida no campo', async () => {
+      await montar();
+      await abrirRepeticao();
+      await fireEvent.press(screen.getByText('Repete'));
+      await digitar('Repetir a cada', '2');
+      await fireEvent.press(screen.getByText('Meses'));
+      await digitar('Data de término (opcional)', '16102027');
+      await fireEvent.press(screen.getByText('Concluir'));
       expect(screen.getByText('A cada 2 meses · até 16/10/2027')).toBeTruthy();
     });
 
-    it('intervalo zero é rejeitado', () => {
-      const { onSalvar } = montar();
-      preencherValido();
-      abrirRepeticao();
-      fireEvent.press(screen.getByText('Repete'));
-      digitar('Repetir a cada', '0');
-      fireEvent.press(screen.getByText('Concluir'));
-      salvar();
+    it('intervalo zero é rejeitado', async () => {
+      const { onSalvar } = await montar();
+      await preencherValido();
+      await abrirRepeticao();
+      await fireEvent.press(screen.getByText('Repete'));
+      await digitar('Repetir a cada', '0');
+      await fireEvent.press(screen.getByText('Concluir'));
+      await salvar();
       expect(screen.getByText('O intervalo da recorrência deve ser maior que zero.')).toBeTruthy();
       expect(onSalvar).not.toHaveBeenCalled();
     });
 
-    it('término anterior ao início é rejeitado', () => {
-      const { onSalvar } = montar();
-      preencherValido();
-      abrirRepeticao();
-      fireEvent.press(screen.getByText('Repete'));
-      digitar('Data de término (opcional)', '15102026');
-      fireEvent.press(screen.getByText('Concluir'));
-      salvar();
+    it('término anterior ao início é rejeitado', async () => {
+      const { onSalvar } = await montar();
+      await preencherValido();
+      await abrirRepeticao();
+      await fireEvent.press(screen.getByText('Repete'));
+      await digitar('Data de término (opcional)', '15102026');
+      await fireEvent.press(screen.getByText('Concluir'));
+      await salvar();
       expect(screen.getByText('A data de término deve ser igual ou posterior à data de início.')).toBeTruthy();
       expect(onSalvar).not.toHaveBeenCalled();
     });
 
-    it('salva a recorrência válida', () => {
-      const { onSalvar } = montar();
-      preencherValido();
-      abrirRepeticao();
-      fireEvent.press(screen.getByText('Repete'));
-      fireEvent.press(screen.getByText('Concluir'));
-      salvar();
+    it('salva a recorrência válida', async () => {
+      const { onSalvar } = await montar();
+      await preencherValido();
+      await abrirRepeticao();
+      await fireEvent.press(screen.getByText('Repete'));
+      await fireEvent.press(screen.getByText('Concluir'));
+      await salvar();
       expect(onSalvar).toHaveBeenCalledWith(
         expect.objectContaining({ recorrencia: { intervalo: 1, unidade: 'mes', termino: null } }),
       );
@@ -200,16 +200,16 @@ describe('Formulário de receita (registrar e editar)', () => {
   });
 
   describe('modo edição (protótipo F5)', () => {
-    it('mostra "Excluir lançamento" no lugar de "Cancelar"', () => {
+    it('mostra "Excluir lançamento" no lugar de "Cancelar"', async () => {
       const onExcluir = jest.fn();
-      montar({ titulo: 'Editar lançamento', textoSalvar: 'Salvar alterações', onExcluir });
+      await montar({ titulo: 'Editar lançamento', textoSalvar: 'Salvar alterações', onExcluir });
       expect(screen.queryByText('Cancelar')).toBeNull();
-      fireEvent.press(screen.getByText(/Excluir lançamento/));
+      await fireEvent.press(screen.getByText(/Excluir lançamento/));
       expect(onExcluir).toHaveBeenCalled();
     });
 
-    it('avisa que a repetição de uma série vale só em "esta e as próximas" ou "todas"', () => {
-      montar({ emSerie: true });
+    it('avisa que a repetição de uma série vale só em "esta e as próximas" ou "todas"', async () => {
+      await montar({ emSerie: true });
       expect(screen.getByText(/Receita de uma série/)).toBeTruthy();
     });
   });

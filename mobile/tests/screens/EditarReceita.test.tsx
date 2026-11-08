@@ -39,9 +39,9 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
     consumirFeedback();
   });
 
-  it('apresenta o formulário preenchido com os dados atuais', async () => {
+  it('apresenta o formulário preenchido com os dados atuais', async async () => {
     buscar.mockResolvedValue(unica());
-    render(<Editar />);
+    await render(<Editar />);
     expect(await screen.findByText('Editar lançamento')).toBeTruthy();
     expect(screen.getByLabelText('Título').props.value).toBe('Freela de design');
     expect(screen.getByLabelText('Valor').props.value).toBe('150,00');
@@ -50,19 +50,19 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
     expect(screen.getByText('Não se repete')).toBeTruthy();
   });
 
-  it('receita de série vem com a repetição atual', async () => {
+  it('receita de série vem com a repetição atual', async async () => {
     buscar.mockResolvedValue(emSerie());
-    render(<Editar />);
+    await render(<Editar />);
     expect(await screen.findByText('A cada 1 mês')).toBeTruthy();
   });
 
-  it('receita única: salva sem perguntar alcance, confirma e volta à lista', async () => {
+  it('receita única: salva sem perguntar alcance, confirma e volta à lista', async async () => {
     buscar.mockResolvedValue(unica());
     editar.mockResolvedValue(undefined);
-    render(<Editar />);
+    await render(<Editar />);
     await screen.findByText('Editar lançamento');
-    fireEvent.changeText(screen.getByLabelText('Valor'), '200,00');
-    fireEvent.press(screen.getByText('Salvar alterações'));
+    await fireEvent.changeText(screen.getByLabelText('Valor'), '200,00');
+    await fireEvent.press(screen.getByText('Salvar alterações'));
 
     await waitFor(() =>
       expect(editar).toHaveBeenCalledWith('abc', expect.objectContaining({ valorCentavos: 20000, data: '2026-10-16' }), 'esta'),
@@ -71,12 +71,12 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
     expect(consumirFeedback()?.tipo).toBe('sucesso');
   });
 
-  it('EX01 na edição: dados inválidos não gravam', async () => {
+  it('EX01 na edição: dados inválidos não gravam', async async () => {
     buscar.mockResolvedValue(unica());
-    render(<Editar />);
+    await render(<Editar />);
     await screen.findByText('Editar lançamento');
-    fireEvent.changeText(screen.getByLabelText('Título'), '   ');
-    fireEvent.press(screen.getByText('Salvar alterações'));
+    await fireEvent.changeText(screen.getByLabelText('Título'), '   ');
+    await fireEvent.press(screen.getByText('Salvar alterações'));
     expect(screen.getByText('Informe o título da receita.')).toBeTruthy();
     expect(editar).not.toHaveBeenCalled();
   });
@@ -89,35 +89,35 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
     ] as const)('pergunta o alcance e grava com "%s"', async (rotulo, escopo) => {
       buscar.mockResolvedValue(emSerie());
       editar.mockResolvedValue(undefined);
-      render(<Editar />);
+      await render(<Editar />);
       await screen.findByText('Editar lançamento');
-      fireEvent.press(screen.getByText('Salvar alterações'));
+      await fireEvent.press(screen.getByText('Salvar alterações'));
 
       expect(screen.getByText('Aplicar alterações a quais receitas?')).toBeTruthy();
       expect(editar).not.toHaveBeenCalled(); // só depois da escolha
-      fireEvent.press(screen.getByText(rotulo));
+      await fireEvent.press(screen.getByText(rotulo));
 
       await waitFor(() => expect(editar).toHaveBeenCalledWith('abc', expect.objectContaining({ titulo: 'Mesada' }), escopo));
     });
 
-    it('cancelar na pergunta de alcance não grava', async () => {
+    it('cancelar na pergunta de alcance não grava', async async () => {
       buscar.mockResolvedValue(emSerie());
-      render(<Editar />);
+      await render(<Editar />);
       await screen.findByText('Editar lançamento');
-      fireEvent.press(screen.getByText('Salvar alterações'));
-      fireEvent.press(screen.getByText('Cancelar'));
+      await fireEvent.press(screen.getByText('Salvar alterações'));
+      await fireEvent.press(screen.getByText('Cancelar'));
       expect(editar).not.toHaveBeenCalled();
     });
   });
 
   describe('EX03: falha na persistência', () => {
-    it('informa, não confirma e mantém os dados digitados', async () => {
+    it('informa, não confirma e mantém os dados digitados', async async () => {
       buscar.mockResolvedValue(unica());
       editar.mockRejectedValue(new FalhaPersistencia('x'));
-      render(<Editar />);
+      await render(<Editar />);
       await screen.findByText('Editar lançamento');
-      fireEvent.changeText(screen.getByLabelText('Título'), 'Meu novo título');
-      fireEvent.press(screen.getByText('Salvar alterações'));
+      await fireEvent.changeText(screen.getByLabelText('Título'), 'Meu novo título');
+      await fireEvent.press(screen.getByText('Salvar alterações'));
 
       expect(await screen.findByText('Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente.')).toBeTruthy();
       expect(screen.getByLabelText('Título').props.value).toBe('Meu novo título');
@@ -126,31 +126,31 @@ describe('Editar receita (fluxo C, protótipo F5)', () => {
   });
 
   describe('EX06: receita excluída', () => {
-    it('ao abrir a edição de receita inexistente, informa e volta à lista', async () => {
+    it('ao abrir a edição de receita inexistente, informa e volta à lista', async async () => {
       buscar.mockResolvedValue(null);
-      render(<Editar />);
+      await render(<Editar />);
       await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/receitas'));
       expect(consumirFeedback()).toEqual({ tipo: 'erro', texto: MSG.indisponivel });
     });
 
-    it('receita excluída entre abrir e salvar: informa e volta à lista', async () => {
+    it('receita excluída entre abrir e salvar: informa e volta à lista', async async () => {
       buscar.mockResolvedValue(unica());
       editar.mockRejectedValue(new ReceitaIndisponivel());
-      render(<Editar />);
+      await render(<Editar />);
       await screen.findByText('Editar lançamento');
-      fireEvent.press(screen.getByText('Salvar alterações'));
+      await fireEvent.press(screen.getByText('Salvar alterações'));
       await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/receitas'));
       expect(consumirFeedback()).toEqual({ tipo: 'erro', texto: MSG.indisponivel });
     });
   });
 
   describe('EX08: falha na leitura local', () => {
-    it('mostra a mensagem e "Tentar novamente" recarrega o formulário', async () => {
+    it('mostra a mensagem e "Tentar novamente" recarrega o formulário', async async () => {
       buscar.mockRejectedValueOnce(new Error('disco'));
       buscar.mockResolvedValue(unica());
-      render(<Editar />);
+      await render(<Editar />);
       expect(await screen.findByText(MSG.falhaLeitura)).toBeTruthy();
-      fireEvent.press(screen.getByText('Tentar novamente'));
+      await fireEvent.press(screen.getByText('Tentar novamente'));
       expect(await screen.findByText('Editar lançamento')).toBeTruthy();
     });
   });
