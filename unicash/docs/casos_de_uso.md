@@ -68,7 +68,7 @@ flowchart LR
 1. O usuário aciona "Nova receita".
 2. O sistema apresenta o formulário com valor, data, título, descrição (opcional) e a opção de recorrência (RN19). Se o usuário indica recorrência, o sistema abre um formulário para informar o intervalo (um número) e a unidade (dias, meses ou anos) e, opcionalmente, a data de término (RN19).
 3. O usuário preenche os campos e solicita o registro.
-4. O sistema valida no cliente e no servidor: data, título e valor são obrigatórios (RN08); o valor respeita a RN09; título e descrição respeitam a RN10. Se houver recorrência, o intervalo deve ser maior que zero e a data de término, quando informada, deve ser igual ou posterior à data de início (RN19).
+4. O sistema valida no aparelho, antes da gravação na base local: data, título e valor são obrigatórios (RN08); o valor respeita a RN09; título e descrição respeitam a RN10. Se houver recorrência, o intervalo deve ser maior que zero e a data de término, quando informada, deve ser igual ou posterior à data de início (RN19).
 5. O sistema persiste a receita na base local e só então confirma o registro (RNF35). Se houver recorrência, as ocorrências são geradas conforme a periodicidade e cada uma é registrada individualmente (RN19).
 6. O sistema recalcula totais, saldo e indicadores afetados.
 7. Se houver conexão, o sistema sincroniza a receita com o servidor.
@@ -129,7 +129,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 ### Requisitos e regras associados
  
 - **Funcionais:** RF07, RF08, RF09, RF10. Relacionados: RF11, RF34, RF39 (recálculo), RF59, RF62.
-- **Não funcionais específicos:** RNF03, RNF04, RNF05, RNF06 , RNF07, RNF08 , RNF14, RNF26 e RNF35, RNF27, RNF33, RNF36, RNF38.
+- **Não funcionais específicos:** RNF03, RNF04, RNF05, RNF07, RNF08 , RNF14, RNF26 e RNF35, RNF27, RNF33, RNF36, RNF38.
 - **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN19, RN20.
 ----
 
@@ -159,7 +159,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 1. O usuário aciona "Nova despesa".
 2. O sistema apresenta o formulário com valor, data, título, descrição (opcional), categoria (opcional) e classificações opcionais (fixa ou variável, essencial ou não essencial, RN13) e a opção de recorrência. Se o usuário indica recorrência, o sistema abre um formulário para informar o intervalo (um número) e a unidade (dias, meses ou anos) e, opcionalmente, a data de término (RN19).
 3. O usuário preenche os campos e solicita o registro.
-4. O sistema valida no cliente e no servidor (RN08, RN09, RN10) e, se houver recorrência, o intervalo (maior que zero) e a data de término (igual ou posterior ao início, RN19).
+4. O sistema valida no aparelho, antes da gravação na base local (RN08, RN09, RN10) e, se houver recorrência, o intervalo (maior que zero) e a data de término (igual ou posterior ao início, RN19).
 5. O sistema persiste a despesa localmente e só então confirma (RNF35). Se houver recorrência, as ocorrências são geradas conforme a periodicidade e cada uma é registrada individualmente (RN19).
 6. O sistema recalcula totais, saldo, indicadores de limite e alertas afetados (UC04, UC05 e UC09).
 7. Se houver conexão, o sistema sincroniza a despesa.
@@ -216,7 +216,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 ### Requisitos e regras associados
  
 - **Funcionais:** RF15, RF16, RF17, RF18. Relacionados: RF19 (UC06), RF34, RF37, RF38, RF39, RF59, RF62.
-- **Não funcionais específicos:** RNF03, RNF04, RNF05, RNF06, RNF08, RNF14, RNF26, RNF27, RNF33, RNF35, RNF36, RNF38.
+- **Não funcionais específicos:** RNF03, RNF04, RNF05, RNF08, RNF14, RNF26, RNF27, RNF33, RNF35, RNF36, RNF38.
 - **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN19, RN20.
 ---
 
@@ -549,3 +549,4 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 | 1.12 | 01/11/2026 | Adiciona mais detalhes ao uc02 | Natan França |
 | 1.13 | 01/11/2026 | Adiciona mais detalhes ao uc03 | Natan França |
 | 1.14 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
+| 1.15 | 07/11/2026 | Ajusta a validação dos UC01 e UC02 à gravação local e retira o RNF06, fundido ao RNF35 (issue #21) | Dante Scarpati |

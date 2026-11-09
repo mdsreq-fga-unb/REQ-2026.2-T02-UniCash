@@ -51,7 +51,7 @@ A tabela está ordenada por Característica de Produto.
 | **RF33** | **Editar ocorrência de lançamento recorrente:** Permitir alterar apenas o lançamento de um mês específico sem modificar as demais ocorrências da série. | CP1 | [R03](atas/posts/r03.md) | Vigente |
 | **RF48** | **Identificar lançamento duplicado:** Comparar cada registro importado com os lançamentos já registrados e considerar possível duplicidade quando o valor for idêntico e a data diferir em até 1 dia; para cada possível duplicidade, exibir os dois registros lado a lado e pedir ao usuário que escolha entre descartar o importado ou mantê-lo como lançamento distinto, antes de consolidar. | CP1 | [R03](atas/posts/r03.md) | Vigente |
 | **RF50** | **Registrar despesa por comprovante:** Permitir fotografar ou selecionar um comprovante, anexá-lo ao lançamento e confirmar ou informar os dados da despesa antes de salvar. | CP1 | [R03](atas/posts/r03.md) | Vigente |
-| **RF59** | **Registrar lançamento sem conexão:** Permitir ao usuário autenticado registrar receita ou despesa sem conexão, guardá-lo localmente, informar seu estado de envio e enviá-lo ao servidor quando a conexão voltar. | CP1 | [R07](atas/posts/r07.md), [D07](decisoes.md#d07), [D10](decisoes.md#d10), [D20](decisoes.md#d20) | Proposto |
+| **RF59** | **Registrar lançamento sem conexão:** Permitir ao usuário registrar receita ou despesa sem conexão, guardá-lo localmente, informar seu estado de envio e enviá-lo ao Cloud Firestore quando a conexão voltar, se a sincronização estiver ativa. | CP1 | [R07](atas/posts/r07.md), [D07](decisoes.md#d07), [D10](decisoes.md#d10), [D20](decisoes.md#d20), [D21](decisoes.md#d21) | Proposto |
 | **RF60** | **Extrair dados de comprovante:** Ler a imagem do comprovante indicado no RF50 e sugerir valor, data e descrição da despesa para confirmação ou correção pelo usuário. | CP1 | [R03](atas/posts/r03.md), [D07](decisoes.md#d07) | Proposto |
 | **RF19** | **Criar categoria de despesas:** Permitir cadastrar uma categoria para classificar despesas e, quando aplicável, definir seu limite de gasto. | CP2 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
 | **RF47** | **Classificar lançamentos importados:** Sugerir a categoria de cada registro importado a partir de palavras-chave da descrição associadas às categorias do usuário e de lançamentos anteriores com a mesma descrição, permitindo revisão antes da confirmação; quando não houver correspondência, deixar o registro sem categoria sugerida. | CP2 | [R03](atas/posts/r03.md) | Vigente |
@@ -66,13 +66,13 @@ A tabela está ordenada por Característica de Produto.
 | **RF37** | **Notificar aproximação do limite:** Emitir alerta quando o gasto atingir o limiar de aproximação definido na RN03 para a meta de gasto ou categoria, apresentando apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e respeitando as preferências do RF58. | CP3 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
 | **RF38** | **Notificar ultrapassagem do limite:** Emitir alerta quando o gasto superar o limite definido na RN03 para a meta de gasto ou categoria, apresentando apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e respeitando as preferências do RF58. | CP3 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
 | **RF39** | **Exibir indicador de consumo do limite da categoria:** Apresentar, para cada categoria com limite definido, um indicador visual do consumo do limite no período selecionado, conforme as faixas da RN02. | CP3 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
-| **RF11** | **Calcular total de receitas:** Exibir ao usuário autenticado a soma das receitas do período selecionado como valor de entrada correspondente. | CP4 | [R03](atas/posts/r03.md) | Vigente |
-| **RF34** | **Calcular saldo mensal:** Exibir ao usuário autenticado o saldo do mês, calculado a partir do saldo inicial, das receitas e das despesas registradas no período. | CP4 | [R03](atas/posts/r03.md) | Vigente |
-| **RF35** | **Exibir saldo do mês anterior:** Exibir ao usuário autenticado o saldo remanescente do mês anterior como referência na apresentação do mês atual. | CP4 | [R03](atas/posts/r03.md) | Vigente |
-| **RF40** | **Gerar resumo financeiro inicial:** Ao abrir o aplicativo, exibir ao usuário autenticado o saldo, o total de receitas, o total de despesas e o progresso das metas do período selecionado, sendo o mês corrente o período padrão; quando não houver lançamentos, exibir estado vazio com atalho para o tutorial (RF55). | CP4 | [R04](atas/posts/r04.md) | Vigente |
-| **RF41** | **Exibir gráfico de despesas:** Exibir ao usuário autenticado um gráfico de barras com o total de despesas por categoria no período selecionado, com o valor de cada barra apresentado como rótulo e a categoria identificada na legenda. | CP4 | [R01](atas/posts/r01.md) | Vigente |
-| **RF42** | **Exibir percentual por categoria:** Exibir ao usuário autenticado o percentual do total de despesas do período que cada categoria representa; quando não houver despesas no período, não apresentar percentual. | CP4 | [R04](atas/posts/r04.md) | Vigente |
-| **RF43** | **Exibir previsão de despesas recorrentes:** Exibir ao usuário autenticado as despesas recorrentes já cadastradas (RF32) previstas para os próximos 30 dias, identificadas como valores previstos. | CP4 | [R03](atas/posts/r03.md) | Vigente |
+| **RF11** | **Calcular total de receitas:** Exibir ao usuário a soma das receitas do período selecionado como valor de entrada correspondente. | CP4 | [R03](atas/posts/r03.md), [D21](decisoes.md#d21) | Vigente |
+| **RF34** | **Calcular saldo mensal:** Exibir ao usuário o saldo do mês, calculado a partir do saldo inicial, das receitas e das despesas registradas no período. | CP4 | [R03](atas/posts/r03.md), [D21](decisoes.md#d21) | Vigente |
+| **RF35** | **Exibir saldo do mês anterior:** Exibir ao usuário o saldo remanescente do mês anterior como referência na apresentação do mês atual. | CP4 | [R03](atas/posts/r03.md), [D21](decisoes.md#d21) | Vigente |
+| **RF40** | **Gerar resumo financeiro inicial:** Ao abrir o aplicativo, exibir ao usuário o saldo, o total de receitas, o total de despesas e o progresso das metas do período selecionado, sendo o mês corrente o período padrão; quando não houver lançamentos, exibir estado vazio com atalho para o tutorial (RF55). | CP4 | [R04](atas/posts/r04.md), [D21](decisoes.md#d21) | Vigente |
+| **RF41** | **Exibir gráfico de despesas:** Exibir ao usuário um gráfico de barras com o total de despesas por categoria no período selecionado, com o valor de cada barra apresentado como rótulo e a categoria identificada na legenda. | CP4 | [R01](atas/posts/r01.md), [D21](decisoes.md#d21) | Vigente |
+| **RF42** | **Exibir percentual por categoria:** Exibir ao usuário o percentual do total de despesas do período que cada categoria representa; quando não houver despesas no período, não apresentar percentual. | CP4 | [R04](atas/posts/r04.md), [D21](decisoes.md#d21) | Vigente |
+| **RF43** | **Exibir previsão de despesas recorrentes:** Exibir ao usuário as despesas recorrentes já cadastradas (RF32) previstas para os próximos 30 dias, identificadas como valores previstos. | CP4 | [R03](atas/posts/r03.md), [D21](decisoes.md#d21) | Vigente |
 | **RF49** | **Consolidar extratos de contas:** Exibir ao usuário, em uma visão única, os lançamentos confirmados de diferentes extratos importados, identificando em cada um a instituição de origem informada na importação. | CP4 | [R03](atas/posts/r03.md) | Vigente |
 | **RF01** | **Cadastrar usuário:** Permitir que uma pessoa crie uma conta ao informar os dados obrigatórios e uma senha; após a validação, registrar o perfil e confirmar o cadastro. | CP5 | [R03](atas/posts/r03.md), [R07](atas/posts/r07.md), [D12](decisoes.md#d12) | Vigente |
 | **RF02** | **Autenticar usuário:** Permitir o acesso com credenciais válidas, iniciar a sessão e informar o motivo quando a autenticação for rejeitada. | CP5 | [R03](atas/posts/r03.md) | Vigente |
@@ -86,7 +86,7 @@ A tabela está ordenada por Característica de Produto.
 | **RF56** | **Avisar manutenção programada:** Exibir aos usuários, ao abrir o aplicativo, aviso prévio com período e impacto previsto de uma manutenção programada, informada pela equipe de operação por configuração do sistema, sem tela de cadastro no produto. | CP6 | [R04](atas/posts/r04.md) | Vigente |
 | **RF58** | **Configurar notificações:** Permitir ao usuário ativar ou desativar cada tipo de alerta (aproximação do limite, ultrapassagem do limite e conquistas) e alterar a escolha a qualquer momento. | CP6 | [D07](decisoes.md#d07) | Proposto |
 | **RF62** | **Acompanhar sincronização:** Exibir o estado (sincronizado, pendente, sem conexão, erro), a última sincronização e as alterações pendentes, com opção de sincronizar na hora; generaliza o “estado de envio” do RF59. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D20](decisoes.md#d20) | Vigente |
-| **RF63** | **Gerar backup:** Criar um arquivo completo e restaurável dos dados do usuário, sem exigir conexão. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D20](decisoes.md#d20) | Vigente |
+| **RF63** | **Gerar backup:** Criar um arquivo completo e restaurável dos dados do usuário, sem exigir conexão, e permitir salvá-lo fora do aplicativo. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D20](decisoes.md#d20), [D21](decisoes.md#d21) | Vigente |
 | **RF64** | **Restaurar backup:** Validar o arquivo, mostrar prévia e permitir substituir ou mesclar com os dados atuais. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D20](decisoes.md#d20) | Vigente |
 | **RF22** | **Criar grupo de amigos ou família:** Permitir ao usuário criar um grupo, definir seu nome e assumir o papel inicial de administração. | CP7 | [R03](atas/posts/r03.md) | Vigente |
 | **RF23** | **Entrar em grupo de amigos ou família:** Permitir ao usuário aceitar um convite válido para integrar um grupo e passar a acessar o conteúdo permitido ao seu papel (RN01). | CP7 | [R03](atas/posts/r03.md) | Vigente |
@@ -159,7 +159,8 @@ Cada alerta é emitido uma vez por mês em que a condição ocorre.
 
 - **Removidos:** dados de perfil, lançamentos, categorias, metas, conquistas, pontuação e preferências do usuário, e sua participação em grupos;
 - **Anonimizados:** registros da trilha de auditoria (RNF16), que mantêm a operação, a data e o horário sem identificar o usuário;
-- **Prazo:** a remoção ocorre em até 30 dias após a confirmação da exclusão; os backups deixam de conter os dados do usuário ao final do ciclo de rotação de backups;
+- **Dados no aparelho:** a base local é apagada no momento da confirmação; o arquivo de backup gerado pelo usuário (RF63) fica sob sua guarda e não é alcançado pela exclusão;
+- **Prazo:** a remoção no Cloud Firestore ocorre em até 30 dias após a confirmação da exclusão; como cada backup do servidor é mantido por até 30 dias (RNF17), os backups deixam de conter os dados do usuário em até 60 dias após a confirmação;
 - **Administrador único:** o usuário que é o único Administrador de um grupo deve designar outro Administrador antes da exclusão (RN01).
 
 *Proposta pendente de validação com a cliente.*
@@ -171,7 +172,7 @@ Cada alerta é emitido uma vez por mês em que a condição ocorre.
 
 ### RN06: Princípio offline-first e disponibilidade
 
-A base local é a cópia principal dos dados; o servidor serve à sincronização e aos grupos. Funcionam offline: CP1 a CP4, categorias, metas, importação, conquistas e pontos pessoais. Exigem conexão: cadastro e recuperação de senha (RF01, RF31) e operações de grupo (RF22 a RF25, RF51). Dados de outros membros (RF27, RF29, RF30, RF52, RF53) aparecem offline com a data da última atualização. Em caso de conflito com RF59, RNF02, RNF06, RNF08, RNF09 ou RNF31, prevalece esta regra para operações locais.
+A base local é a cópia principal dos dados; o servidor serve à sincronização e aos grupos. Funcionam offline: CP1 a CP4, categorias, metas, importação, conquistas e pontos pessoais. Exigem conexão: cadastro e recuperação de senha (RF01, RF31) e operações de grupo (RF22 a RF25, RF51). Dados de outros membros (RF27, RF29, RF30, RF52, RF53) aparecem offline com a data da última atualização. Uma operação é concluída ao ser gravada na base local (RNF35); a aceitação pelo Cloud Firestore é exibida como estado de sincronização (RF62).
 
 ### RN07: Resolução de conflitos
 
@@ -187,7 +188,7 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 
 - **Valor permitido:** maior que zero, com no máximo duas casas decimais e até R$ 999.999.999,99.
 - **Tipo de lançamento:** receita ou despesa é definida pelo tipo do lançamento, nunca pelo sinal do valor.
-- **Cálculos:** utilizam tipo decimal com arredondamento explícito (RNF07).
+- **Cálculos:** utilizam tipo decimal e as regras de arredondamento da RN21 (RNF07).
 
 ### RN10: Tamanho dos textos
 
@@ -275,12 +276,25 @@ As faixas percentuais e as cores dos indicadores devem ser definidas na configur
 - **Campos editáveis:** na edição de uma receita ou despesa, todos os campos do formulário podem ser alterados.
 - **Recálculo:** após a edição, totais, saldo, indicadores e alertas são recalculados na mesma operação (RN07, RN11).
 
+### RN21: Arredondamento de valores (RNF07)
+
+- **Momento:** arredonda-se apenas o resultado final de cada cálculo; os resultados intermediários mantêm a precisão total.
+- **Regra:** a metade arredonda-se afastando-se do zero (R$ 0,005 passa a R$ 0,01).
+- **Valores em reais:** exibidos com duas casas decimais.
+- **Percentuais:** exibidos com uma casa decimal, inclusive no consumo do limite (RF39), no progresso da meta (RF36) e no percentual por categoria (RF42).
+- **Limite em percentual da renda:** o valor em reais é arredondado em duas casas decimais antes do cálculo do consumo (RN14).
+- **Faixas e alertas:** as faixas da RN02 e da RN17 e os disparos da RN03 usam o percentual já arredondado.
+- **Soma dos percentuais:** a soma dos percentuais por categoria (RF42) não é ajustada a 100%.
+
+*Proposta pendente de validação com a cliente.*
+
 ## Pontos para validação
 
 Os seguintes pontos ainda precisam ser confirmados com a cliente:
 
 - Faixas do indicador (RN02) e limiares de disparo dos alertas (RN03);
-- Política de retenção proposta na RN04;
+- Política de retenção proposta na RN04, incluindo o prazo de manutenção dos backups do servidor;
+- Regras de arredondamento da RN21;
 - Formatos de extrato aceitos (RN05);
 - Viabilidade e escopo do registro sem conexão (RF59) e da leitura automática de comprovantes (RF60), por envolverem esforço e incerteza maiores; na [R07](atas/posts/r07.md), Alana França considerou a importação por foto pouco útil;
 - RF57 e RF58, incluídos na revisão da avaliação cruzada para mitigar riscos ([D07](decisoes.md#d07)), ainda sem confirmação da cliente;
@@ -311,3 +325,4 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 | 1.16 | 31/10/2026 | Ajusta RNFs à arquitetura com Firebase e app móvel | Bruno Duarte |
 | 1.17 | 03/11/2026 | Inclui as colunas Origem e Situação, a legenda da situação, a tabela de requisitos retirados e novos pontos para validação; inclui o histórico de versões | Bruno Duarte |
 | 1.18 | 05/11/2026 | Relaciona os requisitos de uso local, backup e sincronização à decisão D20 | Equipe UniCash |
+| 1.19 | 07/11/2026 | Ajusta os requisitos ao modelo local-first (issue #21): retira a regra de precedência da RN06 e a exigência de usuário autenticado dos RF11, RF34, RF35, RF40 a RF43 e RF59; ajusta RF63 e RN04; inclui a RN21 | Dante Scarpati |

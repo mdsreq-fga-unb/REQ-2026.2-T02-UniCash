@@ -28,6 +28,7 @@ Esta página reúne as decisões que mudaram o escopo, os requisitos, o processo
 | [D18](#d18) | 29/10/2026 | Aplicativo móvel em React Native com Expo e SQLite local | [PR #34](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/34) | Vigente |
 | [D19](#d19) | 30/10/2026 | Firebase para sincronização e grupos | [PR #34](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/34) | Vigente |
 | [D20](#d20) | 05/11/2026 | Arquitetura local-first com suporte offline-first e sincronização opcional | Equipe | Vigente |
+| [D21](#d21) | 07/11/2026 | Ajuste dos RNFs ao modelo local-first | [Issue #21](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/21) | Proposta |
 
 A situação **Proposta** indica uma decisão da equipe que ainda depende de confirmação da cliente.
 
@@ -258,11 +259,23 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | **Requisitos afetados** | RF59, RF61 a RF64, RNF26, RNF34 a RNF36, RN06, RN07; seção 2.4 da [Solução proposta](solucao.md) |
 | **Comunicação** | Registrada na documentação pela equipe. Sem registro de comunicação à cliente. |
 
+### D21 — Ajuste dos RNFs ao modelo local-first { #d21 }
+
+| Campo | Registro |
+| :--- | :--- |
+| **Data** | 07/11/2026 |
+| **Origem** | Revisão da lista de requisitos não funcionais ([issue #21](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/21)) |
+| **Decisão** | Atualizar diretamente os requisitos afetados pela [D20](#d20), retirando a regra de precedência da RN06. A autenticação passa a valer na sincronização (RNF02), a proteção local fica no RNF39 e a criptografia, no RNF25. O RNF06 é fundido ao RNF35, que define a única condição para informar sucesso na gravação. Os backups do servidor passam a ter retenção de 30 dias, a recuperação dos dados no aparelho fica no RNF40 e o arredondamento, na RN21. Os títulos dos requisitos não citam tecnologias; quando necessárias, elas ficam na descrição. |
+| **Motivo** | A regra de precedência mantinha declarações conflitantes no catálogo. Faltavam também as regras de arredondamento do RNF07, a distinção entre as cópias dos dados e a caracterização da carga dos ensaios. |
+| **Alternativas descartadas** | Manter a regra de precedência da RN06. |
+| **Requisitos afetados** | RF11, RF34, RF35, RF40 a RF43, RF59, RF63; RNF02, RNF04, RNF06, RNF07, RNF08, RNF09, RNF17, RNF18, RNF25, RNF30, RNF31, RNF35, RNF39, RNF40; RN04, RN06, RN09, RN21 |
+| **Comunicação** | Proposta da equipe. Pendente de validação em pares e com a cliente; consta em Pontos para validação. |
+
 ## Pendências do registro
 
 - Registrar o motivo da [D15](#d15) e da escolha da paleta na [D17](#d17);
 - Comunicar à cliente as decisões de arquitetura [D18](#d18) e [D19](#d19) e registrar a comunicação em ata;
-- Validar com a cliente as decisões propostas [D15](#d15) e [D16](#d16).
+- Validar com a cliente as decisões propostas [D15](#d15), [D16](#d16) e [D21](#d21).
 
 ## Histórico de versões
 
@@ -270,3 +283,4 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 |---|---|---|---|
 | 1.0 | 03/11/2026 | Cria o Registro de decisões com as decisões D01 a D19 | Bruno Duarte |
 | 1.1 | 05/11/2026 | Registra a decisão D20 sobre a arquitetura local-first com suporte offline-first | Equipe UniCash |
+| 1.2 | 07/11/2026 | Registra a decisão D21 sobre o ajuste dos RNFs ao modelo local-first (issue #21) | Dante Scarpati |
