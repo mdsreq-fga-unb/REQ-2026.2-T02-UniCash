@@ -58,10 +58,10 @@ Objetivo: priorizar os requisitos, definir o MVP e preparar o backlog.
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | Elicitação e Descoberta | Workshop de apresentação dos requisitos às representantes dos segmentos | Leinad e Maria Vitória; Alana França informada depois | Lista de requisitos ([R04](atas/posts/r04.md)) | Natan | Contribuições registradas em [R05](atas/posts/r05.md) |
 | Análise e Consenso | Priorização MoSCoW com matriz valor de negócio × esforço técnico | Leinad, Maria Vitória e Alana França para o valor de negócio, com nota de 1 a 4 e justificativa; integrantes da equipe para o esforço técnico | RF01 a RF56 | Natan (planilha) e Erick (Campeão do Produto) | Planilha de priorização ([R05](atas/posts/r05.md)); MVP definido como resultado ([Escopo do MVP](mvp.md)) |
-| Declaração | Casos de uso em formato breve | Equipe | RFs priorizados como *Must have* | Leonardo | Casos de uso com identificador próprio, vinculados ao RF de origem (previstos; ainda não escritos); decisão de adotar casos de uso em [R08](atas/posts/r08.md) |
-| Representação | Prototipação de baixa fidelidade | Bruno; revisão da cliente | Casos de uso e decisões registradas com a cliente | Bruno | Wireframes no Figma (previstos; ainda não produzidos) |
+| Declaração | Casos de uso em formato breve | Equipe | RFs priorizados como *Must have* | Leonardo | [Casos de uso](casos_de_uso.md) UC01 a UC09, escritos nos Timeboxes 3 e 4; decisão de adotar casos de uso em [R08](atas/posts/r08.md) |
+| Representação | Prototipação de baixa fidelidade | Bruno; revisão da cliente | Casos de uso e decisões registradas com a cliente | Bruno | Wireframes no Figma, publicados na [página inicial](index.md#wireframes); data e validação com a cliente sem registro |
 | Verificação e Validação | Revisão do escopo do MVP com a cliente e as representantes | Leinad, Maria Vitória e Alana França | MVP e documentação publicada | Natan | Escopo validado e ajustes registrados em [R07](atas/posts/r07.md) |
-| Organização e Atualização | Estruturação do backlog de requisitos por CP e caso de uso | Equipe | Casos de uso e CPs | Leonardo | Backlog de requisitos em um GitHub Project separado do Kanban de atividades ([R08](atas/posts/r08.md)); matriz de rastreabilidade (seção 5.5), prevista e ainda não produzida |
+| Organização e Atualização | Estruturação do backlog de requisitos por CP e caso de uso | Equipe | Casos de uso e CPs | Leonardo | Backlog de requisitos em um GitHub Project separado do Kanban de atividades ([R08](atas/posts/r08.md)); matriz de rastreabilidade (seção 5.5), com versão resumida no [Escopo do MVP](mvp.md#2-matriz-de-rastreabilidade-resumida) e matriz detalhada pendente |
 
 ---
 
@@ -259,9 +259,9 @@ A tabela relaciona as atividades já realizadas às evidências correspondentes.
 | 02/10/2026 | Desenvolvimento Evolutivo — Timebox 2 | Validação do escopo do MVP com a cliente e as representantes | [R07](atas/posts/r07.md) | Registrada |
 | 05/10/2026 | Desenvolvimento Evolutivo — Timebox 2 | Adoção de casos de uso como forma de declaração | [R08](atas/posts/r08.md) | Registrada |
 | 29/10/2026 e 30/10/2026 | Desenvolvimento Evolutivo — Timeboxes 3 e 4 | Decisão da stack e da sincronização | [D18](decisoes.md#d18), [D19](decisoes.md#d19) e [PR #34](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/34) | Registrada; comunicação à cliente sem registro |
-| — | Fundamentos | Casos de uso em formato breve | Casos de uso (UCxx) vinculados aos RFs *Must have* | Sem registro (previsto) |
-| — | Fundamentos | Matriz de rastreabilidade (versão inicial) | Matriz descrita na seção 5.5 | Sem registro (previsto) |
-| — | Fundamentos | Prototipação de baixa fidelidade | Wireframes no Figma | Sem registro (previsto) |
+| 27/10/2026 a 01/11/2026 | Desenvolvimento Evolutivo — Timeboxes 3 e 4 | Casos de uso | UC01 a UC05 em [Casos de uso](casos_de_uso.md); UC06 a UC09 sem data no histórico de versões | Registrada |
+| 04/11/2026 | Desenvolvimento Evolutivo — Timebox 4 | Matriz de rastreabilidade (versão inicial) | Matriz RF–RNF resumida no [Escopo do MVP](mvp.md#2-matriz-de-rastreabilidade-resumida); matriz detalhada da seção 5.5 pendente | Parcial |
+| Até 31/10/2026 | Não identificada | Prototipação de baixa fidelidade | Wireframes no Figma, publicados na [página inicial](index.md#wireframes), que ganharam seção própria em 31/10/2026 | Registrada; validação com a cliente sem ata |
 
 ## Histórico de versões
 
@@ -275,3 +275,4 @@ A tabela relaciona as atividades já realizadas às evidências correspondentes.
 | 1.5 | 31/10/2026 | Tema escuro, consulta flutuante, leitura contínua e atas em blog | Bruno Duarte |
 | 1.6 | 31/10/2026 | Adiciona links para o Kanban e os backlogs no GitHub Projects | Bruno Duarte |
 | 1.7 | 03/11/2026 | Referencia o Registro de decisões e registra a decisão da stack na seção 5.6; inclui o histórico de versões | Bruno Duarte |
+| 1.8 | 07/11/2026 | Atualiza a situação dos casos de uso, dos wireframes e da matriz de rastreabilidade nas seções 5.1 e 5.6 (issue #26) | Dante Scarpati |

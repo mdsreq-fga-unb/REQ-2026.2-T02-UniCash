@@ -14,7 +14,7 @@ As decisões desta seção decorrem de três condições descritas nas seções 
 Para caber na realidade da equipe, o processo foi calibrado da seguinte forma:
 
 1. **Fases:** Pré-projeto, Viabilidade, Fundamentos, Desenvolvimento Evolutivo, Implantação e Pós-projeto, organizados de forma a acompanhar a evolução do projeto desde a definição inicial até a avaliação e evolução após a implantação (AGILE BUSINESS CONSORTIUM, 2021).
-2. **Timeboxes:** Timeboxes de duas semanas, aproximadamente seis após o estudo inicial, alinhados às unidades da disciplina. Prazo e equipe permanecem fixos; o escopo alocado a cada timebox é o que se ajusta.
+2. **Timeboxes:** Timeboxes de até duas semanas, com 7 a 14 dias conforme o calendário da disciplina ([cronograma](cronograma.md)), aproximadamente seis após o estudo inicial, alinhados às unidades da disciplina. Prazo e equipe permanecem fixos; o escopo alocado a cada timebox é o que se ajusta.
 3. **Priorização MoSCoW:** Cada requisito é classificado em *Must have*, *Should have*, *Could have* ou *Won’t have this time*. Os *Must have* delimitam o MVP e são dimensionados para um ritmo conservador; as classes inferiores funcionam como margem de manobra em semanas de sobrecarga (MARSICANO, 2026).
 4. **Papéis:**
 
@@ -79,3 +79,4 @@ O OpenUP permanece uma alternativa viável, pois é leve, adaptável, iterativo 
 | 1.4 | 12/10/2026 | Atualiza estratégia | Evellyn Rocha |
 | 1.5 | 12/10/2026 | Alinha estrutura do DSDM na estratégia | Leonardo Ramiro |
 | 1.6 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
+| 1.7 | 07/11/2026 | Explicita a cadência dos timeboxes adotada no cronograma (issue #26) | Dante Scarpati |
