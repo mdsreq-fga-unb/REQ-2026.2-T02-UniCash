@@ -33,4 +33,22 @@ export const ESQUEMA_SQL = `
     CREATE INDEX IF NOT EXISTS idx_receitas_data ON receitas(data);
     CREATE INDEX IF NOT EXISTS idx_receitas_recorrencia ON receitas(recorrencia_id);
     CREATE INDEX IF NOT EXISTS idx_receitas_sync ON receitas(sync_status);
+
+    CREATE TABLE IF NOT EXISTS categorias (
+      id TEXT PRIMARY KEY NOT NULL,
+      nome TEXT NOT NULL,
+      nome_normalizado TEXT NOT NULL,
+      padrao INTEGER NOT NULL DEFAULT 0,
+      limite_tipo TEXT CHECK (limite_tipo IN ('valor','percentual_renda')),
+      limite_centavos INTEGER,
+      limite_percentual_centesimos INTEGER,
+      sync_status TEXT NOT NULL DEFAULT 'pendente',
+      excluido_em TEXT,
+      criado_em TEXT NOT NULL,
+      atualizado_em TEXT NOT NULL
+    );
+
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_categorias_nome_unico
+      ON categorias(nome_normalizado) WHERE excluido_em IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_categorias_sync ON categorias(sync_status);
   `;
