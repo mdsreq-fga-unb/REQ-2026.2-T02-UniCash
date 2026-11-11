@@ -29,7 +29,8 @@ Esta página reúne as decisões que mudaram o escopo, os requisitos, o processo
 | [D19](#d19) | 30/10/2026 | Firebase para sincronização e grupos | [PR #34](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/34) | Vigente |
 | [D20](#d20) | 05/11/2026 | Arquitetura local-first com suporte offline-first e sincronização opcional | Equipe | Vigente |
 | [D21](#d21) | 07/11/2026 | Ajuste dos RNFs ao modelo local-first | [Issue #21](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/21) | Proposta |
-| [D22](#d22) | 10/11/2026 | Validado com a cliente das regras de limites, retenção, uso offline e gamifição | Documento validado com Leinad e Maria | Vigente, com RF57 pendente |
+| <span id="d22"></span>[D22](#d22) | 10/11/2026 | Validado com a cliente das regras de limites, retenção, uso offline e gamificação | Documento validado com Leinad e Maria | Vigente, com RF57 pendente |
+| <span id="d23"></span>[D23](#d23) | 10/11/2026 | Retirada dos fluxos de importação, extração de comprovantes, anexos e backup por arquivo do escopo atual | Atualização do catálogo de requisitos pela equipe | Vigente |
 
 A situação **Proposta** indica uma decisão da equipe que ainda depende de confirmação da cliente.
 
@@ -271,6 +272,17 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | **Alternativas descartadas** | Manter a regra de precedência da RN06. |
 | **Requisitos afetados** | RF11, RF34, RF35, RF40 a RF43, RF59, RF63; RNF02, RNF04, RNF06, RNF07, RNF08, RNF09, RNF17, RNF18, RNF25, RNF30, RNF31, RNF35, RNF39, RNF40; RN04, RN06, RN09, RN21 |
 | **Comunicação** | Proposta da equipe. Pendente de validação em pares e com a cliente; consta em Pontos para validação. |
+### D23 — Retirada dos fluxos de importação e backup por arquivo do escopo { #d23 }
+
+| Campo | Registro |
+| :--- | :--- |
+| **Data** | 10/11/2026 |
+| **Origem** | Revisão do escopo e atualização do catálogo de requisitos pela equipe. |
+| **Decisão** | Retirar do escopo atual os fluxos de importação de extratos, extração automática de comprovantes, anexação de comprovantes e backup e restauração por arquivo (Won't have now). |
+| **Motivo** | O histórico da alteração registra a retirada dessas funcionalidades do escopo, mas não apresenta uma justificativa específica para a decisão. |
+| **Alternativas descartadas** | Não há registro de alternativas descartadas no histórico consultado. |
+| **Requisitos afetados** | RF21, RF47, RF48, RF49, RF50, RF60, RF63 e RF64; RN04, RN05 e RN06. |
+| **Comunicação** | Registrada na documentação pela equipe. Não há registro, no histórico consultado, de validação ou comunicação à cliente. |
 
 ## Pendências do registro
 
@@ -285,3 +297,4 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | 1.0 | 03/11/2026 | Cria o Registro de decisões com as decisões D01 a D19 | Bruno Duarte |
 | 1.1 | 05/11/2026 | Registra a decisão D20 sobre a arquitetura local-first com suporte offline-first | Equipe UniCash |
 | 1.2 | 07/11/2026 | Registra a decisão D21 sobre o ajuste dos RNFs ao modelo local-first (issue #21) | Dante Scarpati |
+| 1.3 | 10/11/2026 | Registra a decisão D23 sobre a retirada dos fluxos de importação, comprovantes e backup por arquivo | Equipe UniCash |

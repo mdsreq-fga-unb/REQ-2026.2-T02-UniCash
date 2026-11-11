@@ -397,10 +397,19 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
     linhas += ['<div class="selos">' + " ".join(selos) + "</div>", ""]
 
     if tipo == "RN":
-        linhas += [item["descricao"], ""]
+        descricao = re.sub(
+            r"\]\(([^)#]+)(#[^)]*)?\)",
+            lambda m: f"]({relativo(m.group(1), origem)}{m.group(2) or ''})",
+            item["descricao"],
+        )
+        linhas += [descricao, ""]
     elif item["descricao"]:
-        linhas += [f'!!! quote "{"Valor" if tipo == "UC" else "Descrição"}"', "",
-                   f"    {item['descricao']}", ""]
+        linhas += [
+            f'!!! quote "{"Valor" if tipo == "UC" else "Descrição"}"',
+            "",
+            f"    {item['descricao']}",
+            "",
+        ]
     if tipo == "CP":
         rfs = [c for c in item["relacoes"] if tipo_de(c) == "RF"]
         no_mvp = sum(1 for c in rfs if itens[c].get("mvp"))
