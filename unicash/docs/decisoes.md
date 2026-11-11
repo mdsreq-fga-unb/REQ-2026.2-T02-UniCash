@@ -22,13 +22,14 @@ Esta página reúne as decisões que mudaram o escopo, os requisitos, o processo
 | [D12](#d12) | 02/10/2026 | Cadastro com dados mínimos | [R07](atas/posts/r07.md) | Vigente |
 | [D13](#d13) | 05/10/2026 | Casos de uso no lugar de histórias de usuário | [R08](atas/posts/r08.md) | Vigente |
 | [D14](#d14) | 05/10/2026 | Backlog de requisitos separado do Kanban | [R08](atas/posts/r08.md) | Vigente |
-| [D15](#d15) | 26/10/2026 | Faixas do indicador e dos alertas de limite | Equipe | Proposta |
+| [D15](#d15) | 26/10/2026 | Faixas do indicador e dos alertas de limite | Equipe | Vigente, validada pela [D22](#d22) |
 | [D16](#d16) | 27/10/2026 | Requisitos latentes de categoria | Equipe | Proposta |
 | [D17](#d17) | 28/10/2026 | Paleta de cores da interface | Equipe | Vigente |
 | [D18](#d18) | 29/10/2026 | Aplicativo móvel em React Native com Expo e SQLite local | [PR #34](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/34) | Vigente |
 | [D19](#d19) | 30/10/2026 | Firebase para sincronização e grupos | [PR #34](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/34) | Vigente |
 | [D20](#d20) | 05/11/2026 | Arquitetura local-first com suporte offline-first e sincronização opcional | Equipe | Vigente |
 | [D21](#d21) | 07/11/2026 | Ajuste dos RNFs ao modelo local-first | [Issue #21](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/21) | Proposta |
+| [D22](#d22) | 10/11/2026 | Validado com a cliente das regras de limites, retenção, uso offline e gamifição | Documento validado com Leinad e Maria | Vigente, com RF57 pendente |
 
 A situação **Proposta** indica uma decisão da equipe que ainda depende de confirmação da cliente.
 
@@ -273,7 +274,7 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 
 ## Pendências do registro
 
-- Registrar o motivo da [D15](#d15) e da escolha da paleta na [D17](#d17);
+- Registrar o motivo da escolha da paleta na [D17](#d17);
 - Comunicar à cliente as decisões de arquitetura [D18](#d18) e [D19](#d19) e registrar a comunicação em ata;
 - Validar com a cliente as decisões propostas [D15](#d15), [D16](#d16) e [D21](#d21).
 

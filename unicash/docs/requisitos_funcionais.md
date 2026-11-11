@@ -2,7 +2,7 @@
 
 Os requisitos funcionais descrevem os comportamentos e funcionalidades que o usuário poderá executar ou observar no sistema.
 
-**Premissa de escopo:** os lançamentos são inseridos de forma declarativa pelo usuário, manualmente ou por importação de arquivo de extrato ou comprovante fornecido por ele. Não há integração por API com bancos ou cartões de crédito.
+**Premissa de escopo:** os lançamentos são inseridos de forma declarativa pelo usuário, manualmente. Não há integração por API com bancos ou cartões de crédito.
 
 ## Características de Produto
 
@@ -46,15 +46,15 @@ A tabela está ordenada por Característica de Produto.
 | **RF16** | **Consultar despesas:** Exibir as despesas registradas pelo usuário, com consulta por período, categoria e detalhe. | CP1 | [R03](atas/posts/r03.md) | Vigente |
 | **RF17** | **Editar despesa:** Permitir alterar os dados de uma despesa existente e salvar as mudanças após a validação. | CP1 | [R04](atas/posts/r04.md) | Vigente |
 | **RF18** | **Excluir despesa:** Permitir remover uma despesa mediante confirmação e atualizar os cálculos dependentes. | CP1 | [R04](atas/posts/r04.md) | Vigente |
-| **RF21** | **Importar extrato bancário:** Permitir selecionar um arquivo de extrato em um dos formatos aceitos (RN05), apresentar prévia dos lançamentos reconhecidos, solicitar revisão quando a leitura for ambígua e confirmar sua incorporação aos dados financeiros. | CP1 | [R03](atas/posts/r03.md) | Vigente |
+| **RF21** | **Importar extrato bancário:** Permitir selecionar um arquivo de extrato em um dos formatos aceitos (RN05), apresentar prévia dos lançamentos reconhecidos, solicitar revisão quando a leitura for ambígua e confirmar sua incorporação aos dados financeiros. | CP1 | [R03](atas/posts/r03.md), [D23](decisoes.md#d23) | Retirado |
 | **RF32** | **Definir lançamento recorrente:** Permitir marcar receita ou despesa como fixa ou recorrente e informar sua periodicidade para gerar lançamentos nos meses seguintes. | CP1 | [R03](atas/posts/r03.md) | Vigente |
 | **RF33** | **Editar ocorrência de lançamento recorrente:** Permitir alterar apenas o lançamento de um mês específico sem modificar as demais ocorrências da série. | CP1 | [R03](atas/posts/r03.md) | Vigente |
-| **RF48** | **Identificar lançamento duplicado:** Comparar cada registro importado com os lançamentos já registrados e considerar possível duplicidade quando o valor for idêntico e a data diferir em até 1 dia; para cada possível duplicidade, exibir os dois registros lado a lado e pedir ao usuário que escolha entre descartar o importado ou mantê-lo como lançamento distinto, antes de consolidar. | CP1 | [R03](atas/posts/r03.md) | Vigente |
-| **RF50** | **Registrar despesa por comprovante:** Permitir fotografar ou selecionar um comprovante, anexá-lo ao lançamento e confirmar ou informar os dados da despesa antes de salvar. | CP1 | [R03](atas/posts/r03.md) | Vigente |
-| **RF59** | **Registrar lançamento sem conexão:** Permitir ao usuário registrar receita ou despesa sem conexão, guardá-lo localmente, informar seu estado de envio e enviá-lo ao Cloud Firestore quando a conexão voltar, se a sincronização estiver ativa. | CP1 | [R07](atas/posts/r07.md), [D07](decisoes.md#d07), [D10](decisoes.md#d10), [D20](decisoes.md#d20), [D21](decisoes.md#d21) | Proposto |
-| **RF60** | **Extrair dados de comprovante:** Ler a imagem do comprovante indicado no RF50 e sugerir valor, data e descrição da despesa para confirmação ou correção pelo usuário. | CP1 | [R03](atas/posts/r03.md), [D07](decisoes.md#d07) | Proposto |
+| **RF48** | **Identificar lançamento duplicado:** Comparar cada registro importado com os lançamentos já registrados e considerar possível duplicidade quando o valor for idêntico e a data diferir em até 1 dia; para cada possível duplicidade, exibir os dois registros lado a lado e pedir ao usuário que escolha entre descartar o importado ou mantê-lo como lançamento distinto, antes de consolidar. | CP1 | [R03](atas/posts/r03.md), [D23](decisoes.md#d23) | Retirado |
+| **RF50** | **Registrar despesa por comprovante:** Permitir fotografar ou selecionar um comprovante, anexá-lo ao lançamento e confirmar ou informar os dados da despesa antes de salvar. | CP1 | [R03](atas/posts/r03.md), [D23](decisoes.md#d23) | Retirado |
+| **RF59** | **Registrar lançamento sem conexão:** Permitir ao usuário registrar receita ou despesa sem conexão, guardá-lo localmente, informar seu estado de envio e enviá-lo ao Cloud Firestore quando a conexão voltar, se a sincronização estiver ativa. | CP1 | [R07](atas/posts/r07.md), [D07](decisoes.md#d07), [D10](decisoes.md#d10), [D20](decisoes.md#d20), [D21](decisoes.md#d21) | Vigente |
+| **RF60** | **Extrair dados de comprovante:** Ler a imagem do comprovante indicado no RF50 e sugerir valor, data e descrição da despesa para confirmação ou correção pelo usuário. | CP1 | [R03](atas/posts/r03.md), [D07](decisoes.md#d07), [D23](decisoes.md#d23) | Retirado |
 | **RF19** | **Criar categoria de despesas:** Permitir cadastrar uma categoria para classificar despesas e, quando aplicável, definir seu limite de gasto. | CP2 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
-| **RF47** | **Classificar lançamentos importados:** Sugerir a categoria de cada registro importado a partir de palavras-chave da descrição associadas às categorias do usuário e de lançamentos anteriores com a mesma descrição, permitindo revisão antes da confirmação; quando não houver correspondência, deixar o registro sem categoria sugerida. | CP2 | [R03](atas/posts/r03.md) | Vigente |
+| **RF47** | **Classificar lançamentos importados:** Sugerir a categoria de cada registro importado a partir de palavras-chave da descrição associadas às categorias do usuário e de lançamentos anteriores com a mesma descrição, permitindo revisão antes da confirmação; quando não houver correspondência, deixar o registro sem categoria sugerida. | CP2 | [R03](atas/posts/r03.md), [D23](decisoes.md#d23) | Retirado |
 | **RF65** | **Consultar categorias:** Exibir ao usuário a lista de categorias disponíveis (padrão e próprias), identificando as categorias padrão e o limite de gasto de cada uma, quando definido, com a opção de ver os lançamentos classificados em cada categoria. | CP2 | [D16](decisoes.md#d16) | Proposto |
 | **RF66** | **Editar categoria:** Permitir alterar o nome e o limite de gasto de uma categoria própria, validar a unicidade do nome (RN13), salvar as mudanças e recalcular os indicadores e alertas de limite afetados (RF37, RF38 e RF39). As categorias padrão não podem ser editadas (RN13). | CP2 | [D16](decisoes.md#d16) | Proposto |
 | **RF67** | **Excluir categoria:** Permitir remover uma categoria própria mediante confirmação (RN11), mantendo os lançamentos associados, que passam a constar como “Sem categoria” (RN13), e atualizar os indicadores e alertas dependentes. As categorias padrão não podem ser excluídas (RN13). | CP2 | [D16](decisoes.md#d16) | Proposto |
@@ -73,7 +73,7 @@ A tabela está ordenada por Característica de Produto.
 | **RF41** | **Exibir gráfico de despesas:** Exibir ao usuário um gráfico de barras com o total de despesas por categoria no período selecionado, com o valor de cada barra apresentado como rótulo e a categoria identificada na legenda. | CP4 | [R01](atas/posts/r01.md), [D21](decisoes.md#d21) | Vigente |
 | **RF42** | **Exibir percentual por categoria:** Exibir ao usuário o percentual do total de despesas do período que cada categoria representa; quando não houver despesas no período, não apresentar percentual. | CP4 | [R04](atas/posts/r04.md), [D21](decisoes.md#d21) | Vigente |
 | **RF43** | **Exibir previsão de despesas recorrentes:** Exibir ao usuário as despesas recorrentes já cadastradas (RF32) previstas para os próximos 30 dias, identificadas como valores previstos. | CP4 | [R03](atas/posts/r03.md), [D21](decisoes.md#d21) | Vigente |
-| **RF49** | **Consolidar extratos de contas:** Exibir ao usuário, em uma visão única, os lançamentos confirmados de diferentes extratos importados, identificando em cada um a instituição de origem informada na importação. | CP4 | [R03](atas/posts/r03.md) | Vigente |
+| **RF49** | **Consolidar extratos de contas:** Exibir ao usuário, em uma visão única, os lançamentos confirmados de diferentes extratos importados, identificando em cada um a instituição de origem informada na importação. | CP4 | [R03](atas/posts/r03.md), [D23](decisoes.md#d23) | Retirado |
 | **RF01** | **Cadastrar usuário:** Permitir que uma pessoa crie uma conta ao informar os dados obrigatórios e uma senha; após a validação, registrar o perfil e confirmar o cadastro. | CP5 | [R03](atas/posts/r03.md), [R07](atas/posts/r07.md), [D12](decisoes.md#d12) | Vigente |
 | **RF02** | **Autenticar usuário:** Permitir o acesso com credenciais válidas, iniciar a sessão e informar o motivo quando a autenticação for rejeitada. | CP5 | [R03](atas/posts/r03.md) | Vigente |
 | **RF03** | **Visualizar perfil de usuário:** Exibir ao usuário autenticado os dados do próprio perfil. | CP5 | [R04](atas/posts/r04.md) | Vigente |
@@ -84,10 +84,10 @@ A tabela está ordenada por Característica de Produto.
 | **RF61** | **Usar sem conta:** Permitir usar todas as funcionalidades individuais sem cadastro, com os dados somente no dispositivo; a conta é necessária só para sincronizar e participar de grupos. | CP5 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D12](decisoes.md#d12), [D20](decisoes.md#d20) | Vigente |
 | **RF55** | **Apresentar tutorial inicial:** No primeiro acesso, oferecer tutorial interativo que informe o que o aplicativo faz e o que não faz (organiza e apresenta as informações financeiras, sem aumentar a renda nem garantir a redução de dívidas) e guie o usuário por registrar receita (RF07), registrar despesa (RF15), criar meta financeira (RF12) e ler o resumo inicial (RF40), explicando em linguagem simples os termos financeiros usados e com opção de avançar ou encerrar a qualquer etapa; permitir reabrir o tutorial pelo menu de ajuda. | CP6 | [R04](atas/posts/r04.md) | Vigente |
 | **RF56** | **Avisar manutenção programada:** Exibir aos usuários, ao abrir o aplicativo, aviso prévio com período e impacto previsto de uma manutenção programada, informada pela equipe de operação por configuração do sistema, sem tela de cadastro no produto. | CP6 | [R04](atas/posts/r04.md) | Vigente |
-| **RF58** | **Configurar notificações:** Permitir ao usuário ativar ou desativar cada tipo de alerta (aproximação do limite, ultrapassagem do limite e conquistas) e alterar a escolha a qualquer momento. | CP6 | [D07](decisoes.md#d07) | Proposto |
+| **RF58** | **Configurar notificações:** Permitir ao usuário ativar ou desativar cada tipo de alerta (aproximação do limite, ultrapassagem do limite e conquistas) e alterar a escolha a qualquer momento. | CP6 | [D07](decisoes.md#d07) | Vigente |
 | **RF62** | **Acompanhar sincronização:** Exibir o estado (sincronizado, pendente, sem conexão, erro), a última sincronização e as alterações pendentes, com opção de sincronizar na hora; generaliza o “estado de envio” do RF59. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D20](decisoes.md#d20) | Vigente |
-| **RF63** | **Gerar backup:** Criar um arquivo completo e restaurável dos dados do usuário, sem exigir conexão, e permitir salvá-lo fora do aplicativo. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D20](decisoes.md#d20), [D21](decisoes.md#d21) | Vigente |
-| **RF64** | **Restaurar backup:** Validar o arquivo, mostrar prévia e permitir substituir ou mesclar com os dados atuais. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D20](decisoes.md#d20) | Vigente |
+| **RF63** | **Gerar backup:** Criar um arquivo completo e restaurável dos dados do usuário, sem exigir conexão, e permitir salvá-lo fora do aplicativo. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D20](decisoes.md#d20), [D21](decisoes.md#d21), [D23](decisoes.md#d23) | Retirado |
+| **RF64** | **Restaurar backup:** Validar o arquivo, mostrar prévia e permitir substituir ou mesclar com os dados atuais. | CP6 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D20](decisoes.md#d20), [D23](decisoes.md#d23) | Retirado |
 | **RF22** | **Criar grupo de amigos ou família:** Permitir ao usuário criar um grupo, definir seu nome e assumir o papel inicial de administração. | CP7 | [R03](atas/posts/r03.md) | Vigente |
 | **RF23** | **Entrar em grupo de amigos ou família:** Permitir ao usuário aceitar um convite válido para integrar um grupo e passar a acessar o conteúdo permitido ao seu papel (RN01). | CP7 | [R03](atas/posts/r03.md) | Vigente |
 | **RF24** | **Convidar membro para grupo:** Permitir ao Administrador do grupo (RN01) enviar convite e acompanhar sua situação até o aceite ou cancelamento. | CP7 | [R03](atas/posts/r03.md) | Vigente |
@@ -159,20 +159,18 @@ Cada alerta é emitido uma vez por mês em que a condição ocorre.
 
 - **Removidos:** dados de perfil, lançamentos, categorias, metas, conquistas, pontuação e preferências do usuário, e sua participação em grupos;
 - **Anonimizados:** registros da trilha de auditoria (RNF16), que mantêm a operação, a data e o horário sem identificar o usuário;
-- **Dados no aparelho:** a base local é apagada no momento da confirmação; o arquivo de backup gerado pelo usuário (RF63) fica sob sua guarda e não é alcançado pela exclusão;
+- **Dados no aparelho:** a base local é apagada no momento da confirmação; os backups por arquivo estão fora do escopo atual.
 - **Prazo:** a remoção no Cloud Firestore ocorre em até 30 dias após a confirmação da exclusão; como cada backup do servidor é mantido por até 30 dias (RNF17), os backups deixam de conter os dados do usuário em até 60 dias após a confirmação;
 - **Administrador único:** o usuário que é o único Administrador de um grupo deve designar outro Administrador antes da exclusão (RN01).
 
-*Proposta pendente de validação com a cliente.*
 
 ### RN05: Formatos de extrato aceitos (RF21)
 
-- **Aceitos:** OFX e CSV;
-- **Fora do escopo atual:** PDF e imagem, por exigirem reconhecimento óptico de caracteres; candidatos a uma versão futura.
+A importação de extratos está fora do escopo atual do produto (Won't have now), conforme a [D23](decisoes.md#d23). Este requisito foi retirado junto com o RF21.
 
 ### RN06: Princípio offline-first e disponibilidade
 
-A base local é a cópia principal dos dados; o servidor serve à sincronização e aos grupos. Funcionam offline: CP1 a CP4, categorias, metas, importação, conquistas e pontos pessoais. Exigem conexão: cadastro e recuperação de senha (RF01, RF31) e operações de grupo (RF22 a RF25, RF51). Dados de outros membros (RF27, RF29, RF30, RF52, RF53) aparecem offline com a data da última atualização. Uma operação é concluída ao ser gravada na base local (RNF35); a aceitação pelo Cloud Firestore é exibida como estado de sincronização (RF62).
+A base local é a cópia principal dos dados; o servidor serve à sincronização e aos grupos. Funcionam offline: CP1 a CP4, categorias, metas, conquistas e pontos pessoais. Exigem conexão: cadastro e recuperação de senha (RF01, RF31) e operações de grupo (RF22 a RF25, RF51). Dados de outros membros (RF27, RF29, RF30, RF52, RF53) aparecem offline com a data da última atualização. Uma operação é concluída ao ser gravada na base local (RNF35); a aceitação pelo Cloud Firestore é exibida como estado de sincronização (RF62).
 
 ### RN07: Resolução de conflitos
 
@@ -276,28 +274,19 @@ As faixas percentuais e as cores dos indicadores devem ser definidas na configur
 - **Campos editáveis:** na edição de uma receita ou despesa, todos os campos do formulário podem ser alterados.
 - **Recálculo:** após a edição, totais, saldo, indicadores e alertas são recalculados na mesma operação (RN07, RN11).
 
-### RN21: Arredondamento de valores (RNF07)
+### RN21: Precisão dos valores monetários (RNF07)
 
-- **Momento:** arredonda-se apenas o resultado final de cada cálculo; os resultados intermediários mantêm a precisão total.
-- **Regra:** a metade arredonda-se afastando-se do zero (R$ 0,005 passa a R$ 0,01).
-- **Valores em reais:** exibidos com duas casas decimais.
-- **Percentuais:** exibidos com uma casa decimal, inclusive no consumo do limite (RF39), no progresso da meta (RF36) e no percentual por categoria (RF42).
-- **Limite em percentual da renda:** o valor em reais é arredondado em duas casas decimais antes do cálculo do consumo (RN14).
-- **Faixas e alertas:** as faixas da RN02 e da RN17 e os disparos da RN03 usam o percentual já arredondado.
+- **Entrada:** valores monetários devem ser informados com exatamente duas casas decimais.
+- **Persistência e cálculos:** os valores registrados mantêm duas casas decimais; não há arredondamento de casas decimais posteriores.
+- **Exibição:** valores em reais são apresentados com duas casas decimais.
+- **Percentuais:** percentuais derivados podem ser apresentados conforme a precisão definida para cada indicador, sem alterar o valor monetário armazenado.
 - **Soma dos percentuais:** a soma dos percentuais por categoria (RF42) não é ajustada a 100%.
-
-*Proposta pendente de validação com a cliente.*
 
 ## Pontos para validação
 
 Os seguintes pontos ainda precisam ser confirmados com a cliente:
 
-- Faixas do indicador (RN02) e limiares de disparo dos alertas (RN03);
-- Política de retenção proposta na RN04, incluindo o prazo de manutenção dos backups do servidor;
-- Regras de arredondamento da RN21;
-- Formatos de extrato aceitos (RN05);
-- Viabilidade e escopo do registro sem conexão (RF59) e da leitura automática de comprovantes (RF60), por envolverem esforço e incerteza maiores; na [R07](atas/posts/r07.md), Alana França considerou a importação por foto pouco útil;
-- RF57 e RF58, incluídos na revisão da avaliação cruzada para mitigar riscos ([D07](decisoes.md#d07)), ainda sem confirmação da cliente;
+- RF57, incluído na revisão da avaliação cruzada para mitigar riscos ([D07](decisoes.md#d07)), ainda sem confirmação da cliente;
 - RF65, RF66 e RF67, requisitos latentes de categoria identificados pela equipe na escrita dos casos de uso ([D16](decisoes.md#d16));
 - Inclusão do alerta de saldo negativo (RN18) entre as preferências do RF58;
 - Características CP7 e CP8 e o objetivo do projeto que cada uma atende.
@@ -326,3 +315,5 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 | 1.17 | 03/11/2026 | Inclui as colunas Origem e Situação, a legenda da situação, a tabela de requisitos retirados e novos pontos para validação; inclui o histórico de versões | Bruno Duarte |
 | 1.18 | 05/11/2026 | Relaciona os requisitos de uso local, backup e sincronização à decisão D20 | Equipe UniCash |
 | 1.19 | 07/11/2026 | Ajusta os requisitos ao modelo local-first (issue #21): retira a regra de precedência da RN06 e a exigência de usuário autenticado dos RF11, RF34, RF35, RF40 a RF43 e RF59; ajusta RF63 e RN04; inclui a RN21 | Dante Scarpati |
+| 1.20 | 10/11/2026 | Confirma o RF59 como requisito vigente do MVP e remove sua pendência de validação. | Equipe UniCash |
+| 1.21 | 10/11/2026 | Retira do escopo atual os fluxos de importação, extração, anexos de comprovantes e backup por arquivo (Won't have now), conforme a D23. | Equipe UniCash |
