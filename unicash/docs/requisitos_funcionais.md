@@ -74,7 +74,7 @@ A tabela está ordenada por Característica de Produto.
 | <span id="rf42"></span>**RF42** | **Exibir percentual por categoria:** Exibir ao usuário o percentual do total de despesas do período que cada categoria representa; quando não houver despesas no período, não apresentar percentual. | CP4 | [R04](atas/posts/r04.md), [D21](decisoes.md#d21) | Vigente |
 | <span id="rf43"></span>**RF43** | **Exibir previsão de despesas recorrentes:** Exibir ao usuário as despesas recorrentes já cadastradas (RF32) previstas para os próximos 30 dias, identificadas como valores previstos. | CP4 | [R03](atas/posts/r03.md), [D21](decisoes.md#d21) | Vigente |
 | <span id="rf49"></span>**RF49** | **Consolidar extratos de contas:** Exibir ao usuário, em uma visão única, os lançamentos confirmados de diferentes extratos importados, identificando em cada um a instituição de origem informada na importação. | CP4 | [R03](atas/posts/r03.md), [D23](decisoes.md#d23) | Retirado |
-| <span id="rf01"></span>**RF01** | **Cadastrar usuário:** Permitir que uma pessoa crie uma conta ao informar nome, e-mail e uma senha; após a validação dos dados (RN08), registrar o perfil e confirmar o cadastro. | CP5 | [R03](atas/posts/r03.md), [R07](atas/posts/r07.md), [D12](decisoes.md#d12) | Vigente |
+| <span id="rf01"></span>**RF01** | **Cadastrar usuário:** Permitir que uma pessoa crie uma conta ao informar nome, e-mail e uma senha; após a validação dos dados, registrar o perfil e confirmar o cadastro. | CP5 | [R03](atas/posts/r03.md), [R07](atas/posts/r07.md), [D12](decisoes.md#d12) | Vigente |
 | <span id="rf02"></span>**RF02** | **Autenticar usuário:** Permitir o acesso com credenciais válidas, iniciar a sessão e informar o motivo quando a autenticação for rejeitada. | CP5 | [R03](atas/posts/r03.md) | Vigente |
 | <span id="rf03"></span>**RF03** | **Visualizar perfil de usuário:** Exibir ao usuário autenticado os dados do próprio perfil. | CP5 | [R04](atas/posts/r04.md) | Vigente |
 | <span id="rf04"></span>**RF04** | **Editar perfil de usuário:** Permitir ao usuário autenticado alterar seus dados de perfil e salvar as mudanças após a validação. | CP5 | [R04](atas/posts/r04.md) | Vigente |
@@ -289,7 +289,6 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 - Inclusão do alerta de saldo negativo (RN18) entre as preferências do RF58;
 - Características CP7 e CP8 e o objetivo do projeto que cada uma atende;
 - Regra de apuração do valor realizado e associação de lançamentos a metas financeiras (tanto de contenção de gastos quanto de reserva pessoal) no RF36;
-- Comportamento padrão de disparo das notificações de limite (RF37 e RF38) e de conquistas (RF46) caso o módulo de configuração de notificações (RF58) não seja implementado no recorte do MVP;
 - Definição formal dos marcos para concessão de selos e conquistas (RF44) e da pontuação atribuída a cada tipo de meta concluída (RF45).
 
 ## Histórico de versões
@@ -319,4 +318,4 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 | 1.20 | 10/11/2026 | Confirma o RF59 como requisito vigente do MVP e remove sua pendência de validação. | Equipe UniCash |
 | 1.21 | 10/11/2026 | Retira do escopo atual os fluxos de importação, extração, anexos de comprovantes e backup por arquivo (Won't have now), conforme a D23. | Equipe UniCash |
 | 1.22 | 11/11/2026 | Define a apresentação dos percentuais com uma casa decimal na RN21 (issue #21) | Dante Scarpati |
-| 1.23 | 11/11/2026 | Revisa requisitos (issue #20): delimita campos em RF01 e RF07; esclarece meta de reserva no RF12; preserva RF36 registrando pendência de cálculo; preserva referências de notificações em RF37, RF38 e RF46 registrando pendência de padrão do MVP; harmoniza RF59 e RF61 ao modelo local-first; registra pendências em Pontos para validação | Leonardo Alves |
+| 1.23 | 11/11/2026 | Revisa requisitos (issue #20): delimita campos em RF01 e RF07; esclarece meta de reserva no RF12; preserva RF36 registrando pendência de cálculo; reconhece o RF58 confirmado no MVP como dependência de RF37, RF38 e RF46; harmoniza RF59 e RF61 ao modelo local-first; registra pendências em Pontos para validação | Leonardo Alves |
