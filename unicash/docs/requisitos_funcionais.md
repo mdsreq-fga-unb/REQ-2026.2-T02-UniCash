@@ -277,7 +277,7 @@ As faixas percentuais e as cores dos indicadores devem ser definidas na configur
 - **Entrada:** valores monetários devem ser informados com exatamente duas casas decimais.
 - **Persistência e cálculos:** os valores registrados mantêm duas casas decimais; não há arredondamento de casas decimais posteriores.
 - **Exibição:** valores em reais são apresentados com duas casas decimais.
-- **Percentuais:** percentuais derivados podem ser apresentados conforme a precisão definida para cada indicador, sem alterar o valor monetário armazenado.
+- **Percentuais:** percentuais derivados são apresentados com uma casa decimal, sem alterar o valor monetário armazenado.
 - **Soma dos percentuais:** a soma dos percentuais por categoria (RF42) não é ajustada a 100%.
 
 ## Pontos para validação
@@ -318,4 +318,5 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 | 1.19 | 07/11/2026 | Ajusta os requisitos ao modelo local-first (issue #21): retira a regra de precedência da RN06 e a exigência de usuário autenticado dos RF11, RF34, RF35, RF40 a RF43 e RF59; ajusta RF63 e RN04; inclui a RN21 | Dante Scarpati |
 | 1.20 | 10/11/2026 | Confirma o RF59 como requisito vigente do MVP e remove sua pendência de validação. | Equipe UniCash |
 | 1.21 | 10/11/2026 | Retira do escopo atual os fluxos de importação, extração, anexos de comprovantes e backup por arquivo (Won't have now), conforme a D23. | Equipe UniCash |
-| 1.22 | 11/11/2026 | Revisa requisitos (issue #20): delimita campos em RF01 e RF07; esclarece meta de reserva no RF12; preserva RF36 registrando pendência de cálculo; preserva referências de notificações em RF37, RF38 e RF46 registrando pendência de padrão do MVP; harmoniza RF59 e RF61 ao modelo local-first; registra pendências em Pontos para validação | Leonardo Alves |
+| 1.22 | 11/11/2026 | Define a apresentação dos percentuais com uma casa decimal na RN21 (issue #21) | Dante Scarpati |
+| 1.23 | 11/11/2026 | Revisa requisitos (issue #20): delimita campos em RF01 e RF07; esclarece meta de reserva no RF12; preserva RF36 registrando pendência de cálculo; preserva referências de notificações em RF37, RF38 e RF46 registrando pendência de padrão do MVP; harmoniza RF59 e RF61 ao modelo local-first; registra pendências em Pontos para validação | Leonardo Alves |
