@@ -46,8 +46,10 @@ export interface CategoriaFormProps {
   erroNomeExterno?: string | null;
   /** Avisada a cada edição do nome, para a tela limpar erros externos antigos. */
   onNomeAlterado?: () => void;
-  /** Chamado apenas com dados validados (CategoriaInput); nada é gravado sem eles (EX01). */
-  onSalvar: (dados: CategoriaInput) => void;
+  /** Chamado apenas com dados validados (CategoriaInput); nada é gravado sem eles (EX01).
+   *  Devolver a Promise da operação permite ao formulário liberar a trava de envio
+   *  quando ela termina (sucesso ou falha), sem depender da prop `salvando`. */
+  onSalvar: (dados: CategoriaInput) => void | Promise<void>;
   onCancelar: () => void;
 }
 
@@ -75,8 +77,11 @@ export function CategoriaForm({
   /**
    * Envio duplicado (defesa imediata): a prop `salvando` só chega na próxima
    * renderização, então dois toques rápidos escapariam dela. `enviando` bloqueia
-   * no mesmo ciclo e é liberado quando a tela encerra o salvamento
-   * (`salvando` volta a false — sucesso ou falha), permitindo nova tentativa.
+   * no mesmo ciclo e é liberado por um dos dois mecanismos:
+   * 1. `finally` da Promise devolvida por `onSalvar` — confiável mesmo quando a
+   *    operação falha antes de o React renderizar `salvando=true` (caso em que o
+   *    efeito abaixo não vê mudança de prop e nunca roda de novo);
+   * 2. efeito da prop `salvando` — cobre chamadores que não devolvem Promise.
    */
   const enviando = useRef(false);
   useEffect(() => {
@@ -96,7 +101,14 @@ export function CategoriaForm({
     setErros(e);
     if (dados) {
       enviando.current = true;
-      onSalvar(dados); // valores permanecem preenchidos mesmo com erros
+      const resultado = onSalvar(dados); // valores permanecem preenchidos mesmo com erros
+      if (resultado instanceof Promise) {
+        resultado
+          .finally(() => {
+            enviando.current = false; // libera a trava quando a operação termina
+          })
+          .catch(() => undefined); // o erro é tratado pela tela; aqui só liberamos a trava
+      }
     }
   }
 

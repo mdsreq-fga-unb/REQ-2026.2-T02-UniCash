@@ -1,4 +1,4 @@
-﻿import { fireEvent, render, screen } from '@testing-library/react-native';
+﻿import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { CategoriaForm } from '@/components/categorias/CategoriaForm';
 import type { CategoriaInput } from '@/features/categorias/types';
 import { MSG_CAT } from '@/features/categorias/validation';
@@ -187,6 +187,40 @@ describe('Formulário de categoria (B e C do UC06)', () => {
       await fireEvent.press(botao);
       expect(onSalvar).toHaveBeenCalledTimes(2);
       expect(onSalvar).toHaveBeenLastCalledWith({ nome: 'Mercado', limite: null });
+    });
+
+    it('rejeição imediata de onSalvar libera a trava para nova tentativa (regressão)', async () => {
+      // Regressão do colapso salvando false→true→false: quando a Promise rejeita
+      // antes de a tela renderizar salvando=true, o efeito da prop nunca roda de
+      // novo. A liberação deve vir do finally da Promise, sem atraso artificial.
+      const { onSalvar } = await montar();
+      await digitar('Nome', 'Mercado');
+      const botao = screen.getByLabelText('Salvar categoria');
+
+      onSalvar.mockRejectedValueOnce(new Error('falha imediata'));
+      await fireEvent.press(botao);
+      expect(onSalvar).toHaveBeenCalledTimes(1);
+
+      await fireEvent.press(botao); // nova tentativa logo após a falha
+      expect(onSalvar).toHaveBeenCalledTimes(2);
+      expect(onSalvar).toHaveBeenLastCalledWith({ nome: 'Mercado', limite: null });
+    });
+
+    it('bloqueia toques enquanto a Promise está pendente e libera após a rejeição', async () => {
+      const { onSalvar } = await montar();
+      await digitar('Nome', 'Mercado');
+      const botao = screen.getByLabelText('Salvar categoria');
+
+      let rejeitar!: (erro: unknown) => void;
+      onSalvar.mockImplementationOnce(() => new Promise<never>((_, rej) => (rejeitar = rej)));
+      await fireEvent.press(botao);
+      await fireEvent.press(botao); // operação em andamento: bloqueado
+      expect(onSalvar).toHaveBeenCalledTimes(1);
+
+      rejeitar(new Error('falha da operação'));
+      await act(async () => {}); // processa a rejeição imediata (microtasks do finally)
+      await fireEvent.press(botao); // falha encerrou a operação: nova tentativa liberada
+      expect(onSalvar).toHaveBeenCalledTimes(2);
     });
 
     it('botão Voltar fica desabilitado durante o salvamento', async () => {
