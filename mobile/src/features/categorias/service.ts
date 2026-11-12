@@ -1,25 +1,51 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
 import { gerarId } from '@/features/receitas/service';
-import type { Categoria, CategoriaComContagem, CategoriaInput } from './types';
+import type { Categoria, CategoriaInput } from './types';
 import { CATEGORIAS_PADRAO } from './types';
+import { MSG_CAT, EntradaCategoriaInvalida, normalizarNome, validarDadosCategoria } from './validation';
 
 /** Falha ao gravar/recalcular (EX03): nada foi alterado, pois a transação foi revertida. */
 export class FalhaPersistenciaCategoria extends Error {}
 /** Categoria inexistente ou já excluída (EX06). */
-export class CategoriaIndisponivel extends Error {}
+export class CategoriaIndisponivel extends Error {
+  constructor() {
+    super(MSG_CAT.indisponivel);
+    this.name = 'CategoriaIndisponivel';
+  }
+}
 /** Falha ao ler da base local (EX08). */
 export class FalhaLeituraCategoria extends Error {}
 /** Nome duplicado (EX07). */
-export class NomeDuplicado extends Error {}
+export class NomeDuplicado extends Error {
+  constructor() {
+    super(MSG_CAT.nomeDuplicado);
+    this.name = 'NomeDuplicado';
+  }
+}
 /** Ação proibida em categoria padrão (EX02). */
-export class CategoriaPadraoProtegida extends Error {}
+export class CategoriaPadraoProtegida extends Error {
+  constructor() {
+    super(MSG_CAT.categoriaPadrao);
+    this.name = 'CategoriaPadraoProtegida';
+  }
+}
+
+/**
+ * Nome reservado aos sete padrões já pertence a categoria própria ativa (RN13).
+ * A semeadura não converte o registro nem cria duplicata — aborta e reverte.
+ */
+export class NomeReservadoCategoriasPadrao extends Error {
+  constructor(nomes: string[]) {
+    super(
+      `Semeadura abortada: nomes reservados às categorias padrão já pertencem a categorias ` +
+        `próprias ativas (${nomes.join(', ')}). Nada foi alterado.`,
+    );
+    this.name = 'NomeReservadoCategoriasPadrao';
+  }
+}
 
 const agora = () => new Date().toISOString();
-
-function normalizar(nome: string): string {
-  return nome.trim().toLowerCase();
-}
 
 /** Operação composta numa única transação; só resolve após o commit (RN11, RNF05, RNF35). */
 async function transacao<T>(fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> {
@@ -34,6 +60,8 @@ async function transacao<T>(fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> 
     if (e instanceof CategoriaIndisponivel) throw e;
     if (e instanceof NomeDuplicado) throw e;
     if (e instanceof CategoriaPadraoProtegida) throw e;
+    if (e instanceof NomeReservadoCategoriasPadrao) throw e;
+    if (e instanceof EntradaCategoriaInvalida) throw e;
     throw new FalhaPersistenciaCategoria(String(e));
   }
 }
@@ -48,22 +76,38 @@ async function leitura<T>(fn: (db: SQLiteDatabase) => Promise<T>): Promise<T> {
 
 // ---------------------------------------------------------------- semeadura
 
-/** Semeia as categorias padrão no primeiro uso (RN13). Idempotente. */
+/**
+ * Semeia as categorias padrão (RN13). Idempotente e transacional.
+ * Insere apenas os padrões ausentes — funciona mesmo quando já existem
+ * categorias próprias. Tombstones de padrões são preservados; uma nova
+ * categoria ativa só é criada quando não existe linha ativa com o nome.
+ */
 export function semearCategoriasPadrao() {
   return transacao(async (tx) => {
-    const existente = await tx.getFirstAsync<{ n: number }>(
-      'SELECT COUNT(*) AS n FROM categorias',
+    const normais = CATEGORIAS_PADRAO.map(normalizarNome);
+    const placeholders = normais.map(() => '?').join(', ');
+    const linhas = await tx.getAllAsync<{ nome_normalizado: string; padrao: number }>(
+      `SELECT nome_normalizado, padrao FROM categorias
+        WHERE nome_normalizado IN (${placeholders}) AND excluido_em IS NULL`,
+      normais,
     );
-    if (existente && existente.n > 0) return;
+
+    // Nome reservado aos padrões pertencendo a categoria própria ativa (padrao = 0)
+    // não é convertido nem duplicado: aborta e reverte a transação inteira.
+    const proprias = linhas.filter((l) => l.padrao === 0).map((l) => l.nome_normalizado);
+    if (proprias.length > 0) throw new NomeReservadoCategoriasPadrao(proprias);
+
+    const ativos = new Set(linhas.map((l) => l.nome_normalizado));
 
     const ts = agora();
-    for (const nome of CATEGORIAS_PADRAO) {
+    for (let i = 0; i < CATEGORIAS_PADRAO.length; i++) {
+      if (ativos.has(normais[i])) continue;
       await tx.runAsync(
         `INSERT INTO categorias
           (id, nome, nome_normalizado, padrao, limite_tipo, limite_centavos, limite_percentual_centesimos,
            sync_status, excluido_em, criado_em, atualizado_em)
          VALUES (?, ?, ?, 1, NULL, NULL, NULL, 'pendente', NULL, ?, ?)`,
-        [gerarId(), nome, normalizar(nome), ts, ts],
+        [gerarId(), CATEGORIAS_PADRAO[i], normais[i], ts, ts],
       );
     }
   });
@@ -71,15 +115,17 @@ export function semearCategoriasPadrao() {
 
 // ---------------------------------------------------------------- consultas
 
-/** Lista todas as categorias ativas, com contagem de lançamentos (stub = 0 enquanto UC02 não existe). */
+/**
+ * Lista todas as categorias ativas. A contagem de lançamentos vinculados
+ * entra com a integração UC02 (tabela de despesas) — sem valores fictícios.
+ */
 export function listarCategorias() {
   return leitura(async (db) => {
-    // Quando a tabela de despesas existir, trocar por LEFT JOIN + COUNT.
-    const itens = await db.getAllAsync<CategoriaComContagem>(
-      `SELECT c.*, 0 AS total_lancamentos
-       FROM categorias c
-       WHERE c.excluido_em IS NULL
-       ORDER BY c.padrao DESC, c.nome ASC`,
+    const itens = await db.getAllAsync<Categoria>(
+      `SELECT c.*
+        FROM categorias c
+        WHERE c.excluido_em IS NULL
+        ORDER BY c.padrao DESC, c.nome ASC`,
     );
     return itens;
   });
@@ -98,12 +144,13 @@ export function buscarCategoria(id: string) {
 
 export function criarCategoria(input: CategoriaInput) {
   return transacao(async (tx) => {
-    const nomeNorm = normalizar(input.nome);
+    // Revalidação de domínio no serviço: o formulário pode não ser a única porta de entrada.
+    const dados = validarDadosCategoria(input.nome, input.limite);
 
-    // Verificar unicidade (RN13) — case-insensitive via nome_normalizado
+    // Unicidade (RN13) — case-insensitive via nome_normalizado
     const existente = await tx.getFirstAsync<{ id: string }>(
       'SELECT id FROM categorias WHERE nome_normalizado = ? AND excluido_em IS NULL',
-      [nomeNorm],
+      [dados.nomeNormalizado],
     );
     if (existente) throw new NomeDuplicado();
 
@@ -116,11 +163,11 @@ export function criarCategoria(input: CategoriaInput) {
        VALUES (?, ?, ?, 0, ?, ?, ?, 'pendente', NULL, ?, ?)`,
       [
         id,
-        input.nome.trim(),
-        nomeNorm,
-        input.limite?.tipo ?? null,
-        input.limite?.tipo === 'valor' ? (input.limite?.valor ?? null) : null,
-        input.limite?.tipo === 'percentual_renda' ? (input.limite?.valor ?? null) : null,
+        dados.nome,
+        dados.nomeNormalizado,
+        dados.limite?.tipo ?? null,
+        dados.limite?.tipo === 'valor' ? dados.limite.valor : null,
+        dados.limite?.tipo === 'percentual_renda' ? dados.limite.valor : null,
         ts,
         ts,
       ],
@@ -133,7 +180,8 @@ export function criarCategoria(input: CategoriaInput) {
 
 /**
  * Edita uma categoria.
- * - Categoria padrão: só o limite pode ser alterado (RN13, RN14). O nome é ignorado.
+ * - Categoria padrão (RN13, RN14): nome e identificação são imutáveis — um nome
+ *   divergente NÃO é ignorado silenciosamente, é rejeitado; só o limite muda.
  * - Categoria própria: nome e limite podem mudar.
  */
 export function editarCategoria(id: string, input: CategoriaInput) {
@@ -144,19 +192,21 @@ export function editarCategoria(id: string, input: CategoriaInput) {
     );
     if (!atual) throw new CategoriaIndisponivel();
 
+    const dados = validarDadosCategoria(input.nome, input.limite);
     const ts = agora();
 
     if (atual.padrao) {
-      // Categoria padrão: só altera o limite
+      if (dados.nomeNormalizado !== atual.nome_normalizado) throw new CategoriaPadraoProtegida();
+      // Categoria padrão: somente o limite é alterado.
       await tx.runAsync(
         `UPDATE categorias SET
            limite_tipo = ?, limite_centavos = ?, limite_percentual_centesimos = ?,
            sync_status = 'pendente', atualizado_em = ?
          WHERE id = ?`,
         [
-          input.limite?.tipo ?? null,
-          input.limite?.tipo === 'valor' ? (input.limite?.valor ?? null) : null,
-          input.limite?.tipo === 'percentual_renda' ? (input.limite?.valor ?? null) : null,
+          dados.limite?.tipo ?? null,
+          dados.limite?.tipo === 'valor' ? dados.limite.valor : null,
+          dados.limite?.tipo === 'percentual_renda' ? dados.limite.valor : null,
           ts,
           id,
         ],
@@ -165,11 +215,10 @@ export function editarCategoria(id: string, input: CategoriaInput) {
     }
 
     // Categoria própria: verificar unicidade do novo nome
-    const nomeNorm = normalizar(input.nome);
-    if (nomeNorm !== atual.nome_normalizado) {
+    if (dados.nomeNormalizado !== atual.nome_normalizado) {
       const existente = await tx.getFirstAsync<{ id: string }>(
         'SELECT id FROM categorias WHERE nome_normalizado = ? AND excluido_em IS NULL AND id <> ?',
-        [nomeNorm, id],
+        [dados.nomeNormalizado, id],
       );
       if (existente) throw new NomeDuplicado();
     }
@@ -181,11 +230,11 @@ export function editarCategoria(id: string, input: CategoriaInput) {
          sync_status = 'pendente', atualizado_em = ?
        WHERE id = ?`,
       [
-        input.nome.trim(),
-        nomeNorm,
-        input.limite?.tipo ?? null,
-        input.limite?.tipo === 'valor' ? (input.limite?.valor ?? null) : null,
-        input.limite?.tipo === 'percentual_renda' ? (input.limite?.valor ?? null) : null,
+        dados.nome,
+        dados.nomeNormalizado,
+        dados.limite?.tipo ?? null,
+        dados.limite?.tipo === 'valor' ? dados.limite.valor : null,
+        dados.limite?.tipo === 'percentual_renda' ? dados.limite.valor : null,
         ts,
         id,
       ],

@@ -16,11 +16,6 @@ export interface Categoria {
   atualizado_em: string;
 }
 
-/** Categoria com contagem de lançamentos vinculados. */
-export interface CategoriaComContagem extends Categoria {
-  total_lancamentos: number;
-}
-
 /** Dados já validados e normalizados, prontos para gravar. */
 export interface CategoriaInput {
   nome: string;
