@@ -1,0 +1,260 @@
+import Database from 'better-sqlite3';
+import { ESQUEMA_SQL } from '@/db/schema';
+
+/**
+ * Testes das restrições estruturais do schema (E2.1, issue #43 / UC06).
+ * Executa o ESQUEMA_SQL real em um SQLite em memória e valida os CHECKs,
+ * a unicidade de nomes ativos e os tombstones na camada do banco.
+ */
+describe('Schema do banco — restrições de categorias', () => {
+  let sqlite: Database.Database;
+
+  beforeEach(() => {
+    sqlite = new Database(':memory:');
+    sqlite.exec(ESQUEMA_SQL);
+  });
+
+  let sequenciaId = 0;
+
+  const base = {
+    nome: 'Casa',
+    nome_normalizado: 'casa',
+    padrao: 0,
+    limite_tipo: null as string | null,
+    limite_centavos: null as number | null,
+    limite_percentual_centesimos: null as number | null,
+    sync_status: 'pendente',
+    excluido_em: null as string | null,
+    criado_em: '2026-11-12T10:00:00Z',
+    atualizado_em: '2026-11-12T10:00:00Z',
+  };
+
+  function inserir(overrides: Partial<typeof base> = {}): void {
+    sequenciaId++;
+    const linha = { id: `cat-${sequenciaId}`, ...base, ...overrides };
+    sqlite
+      .prepare(
+        `INSERT INTO categorias
+           (id, nome, nome_normalizado, padrao, limite_tipo, limite_centavos,
+            limite_percentual_centesimos, sync_status, excluido_em, criado_em, atualizado_em)
+         VALUES (@id, @nome, @nome_normalizado, @padrao, @limite_tipo, @limite_centavos,
+            @limite_percentual_centesimos, @sync_status, @excluido_em, @criado_em, @atualizado_em)`,
+      )
+      .run(linha);
+  }
+
+  const contaCategorias = () => (sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get() as any).n;
+
+  describe('entradas válidas', () => {
+    it('aceita categoria sem limite', () => {
+      expect(() => inserir()).not.toThrow();
+    });
+
+    it('aceita limite por valor em centavos', () => {
+      expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 150_000 })).not.toThrow();
+    });
+
+    it('aceita limite percentual em centésimos', () => {
+      expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 1_500 })).not.toThrow();
+    });
+
+    it('aceita categorias padrão (padrao = 1) e sincronizadas', () => {
+      expect(() =>
+        inserir({ nome: 'Alimentação', nome_normalizado: 'alimentação', padrao: 1, sync_status: 'sincronizado' }),
+      ).not.toThrow();
+    });
+  });
+
+  describe('nome (RN13)', () => {
+    it('rejeita nome vazio', () => {
+      expect(() => inserir({ nome: '', nome_normalizado: '' })).toThrow(/CHECK constraint failed: nome_valido/);
+    });
+
+    it('rejeita nome com 31 caracteres', () => {
+      const nome31 = 'a'.repeat(31);
+      expect(() => inserir({ nome: nome31, nome_normalizado: nome31 })).toThrow(/CHECK constraint failed: nome_valido/);
+    });
+
+    it('aceita nome com 30 caracteres (limite máximo)', () => {
+      const nome30 = 'b'.repeat(30);
+      expect(() => inserir({ nome: nome30, nome_normalizado: nome30 })).not.toThrow();
+    });
+
+    it('rejeita nome nulo (NOT NULL)', () => {
+      expect(() => inserir({ nome: null as any, nome_normalizado: 'nulo' })).toThrow();
+    });
+  });
+
+  describe('padrao', () => {
+    it('rejeita valor fora de (0, 1)', () => {
+      expect(() => inserir({ padrao: 2 })).toThrow(/CHECK constraint failed: padrao_valido/);
+      expect(() => inserir({ padrao: -1 })).toThrow(/CHECK constraint failed: padrao_valido/);
+    });
+  });
+
+  describe('limite monetário (RN09)', () => {
+    it('rejeita limite zero e negativo', () => {
+      expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 0 })).toThrow(
+        /CHECK constraint failed: limite_centavos_valido/,
+      );
+      expect(() => inserir({ limite_tipo: 'valor', limite_centavos: -1 })).toThrow(
+        /CHECK constraint failed: limite_centavos_valido/,
+      );
+    });
+
+    it('rejeita limite acima de 99999999999 centavos', () => {
+      expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 100_000_000_000 })).toThrow(
+        /CHECK constraint failed: limite_centavos_valido/,
+      );
+    });
+
+    it('aceita limite de exatamente 99999999999 centavos (R$ 999.999.999,99)', () => {
+      expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 99_999_999_999 })).not.toThrow();
+    });
+
+    it('rejeita valor não inteiro (typeof real/texto)', () => {
+      // REAL com parte fracionária permanece real (afinidade INTEGER não converte sem perda).
+      expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 10.5 as any })).toThrow(
+        /CHECK constraint failed: limite_centavos_valido/,
+      );
+      // Texto não numérico permanece texto (afinidade INTEGER só converte numéricos).
+      expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 'muito' as any })).toThrow(
+        /CHECK constraint failed: limite_centavos_valido/,
+      );
+    });
+
+    it('texto numérico é convertido pela afinidade INTEGER e gravado como inteiro', () => {
+      inserir({ limite_tipo: 'valor', limite_centavos: '100' as any });
+      const r = sqlite
+        .prepare('SELECT limite_centavos, typeof(limite_centavos) AS tipo FROM categorias WHERE limite_centavos = 100')
+        .get() as any;
+      expect(r).toEqual({ limite_centavos: 100, tipo: 'integer' });
+    });
+  });
+
+  describe('limite percentual', () => {
+    it('rejeita percentual zero e negativo', () => {
+      expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 0 })).toThrow(
+        /CHECK constraint failed: limite_percentual_valido/,
+      );
+      expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: -10 })).toThrow(
+        /CHECK constraint failed: limite_percentual_valido/,
+      );
+    });
+
+    it('rejeita percentual não inteiro (typeof real/texto)', () => {
+      // REAL com parte fracionária permanece real (afinidade INTEGER não converte sem perda).
+      expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 1.5 as any })).toThrow(
+        /CHECK constraint failed: limite_percentual_valido/,
+      );
+      // Texto não numérico permanece texto (afinidade INTEGER só converte numéricos).
+      expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 'dez' as any })).toThrow(
+        /CHECK constraint failed: limite_percentual_valido/,
+      );
+    });
+  });
+
+  describe('coerência entre limite_tipo e colunas de limite', () => {
+    it('rejeita limite_tipo nulo com limite_centavos preenchido', () => {
+      expect(() => inserir({ limite_centavos: 100 })).toThrow(/CHECK constraint failed: limite_coerente/);
+    });
+
+    it('rejeita limite_tipo nulo com limite_percentual_centesimos preenchido', () => {
+      expect(() => inserir({ limite_percentual_centesimos: 100 })).toThrow(/CHECK constraint failed: limite_coerente/);
+    });
+
+    it('rejeita limite_tipo nulo com ambas as colunas preenchidas', () => {
+      expect(() => inserir({ limite_centavos: 100, limite_percentual_centesimos: 100 })).toThrow(
+        /CHECK constraint failed: limite_coerente/,
+      );
+    });
+
+    it('rejeita limite_tipo "valor" sem limite_centavos', () => {
+      expect(() => inserir({ limite_tipo: 'valor' })).toThrow(/CHECK constraint failed: limite_coerente/);
+    });
+
+    it('rejeita limite_tipo "valor" com limite_percentual_centesimos preenchido', () => {
+      expect(() => inserir({ limite_tipo: 'valor', limite_percentual_centesimos: 100 })).toThrow(
+        /CHECK constraint failed: limite_coerente/,
+      );
+    });
+
+    it('rejeita limite_tipo "valor" com ambas as colunas preenchidas', () => {
+      expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 100, limite_percentual_centesimos: 100 })).toThrow(
+        /CHECK constraint failed: limite_coerente/,
+      );
+    });
+
+    it('rejeita limite_tipo "percentual_renda" sem limite_percentual_centesimos', () => {
+      expect(() => inserir({ limite_tipo: 'percentual_renda' })).toThrow(/CHECK constraint failed: limite_coerente/);
+    });
+
+    it('rejeita limite_tipo "percentual_renda" com limite_centavos preenchido', () => {
+      expect(() => inserir({ limite_tipo: 'percentual_renda', limite_centavos: 100 })).toThrow(
+        /CHECK constraint failed: limite_coerente/,
+      );
+    });
+
+    it('rejeita limite_tipo inválido (valor textual arbitrário)', () => {
+      expect(() => inserir({ limite_tipo: 'invalido' })).toThrow(/CHECK constraint failed: limite_tipo_valido/);
+    });
+  });
+
+  describe('sync_status', () => {
+    it('rejeita valor inválido', () => {
+      expect(() => inserir({ sync_status: 'enviado' })).toThrow(/CHECK constraint failed: sync_status_valido/);
+    });
+  });
+
+  describe('unicidade de nomes ativos (RN13) e tombstones', () => {
+    it('rejeita nome normalizado duplicado entre ativas', () => {
+      inserir({ nome: 'Casa', nome_normalizado: 'casa' });
+      expect(() => inserir({ nome: 'casa ', nome_normalizado: 'casa' })).toThrow(/UNIQUE constraint failed/);
+    });
+
+    it('permite mesmo nome após exclusão lógica (tombstone) da anterior', () => {
+      inserir({ nome: 'Lazer', nome_normalizado: 'lazer', excluido_em: '2026-11-12T09:00:00Z' });
+      expect(() => inserir({ nome: 'Lazer', nome_normalizado: 'lazer' })).not.toThrow();
+      expect(contaCategorias()).toBe(2);
+    });
+
+    it('aceita nomes ativos distintos', () => {
+      inserir({ nome: 'Casa', nome_normalizado: 'casa' });
+      inserir({ nome: 'Saúde', nome_normalizado: 'saúde' });
+      expect(contaCategorias()).toBe(2);
+    });
+  });
+
+  describe('preservação de receitas, recorrências e índices', () => {
+    it('mantém as tabelas de receitas e recorrências funcionais', () => {
+      sqlite
+        .prepare(
+          "INSERT INTO recorrencias (id, intervalo, unidade, inicio, ativa, valor_centavos, titulo, sync_status, atualizado_em) VALUES ('r1', 1, 'mes', '2026-11-12', 1, 1000, 'Aluguel', 'pendente', '2026-11-12T10:00:00Z')",
+        )
+        .run();
+      sqlite
+        .prepare(
+          "INSERT INTO receitas (id, valor_centavos, data, titulo, sync_status, criado_em, atualizado_em) VALUES ('e1', 1000, '2026-11-12', 'Freela', 'pendente', '2026-11-12T10:00:00Z', '2026-11-12T10:00:00Z')",
+        )
+        .run();
+      const receita = sqlite.prepare('SELECT * FROM receitas WHERE id = ?').get('e1') as any;
+      expect(receita.valor_centavos).toBe(1000);
+    });
+
+    it('mantém os índices existentes', () => {
+      const objetos = sqlite
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'idx_%'")
+        .all() as any[];
+      const nomes = objetos.map((o) => o.name);
+      expect(nomes).toEqual(
+        expect.arrayContaining([
+          'idx_receitas_data',
+          'idx_receitas_recorrencia',
+          'idx_receitas_sync',
+          'idx_categorias_nome_unico',
+          'idx_categorias_sync',
+        ]),
+      );
+    });
+  });
+});
