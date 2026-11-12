@@ -287,7 +287,7 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 - RF57, incluído na revisão da avaliação cruzada para mitigar riscos ([D07](decisoes.md#d07)), ainda sem confirmação da cliente;
 - RF65, RF66 e RF67, requisitos latentes de categoria identificados pela equipe na escrita dos casos de uso ([D16](decisoes.md#d16));
 - Inclusão do alerta de saldo negativo (RN18) entre as preferências do RF58;
-- Características CP7 e CP8 e o objetivo do projeto que cada uma atende.
+- Vínculos das características CP7 e CP8 com os objetivos específicos, registrados na [Solução Proposta, seção 2.3](solucao.md#23-caracteristicas-de-produto-mapeadas-com-os-objetivos-especificos-do-produto): CP7 contribui principalmente para o OE4 e secundariamente para o OE2, e CP8 contribui da mesma forma para o OE4 e o OE2. **Estado de validação: proposto, pendente de confirmação pela cliente.** Nenhuma ata registra a confirmação; a [R07](atas/posts/r07.md) registra apenas que os grupos (CP7) ficam fora do MVP. O estado dos vínculos está detalhado na [seção 5.5 de Engenharia de requisitos](engenharia_de_requisitos.md#estado-de-validacao-dos-vinculos-com-os-objetivos).
 
 ## Histórico de versões
 
@@ -314,5 +314,6 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 | 1.18 | 05/11/2026 | Relaciona os requisitos de uso local, backup e sincronização à decisão D20 | Equipe UniCash |
 | 1.19 | 07/11/2026 | Ajusta os requisitos ao modelo local-first (issue #21): retira a regra de precedência da RN06 e a exigência de usuário autenticado dos RF11, RF34, RF35, RF40 a RF43 e RF59; ajusta RF63 e RN04; inclui a RN21 | Dante Scarpati |
 | 1.20 | 10/11/2026 | Confirma o RF59 como requisito vigente do MVP e remove sua pendência de validação. | Equipe UniCash |
-| 1.21 | 10/11/2026 | Retira do escopo atual os fluxos de importação, extração, anexos de comprovantes e backup por arquivo (Won't have now), conforme a D23. | Equipe UniCash |
+| 1.21 | 10/11/2026 | Retira do escopo atual os fluxos de importação, extração, anexos de comprovantes e backup por arquivo (Won't have now), conforme a D23. | Erick Alves |
 | 1.22 | 11/11/2026 | Define a apresentação dos percentuais com uma casa decimal na RN21 (issue #21) | Dante Scarpati |
+| 1.23 | 12/11/2026 | Registra o estado de validação dos vínculos de CP7 e CP8 com os objetivos específicos nos pontos para validação (issue #19) | Equipe UniCash |
