@@ -35,7 +35,7 @@ As notas são calculadas em três passos:
 
 Os seis integrantes considerados no cálculo preencheram os três critérios de RF01 a RF56. Bruno não respondeu no período solicitado e, por isso, ficou de fora do cálculo de algun requisitos, embora a planilha registre 23 preenchimentos posteriores.
 
-Por exemplo, RF01 recebeu notas de valor **4, 4 e 2**, resultando em uma média de **3,33**. A média de esforço dos cinco integrantes é **1,93**. Isso coloca o requisito na faixa de valor alto e esforço moderado.
+Por exemplo, RF01 recebeu notas de valor **4, 4 e 2**, resultando em uma média de **3,33**. A média de esforço dos cinco integrantes é **1,85**. Isso coloca o requisito na faixa de valor alto e esforço moderado.
 
 As médias completas são usadas na classificação. Os números apresentados no gráfico são arredondados para duas casas decimais.
 
