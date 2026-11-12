@@ -16,7 +16,7 @@ Nas tabelas a seguir, cada técnica informa os participantes e o critério de se
 - **Cliente:** Leinad Santos França, idealizadora do produto e Embaixadora do Negócio.
 - **Representantes dos segmentos:** Maria Vitória, representante dos estudantes, e Alana França, representante das famílias.
 - **Usuários representativos:** pelo menos cinco estudantes universitários e três representantes de famílias em cada ciclo de validação relevante (seção 7.3). Os estudantes são selecionados entre graduandos que custeiam despesas próprias com renda limitada, com preferência por bolsistas. Os representantes de famílias são selecionados entre pessoas responsáveis pelo orçamento doméstico. Por orientação do professor, a validação também inclui pós-graduandos, indicados pela cliente ([R03](atas/posts/r03.md)). O recrutamento é feito por meio da cliente e das representantes dos segmentos.
-- **Equipe:** os papéis de cada integrante estão descritos nas seções 4.1 e 7.3.
+- **Equipe:** os papéis de cada integrante estão descritos na [seção 7.1 — Composição da Equipe](interacao.md#71-composição-da-equipe).
 
 ---
 
