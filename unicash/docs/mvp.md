@@ -31,11 +31,9 @@ As notas são calculadas em três passos:
 
 1. **Valor de negócio:** somam-se as notas de Leinad, Alana e Maria e divide-se por três.
 2. **Esforço de cada integrante:** somam-se as notas de esforço, complexidade e lacuna de capacidade e divide-se por três. Cada critério recebe uma nota de 1 a 4; quanto maior a nota, maior a dificuldade.
-3. **Esforço técnico final:** calcula-se a média dos resultados de Natan, Dante, Erick, Evellyn, Caio, Leonardo e Bruno dividindo a soma por sete. Todos têm o mesmo peso.
+3. **Esforço técnico final:** é a média de todos os integrantes que preencheram os três critérios daquele requisito: 7 avaliadores em 23 requisitos e 6 nos outros 33 (Bruno preencheu apenas 23).
 
-Os seis integrantes considerados no cálculo preencheram os três critérios de RF01 a RF56. Bruno não respondeu todos os requisitos no período solicitado (30/09/2026) e, por isso, ficou de fora do cálculo de alguns requisitos.
-
-Por exemplo, RF01 recebeu notas de valor **4, 4 e 2**, resultando em uma média de **3,33**. A média de esforço dos cinco integrantes é **1,85**. Isso coloca o requisito na faixa de valor alto e esforço moderado.
+Por exemplo, RF01 recebeu notas de valor **4, 4 e 2**, resultando em uma média de **3,33**. Como tem 7 avaliadores, sua média de esforço é **1,857**, apresentada como **1,86**, e não **1,85**. Isso coloca o requisito na faixa de valor alto e esforço moderado.
 
 As médias completas são usadas na classificação. Os números apresentados no gráfico são arredondados para duas casas decimais.
 
@@ -52,87 +50,6 @@ A planilha cobre apenas RF01 a RF56; RF57 a RF64 ainda não têm notas nessa pri
 
 ### 1.2 Critério de decisão
 
-<div id="matriz-valor-esforco" style="width:100%;height:1050px;"></div>
-<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
-<script>
-(function () {
-  var D = [
-    ["RF01","Cadastrar usuário",3.333333333,1.857142857],["RF02","Autenticar usuário",3.333333333,2],
-    ["RF03","Visualizar perfil de usuário",3.666666667,1],["RF04","Editar perfil de usuário",3.666666667,1.047619048],
-    ["RF05","Excluir perfil de usuário",4,1.238095238],["RF06","Encerrar sessão",4,1.428571429],
-    ["RF07","Registrar receita",4,1.047619048],["RF08","Consultar receitas",4,1.047619048],
-    ["RF09","Editar receita",4,1.047619048],["RF10","Excluir receita",4,1.047619048],
-    ["RF11","Calcular total de receitas",4,1],["RF12","Criar meta financeira",4,1.380952381],
-    ["RF13","Editar meta financeira",4,1],["RF14","Excluir meta financeira",4,1],
-    ["RF15","Registrar despesa",4,1],["RF16","Consultar despesas",4,1.19047619],
-    ["RF17","Editar despesa",4,1.047619048],["RF18","Excluir despesa",4,1.047619048],
-    ["RF19","Criar categoria de despesas",4,1],["RF20","Visualizar metas financeiras",4,1],
-    ["RF21","Importar extrato bancário",2.333333333,3.238095238],["RF22","Criar grupo de amigos ou família",3,2],
-    ["RF23","Entrar em grupo de amigos ou família",2,1.857142857],["RF24","Convidar membro para grupo",2,2.166666667],
-    ["RF25","Sair de grupo de amigos ou família",3,1.777777778],["RF26","Tornar controle financeiro privado",4,1.888888889],
-    ["RF27","Visualizar metas de membros do grupo",2,2],["RF28","Criar meta do grupo",2,1.666666667],
-    ["RF29","Visualizar metas do grupo",2,1.333333333],["RF30","Classificar usuários do grupo",2,1.666666667],
-    ["RF31","Recuperar senha",3,2.555555556],["RF32","Definir lançamento recorrente",4,2.055555556],
-    ["RF33","Editar ocorrência de lançamento recorrente",4,1.777777778],["RF34","Calcular saldo mensal",4,1.333333333],
-    ["RF35","Reportar saldo anterior",4,1.333333333],["RF36","Acompanhar progresso da meta",4,1.166666667],
-    ["RF37","Notificar aproximação do limite",4,2.055555556],["RF38","Notificar ultrapassagem do limite",4,2.055555556],
-    ["RF39","Exibir indicador de categoria",3.666666667,1.944444444],["RF40","Gerar resumo financeiro inicial",4,1.888888889],
-    ["RF41","Exibir gráfico de despesas",3.666666667,1.944444444],["RF42","Exibir percentual por categoria",3.666666667,1.722222222],
-    ["RF43","Exibir previsão de faturas",2,2.166666667],["RF44","Conceder conquistas financeiras",4,2.222222222],
-    ["RF45","Atribuir pontuação por metas",4,2.111111111],["RF46","Notificar conquista obtida",4,2.388888889],
-    ["RF47","Classificar lançamentos importados",2,2.833333333],["RF48","Identificar lançamento duplicado",4,2.833333333],
-    ["RF49","Consolidar extratos de contas",2,3.5],["RF50","Registrar despesa por comprovante",1,3.222222222],
-    ["RF51","Definir papel de membro",3,2.111111111],["RF52","Consolidar dados do grupo",2,1.944444444],
-    ["RF53","Comparar gastos do grupo",2,2.055555556],["RF54","Importar formatos de extrato",1,3],
-    ["RF55","Apresentar tutorial inicial",4,2.055555556],["RF56","Avisar manutenção programada",4,2.722222222]
-  ];
-  var fmt = function (n) { return n.toFixed(2).replace(".", ","); };
-  // cor por célula [valor][esforço]
-  var C = {4:{1:"p",2:"m",3:"a",4:"pl"},3:{1:"m",2:"m",3:"a",4:"f"},2:{1:"a",2:"f",3:"f",4:"b"},1:{1:"a",2:"b",3:"b",4:"b"}};
-  var COL = {p:"#8fdca3",m:"#cdeed3",a:"#cfe0fb",pl:"#fbe9b0",f:"#ececef",b:"#f6c9c9"};
-  var xe = [0.8,1.5,2.5,3.5,4.2], ye = [0.8,1.5,2.5,3.5,4.0], shapes = [];
-  for (var i = 0; i < 4; i++) for (var j = 0; j < 4; j++) {
-    shapes.push({type:"rect",xref:"x",yref:"y",x0:xe[i],x1:xe[i+1],y0:ye[j],y1:ye[j+1],
-      fillcolor:COL[C[j+1][i+1]],line:{color:"#fff",width:2},layer:"below"});
-  }
-  // agrupa requisitos com médias idênticas
-  var G = {};
-  D.forEach(function (r) {
-    var k = r[2].toFixed(3) + "|" + r[3].toFixed(3);
-    (G[k] = G[k] || {v:r[2], e:r[3], r:[]}).r.push(r);
-  });
-  var pts = Object.keys(G).map(function (k) { return G[k]; });
-  var trace = {
-    type:"scatter", mode:"markers",
-    x: pts.map(function (p) { return p.e; }),
-    y: pts.map(function (p) { return p.v; }),
-    marker:{size:9,color:"#1c1c1e",line:{color:"#fff",width:1}},
-    customdata: pts.map(function (p) {
-      return p.r.map(function (r) { return "<b>" + r[0] + "</b> " + r[1]; }).join("<br>")
-        + "<br><br>Valor: " + fmt(p.v) + " | Esforço: " + fmt(p.e);
-    }),
-    hovertemplate: "%{customdata}<extra></extra>"
-  };
-  var notes = pts.map(function (p) {
-    var lado = p.v > 3.5 && p.v < 3.9; // linha 3,67: rótulo horizontal, à direita
-    return {x:p.e, y:p.v, xref:"x", yref:"y", showarrow:false,
-      text: p.r.map(function (r) { return r[0]; }).join(" "),
-      font:{size:11,color:"#1c1c1e"},
-      textangle: lado ? 0 : -90,
-      xanchor: lado ? "left" : "center",
-      yanchor: lado ? "middle" : "bottom",
-      xshift: lado ? 8 : 0, yshift: lado ? 0 : 8};
-  });
-  var layout = {
-    title:{text:"Valor de Negócio × Esforço Técnico — Unicash",font:{size:25}},
-    xaxis:{title:"Esforço técnico (média) →",range:[0.8,4.2],tickvals:[1,2,3,4],zeroline:false,showgrid:false,fixedrange:true},
-    yaxis:{title:"Valor de negócio (média) →",range:[0.8,4.0],tickvals:[1,2,3,4],zeroline:false,showgrid:false,fixedrange:true},
-    shapes:shapes, annotations:notes, showlegend:false,
-    margin:{t:300,r:30,b:70,l:70}, paper_bgcolor:"#fff", plot_bgcolor:"#fff", hovermode:"closest"
-  };
-  Plotly.newPlot("matriz-valor-esforco", [trace], layout, {responsive:true, displayModeBar:false});
-})();
-</script>
 <div id="matriz-valor-esforco" style="width:100%;height:1050px;" role="region" aria-label="Matriz de valor de negócio e esforço técnico">O gráfico interativo é exibido no site publicado. As notas também podem ser consultadas na planilha de priorização indicada no início desta página.</div>
 
 
