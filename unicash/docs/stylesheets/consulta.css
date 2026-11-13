@@ -294,3 +294,32 @@
     align-items: flex-start;
   }
 }
+/* ----- Ajuste para exibir a tabela sem rolagem horizontal ----- */
+
+.catalogo-tabela-container {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+.catalogo-tabela {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+  font-size: 0.78rem;
+}
+
+.catalogo-tabela th,
+.catalogo-tabela td {
+  padding: 10px 7px;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.catalogo-col-deps {
+  min-width: 0;
+}
+
+.catalogo-col-status {
+  white-space: normal;
+}
