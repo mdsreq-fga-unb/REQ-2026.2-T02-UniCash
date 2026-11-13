@@ -15,6 +15,8 @@ Em `package.json`, em `scripts`:
 ```
 
 - `npm test` roda unitários, serviço (SQLite em memória) e telas. Não precisa de emulador nem de celular.
+- Se um teste de tela falhar por timeout de forma intermitente, rode os testes em modo
+  serial com `npm test -- --runInBand`.
 - `npm run test:rules` roda as Security Rules no Firebase Emulator Suite (precisa de `firebase-tools`, Java e do `firebase.json` com a chave `firestore`). Se o `firestore.rules` não estiver na raiz do repositório, defina `FIRESTORE_RULES_PATH`.
 
 ## 2. Mapa do checklist → arquivos
@@ -32,7 +34,7 @@ Em `package.json`, em `scripts`:
 | EX06: receita já excluída | `service/editar.test.ts`, `screens/DetalheReceita.test.tsx`, `screens/EditarReceita.test.tsx` |
 | EX08: falha de leitura local | `service/leitura.test.ts`, `screens/ListaReceitas.test.tsx`, `screens/DetalheReceita.test.tsx`, `screens/EditarReceita.test.tsx` |
 | Encerramento forçado durante a gravação (RNF35) | simulado em `service/atomicidade.test.ts`; roteiro real em 3.1 |
-| Offline com reinício; excluir, sincronizar e restaurar da nuvem | `service/sync.test.ts`; roteiro real em 3.2 |
+| Offline com reinício; excluir, sincronizar e restaurar da nuvem; EX07 (acesso negado) | `service/sync.test.ts`, `screens/ListaReceitas.test.tsx`; roteiro real em 3.2 |
 | Security Rules, inclusive outro usuário (RNF03) | `rules/firestore.rules.test.ts` |
 | Usabilidade RNF14 e RNF27 | roteiros 3.3 e 3.4 |
 
@@ -49,7 +51,7 @@ Em `package.json`, em `scripts`:
 2. Feche e reabra o app ainda offline. **Esperado:** os dados continuam lá e continuam pendentes.
 3. Desative o modo avião e abra a lista. **Esperado:** pendências somem e os documentos aparecem em `usuarios/{uid}/receitas` no console do Firebase.
 4. Exclua uma receita já sincronizada e deixe sincronizar. **Esperado:** o documento some do console.
-5. **Restauração da nuvem:** o app ainda não tem a função de restaurar dados (item do checklist que depende de uma tela/fluxo de "entrar e recuperar dados"). Quando existir, repita: após restaurar, a receita excluída **não** deve reaparecer e as séries não devem duplicar ocorrências.
+5. **Restauração da nuvem:** a função `restaurarDaNuvem()` (em `sync.ts`) já existe e é coberta por `service/sync.test.ts`. Para validar no aparelho: com a conta conectada e dados sincronizados, desinstale/limpe o app, entre na mesma conta e acione a restauração. **Esperado:** receitas e séries voltam sem duplicar ocorrências, e a receita excluída **não** reaparece. A tela/botão que chama a função pertence ao fluxo de login/cadastro (fora do UC01).
 
 ### 3.3 RNF14 – o usuário identifica o motivo do erro (4 de 5)
 - Recrute 5 pessoas. Para cada uma, mostre a tela de nova receita já com um erro provocado (um por pessoa, rodando os 5 primeiros): data vazia; título só com espaços; valor `0`; valor `10,999`; término anterior ao início.
