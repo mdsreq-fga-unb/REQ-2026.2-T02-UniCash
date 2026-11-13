@@ -19,6 +19,8 @@ export const MSG = {
   falhaSalvar: 'Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente.',
   indisponivel: 'Esta receita não está mais disponível.',
   semAcesso: 'Você não tem acesso a esta receita.',
+  acessoNegado: 'A nuvem negou o acesso à sua conta. Suas receitas continuam salvas neste aparelho; entre novamente para sincronizar.',
+  falhaRestauracao: 'Não foi possível restaurar seus dados da nuvem. Nada foi alterado. Tente novamente.',
   falhaLeitura: 'Não foi possível carregar as receitas. Tente novamente.',
 } as const;
 
