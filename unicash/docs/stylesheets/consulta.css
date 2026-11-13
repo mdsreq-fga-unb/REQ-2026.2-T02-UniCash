@@ -1,11 +1,11 @@
-/* ===== CATÁLOGO DE CASOS DE USO: TABELA EXPANSÍVEL ===== */
 
-/* Paleta institucional do catálogo (azul-marinho do cabeçalho do site). */
+/* ===== CATÁLOGO DE CASOS DE USO ===== */
+
 :root {
-  --uc-azul: #0b3a6e;              /* botão "+ UCxx" */
+  --uc-azul: #0b3a6e;
   --uc-azul-hover: #072a52;
-  --uc-cabecalho: #0a2a4a;         /* cabeçalho da tabela */
-  --uc-azul-claro: #eef4fb;        /* hover de linha e área expandida */
+  --uc-cabecalho: #0a2a4a;
+  --uc-azul-claro: #eef4fb;
   --uc-borda: #d5e0ee;
   --uc-zebra: #f8fafd;
 }
@@ -19,8 +19,11 @@
   --uc-zebra: rgba(80, 140, 210, 0.05);
 }
 
+/* ----- Tabela ----- */
+
 .catalogo-tabela-container {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   margin-top: 1rem;
   border: 1px solid var(--uc-borda);
@@ -30,8 +33,9 @@
 
 .catalogo-tabela {
   width: 100%;
-  min-width: 900px;
+  min-width: 1100px;
   border-collapse: collapse;
+  table-layout: auto;
   font-size: 0.85rem;
 }
 
@@ -42,9 +46,10 @@
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  border-bottom: 0;
+  white-space: normal;
+  vertical-align: middle;
 }
 
 .catalogo-tabela td {
@@ -52,6 +57,8 @@
   vertical-align: top;
   border-bottom: 1px solid var(--uc-borda);
   color: var(--md-default-fg-color);
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .catalogo-tabela tbody tr.catalogo-linha:nth-of-type(4n + 1) {
@@ -62,7 +69,7 @@
   background: var(--uc-azul-claro);
 }
 
-/* ----- Botão "+ UCxx" ----- */
+/* ----- Botão de expansão ----- */
 
 .catalogo-expansor {
   border: 0;
@@ -83,10 +90,11 @@
   color: #fff;
 }
 
-/* ----- Status de implementação ----- */
+/* ----- Status ----- */
 
 .catalogo-col-status {
-  white-space: nowrap;
+  white-space: normal;
+  min-width: 130px;
 }
 
 .catalogo-status {
@@ -142,7 +150,7 @@
 /* ----- Dependências funcionais ----- */
 
 .catalogo-col-deps {
-  min-width: 190px;
+  min-width: 240px;
 }
 
 .catalogo-deps {
@@ -169,14 +177,12 @@
   border: 1px solid var(--uc-azul);
 }
 
-/* RF principal do caso de uso: preenchido */
 .catalogo-dep-principal {
   background: var(--uc-azul-claro);
   color: var(--uc-azul);
   font-weight: 700;
 }
 
-/* RF apenas relacionado: contorno discreto */
 .catalogo-dep-relacionado {
   background: transparent;
   border-color: var(--uc-borda);
@@ -281,9 +287,11 @@
   font-size: 0.8rem;
 }
 
+/* ----- Telas menores ----- */
+
 @media (max-width: 768px) {
   .catalogo-tabela {
-    min-width: 800px;
+    min-width: 1100px;
   }
 
   .catalogo-detalhes {
@@ -294,32 +302,23 @@
     align-items: flex-start;
   }
 }
-/* ----- Ajuste para exibir a tabela sem rolagem horizontal ----- */
 
-.catalogo-tabela-container {
-  width: 100%;
-  max-width: 100%;
-  overflow-x: hidden;
-}
+/* ----- Mais espaço para a tabela e menus laterais menores ----- */
 
-.catalogo-tabela {
-  width: 100%;
-  min-width: 0;
-  table-layout: fixed;
-  font-size: 0.78rem;
-}
+@media screen and (min-width: 76.25em) {
+    :root {
+        --md-sidebar-width: 8rem;
+        --md-sidebar-width--secondary: 7rem;
+    }
 
-.catalogo-tabela th,
-.catalogo-tabela td {
-  padding: 10px 7px;
-  overflow-wrap: anywhere;
-  word-break: normal;
-}
+    .md-grid {
+        max-width: 110rem;
+        width: 100%;
+    }
 
-.catalogo-col-deps {
-  min-width: 0;
-}
-
-.catalogo-col-status {
-  white-space: normal;
+    .md-content {
+        max-width: none;
+        min-width: 0;
+        flex: 1 1 auto;
+    }
 }
