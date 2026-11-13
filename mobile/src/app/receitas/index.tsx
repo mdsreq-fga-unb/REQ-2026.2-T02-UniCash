@@ -9,7 +9,7 @@ import { formatarBRL } from '@/features/receitas/money';
 import { consumirFeedback, type Feedback } from '@/features/receitas/feedback';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import { useReceitas } from '@/features/receitas/useReceitas';
-import { sincronizarPendentes } from '@/features/receitas/sync';
+import { consumirAcessoNegado, sincronizarPendentes } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
 import type { Filtro } from '@/features/receitas/types';
 
@@ -39,7 +39,9 @@ export default function ListaReceitas() {
       void recarregar();
       void atualizarPendentes();
       void sincronizarPendentes().then((mudou) => {
-        if (mudou) void recarregar();
+      if (mudou) void recarregar();
+        // EX07: a nuvem negou o acesso; os dados locais seguem intactos.
+        if (consumirAcessoNegado()) setFeedback({ tipo: 'erro', texto: MSG.acessoNegado });
         void atualizarPendentes();
       });
     }, [recarregar, atualizarPendentes]),
