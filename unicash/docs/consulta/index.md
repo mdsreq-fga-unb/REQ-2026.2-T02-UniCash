@@ -1,9 +1,6 @@
 
----
-title: Catálogo de requisitos
-hide:
-  - toc
----
+Title: Catálogo de requisitos
+hide: toc
 
 # Catálogo de requisitos
 
