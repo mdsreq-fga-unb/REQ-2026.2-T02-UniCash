@@ -105,6 +105,7 @@ plugins:
       enumerate_headings: false
 
 markdown_extensions:
+  - meta
   - abbr
   - admonition
   - attr_list

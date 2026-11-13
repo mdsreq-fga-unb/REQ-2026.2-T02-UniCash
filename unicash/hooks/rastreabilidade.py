@@ -1,32 +1,40 @@
+
 """Hook do MkDocs que transforma os requisitos do site em uma base consultável.
-
+ 
 A cada build, este hook:
-
+ 
 1. lê as páginas de requisitos (RF, RNF, RN, CP), os casos de uso e o MVP;
 2. gera uma página por requisito em ``consulta/`` com descrição, relações e
    menções em outras páginas, e as inclui no menu lateral;
 3. publica ``consulta/dados/*.json`` para o catálogo, o painel e o grafo 3D;
 4. transforma toda menção a RFxx, RNFxx, RNxx, UCxx ou CPx no texto do site em
    link para a página do requisito, com o nome dele no tooltip.
-
+ 
 As páginas de origem continuam sendo a fonte da verdade: nada aqui deve ser
 editado à mão, basta alterar as tabelas originais.
+ 
+Dependências funcionais dos casos de uso: saem das linhas
+``**Requisitos funcionais:**`` (principais) e ``**Funcionais:** ... Relacionados: ...``
+(relacionados) de cada UC em ``casos_de_uso.md``.
+ 
+Status de implementação dos casos de uso: opcional, lido de
+``docs/dados/status_casos_de_uso.csv`` (colunas: codigo,status).
 """
-
+ 
 from __future__ import annotations
-
+ 
 import csv
 import json
 import posixpath
 import re
 from collections import defaultdict
 from pathlib import Path
-
+ 
 from markdown.extensions.toc import slugify
 from mkdocs.structure.files import File
-
+ 
 CODIGO = re.compile(r"\b(RNF\d{2}|RF\d{2}|RN\d{2}|UC\d{2}|CP\d)\b")
-
+ 
 TIPOS = {
     "CP": "Característica de Produto",
     "RF": "Requisito Funcional",
@@ -34,7 +42,7 @@ TIPOS = {
     "RN": "Regra de Negócio",
     "UC": "Caso de Uso",
 }
-
+ 
 PLURAL = {
     "CP": "Características de Produto",
     "RF": "Requisitos Funcionais",
@@ -42,9 +50,9 @@ PLURAL = {
     "RN": "Regras de Negócio",
     "UC": "Casos de Uso",
 }
-
+ 
 PASTA = {"CP": "cp", "RF": "rf", "RNF": "rnf", "RN": "rn", "UC": "uc"}
-
+ 
 FONTE = {
     "CP": "requisitos_funcionais.md",
     "RF": "requisitos_funcionais.md",
@@ -52,36 +60,38 @@ FONTE = {
     "RN": "requisitos_funcionais.md",
     "UC": "casos_de_uso.md",
 }
-
+ 
+STATUS_PADRAO = "Não informado"
+ 
 # Páginas geradas não entram na contagem de menções.
 PREFIXO_GERADO = "consulta/"
-
+ 
 itens: dict[str, dict] = {}
-
-
+ 
+ 
 def tipo_de(codigo: str) -> str:
     return re.match(r"[A-Z]+", codigo).group(0)
-
-
+ 
+ 
 def celulas(linha: str) -> list[str]:
     return [c.strip() for c in linha.strip().strip("|").split("|")]
-
-
+ 
+ 
 def limpar(texto: str) -> str:
     """Remove a marcação Markdown mais comum para exibir texto puro."""
     texto = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", texto)
     texto = re.sub(r"\*\*|__|`", "", texto)
     return re.sub(r"\s+", " ", texto).strip()
-
-
+ 
+ 
 def codigos(texto: str) -> list[str]:
     vistos: list[str] = []
     for c in CODIGO.findall(texto):
         if c not in vistos:
             vistos.append(c)
     return vistos
-
-
+ 
+ 
 def secao(texto: str, titulo: str) -> str:
     """Retorna o trecho entre o título informado e o próximo título de mesmo nível."""
     m = re.search(rf"^(#+)\s+{re.escape(titulo)}.*$", texto, re.M)
@@ -91,51 +101,133 @@ def secao(texto: str, titulo: str) -> str:
     resto = texto[m.end():]
     fim = re.search(rf"^#{{1,{nivel}}}\s", resto, re.M)
     return resto[: fim.start()] if fim else resto
-
-
+ 
+ 
 def nome_e_descricao(corpo: str) -> tuple[str, str]:
     m = re.match(r"\*\*(.+?)\*\*:?\s*(.*)", corpo)
     if not m:
         return limpar(corpo), ""
     return limpar(m.group(1)).rstrip(":"), limpar(m.group(2))
-
-
+ 
+ 
+def dependencias_funcionais_uc(corpo: str) -> tuple[list[str], list[str]]:
+    """Extrai os RFs de um caso de uso: (principais, relacionados).
+ 
+    Principais: linha ``**Requisitos funcionais:**`` do cabeçalho do UC.
+    Relacionados: o que vem depois de ``Relacionados:`` na linha ``**Funcionais:**``
+    da seção "Requisitos e regras associados".
+    """
+    principais: list[str] = []
+    relacionados: list[str] = []
+ 
+    m = re.search(r"\*\*Requisitos funcionais:\*\*\s*(.+)", corpo)
+    if m:
+        principais = [c for c in codigos(m.group(1)) if tipo_de(c) == "RF"]
+ 
+    m = re.search(r"\*\*Funcionais:\*\*\s*(.+)", corpo)
+    if m:
+        linha = m.group(1)
+        if "Relacionados:" in linha:
+            antes, depois = linha.split("Relacionados:", 1)
+        else:
+            antes, depois = linha, ""
+        for c in codigos(antes):
+            if tipo_de(c) == "RF" and c not in principais:
+                principais.append(c)
+        relacionados = [c for c in codigos(depois)
+                        if tipo_de(c) == "RF" and c not in principais]
+ 
+    return principais, relacionados
+ 
+ 
+def ler_status_uc(docs: Path) -> dict[str, str]:
+    """Lê docs/dados/status_casos_de_uso.csv (opcional)."""
+    arquivo = docs / "dados" / "status_casos_de_uso.csv"
+    if not arquivo.exists():
+        return {}
+    with open(arquivo, encoding="utf-8", newline="") as arq:
+        linhas = list(csv.reader(arq))[1:]
+    return {l[0].strip(): l[1].strip() for l in linhas if len(l) >= 2 and l[0].strip()}
+ 
+ 
 def ler_requisitos(docs: Path) -> None:
     itens.clear()
     rf_md = (docs / "requisitos_funcionais.md").read_text(encoding="utf-8")
     rnf_md = (docs / "requisitos_nao_funcionais.md").read_text(encoding="utf-8")
     uc_md = (docs / "casos_de_uso.md").read_text(encoding="utf-8")
     mvp_md = (docs / "mvp.md").read_text(encoding="utf-8")
-
+ 
     for linha in secao(rf_md, "Características de Produto").splitlines():
         if re.match(r"^\|\s*CP\d\s*\|", linha):
             cod, nome = celulas(linha)[:2]
             itens[cod] = {"codigo": cod, "tipo": "CP", "nome": nome, "descricao": "",
                           "ancora": slugify("Características de Produto", "-")}
-
+ 
+    
+    
     for linha in rf_md.splitlines():
-        if not re.match(r"^\|\s*\*\*RF\d{2}\*\*\s*\|", linha):
+        if not linha.strip().startswith("|"):
             continue
-        partes = celulas(linha)
-        cod, cp, origem, situacao = partes[0].strip("*"), partes[-3], partes[-2], partes[-1]
-        nome, desc = nome_e_descricao("|".join(partes[1:-3]))
-        itens[cod] = {"codigo": cod, "tipo": "RF", "nome": nome, "descricao": desc,
-                      "cp": cp, "origem": origem, "situacao": limpar(situacao),
-                      "ancora": cod.lower()}
 
-    for linha in rnf_md.splitlines():
-        if not re.match(r"^\|\s*\*\*RNF\d{2}\*\*\s*\|", linha):
-            continue
         partes = celulas(linha)
-        cod, classe, aplica = partes[0].strip("*"), partes[-4], partes[-3]
+        if len(partes) < 5:
+            continue
+
+        codigo = re.search(r"\bRF\d{2}\b", partes[0])
+        if not codigo:
+            continue
+
+        cod = codigo.group(0)
+        cp, origem, situacao = partes[-3], partes[-2], partes[-1]
+        nome, desc = nome_e_descricao("|".join(partes[1:-3]))
+
+        itens[cod] = {
+            "codigo": cod,
+            "tipo": "RF",
+            "nome": nome,
+            "descricao": desc,
+            "cp": cp,
+            "origem": origem,
+            "situacao": limpar(situacao),
+            "ancora": cod.lower()
+        }
+
+
+ 
+    
+    
+    for linha in rnf_md.splitlines():
+        if not linha.strip().startswith("|"):
+            continue
+
+        partes = celulas(linha)
+        if len(partes) < 6:
+            continue
+
+        codigo = re.search(r"\bRNF\d{2}\b", partes[0])
+        if not codigo:
+            continue
+
+        cod = codigo.group(0)
+        classe, aplica = partes[-4], partes[-3]
         origem, situacao = partes[-2], partes[-1]
         nome, desc = nome_e_descricao("|".join(partes[1:-4]))
-        itens[cod] = {"codigo": cod, "tipo": "RNF", "nome": nome, "descricao": desc,
-                      "classificacao": limpar(classe), "aplica": limpar(aplica),
-                      "origem": origem, "situacao": limpar(situacao),
-                      "sistema": aplica.strip().lower().startswith("sistema"),
-                      "ancora": cod.lower()}
 
+        itens[cod] = {
+            "codigo": cod,
+            "tipo": "RNF",
+            "nome": nome,
+            "descricao": desc,
+            "classificacao": limpar(classe),
+            "aplica": limpar(aplica),
+            "origem": origem,
+            "situacao": limpar(situacao),
+            "sistema": aplica.strip().lower().startswith("sistema"),
+            "ancora": cod.lower()
+        }
+
+
+ 
     for m in re.finditer(r"^###\s+(RN\d{2}):\s*(.+?)\s*$", rf_md, re.M):
         cod, titulo = m.group(1), m.group(2)
         resto = rf_md[m.end():]
@@ -145,18 +237,24 @@ def ler_requisitos(docs: Path) -> None:
         itens[cod] = {"codigo": cod, "tipo": "RN", "nome": limpar(nome), "descricao": corpo.strip(),
                       "ancora": slugify(f"{cod}: {titulo}", "-"),
                       "relacionados": codigos(titulo + " " + corpo)}
-
+ 
+    status_uc = ler_status_uc(docs)
+ 
     for m in re.finditer(r"^##\s+(UC\d{2})\s*-\s*(.+?)\s*$", uc_md, re.M):
         cod, nome = m.group(1), m.group(2)
         resto = uc_md[m.end():]
         fim = re.search(r"^##\s", resto, re.M)
         corpo = resto[: fim.start()] if fim else resto
         valor = re.search(r"\*\*Valor:\*\*\s*(.+)", corpo)
+        rf_principais, rf_relacionados = dependencias_funcionais_uc(corpo)
         itens[cod] = {"codigo": cod, "tipo": "UC", "nome": limpar(nome),
                       "descricao": limpar(valor.group(1)) if valor else "",
                       "ancora": slugify(f"{cod} - {nome}", "-"),
-                      "relacionados": codigos(corpo)}
-
+                      "relacionados": codigos(corpo),
+                      "rf_principais": rf_principais,
+                      "rf_relacionados": rf_relacionados,
+                      "status_implementacao": status_uc.get(cod, STATUS_PADRAO)}
+ 
     # MVP: RFs listados na tabela "Resultado da priorização".
     mvp = set(codigos(secao(mvp_md, "1.3 Resultado da priorização")))
     # Notas de priorização: fonte única em docs/dados/priorizacao.csv.
@@ -167,19 +265,19 @@ def ler_requisitos(docs: Path) -> None:
             item["mvp"] = cod in mvp
             if cod in notas:
                 item["valor"], item["esforco"] = (round(n, 2) for n in notas[cod])
-
+ 
     relacionar()
-
-
+ 
+ 
 def relacionar() -> None:
     """Monta as relações nos dois sentidos entre os itens."""
     rel: dict[str, set[str]] = defaultdict(set)
-
+ 
     def liga(a: str, b: str) -> None:
         if a != b and a in itens and b in itens:
             rel[a].add(b)
             rel[b].add(a)
-
+ 
     for cod, item in itens.items():
         if item["tipo"] == "RF":
             liga(cod, item.get("cp", ""))
@@ -191,43 +289,43 @@ def relacionar() -> None:
         elif item["tipo"] in ("RN", "UC"):
             for c in item.get("relacionados", []):
                 liga(cod, c)
-
+ 
     for cod, item in itens.items():
         item["relacoes"] = sorted(rel[cod], key=ordem)
-
-
+ 
+ 
 def ordem(cod: str) -> tuple:
     seq = ["CP", "UC", "RF", "RNF", "RN"]
     return (seq.index(tipo_de(cod)), int(re.sub(r"\D", "", cod)))
-
-
+ 
+ 
 def caminho(cod: str) -> str:
     return f"consulta/{PASTA[tipo_de(cod)]}/{cod}.md"
-
-
+ 
+ 
 def url(cod: str) -> str:
     return f"consulta/{PASTA[tipo_de(cod)]}/{cod}/"
-
-
+ 
+ 
 def rotulo(cod: str) -> str:
     return f"{cod} — {itens[cod]['nome']}"
-
-
+ 
+ 
 def relativo(destino: str, origem: str) -> str:
     return posixpath.relpath(destino, posixpath.dirname(origem))
-
-
+ 
+ 
 # --------------------------------------------------------------------------- #
 # Eventos do MkDocs
 # --------------------------------------------------------------------------- #
-
+ 
 def on_config(config, **kwargs):
     ler_requisitos(Path(config["docs_dir"]))
     ordenados = sorted(itens, key=ordem)
-
+ 
     def lista(tipo: str) -> list:
         return [{rotulo(c): caminho(c)} for c in ordenados if tipo_de(c) == tipo]
-
+ 
     por_cp: dict[str, list] = defaultdict(list)
     por_classe: dict[str, list] = defaultdict(list)
     for c in ordenados:
@@ -235,7 +333,7 @@ def on_config(config, **kwargs):
             por_cp[itens[c]["cp"]].append({rotulo(c): caminho(c)})
         elif tipo_de(c) == "RNF":
             por_classe[itens[c]["classificacao"]].append({rotulo(c): caminho(c)})
-
+ 
     consulta = [
         "consulta/index.md",
         {"Rastreabilidade 3D": "consulta/rastreabilidade.md"},
@@ -254,25 +352,25 @@ def on_config(config, **kwargs):
     config["nav"] = [n for n in config["nav"] if not (isinstance(n, dict) and "Consulta rápida" in n)]
     config["nav"].insert(1, {"Consulta rápida": consulta})
     return config
-
-
+ 
+ 
 def on_files(files, config, **kwargs):
     mencoes = mapear_mencoes(files)
     for cod in itens:
         files.append(File.generated(config, caminho(cod), content=pagina(cod, mencoes.get(cod, []))))
-
+ 
     def publica(nome: str, dado) -> None:
         files.append(File.generated(config, f"consulta/dados/{nome}.json",
                                     content=json.dumps(dado, ensure_ascii=False)))
-
+ 
     files.append(File.generated(config, "consulta/glossario.md", content=glossario(config)))
-
+ 
     publica("catalogo", {
         "itens": [publico(itens[c], mencoes.get(c, [])) for c in sorted(itens, key=ordem)],
         "tipos": TIPOS,
         "plurais": PLURAL,
     })
-
+ 
     rf_por_cp: dict[str, dict] = defaultdict(lambda: {"mvp": 0, "fora": 0})
     for i in itens.values():
         if i["tipo"] == "RF":
@@ -283,45 +381,45 @@ def on_files(files, config, **kwargs):
         linhas += [{"cp": nome, "situacao": "No MVP", "quantidade": n["mvp"]},
                    {"cp": nome, "situacao": "Fora do MVP", "quantidade": n["fora"]}]
     publica("rf_por_cp", linhas)
-
+ 
     classes: dict[str, int] = defaultdict(int)
     for i in itens.values():
         if i["tipo"] == "RNF":
             classes[i["classificacao"]] += 1
     publica("rnf_por_classe", [{"classificacao": k, "quantidade": v} for k, v in sorted(classes.items())])
-
+ 
     publica("priorizacao", [
         {"codigo": i["codigo"], "nome": i["nome"], "valor": i["valor"], "esforco": i["esforco"],
          "situacao": "No MVP" if i.get("mvp") else "Fora do MVP"}
         for i in itens.values() if i["tipo"] == "RF" and "valor" in i
     ])
-
+ 
     publica("conexoes", [
         {"codigo": c, "tipo": TIPOS[tipo_de(c)], "conexoes": len(itens[c]["relacoes"])}
         for c in sorted(itens, key=lambda c: -len(itens[c]["relacoes"]))[:15]
     ])
     return files
-
-
+ 
+ 
 def on_page_content(html, page, config, files, **kwargs):
     if page.file.src_uri in (FONTE["RF"], FONTE["RNF"]):
         html = re.sub(r"<tr>(\s*<td><strong>((?:RNF|RF)\d{2})</strong>)",
                       lambda m: f'<tr id="{m.group(2).lower()}">{m.group(1)}', html)
     proprio = Path(page.file.src_uri).stem if page.file.src_uri.startswith(PREFIXO_GERADO) else None
     return autolink(html, page.url, proprio)
-
-
+ 
+ 
 # --------------------------------------------------------------------------- #
 # Geração de conteúdo
 # --------------------------------------------------------------------------- #
-
+ 
 def termos_glossario(config) -> list[tuple[str, str]]:
     """Lê as abreviações usadas nos tooltips (includes/abreviacoes.md)."""
     arquivo = Path(config["config_file_path"]).parent / "includes" / "abreviacoes.md"
     termos = re.findall(r"^\*\[(.+?)\]:\s*(.+)$", arquivo.read_text(encoding="utf-8"), re.M)
     return sorted(termos, key=lambda x: x[0].lower())
-
-
+ 
+ 
 def glossario(config) -> str:
     """Gera a página de glossário a partir das abreviações usadas nos tooltips."""
     termos = termos_glossario(config)
@@ -331,8 +429,8 @@ def glossario(config) -> str:
               "| Sigla | Significado |", "|---|---|"]
     linhas += [f"| `{t}` | {d} |" for t, d in termos]
     return "\n".join(linhas) + "\n"
-
-
+ 
+ 
 def mapear_mencoes(files) -> dict[str, list[tuple[str, str]]]:
     """Para cada código, lista as páginas (título, caminho) que o mencionam."""
     resultado: dict[str, list[tuple[str, str]]] = defaultdict(list)
@@ -347,8 +445,8 @@ def mapear_mencoes(files) -> dict[str, list[tuple[str, str]]]:
             if cod in itens:
                 resultado[cod].append((nome, f.src_uri))
     return resultado
-
-
+ 
+ 
 def publico(item: dict, mencoes: list) -> dict:
     campos = ("codigo", "tipo", "nome", "descricao", "cp", "classificacao", "aplica",
               "sistema", "mvp", "situacao", "valor", "esforco", "relacoes")
@@ -358,20 +456,35 @@ def publico(item: dict, mencoes: list) -> dict:
     if item["tipo"] == "RN":
         texto = re.sub(r"^\|.*\|$", "", item["descricao"], flags=re.M)
         dado["descricao"] = limpar(re.sub(r"^\s*[-*]\s+", "", texto, flags=re.M))
+    if item["tipo"] == "UC":
+        def dependencia(c: str, principal: bool) -> dict:
+            existe = c in itens
+            rf = itens.get(c, {})
+            return {"codigo": c,
+                    "nome": rf.get("nome", ""),
+                    "url": url(c) if existe else None,
+                    "mvp": bool(rf.get("mvp")) if existe else False,
+                    "principal": principal}
+ 
+        dado["dependencias_funcionais"] = (
+            [dependencia(c, True) for c in item.get("rf_principais", [])]
+            + [dependencia(c, False) for c in item.get("rf_relacionados", [])]
+        )
+        dado["status_implementacao"] = item.get("status_implementacao", STATUS_PADRAO)
     dado["url"] = url(item["codigo"])
     dado["mencoes"] = len(mencoes)
     return dado
-
-
+ 
+ 
 def link(cod: str, de: str) -> str:
     return f"[{cod}]({relativo(caminho(cod), de)})"
-
-
+ 
+ 
 def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
     item = itens[cod]
     tipo = item["tipo"]
     origem = caminho(cod)
-
+ 
     etiquetas = [TIPOS[tipo]]
     if tipo == "RF":
         etiquetas += [item["cp"], "MVP" if item.get("mvp") else "Fora do MVP"]
@@ -379,12 +492,12 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
         etiquetas.append(item["classificacao"])
     if "situacao" in item:
         etiquetas.append(item["situacao"])
-
+ 
     titulo = f"{cod} — {item['nome']}".replace('"', "'")
     linhas = ["---", f'title: "{titulo}"', "tags:"]
     linhas += [f"  - {e}" for e in etiquetas]
     linhas += ["---", "", f"# {cod} — {item['nome']}", ""]
-
+ 
     selos = [f'<span class="selo selo-{tipo.lower()}">{TIPOS[tipo]}</span>']
     if tipo == "RF":
         selos.append(f'<span class="selo">{item["cp"]} · {itens.get(item["cp"], {}).get("nome", "")}</span>')
@@ -395,7 +508,7 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
     if "situacao" in item:
         selos.append(f'<span class="selo selo-{slugify(item["situacao"], "-")}">{item["situacao"]}</span>')
     linhas += ['<div class="selos">' + " ".join(selos) + "</div>", ""]
-
+ 
     if tipo == "RN":
         descricao = re.sub(
             r"\]\(([^)#]+)(#[^)]*)?\)",
@@ -427,7 +540,7 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
         v, e = (str(item[k]).replace(".", ",") for k in ("valor", "esforco"))
         linhas += [f"**Priorização:** valor de negócio **{v}** · esforço técnico **{e}** "
                    f"(médias de 1 a 4, ver [Escopo do MVP]({relativo('mvp.md', origem)})).", ""]
-
+ 
     grupos: dict[str, list] = defaultdict(list)
     for c in item["relacoes"]:
         grupos[tipo_de(c)].append(c)
@@ -444,12 +557,12 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
         if gerais:
             linhas += [f'??? info "Requisitos não funcionais que valem para o sistema inteiro ({len(gerais)})"',
                        "", "    " + ", ".join(link(c, origem) for c in gerais), ""]
-
+ 
     if mencoes:
         linhas += ["## Onde é mencionado", ""]
         linhas += [f"- [{nome}]({relativo(src, origem)})" for nome, src in mencoes]
         linhas += [""]
-
+ 
     fonte = relativo(FONTE[tipo], origem)
     linhas += ["---", "",
                f"[:material-file-document-outline: Ver na página original]({fonte}#{item['ancora']})"
@@ -457,27 +570,27 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
                f"[:material-magnify: Voltar ao catálogo]({relativo('consulta/index.md', origem)})"
                "{ .md-button }", ""]
     return "\n".join(linhas)
-
-
+ 
+ 
 # --------------------------------------------------------------------------- #
 # Links automáticos no HTML
 # --------------------------------------------------------------------------- #
-
+ 
 IGNORAR = {"a", "script", "style", "code", "pre", "h1", "h2", "h3", "h4", "h5", "h6",
            "textarea", "title", "svg"}
 TAG = re.compile(r"(<[^>]+>)")
-
-
+ 
+ 
 BLOCO_CRU = re.compile(r"(<script\b.*?</script>|<style\b.*?</style>)", re.S | re.I)
-
-
+ 
+ 
 def autolink(html: str, pagina_url: str, proprio: str | None) -> str:
     # Scripts e estilos saem inteiros antes da tokenização: o código JavaScript
     # pode conter "<" e ">" que seriam confundidos com tags.
     partes = BLOCO_CRU.split(html)
     return "".join(p if i % 2 else autolink_trecho(p, pagina_url, proprio) for i, p in enumerate(partes))
-
-
+ 
+ 
 def autolink_trecho(html: str, pagina_url: str, proprio: str | None) -> str:
     base = pagina_url if (not pagina_url or pagina_url.endswith("/")) else posixpath.dirname(pagina_url) + "/"
     pilha: list[str] = []
@@ -499,11 +612,13 @@ def autolink_trecho(html: str, pagina_url: str, proprio: str | None) -> str:
         else:
             saida.append(CODIGO.sub(lambda m: ancora(m.group(1), base, proprio), parte))
     return "".join(saida)
-
-
+ 
+ 
 def ancora(cod: str, base: str, proprio: str | None) -> str:
     if cod not in itens or cod == proprio:
         return cod
     destino = posixpath.relpath(url(cod), base.rstrip("/") or ".") + "/"
     nome = itens[cod]["nome"].replace('"', "&quot;")
     return f'<a class="ref ref-{tipo_de(cod).lower()}" href="{destino}" title="{nome}">{cod}</a>'
+ 
+
