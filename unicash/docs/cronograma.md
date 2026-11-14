@@ -62,8 +62,8 @@ A coluna **Evidências registradas** cita apenas o que pode ser conferido: atas,
 
 | Período previsto | Período realizado | Etapa | Situação | Evidências registradas | Pendências |
 | --- | --- | --- | --- | --- | --- |
-| 29/08/2026 a 31/08/2026 | 29/08/2026 a 31/08/2026 | Pré-projeto | Concluída | Entrevista com a cliente ([R01](atas/posts/r01.md)); investigação do problema, registrada na reunião de diagnóstico e na matéria do G1 de 31/08/2026 ([seção 5.6](engenharia_de_requisitos.md#56-registro-das-decisoes-e-evidencias-de-execucao)); criação do repositório (31/08/2026); Rich Picture, Diagrama de Ishikawa e stakeholders ([Cenário](cenario.md), seções 1.3 a 1.6). | Nenhuma registrada. |
-| 01/09/2026 a 04/09/2026 | 01/09/2026 a 04/09/2026 | Viabilidade | Concluída com pendências | Perguntas à cliente em reunião em 01/09/2026, com gravação no Teams ([seção 5.6](engenharia_de_requisitos.md#56-registro-das-decisoes-e-evidencias-de-execucao)); adoção do DSDM e do Kanban e formulário de conhecimentos técnicos ([R02](atas/posts/r02.md), [D04](decisoes.md#d04)); fronteiras de escopo ([Solução](solucao.md), seção 2.6). | Lista de riscos. A declaração inicial dos requisitos ocorreu em 22/09/2026, no Timebox 1. |
+| 29/08/2026 a 31/08/2026 | 29/08/2026 a 31/08/2026 | Pré-projeto | Concluída | Entrevista com a cliente na Reunião Diagnóstico do Projeto ([R01](atas/posts/r01.md), 29/08/2026), com gravação no Teams; investigação do problema, registrada na reunião de diagnóstico e na matéria do G1 de 31/08/2026 ([seção 5.6](engenharia_de_requisitos.md#56-registro-das-decisoes-e-evidencias-de-execucao)); criação do repositório (31/08/2026); Rich Picture, Diagrama de Ishikawa e stakeholders ([Cenário](cenario.md), seções 1.3 a 1.6). | Nenhuma registrada. |
+| 01/09/2026 a 04/09/2026 | 01/09/2026 a 04/09/2026 | Viabilidade | Concluída com pendências | Adoção do DSDM e do Kanban e formulário de conhecimentos técnicos ([R02](atas/posts/r02.md), [D04](decisoes.md#d04)); fronteiras de escopo ([Solução](solucao.md), seção 2.6). | Lista de riscos. A declaração inicial dos requisitos ocorreu em 22/09/2026, no Timebox 1. |
 | 05/09/2026 a 10/09/2026 | 06/09/2026 a 08/09/2026 | Fundamentos | Concluída com pendências | Documentação da Entrega 1 e publicação automática do site (commits de 06/09/2026 a 08/09/2026). | Business case sem registro. A arquitetura foi definida em 29/10/2026 e 30/10/2026 ([D18](decisoes.md#d18), [D19](decisoes.md#d19)), o backlog de requisitos foi criado em 05/10/2026 ([D14](decisoes.md#d14)) e a priorização ocorreu no Timebox 2. |
 | 15/09/2026 a 24/09/2026 | 17/09/2026 a 24/09/2026 | Timebox 1 | Concluída com pendências | Workshop com a cliente ([R03](atas/posts/r03.md), [D05](decisoes.md#d05)); levantamento dos requisitos ([#9](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/9), 18/09/2026 a 23/09/2026); primeira versão dos requisitos em 22/09/2026 ([R04](atas/posts/r04.md), [D06](decisoes.md#d06)); lições aprendidas ([#8](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/8), concluída em 24/09/2026) e revisão da intervenção social ([#3](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/3), concluída em 27/09/2026). | Critérios de aceitação não produzidos, depois substituídos pelo checklist estruturado; prototipação sem registro no período; ata de revisão do timebox. |
 | 25/09/2026 a 08/10/2026 | 25/09/2026 a 08/10/2026 | Timebox 2 | Concluída com pendências | Priorização com a cliente e a representante ([R05](atas/posts/r05.md), [D08](decisoes.md#d08)); avaliação cruzada dos requisitos do grupo CyberSetor ([#11](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/11), concluída em 28/09/2026) e tabela de feedback do grupo CyberSetor, com decisão e justificativa por requisito ([Requisitos Funcionais](requisitos_funcionais.md#feedback-do-grupo-cybersetor)); correções da avaliação cruzada e do professor em 28/09/2026 e 29/09/2026 ([D07](decisoes.md#d07)); estratégia ([#4](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/4), concluída em 30/09/2026); reunião de equipe ([R06](atas/posts/r06.md)); validação do MVP ([R07](atas/posts/r07.md), [D09](decisoes.md#d09) a [D12](decisoes.md#d12)); cenário ([#1](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/1), concluída em 05/10/2026); adoção de casos de uso ([R08](atas/posts/r08.md), [D13](decisoes.md#d13), [D14](decisoes.md#d14)); [Escopo do MVP](mvp.md) de 29/09/2026 a 08/10/2026. | Wireframes sem ata de validação; checklist estruturado não produzido; ata de revisão do timebox. |
@@ -100,7 +100,7 @@ As técnicas abaixo constam da [seção 5.1](engenharia_de_requisitos.md), ainda
 | Teste de protótipo com tarefas | 30/11/2026 a 03/12/2026 | Cinco estudantes e três representantes de famílias | Bruno, na condução, e Leonardo, na observação | Prevista |
 | Questionário | A definir na repriorização de 13/11/2026 a 19/11/2026 | Estudantes e famílias recrutados pelas representantes dos segmentos | Leonardo | Não aplicada |
 
-Até 13/11/2026, nenhuma das datas do diário financeiro, da entrevista contextual e da análise de tarefas foi reprogramada. O questionário não foi aplicado como instrumento estruturado: as perguntas à cliente foram feitas em reunião em 01/09/2026, com gravação no Teams (ver [seção 5.6](engenharia_de_requisitos.md#56-registro-das-decisoes-e-evidencias-de-execucao)).
+Até 13/11/2026, nenhuma das datas do diário financeiro, da entrevista contextual e da análise de tarefas foi reprogramada. O questionário não foi aplicado como instrumento estruturado: as dúvidas foram esclarecidas na reunião de diagnóstico (R01, 29/08/2026), com gravação no Teams (ver [seção 5.6](engenharia_de_requisitos.md#56-registro-das-decisoes-e-evidencias-de-execucao)).
 
 ## Participação registrada dos integrantes
 
@@ -122,12 +122,13 @@ A issue de priorização ([#10](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02
 
 O Kanban será utilizado para visualizar o fluxo de trabalho, identificar gargalos e acompanhar o trabalho em andamento durante os timeboxes. Será adotado limite de WIP de 3 itens simultâneos na etapa de desenvolvimento, com possibilidade de revisão durante as retrospectivas caso sejam identificados gargalos recorrentes.
 
-!!! tip "Acompanhe no GitHub Projects"
-    - [Kanban do timebox](https://github.com/orgs/mdsreq-fga-unb/projects/123/views/6){ target="_blank" rel="noopener" }: fluxo de trabalho atual e limite de WIP.
-    - [Backlog do Produto (MoSCoW)](https://github.com/orgs/mdsreq-fga-unb/projects/123/views/7){ target="_blank" rel="noopener" }: itens priorizados para o MVP e os próximos timeboxes.
-    - [Backlog de casos de uso](https://github.com/orgs/mdsreq-fga-unb/projects/130){ target="_blank" rel="noopener" }: casos de uso e checklists estruturados por CP.
-
-    Os quadros ficam na organização `mdsreq-fga-unb` e só aparecem para quem é membro dela.
+> **Acompanhe no GitHub Projects**
+>
+> - [Kanban do timebox](https://github.com/orgs/mdsreq-fga-unb/projects/123/views/6): fluxo de trabalho atual e limite de WIP.
+> - [Backlog do Produto (MoSCoW)](https://github.com/orgs/mdsreq-fga-unb/projects/123/views/7): itens priorizados para o MVP e os próximos timeboxes.
+> - [Backlog de casos de uso](https://github.com/orgs/mdsreq-fga-unb/projects/130): casos de uso e checklists estruturados por CP.
+>
+> Os quadros ficam na organização `mdsreq-fga-unb` e só aparecem para quem é membro dela.
 
 As revisões de timebox e as validações serão realizadas com a cliente conforme os objetivos de cada ciclo. Os usuários finais considerados para validação são estudantes universitários e representantes de famílias, representados por Maria Vitória e Alana França. As práticas de testes automatizados, integração contínua e revisão por pull request serão mantidas durante os ciclos de desenvolvimento.
 
@@ -145,3 +146,4 @@ As revisões de timebox e as validações serão realizadas com a cliente confor
 | 1.7 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
 | 1.8 | 09/11/2026 | Separa previsão e evidência (issue #26): inclui a cadência adotada, a situação, o período realizado e as pendências de cada etapa com base nas atas, no Kanban e no histórico de commits, o escopo de RFs por timebox, os períodos das técnicas de ER e a participação registrada dos integrantes | Dante Scarpati |
 | 1.9 | 13/11/2026 | Atualiza a situação do Pré-projeto, da Viabilidade e do Timebox 2 conforme as evidências da issue #18, registra as perguntas à cliente em reunião de 01/09/2026 e a situação do questionário e informa que as datas das técnicas de ER não foram reprogramadas | Erick Alves |
+| 1.10 | 14/11/2026 | Corrige a data da reunião de diagnóstico (R01, 29/08/2026), remove a referência à reunião de 01/09/2026 e move a gravação do Teams para o Pré-projeto; troca o bloco de acompanhamento do GitHub Projects por markdown simples, para exibir corretamente na prévia do GitHub (issue #18) | Erick Alves |
