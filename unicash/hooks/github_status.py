@@ -268,30 +268,72 @@ def _linha_pr(pr: dict) -> str:
             f'“{html.escape(pr["titulo"])}” · {estado} · {ci}</li>')
 
 
+TITULOS = {
+    PLANEJADO: "Ainda sem código",
+    SEM_ISSUE: "Nenhuma issue criada no GitHub",
+    NAO_INFORMADO: "Dados do GitHub indisponíveis neste build",
+}
+CLASSE_CI = {"SUCCESS": "ok", "FAILURE": "falha", "ERROR": "falha", "PENDING": "andamento", "EXPECTED": "andamento"}
+
+
+def _pr_principal(prs: list[dict]) -> dict | None:
+    """O PR mais avançado; no empate, o mais recente."""
+    candidatos = [pr for pr in prs if _nivel_pr(pr) > 0]
+    return max(candidatos, key=lambda pr: (_nivel_pr(pr), pr["numero"])) if candidatos else None
+
+
+def _titulo(status: str, pr: dict | None) -> str:
+    if status == PUBLICADO and pr:
+        return f"Na main desde {_data(pr.get('integrado_em'))}"
+    if status == IMPLEMENTADO and pr:
+        return f"Integrado na develop em {_data(pr.get('integrado_em'))}"
+    if status == EM_DESENVOLVIMENTO and pr:
+        return f"Em revisão no PR #{pr['numero']}"
+    return TITULOS.get(status, TITULOS[NAO_INFORMADO])
+
+
+def _chip(conteudo: str, classe: str = "") -> str:
+    return f'<span class="uc-card__chip{(" " + classe) if classe else ""}">{conteudo}</span>'
+
+
 def quadro_html(cod: str, dados: dict) -> str:
-    """Quadro de status de um caso de uso, num único bloco HTML sem linhas em branco."""
+    """Card do caso de uso: selo, frase principal, evidências essenciais e o resto recolhido.
+
+    Sai num único bloco HTML sem linhas em branco, para não quebrar o Markdown em volta.
+    """
     caso = (dados.get("casos") or {}).get(cod)
     status = caso["status"] if caso else NAO_INFORMADO
-    partes = ['<div class="uc-status">',
-              f'<span class="catalogo-status catalogo-status-{slug_status(status)}">{html.escape(status)}</span>',
-              '<ul class="uc-status-evidencias">']
-    if caso and caso.get("issue"):
-        issue = caso["issue"]
-        estado = {"OPEN": "aberta", "CLOSED": "fechada"}.get(issue.get("estado"), "estado desconhecido")
-        responsaveis = ", ".join(html.escape(r) for r in issue.get("responsaveis") or []) or "sem responsável"
-        numero = "#" + str(issue.get("numero", "?"))
-        rotulo = _link(issue["url"], numero) if issue.get("url") else html.escape(numero)
-        partes.append(f'<li>Issue {rotulo} · {estado} · '
-                      f'responsável: {responsaveis}</li>')
-        partes += [_linha_pr(pr) for pr in caso.get("prs", [])]
-        if not caso.get("prs"):
-            partes.append("<li>Nenhum pull request ligado à issue</li>")
-    elif caso:
-        partes.append(f"<li>Sem issue no GitHub com o código {html.escape(cod)}</li>")
-    partes.append("</ul>")
-    if dados.get("fonte") == "indisponivel" or not dados.get("coletado_em"):
-        partes.append('<p class="uc-status-rodape">Dados do GitHub indisponíveis neste build</p>')
-    else:
-        partes.append(f'<p class="uc-status-rodape">Dados do GitHub de {_data(dados["coletado_em"], True)}</p>')
+    slug = slug_status(status)
+    prs = caso.get("prs", []) if caso else []
+    principal = _pr_principal(prs)
+
+    topo = f'<span class="uc-card__selo catalogo-status catalogo-status-{slug}">{html.escape(status)}</span>'
+    if dados.get("coletado_em") and dados.get("fonte") != "indisponivel":
+        topo += f'<span class="uc-card__rodape">GitHub · {_data(dados["coletado_em"], True)}</span>'
+
+    chips = []
+    if principal:
+        chips.append(_chip(_link(principal["url"], f"PR #{principal['numero']} ↗")))
+        estado_ci = CLASSE_CI.get(principal.get("ci") or "")
+        if estado_ci:
+            rotulo_ci = CI[principal["ci"]]
+            chips.append(_chip(html.escape(rotulo_ci), f"uc-card__ci uc-card__ci--{estado_ci}"))
+    issue = caso.get("issue") if caso else None
+    if issue:
+        numero = "Issue #" + str(issue.get("numero", "?"))
+        chips.append(_chip(_link(issue["url"], numero) if issue.get("url") else html.escape(numero)))
+        for login in issue.get("responsaveis") or []:
+            avatar = (f'<img class="uc-card__avatar" src="https://avatars.githubusercontent.com/'
+                      f'{html.escape(login)}?s=40" alt="" loading="lazy">')
+            chips.append(_chip(avatar + html.escape(login), "uc-card__pessoa"))
+
+    partes = [f'<div class="uc-card uc-card--{slug}">',
+              f'<div class="uc-card__topo">{topo}</div>',
+              f'<p class="uc-card__titulo">{html.escape(_titulo(status, principal))}</p>']
+    if chips:
+        partes.append(f'<div class="uc-card__meta">{"".join(chips)}</div>')
+    if len(prs) > 1:
+        partes.append(f'<details class="uc-card__detalhes"><summary>Todos os PRs ({len(prs)})</summary>'
+                      f'<ul>{"".join(_linha_pr(pr) for pr in prs)}</ul></details>')
     partes.append("</div>")
     return "".join(partes)

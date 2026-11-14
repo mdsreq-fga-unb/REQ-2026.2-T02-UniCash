@@ -126,50 +126,87 @@ class TestCarregar(unittest.TestCase):
 
 
 class TestQuadro(unittest.TestCase):
+    """Card do caso de uso: selo de status, uma frase principal e poucas evidências."""
+
     def dados_api(self):
         with patch.object(github_status, "_post_graphql", return_value=FIXTURE), \
              patch.object(github_status, "_get_json", side_effect=comparacao("ahead")):
-            return coletar(REPO, "token-falso", ["UC01", "UC10"])
+            return coletar(REPO, "token-falso", ["UC01", "UC02", "UC10"])
 
     def test_slug_status(self):
         self.assertEqual(slug_status("Não informado"), "nao-informado")
         self.assertEqual(slug_status("Implementado na develop"), "implementado-na-develop")
         self.assertEqual(slug_status("Publicado na main"), "publicado-na-main")
 
-    def test_quadro_com_pr(self):
+    def test_card_hierarquia_implementado(self):
         html = quadro_html("UC01", self.dados_api())
-        self.assertIn("catalogo-status-implementado-na-develop", html)
+        self.assertIn('class="uc-card uc-card--implementado-na-develop"', html)
+        self.assertIn('class="uc-card__selo catalogo-status catalogo-status-implementado-na-develop"', html)
+        self.assertIn('<p class="uc-card__titulo">Integrado na develop em 09/11/2026</p>', html)
         self.assertIn('href="https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/48"', html)
         self.assertIn('href="https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/28"', html)
-        self.assertIn("#28", html)
-        self.assertIn("09/11/2026", html)
-        self.assertIn("develop", html)
+        self.assertIn('uc-card__ci uc-card__ci--ok', html)
         self.assertIn("Natan8643", html)
-        self.assertIn("CI passou", html)
-        self.assertIn("Dados do GitHub de", html)
+        self.assertIn('class="uc-card__rodape"', html)
 
-    def test_quadro_uc_sem_issue(self):
+    def test_card_planejado(self):
+        html = quadro_html("UC02", self.dados_api())
+        self.assertIn('<p class="uc-card__titulo">Ainda sem código</p>', html)
+        self.assertNotIn("uc-card__ci", html)
+
+    def test_card_sem_issue(self):
         html = quadro_html("UC10", self.dados_api())
-        self.assertIn("catalogo-status-sem-issue", html)
-        self.assertIn("Sem issue no GitHub", html)
+        self.assertIn("uc-card--sem-issue", html)
+        self.assertIn('<p class="uc-card__titulo">Nenhuma issue criada no GitHub</p>', html)
 
-    def test_quadro_indisponivel(self):
+    def test_card_em_desenvolvimento(self):
+        dados = self.dados_api()
+        dados["casos"]["UC01"]["prs"][0]["estado"] = "OPEN"
+        dados["casos"]["UC01"]["status"] = "Em desenvolvimento"
+        self.assertIn('<p class="uc-card__titulo">Em revisão no PR #48</p>', quadro_html("UC01", dados))
+
+    def test_card_publicado(self):
+        dados = self.dados_api()
+        dados["casos"]["UC01"]["prs"][0]["na_main"] = True
+        dados["casos"]["UC01"]["status"] = "Publicado na main"
+        self.assertIn('<p class="uc-card__titulo">Na main desde 09/11/2026</p>', quadro_html("UC01", dados))
+
+    def test_card_ci_falhou(self):
+        dados = self.dados_api()
+        dados["casos"]["UC01"]["prs"][0]["ci"] = "FAILURE"
+        self.assertIn("uc-card__ci--falha", quadro_html("UC01", dados))
+
+    def test_card_um_pr_sem_detalhes(self):
+        self.assertNotIn("<details", quadro_html("UC01", self.dados_api()))
+
+    def test_card_varios_prs_em_detalhes(self):
+        dados = self.dados_api()
+        extra = {**dados["casos"]["UC01"]["prs"][0], "numero": 60, "estado": "CLOSED",
+                 "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/60"}
+        dados["casos"]["UC01"]["prs"].append(extra)
+        html = quadro_html("UC01", dados)
+        self.assertIn("<details", html)
+        self.assertIn("Todos os PRs (2)", html)
+        self.assertIn("pull/60", html)
+
+    def test_card_indisponivel(self):
         html = quadro_html("UC01", {"coletado_em": None, "fonte": "indisponivel", "casos": {}})
-        self.assertIn("Dados do GitHub indisponíveis neste build", html)
-        self.assertIn("catalogo-status-nao-informado", html)
+        self.assertIn("uc-card--nao-informado", html)
+        self.assertIn('<p class="uc-card__titulo">Dados do GitHub indisponíveis neste build</p>', html)
 
-    def test_quadro_publicado_avisa_data(self):
+    def test_card_data_da_coleta(self):
         html = quadro_html("UC01", {**PUBLICADO_OK, "fonte": "publicado"})
         self.assertIn("13/11/2026 10:00", html)
 
-    def test_quadro_escapa_html(self):
+    def test_card_escapa_html(self):
         dados = self.dados_api()
         dados["casos"]["UC01"]["prs"][0]["titulo"] = "<script>x</script>"
+        dados["casos"]["UC01"]["prs"].append({**dados["casos"]["UC01"]["prs"][0], "numero": 61})
         html = quadro_html("UC01", dados)
         self.assertIn("&lt;script&gt;", html)
         self.assertNotIn("<script>", html)
 
-    def test_quadro_sem_linha_em_branco(self):
+    def test_card_sem_linha_em_branco(self):
         self.assertNotIn("\n\n", quadro_html("UC01", self.dados_api()))
 
 

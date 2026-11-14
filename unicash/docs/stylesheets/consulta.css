@@ -165,30 +165,125 @@
   color: #ffffff;
 }
 
-/* ----- Quadro de status do caso de uso (dados do GitHub) ----- */
+/* ----- Card de status do caso de uso (dados do GitHub) ----- */
 
-.uc-status {
-  margin: 0 0 1.2em;
-  padding: 0.6em 0.9em;
+.uc-card {
+  --uc-card-destaque: #adb5bd;
+  margin: 0.4em 0 1.6em;
+  padding: 0.85em 1.1em 0.9em;
   border: 1px solid var(--uc-borda);
-  border-radius: 8px;
-  font-size: 0.8rem;
+  border-left: 4px solid var(--uc-card-destaque);
+  border-radius: 10px;
+  background: var(--md-default-bg-color);
+  box-shadow: 0 1px 2px rgba(8, 47, 73, 0.06), 0 4px 14px rgba(8, 47, 73, 0.05);
+  max-width: 44rem;
 }
 
-.md-typeset .uc-status-evidencias {
-  margin: 0.5em 0 0.3em;
+.uc-card--publicado-na-main { --uc-card-destaque: #1e6b34; }
+.uc-card--implementado-na-develop { --uc-card-destaque: #2f9e57; }
+.uc-card--em-desenvolvimento { --uc-card-destaque: var(--uc-azul); }
+.uc-card--planejado,
+.uc-card--sem-issue { --uc-card-destaque: #adb5bd; }
+.uc-card--nao-informado { --uc-card-destaque: #ced4da; }
+
+.uc-card__topo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6em;
+  flex-wrap: wrap;
+}
+
+.uc-card__selo.catalogo-status {
+  font-size: 0.68rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.uc-card__rodape {
+  color: var(--md-default-fg-color--light);
+  font-size: 0.66rem;
+}
+
+.md-typeset .uc-card__titulo {
+  margin: 0.45em 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--md-default-fg-color);
+}
+
+.uc-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4em;
+  margin-top: 0.65em;
+}
+
+.uc-card__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  padding: 0.15em 0.6em;
+  border-radius: 999px;
+  background: var(--uc-azul-claro);
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.md-typeset .uc-card__chip a {
+  color: var(--uc-azul);
+  text-decoration: none;
+}
+
+.md-typeset .uc-card__chip a:hover {
+  text-decoration: underline;
+}
+
+.uc-card__ci--ok { background: #e6f4ea; color: #1e6b34; }
+.uc-card__ci--falha { background: #fdecec; color: #a12622; }
+.uc-card__ci--andamento { background: #fff4db; color: #8a5a00; }
+
+.uc-card__avatar {
+  width: 1.15em;
+  height: 1.15em;
+  border-radius: 50%;
+}
+
+.md-typeset .uc-card__detalhes {
+  margin: 0.7em 0 0;
+  font-size: 0.7rem;
+  color: var(--md-default-fg-color--light);
+}
+
+.md-typeset .uc-card__detalhes summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.md-typeset .uc-card__detalhes ul {
+  margin: 0.4em 0 0;
   padding-left: 1.1em;
 }
 
-.md-typeset .uc-status-evidencias li {
-  margin: 0.15em 0;
+[data-md-color-scheme="slate"] .uc-card {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.02);
 }
 
-.md-typeset .uc-status-rodape {
-  margin: 0;
-  color: var(--md-default-fg-color--light);
-  font-size: 0.7rem;
-}
+[data-md-color-scheme="slate"] .uc-card--publicado-na-main { --uc-card-destaque: #4cc27a; }
+[data-md-color-scheme="slate"] .uc-card--implementado-na-develop { --uc-card-destaque: #7fd39c; }
+[data-md-color-scheme="slate"] .uc-card--em-desenvolvimento { --uc-card-destaque: #8ebdf0; }
+[data-md-color-scheme="slate"] .uc-card--planejado,
+[data-md-color-scheme="slate"] .uc-card--sem-issue,
+[data-md-color-scheme="slate"] .uc-card--nao-informado { --uc-card-destaque: rgba(255, 255, 255, 0.25); }
+
+[data-md-color-scheme="slate"] .md-typeset .uc-card__chip a { color: #8ebdf0; }
+[data-md-color-scheme="slate"] .uc-card__ci--ok { background: rgba(60, 170, 100, 0.18); color: #7fd39c; }
+[data-md-color-scheme="slate"] .uc-card__ci--falha { background: rgba(230, 80, 70, 0.18); color: #f19a94; }
+[data-md-color-scheme="slate"] .uc-card__ci--andamento { background: rgba(240, 180, 60, 0.18); color: #f0c46a; }
 
 /* ----- Dependências funcionais ----- */
 
