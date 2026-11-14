@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import github_status  # noqa: E402
-from github_status import carregar, coletar, derivar_status  # noqa: E402
+from github_status import carregar, coletar, derivar_status, quadro_html, slug_status  # noqa: E402
 
 REPO = "mdsreq-fga-unb/REQ-2026.2-T02-UniCash"
 URL_PUBLICADA = "https://exemplo.invalid/consulta/dados/github.json"
@@ -122,6 +122,54 @@ class TestCarregar(unittest.TestCase):
         with patch.dict(os.environ, {}, clear=True), \
              patch.object(github_status, "_get_json", return_value={"x": 1}):
             self.assertEqual(carregar(REPO, ["UC01"], URL_PUBLICADA)["fonte"], "indisponivel")
+
+
+class TestQuadro(unittest.TestCase):
+    def dados_api(self):
+        with patch.object(github_status, "_post_graphql", return_value=FIXTURE), \
+             patch.object(github_status, "_get_json", side_effect=comparacao("ahead")):
+            return coletar(REPO, "token-falso", ["UC01", "UC10"])
+
+    def test_slug_status(self):
+        self.assertEqual(slug_status("Não informado"), "nao-informado")
+        self.assertEqual(slug_status("Implementado na develop"), "implementado-na-develop")
+        self.assertEqual(slug_status("Publicado na main"), "publicado-na-main")
+
+    def test_quadro_com_pr(self):
+        html = quadro_html("UC01", self.dados_api())
+        self.assertIn("catalogo-status-implementado-na-develop", html)
+        self.assertIn('href="https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/48"', html)
+        self.assertIn('href="https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/28"', html)
+        self.assertIn("#28", html)
+        self.assertIn("09/11/2026", html)
+        self.assertIn("develop", html)
+        self.assertIn("Natan8643", html)
+        self.assertIn("CI passou", html)
+        self.assertIn("Dados do GitHub de", html)
+
+    def test_quadro_uc_sem_issue(self):
+        html = quadro_html("UC10", self.dados_api())
+        self.assertIn("catalogo-status-sem-issue", html)
+        self.assertIn("Sem issue no GitHub", html)
+
+    def test_quadro_indisponivel(self):
+        html = quadro_html("UC01", {"coletado_em": None, "fonte": "indisponivel", "casos": {}})
+        self.assertIn("Dados do GitHub indisponíveis neste build", html)
+        self.assertIn("catalogo-status-nao-informado", html)
+
+    def test_quadro_publicado_avisa_data(self):
+        html = quadro_html("UC01", {**PUBLICADO_OK, "fonte": "publicado"})
+        self.assertIn("13/11/2026 10:00", html)
+
+    def test_quadro_escapa_html(self):
+        dados = self.dados_api()
+        dados["casos"]["UC01"]["prs"][0]["titulo"] = "<script>x</script>"
+        html = quadro_html("UC01", dados)
+        self.assertIn("&lt;script&gt;", html)
+        self.assertNotIn("<script>", html)
+
+    def test_quadro_sem_linha_em_branco(self):
+        self.assertNotIn("\n\n", quadro_html("UC01", self.dados_api()))
 
 
 if __name__ == "__main__":

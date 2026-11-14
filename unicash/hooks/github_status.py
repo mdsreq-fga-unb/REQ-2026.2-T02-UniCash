@@ -7,10 +7,12 @@ para poder ser testado sozinho; o hook ``rastreabilidade.py`` é quem o usa.
 
 from __future__ import annotations
 
+import html
 import json
 import logging
 import os
 import re
+import unicodedata
 import urllib.request
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -194,3 +196,69 @@ def carregar(repo: str, codigos: list[str], url_publicada: str) -> dict:
         log.info("Status dos casos de uso: dados publicados indisponíveis (%s).", type(erro).__name__)
     log.info("Status dos casos de uso: dados do GitHub indisponíveis neste build.")
     return dict(INDISPONIVEL, casos={})
+
+
+# --------------------------------------------------------------------------- #
+# Quadro exibido no site
+# --------------------------------------------------------------------------- #
+
+CI = {"SUCCESS": "CI passou ✓", "FAILURE": "CI falhou ✗", "ERROR": "CI falhou ✗",
+      "PENDING": "CI em andamento", "EXPECTED": "CI em andamento"}
+
+
+def slug_status(status: str) -> str:
+    """Mesmo resultado do slug() de catalogo.js, para reaproveitar as classes de cor."""
+    sem_acento = unicodedata.normalize("NFD", status).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"[^a-z0-9]+", "-", sem_acento).strip("-")
+
+
+def _data(iso: str | None, com_hora: bool = False) -> str:
+    if not iso:
+        return ""
+    momento = datetime.fromisoformat(iso.replace("Z", "+00:00")).astimezone(FUSO)
+    return momento.strftime("%d/%m/%Y %H:%M" if com_hora else "%d/%m/%Y")
+
+
+def _link(url: str, texto: str) -> str:
+    return f'<a href="{html.escape(url)}" target="_blank" rel="noopener">{html.escape(texto)}</a>'
+
+
+def _linha_pr(pr: dict) -> str:
+    if pr["estado"] == "MERGED":
+        estado = f"integrado na {html.escape(pr['base'])} em {_data(pr.get('integrado_em'))}"
+    elif pr["estado"] == "OPEN":
+        estado = f"aberto para a {html.escape(pr['base'])}"
+    else:
+        estado = "fechado sem merge"
+    ci = CI.get(pr.get("ci") or "", "sem CI")
+    return (f'<li>PR {_link(pr["url"], "#" + str(pr["numero"]))} '
+            f'“{html.escape(pr["titulo"])}” · {estado} · {ci}</li>')
+
+
+def quadro_html(cod: str, dados: dict) -> str:
+    """Quadro de status de um caso de uso, num único bloco HTML sem linhas em branco."""
+    caso = (dados.get("casos") or {}).get(cod)
+    status = caso["status"] if caso else NAO_INFORMADO
+    partes = ['<div class="uc-status">',
+              f'<span class="catalogo-status catalogo-status-{slug_status(status)}">{html.escape(status)}</span>',
+              '<ul class="uc-status-evidencias">']
+    if caso and caso.get("issue"):
+        issue = caso["issue"]
+        estado = {"OPEN": "aberta", "CLOSED": "fechada"}.get(issue.get("estado"), "estado desconhecido")
+        responsaveis = ", ".join(html.escape(r) for r in issue.get("responsaveis") or []) or "sem responsável"
+        numero = "#" + str(issue.get("numero", "?"))
+        rotulo = _link(issue["url"], numero) if issue.get("url") else html.escape(numero)
+        partes.append(f'<li>Issue {rotulo} · {estado} · '
+                      f'responsável: {responsaveis}</li>')
+        partes += [_linha_pr(pr) for pr in caso.get("prs", [])]
+        if not caso.get("prs"):
+            partes.append("<li>Nenhum pull request ligado à issue</li>")
+    elif caso:
+        partes.append(f"<li>Sem issue no GitHub com o código {html.escape(cod)}</li>")
+    partes.append("</ul>")
+    if dados.get("fonte") == "indisponivel" or not dados.get("coletado_em"):
+        partes.append('<p class="uc-status-rodape">Dados do GitHub indisponíveis neste build</p>')
+    else:
+        partes.append(f'<p class="uc-status-rodape">Dados do GitHub de {_data(dados["coletado_em"], True)}</p>')
+    partes.append("</div>")
+    return "".join(partes)
