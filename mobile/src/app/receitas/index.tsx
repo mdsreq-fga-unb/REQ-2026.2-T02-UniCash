@@ -39,7 +39,7 @@ export default function ListaReceitas() {
       void recarregar();
       void atualizarPendentes();
       void sincronizarPendentes().then((mudou) => {
-      if (mudou) void recarregar();
+        if (mudou) void recarregar();
         // EX07: a nuvem negou o acesso; os dados locais seguem intactos.
         if (consumirAcessoNegado()) setFeedback({ tipo: 'erro', texto: MSG.acessoNegado });
         void atualizarPendentes();
