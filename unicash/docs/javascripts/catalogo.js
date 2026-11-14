@@ -194,26 +194,37 @@
       return chip;
     }
 
+    // Relações entre casos de uso agrupadas por sentido, em português, com o
+    // estereótipo UML («include»/«extend») no título de cada grupo.
+    var GRUPOS_RELACAO = [
+      { chave: "inclui", rotulo: "Inclui", uml: "«include»" },
+      { chave: "estende", rotulo: "Estende", uml: "«extend»" },
+      { chave: "incluido", rotulo: "Incluído por", uml: "«include»" },
+      { chave: "estendido", rotulo: "Estendido por", uml: "«extend»" }
+    ];
+
     function linhaRelacoes(caso) {
-      var partes = [];
+      var grupos = { inclui: [], estende: [], incluido: [], estendido: [] };
       (caso.ligacoes_uc || []).forEach(function (l) {
-        partes.push(["«" + l.tipo + "»", l.alvo]);
+        grupos[l.tipo === "include" ? "inclui" : "estende"].push(l.alvo);
       });
       (recebidas[caso.codigo] || []).forEach(function (r) {
-        partes.push([r.tipo === "include" ? "incluído por" : "estendido por", r.origem]);
+        grupos[r.tipo === "include" ? "incluido" : "estendido"].push(r.origem);
       });
-      if (!partes.length) return null;
-      var linha = el("div", { class: "uc-cat__linha" }, [el("span", { class: "uc-cat__rotulo", texto: "Relações" })]);
       var lista = el("span", { class: "uc-cat__relacoes" });
-      partes.forEach(function (p) {
-        var alvo = porCodigo[p[1]];
-        lista.appendChild(el("span", { class: "uc-cat__relacao" }, [
-          el("em", { texto: p[0] + " " }),
-          alvo ? link(alvo, p[1]) : document.createTextNode(p[1])
-        ]));
+      GRUPOS_RELACAO.forEach(function (g) {
+        var codigos = grupos[g.chave];
+        if (!codigos.length) return;
+        var grupo = el("span", { class: "uc-cat__relacao", title: g.uml }, [el("em", { texto: g.rotulo + " " })]);
+        codigos.forEach(function (cod, i) {
+          if (i) grupo.appendChild(document.createTextNode(", "));
+          var alvo = porCodigo[cod];
+          grupo.appendChild(alvo ? link(alvo, cod) : document.createTextNode(cod));
+        });
+        lista.appendChild(grupo);
       });
-      linha.appendChild(lista);
-      return linha;
+      if (!lista.children.length) return null;
+      return el("div", { class: "uc-cat__linha" }, [el("span", { class: "uc-cat__rotulo", texto: "Relações" }), lista]);
     }
 
     function detalhes(caso) {

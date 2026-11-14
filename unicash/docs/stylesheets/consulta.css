@@ -755,3 +755,9 @@
   background: rgba(60, 170, 100, 0.12);
 }
 [data-md-color-scheme="slate"] .md-typeset .uc-cat__detalhes summary { color: #8ebdf0; }
+
+.uc-cat__relacao + .uc-cat__relacao::before {
+  content: "·";
+  margin-right: 0.5em;
+  color: var(--md-default-fg-color--lighter);
+}
