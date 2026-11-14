@@ -94,15 +94,6 @@ plugins:
         - consulta/*
         - atas/archive/*
         - atas/category/*
-  - print-site:
-      add_to_navigation: false
-      print_page_title: Leitura contínua
-      add_print_site_banner: false
-      exclude:
-        - consulta/*
-        - atas/*
-      add_cover_page: false
-      enumerate_headings: false
 
 markdown_extensions:
   - meta

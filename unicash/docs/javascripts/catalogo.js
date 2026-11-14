@@ -77,347 +77,247 @@
         "Não foi possível carregar os casos de uso. Consulte o menu lateral.";
     });
  
+  var ORDEM_STATUS = [
+    "Publicado na main",
+    "Implementado na develop",
+    "Em desenvolvimento",
+    "Planejado",
+    "Sem issue",
+    "Não informado"
+  ];
+
   function montar(dados) {
     var itens = dados.itens || [];
     var porCodigo = {};
- 
+
     itens.forEach(function (item) {
       porCodigo[item.codigo] = item;
     });
- 
+
     var casos = itens
-      .filter(function (item) {
-        return item.tipo === "UC";
-      })
+      .filter(function (item) { return item.tipo === "UC"; })
       .sort(function (a, b) {
-        return a.codigo.localeCompare(b.codigo, undefined, {
-          numeric: true
-        });
+        return a.codigo.localeCompare(b.codigo, undefined, { numeric: true });
       });
- 
+
+    // Relações «include»/«extend» recebidas (ex.: UC01 é incluído por UC04).
+    var recebidas = {};
+    casos.forEach(function (caso) {
+      (caso.ligacoes_uc || []).forEach(function (l) {
+        (recebidas[l.alvo] = recebidas[l.alvo] || []).push({ origem: caso.codigo, tipo: l.tipo });
+      });
+    });
+
+    function status(caso) {
+      return caso.status_implementacao || "Não informado";
+    }
+
+    function link(item, texto, classe) {
+      return el("a", { href: "../" + item.url, class: classe || "", texto: texto });
+    }
+
+    function relacionadosPorTipo(caso, tipo) {
+      return (caso.relacoes || [])
+        .map(function (codigo) { return porCodigo[codigo]; })
+        .filter(function (item) { return item && item.tipo === tipo; });
+    }
+
+    function rfsPrincipais(caso) {
+      var deps = (caso.dependencias_funcionais || []).filter(function (d) { return d.principal; });
+      if (deps.length) return deps;
+      return relacionadosPorTipo(caso, "RF").map(function (rf) {
+        return { codigo: rf.codigo, nome: rf.nome, url: rf.url, mvp: rf.mvp };
+      });
+    }
+
+    // ---------------------------------------------------------------- //
+    // Panorama: quantos casos de uso em cada situação
+    // ---------------------------------------------------------------- //
+    var contagemStatus = {};
+    casos.forEach(function (c) { contagemStatus[status(c)] = (contagemStatus[status(c)] || 0) + 1; });
+    var comCodigo = (contagemStatus["Publicado na main"] || 0) + (contagemStatus["Implementado na develop"] || 0);
+
+    var barra = el("div", { class: "uc-panorama__barra", role: "img",
+      "aria-label": comCodigo + " de " + casos.length + " casos de uso com código integrado" });
+    var legenda = el("ul", { class: "uc-panorama__legenda" });
+    ORDEM_STATUS.forEach(function (st) {
+      var n = contagemStatus[st];
+      if (!n) return;
+      var segmento = el("span", { class: "uc-panorama__segmento catalogo-status-" + slug(st),
+        title: st + ": " + n });
+      segmento.style.flexGrow = String(n);
+      barra.appendChild(segmento);
+      legenda.appendChild(el("li", {}, [
+        el("span", { class: "catalogo-status catalogo-status-" + slug(st), texto: st }),
+        el("strong", { texto: " " + n })
+      ]));
+    });
+
+    var panorama = el("section", { class: "uc-panorama", "aria-label": "Situação dos casos de uso" }, [
+      el("p", { class: "uc-panorama__numero" }, [
+        el("strong", { texto: comCodigo + " de " + casos.length }),
+        document.createTextNode(" casos de uso com código integrado")
+      ]),
+      barra,
+      legenda,
+      el("p", { class: "uc-panorama__nota",
+        texto: "Situação calculada a partir das issues e pull requests do GitHub." })
+    ]);
+
+    // ---------------------------------------------------------------- //
+    // Busca
+    // ---------------------------------------------------------------- //
     var busca = el("input", {
       type: "search",
       class: "md-input catalogo-busca",
-      placeholder: "Buscar caso de uso ou requisito relacionado...",
+      placeholder: "Buscar caso de uso ou requisito (ex.: receitas, RF07, RN06)",
       "aria-label": "Buscar casos de uso"
     });
- 
-    var contagem = el("p", {
-      class: "catalogo-contagem",
-      "aria-live": "polite"
-    });
- 
-    var limpar = el("button", {
-      type: "button",
-      class: "md-button catalogo-limpar",
-      texto: "Limpar busca"
-    });
- 
-    var tabela = el("table", {
-      class: "catalogo-tabela"
-    });
- 
-    var cabecalho = el("thead");
-    var linhaCabecalho = el("tr");
- 
-    [
-      "Caso de uso",
-      "Nome",
-      "Descrição",
-      "Status de implementação",
-      "Dependências funcionais"
-    ].forEach(function (titulo) {
-      linhaCabecalho.appendChild(
-        el("th", { texto: titulo, scope: "col" })
-      );
-    });
- 
-    cabecalho.appendChild(linhaCabecalho);
- 
-    var corpo = el("tbody");
-    tabela.appendChild(cabecalho);
-    tabela.appendChild(corpo);
- 
+    var contagem = el("p", { class: "catalogo-contagem", "aria-live": "polite" });
+    var grade = el("div", { class: "uc-grade" });
+
     raiz.innerHTML = "";
-    raiz.appendChild(busca);
-    raiz.appendChild(
-      el("div", { class: "catalogo-acoes" }, [contagem, limpar])
-    );
-    raiz.appendChild(
-      el("div", { class: "catalogo-tabela-container" }, [tabela])
-    );
- 
-    function criarLink(item, somenteCodigo) {
-      return el("a", {
-        href: "../" + item.url,
-        class: "ref ref-" + item.tipo.toLowerCase(),
-        texto: somenteCodigo
-          ? item.codigo
-          : item.codigo + " — " + item.nome
-      });
-    }
- 
-    function relacionadosPorTipo(caso, tipo) {
-      return (caso.relacoes || [])
-        .map(function (codigo) {
-          return porCodigo[codigo];
-        })
-        .filter(function (item) {
-          return item && item.tipo === tipo;
-        });
-    }
- 
-    /* Dependências funcionais do caso de uso: RFs principais (do cabeçalho do
-     * UC) em destaque e RFs relacionados em tom mais discreto. Se o JSON não
-     * trouxer o campo novo, cai de volta para os RFs ligados ao UC. */
-    
-function dependenciasFuncionais(caso) {
-  // Primeiro, utiliza as dependências específicas geradas pelo Python.
-  if (
-    Array.isArray(caso.dependencias_funcionais) &&
-    caso.dependencias_funcionais.length > 0
-  ) {
-    return caso.dependencias_funcionais;
-  }
+    raiz.appendChild(panorama);
+    raiz.appendChild(el("div", { class: "catalogo-acoes" }, [busca, contagem]));
+    raiz.appendChild(grade);
 
-  // Se estiver vazio, busca os RFs nas relações já cadastradas.
-  return relacionadosPorTipo(caso, "RF").map(function (rf) {
-    return {
-      codigo: rf.codigo,
-      nome: rf.nome,
-      url: rf.url,
-      mvp: rf.mvp,
-      principal: true
-    };
-  });
-}
-
- 
-    function criarChipDependencia(dep) {
-      var item = porCodigo[dep.codigo];
-      var nome = dep.nome || (item && item.nome) || "";
-      var destino = dep.url || (item && item.url);
-      var classe =
-        "catalogo-dep " +
-        (dep.principal ? "catalogo-dep-principal" : "catalogo-dep-relacionado");
- 
+    // ---------------------------------------------------------------- //
+    // Card de cada caso de uso
+    // ---------------------------------------------------------------- //
+    function chipRf(dep) {
+      var destino = dep.url || (porCodigo[dep.codigo] || {}).url;
+      var classe = "uc-cat__rf" + (dep.mvp ? " uc-cat__rf--mvp" : "");
       var chip = destino
-        ? el("a", {
-            href: "../" + destino,
-            class: "ref ref-rf " + classe,
-            texto: dep.codigo
-          })
+        ? el("a", { href: "../" + destino, class: classe, texto: dep.codigo })
         : el("span", { class: classe, texto: dep.codigo });
- 
-      var dica = nome
-        ? nome +
-          (dep.principal ? " (principal)" : " (relacionado)") +
-          (dep.mvp ? " · No MVP" : "")
-        : dep.principal
-        ? "Requisito principal"
-        : "Requisito relacionado";
-      chip.setAttribute("title", dica);
- 
-      return el("li", {}, [chip]);
+      chip.title = (dep.nome || "") + (dep.mvp ? " · No MVP" : " · Fora do MVP");
+      return chip;
     }
- 
-    function criarCelulaDependencias(caso) {
-      var celula = el("td", { class: "catalogo-col-deps" });
-      var deps = dependenciasFuncionais(caso);
- 
-      if (!deps.length) {
-        celula.textContent = "—";
-        return celula;
-      }
- 
-      var lista = el("ul", { class: "catalogo-deps" });
-      deps.forEach(function (dep) {
-        lista.appendChild(criarChipDependencia(dep));
+
+    // Relações entre casos de uso agrupadas por sentido, em português, com o
+    // estereótipo UML («include»/«extend») no título de cada grupo.
+    var GRUPOS_RELACAO = [
+      { chave: "inclui", rotulo: "Inclui", uml: "«include»" },
+      { chave: "estende", rotulo: "Estende", uml: "«extend»" },
+      { chave: "incluido", rotulo: "Incluído por", uml: "«include»" },
+      { chave: "estendido", rotulo: "Estendido por", uml: "«extend»" }
+    ];
+
+    function linhaRelacoes(caso) {
+      var grupos = { inclui: [], estende: [], incluido: [], estendido: [] };
+      (caso.ligacoes_uc || []).forEach(function (l) {
+        grupos[l.tipo === "include" ? "inclui" : "estende"].push(l.alvo);
       });
-      celula.appendChild(lista);
-      return celula;
-    }
- 
-    function criarCelulaStatus(caso) {
-      var texto = caso.status_implementacao || "Não informado";
-      var celula = el("td", { class: "catalogo-col-status" });
-      celula.appendChild(
-        el("span", {
-          class: "catalogo-status catalogo-status-" + slug(texto),
-          texto: texto
-        })
-      );
-      return celula;
-    }
- 
-    function criarDetalhes(caso) {
-      var painel = el("div", {
-        class: "catalogo-detalhes"
+      (recebidas[caso.codigo] || []).forEach(function (r) {
+        grupos[r.tipo === "include" ? "incluido" : "estendido"].push(r.origem);
       });
- 
+      var lista = el("span", { class: "uc-cat__relacoes" });
+      GRUPOS_RELACAO.forEach(function (g) {
+        var codigos = grupos[g.chave];
+        if (!codigos.length) return;
+        var grupo = el("span", { class: "uc-cat__relacao", title: g.uml }, [el("em", { texto: g.rotulo + " " })]);
+        codigos.forEach(function (cod, i) {
+          if (i) grupo.appendChild(document.createTextNode(", "));
+          var alvo = porCodigo[cod];
+          grupo.appendChild(alvo ? link(alvo, cod) : document.createTextNode(cod));
+        });
+        lista.appendChild(grupo);
+      });
+      if (!lista.children.length) return null;
+      return el("div", { class: "uc-cat__linha" }, [el("span", { class: "uc-cat__rotulo", texto: "Relações" }), lista]);
+    }
+
+    function detalhes(caso) {
+      var painel = el("details", { class: "uc-cat__detalhes" });
+      var total = 0;
+      var corpo = el("div", { class: "uc-cat__grupos" });
       ORDEM_TIPOS.forEach(function (tipo) {
-        var relacionados = relacionadosPorTipo(caso, tipo);
-        if (!relacionados.length) return;
- 
-        var grupo = el("section", {
-          class: "catalogo-grupo"
+        var lista = relacionadosPorTipo(caso, tipo);
+        if (!lista.length) return;
+        total += lista.length;
+        var ul = el("ul");
+        lista.forEach(function (item) {
+          ul.appendChild(el("li", {}, [link(item, item.codigo, "ref ref-" + tipo.toLowerCase()),
+            document.createTextNode(" " + item.nome)]));
         });
- 
-        grupo.appendChild(
-          el("h4", {
-            class: "catalogo-grupo-titulo",
-            texto: NOMES_TIPOS[tipo] + " (" + relacionados.length + ")"
-          })
-        );
- 
-        var lista = el("ul", {
-          class: "catalogo-relacionados"
-        });
- 
-        relacionados.forEach(function (item) {
-          var linha = el("li", {
-            class: "catalogo-relacionado"
-          });
- 
-          linha.appendChild(criarLink(item, false));
- 
-          if (tipo === "RF") {
-            linha.appendChild(
-              el("span", {
-                class: "selo " +
-                  (item.mvp ? "selo-mvp" : "selo-fora"),
-                texto: item.mvp ? "No MVP" : "Fora do MVP"
-              })
-            );
-          }
- 
-          lista.appendChild(linha);
-        });
- 
-        grupo.appendChild(lista);
-        painel.appendChild(grupo);
+        corpo.appendChild(el("section", {}, [el("h4", { texto: NOMES_TIPOS[tipo] + " (" + lista.length + ")" }), ul]));
       });
- 
-      if (!painel.children.length) {
-        painel.appendChild(
-          el("p", {
-            class: "catalogo-vazio",
-            texto: "Nenhuma relação cadastrada para este caso de uso."
-          })
-        );
-      }
- 
+      if (!total) return null;
+      painel.appendChild(el("summary", { texto: "Todos os requisitos ligados (" + total + ")" }));
+      painel.appendChild(corpo);
       return painel;
     }
- 
-    function corresponde(caso, termo) {
-      var partes = [
-        caso.codigo,
-        caso.nome,
-        caso.descricao,
-        caso.status_implementacao
-      ];
- 
-      dependenciasFuncionais(caso).forEach(function (dep) {
-        partes.push(dep.codigo, dep.nome);
+
+    function card(caso) {
+      var st = status(caso);
+      var ev = caso.evidencia || {};
+      var rfs = rfsPrincipais(caso);
+      var cps = [];
+      rfs.forEach(function (d) {
+        var cp = (porCodigo[d.codigo] || {}).cp;
+        if (cp && cps.indexOf(cp) < 0) cps.push(cp);
       });
- 
+      var nRnf = relacionadosPorTipo(caso, "RNF").length;
+      var nRn = relacionadosPorTipo(caso, "RN").length;
+
+      var evidencia = el("p", { class: "uc-cat__evidencia" }, [document.createTextNode(ev.frase || st)]);
+      if (ev.url) {
+        evidencia.appendChild(document.createTextNode(" · "));
+        evidencia.appendChild(el("a", { href: ev.url, target: "_blank", rel: "noopener", texto: ev.rotulo + " ↗" }));
+      }
+
+      var linhaRfs = el("div", { class: "uc-cat__linha" }, [el("span", { class: "uc-cat__rotulo", texto: "RFs" })]);
+      var chips = el("span", { class: "uc-cat__rfs" });
+      rfs.forEach(function (d) { chips.appendChild(chipRf(d)); });
+      if (!rfs.length) chips.textContent = "—";
+      linhaRfs.appendChild(chips);
+
+      var rodape = [];
+      cps.forEach(function (cp) { if (porCodigo[cp]) rodape.push(link(porCodigo[cp], cp + " · " + porCodigo[cp].nome)); });
+      var numeros = [];
+      if (nRnf) numeros.push(nRnf + " RNF");
+      if (nRn) numeros.push(nRn + " RN");
+
+      return el("article", { class: "uc-cat uc-cat--" + slug(st) }, [
+        el("div", { class: "uc-cat__topo" }, [
+          link(caso, caso.codigo, "uc-cat__codigo"),
+          el("span", { class: "catalogo-status catalogo-status-" + slug(st), texto: st })
+        ]),
+        el("h3", { class: "uc-cat__nome" }, [link(caso, caso.nome || caso.codigo)]),
+        caso.descricao ? el("p", { class: "uc-cat__valor", texto: caso.descricao }) : null,
+        evidencia,
+        linhaRfs,
+        linhaRelacoes(caso),
+        (rodape.length || numeros.length)
+          ? el("p", { class: "uc-cat__rodape" }, rodape.concat(numeros.length
+              ? [document.createTextNode((rodape.length ? " · " : "") + numeros.join(" · "))] : []))
+          : null,
+        detalhes(caso)
+      ]);
+    }
+
+    function corresponde(caso, termo) {
+      var partes = [caso.codigo, caso.nome, caso.descricao, status(caso)];
       (caso.relacoes || []).forEach(function (codigo) {
         var item = porCodigo[codigo];
- 
-        if (item) {
-          partes.push(item.codigo, item.nome, item.descricao);
-        } else {
-          partes.push(codigo);
-        }
+        partes.push(codigo);
+        if (item) partes.push(item.nome);
       });
- 
       return normalizar(partes.join(" ")).includes(termo);
     }
- 
+
     function atualizar() {
       var termo = normalizar(busca.value.trim());
- 
-      var filtrados = casos.filter(function (caso) {
-        return !termo || corresponde(caso, termo);
-      });
- 
-      corpo.innerHTML = "";
- 
-      contagem.textContent =
-        filtrados.length + " de " + casos.length + " casos de uso";
- 
-      filtrados.forEach(function (caso) {
-        var linha = el("tr", {
-          class: "catalogo-linha"
-        });
- 
-        var celulaCodigo = el("td");
-        var expansor = el("button", {
-          type: "button",
-          class: "catalogo-expansor",
-          "aria-expanded": "false",
-          texto: "+ " + caso.codigo
-        });
- 
-        celulaCodigo.appendChild(expansor);
- 
-        linha.appendChild(celulaCodigo);
-        linha.appendChild(
-          el("td", { texto: caso.nome || "—" })
-        );
-        linha.appendChild(
-          el("td", { texto: caso.descricao || "—" })
-        );
-        linha.appendChild(criarCelulaStatus(caso));
-        linha.appendChild(criarCelulaDependencias(caso));
- 
-        var linhaDetalhes = el("tr", {
-          class: "catalogo-linha-detalhes"
-        });
- 
-        var celulaDetalhes = el("td", {
-          colspan: "5"
-        });
- 
-        celulaDetalhes.appendChild(criarDetalhes(caso));
-        linhaDetalhes.appendChild(celulaDetalhes);
-        linhaDetalhes.hidden = true;
- 
-        expansor.addEventListener("click", function () {
-          var aberto = !linhaDetalhes.hidden;
-          linhaDetalhes.hidden = aberto;
-          expansor.setAttribute("aria-expanded", String(!aberto));
-          expansor.textContent = (aberto ? "+ " : "− ") + caso.codigo;
-        });
- 
-        corpo.appendChild(linha);
-        corpo.appendChild(linhaDetalhes);
-      });
- 
+      var filtrados = casos.filter(function (caso) { return !termo || corresponde(caso, termo); });
+      grade.innerHTML = "";
+      contagem.textContent = filtrados.length + " de " + casos.length + " casos de uso";
+      filtrados.forEach(function (caso) { grade.appendChild(card(caso)); });
       if (!filtrados.length) {
-        var linhaVazia = el("tr");
-        linhaVazia.appendChild(
-          el("td", {
-            colspan: "5",
-            class: "catalogo-vazio",
-            texto: "Nenhum caso de uso encontrado."
-          })
-        );
-        corpo.appendChild(linhaVazia);
+        grade.appendChild(el("p", { class: "catalogo-vazio", texto: "Nenhum caso de uso encontrado." }));
       }
     }
- 
+
     busca.addEventListener("input", atualizar);
- 
-    limpar.addEventListener("click", function () {
-      busca.value = "";
-      atualizar();
-      busca.focus();
-    });
- 
     atualizar();
   }
 })();
- 
-

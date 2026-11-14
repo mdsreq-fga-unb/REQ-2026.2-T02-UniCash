@@ -1,15 +1,12 @@
 /* Recursos de navegação presentes em todas as páginas:
  * - botão flutuante de consulta rápida (Ctrl+K), com busca de CP, UC, RF, RNF e RN;
  * - aba de pesquisa na borda direita, que abre o mesmo painel de busca;
- * - alternância entre a navegação por páginas e a leitura contínua;
  * - botão para recolher o menu lateral esquerdo. */
 (function () {
   "use strict";
 
   var configuracao = JSON.parse(document.getElementById("__config").textContent);
   var BASE = configuracao.base.replace(/\/?$/, "/");
-  var PAGINA_CONTINUA = "print_page/";
-  var naLeituraContinua = location.pathname.replace(/\/$/, "").endsWith("/print_page");
 
   function el(tag, attrs, filhos) {
     var n = document.createElement(tag);
@@ -144,39 +141,10 @@
   document.body.appendChild(abaPesquisa);
 
   // ------------------------------------------------------------------ //
-  // Alternância: navegação por páginas ⇄ leitura contínua
-  // ------------------------------------------------------------------ //
-  var cabecalho = document.querySelector(".md-header__inner");
-  if (cabecalho) {
-    if (!naLeituraContinua) {
-      try { sessionStorage.setItem("unicash.ultimaPagina", location.pathname + location.hash); } catch (e) { /* */ }
-    }
-    var voltar = null;
-    try { voltar = sessionStorage.getItem("unicash.ultimaPagina"); } catch (e) { /* */ }
-    var alternador = el("div", { class: "uc-visao", role: "group", "aria-label": "Forma de leitura" }, [
-      el("a", { href: naLeituraContinua ? (voltar || BASE) : location.href,
-        "aria-current": naLeituraContinua ? "false" : "true", texto: "Por páginas" }),
-      el("a", { href: BASE + PAGINA_CONTINUA, "aria-current": naLeituraContinua ? "true" : "false",
-        title: "O projeto inteiro em uma página, pronto para imprimir ou salvar em PDF", texto: "Leitura contínua" })
-    ]);
-    var busca_ = cabecalho.querySelector(".md-search");
-    cabecalho.insertBefore(alternador, busca_ || null);
-
-    if (naLeituraContinua) {
-      document.body.classList.add("uc-leitura-continua");
-      var imprimir = el("button", { type: "button", class: "md-button md-button--primary uc-imprimir",
-        texto: "Imprimir ou salvar em PDF" });
-      imprimir.addEventListener("click", function () { window.print(); });
-      var conteudo = document.querySelector(".md-content__inner");
-      if (conteudo) conteudo.insertBefore(imprimir, conteudo.firstChild);
-    }
-  }
-
-  // ------------------------------------------------------------------ //
   // Recolher o menu lateral esquerdo (telas largas)
   // ------------------------------------------------------------------ //
   var menu = document.querySelector(".md-sidebar--primary");
-  if (menu && !naLeituraContinua) {
+  if (menu) {
     var recolher = el("button", { type: "button", class: "uc-recolher", "aria-controls": "__drawer" });
     function aplicarMenu(oculto) {
       document.body.classList.toggle("uc-sem-menu", oculto);
