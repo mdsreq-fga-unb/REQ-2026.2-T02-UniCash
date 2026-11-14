@@ -1,12 +1,16 @@
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { completarRecorrencias } from '@/features/receitas/service';
+import { completarRecorrenciasDespesas } from '@/features/despesas/service';
 import { sincronizarPendentes } from '@/features/receitas/sync';
 
 export default function RootLayout() {
   useEffect(() => {
-    // Ao abrir o app: completa a geração das séries sem término e tenta sincronizar.
-    completarRecorrencias()
+    // Completa as recorrências antes de tentar sincronizar.
+    Promise.all([
+      completarRecorrencias(),
+      completarRecorrenciasDespesas(),
+    ])
       .catch(() => {})
       .finally(() => void sincronizarPendentes());
   }, []);
