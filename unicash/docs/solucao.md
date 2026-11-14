@@ -19,7 +19,7 @@ O objetivo do produto é **auxiliar estudantes universitários, famílias e dema
 | CP2 | Organização e análise dos gastos | A solução deverá prover a capacidade de estruturar as finanças, agrupando os registros por categorias para facilitar a compreensão dos hábitos de consumo. | VN2 | Melhor compreensão de onde os recursos são alocados e apoio à organização do orçamento. | OE2 | OE3 |
 | CP3 | Planejamento financeiro pessoal | A solução deverá prover a capacidade de projetar o futuro financeiro, estabelecendo orçamentos e acompanhando metas voltadas à economia. | VN3 | Incentivo à formação de reservas financeiras e redução do endividamento. | OE2 | OE4 |
 | CP4 | Visualização da situação financeira | A solução deverá prover a capacidade de fornecer um panorama claro do estado atual das finanças, consolidando saldos, gráficos e resumos periódicos. | VN4 | Apoio à tomada de decisões rápidas a partir de uma compreensão visual da situação financeira. | OE3 | OE2 |
-| CP5 | Gestão da identidade do usuário | A solução deverá prover a capacidade de individualizar a experiência, garantindo o acesso autenticado e a manutenção do perfil de cada utilizador. | VN5 | Garantia de que os dados financeiros fiquem segregados e restritos ao seu respectivo titular. | OE1 | OE4 |
+| CP5 | Gestão da identidade do usuário | A solução deverá prover a capacidade de individualizar a experiência e manter os dados de cada utilizador separados. As funcionalidades individuais funcionam sem conta, com os dados somente no dispositivo; a conta é opcional e serve para sincronizar entre dispositivos e participar de grupos ([RF61](requisitos_funcionais.md#rf61), [D20](decisoes.md#d20)). | VN5 | Garantia de que os dados financeiros fiquem segregados e restritos ao seu respectivo titular, no dispositivo e, quando houver conta, na sincronização. | OE1 | OE4 |
 | CP6 | Suporte ao uso e operação | A solução deverá prover a capacidade de proporcionar uma experiência de utilização acessível e compreensível, favorecendo a autonomia dos usuários na utilização do produto. | VN6 | Maior autonomia dos usuários e redução das dificuldades de utilização. | OE1 | OE3 |
 | CP7 | Colaboração em grupo de amigos ou família | A solução deverá prover a capacidade de apoiar a organização financeira compartilhada entre amigos e familiares, conciliando objetivos coletivos e necessidades individuais. | VN7 | Facilitação do planejamento financeiro conjunto, respeitando as necessidades e a privacidade dos participantes. | OE4 | OE2 |
 | CP8 | Engajamento e incentivo ao cumprimento de metas | A solução deverá prover a capacidade de estimular o envolvimento contínuo dos usuários na organização de suas finanças e na busca por seus objetivos financeiros. | VN8 | Maior continuidade no acompanhamento financeiro e incentivo à formação de hábitos de organização e economia. | OE4 | OE2 |
@@ -63,6 +63,18 @@ O Monekin é uma referência especialmente próxima do UniCash por também ser g
 
 O Parsa, por sua vez, parte de uma proposta centrada na conectividade bancária. O projeto utiliza uma arquitetura com armazenamento local e sincronização com um backend, oferecendo integração com Open Finance, categorização de transações, orçamentos e análises financeiras. Seu repositório descreve a solução como orientada à conexão bancária automática, buscando reduzir a necessidade de registrar cada movimentação manualmente. O UniCash se diferencia, no MVP, por priorizar o registro manual, sem exigir integração bancária para seu funcionamento. A arquitetura local-first também busca dar prioridade ao acesso e ao processamento dos dados no dispositivo, enquanto o Parsa adota a sincronização com sua infraestrutura remota. A integração com o Open Finance brasileiro poderá ser considerada em versões futuras, sem constituir uma dependência para a utilização inicial do produto.
 
+### Diferencial do produto e diferencial testado no MVP
+
+Os grupos de amigos e família (CP7) diferenciam o **produto completo**, mas ficaram fora do MVP ([D09](decisoes.md#d09)). Por isso, a primeira versão entregue não pode ser justificada por eles. O MVP testa outra hipótese de valor, centrada no uso individual:
+
+> **Hipótese de valor do MVP (proposta da equipe, pendente de validação com a cliente):** estudantes universitários e famílias com renda limitada mantêm o registro das próprias finanças por pelo menos quatro semanas quando o registro é rápido ([RNF27](requisitos_nao_funcionais.md)), o consumo dos limites aparece em semáforo ([RF37 a RF39](requisitos_funcionais.md#rf37)), há conquistas pelo cumprimento de metas ([RF44 a RF46](requisitos_funcionais.md#rf44)) e não é preciso criar conta nem ter internet ([RF61](requisitos_funcionais.md#rf61), [D20](decisoes.md#d20)).
+
+| Elemento | Produto completo | MVP |
+|---|---|---|
+| Diferencial principal | Interação em grupos: metas coletivas, privacidade seletiva, comparação e classificação (CP7) | Registro individual sem conta e sem internet, com semáforo de limites e conquistas (CP1, CP3, CP5, CP8) |
+| Como verificar | Fora do escopo desta entrega | Teste de protótipo com tarefas ([cronograma](cronograma.md#tecnicas-de-er-previstas-no-processo)) e, após a implantação, a proporção de participantes que registram movimentações em pelo menos cinco dias por semana durante quatro semanas |
+| Situação | Fora do MVP ([D09](decisoes.md#d09)) | Hipótese proposta; métrica e prazo a confirmar com a cliente |
+
 Dessa forma, a proposta do UniCash combina características já existentes individualmente no mercado, como gratuidade, código aberto e armazenamento local, com uma experiência voltada à organização financeira individual e compartilhada. Seus principais elementos de diferenciação frente às referências analisadas são o caráter local-first da aplicação, a ausência de necessidade de infraestrutura própria para sua utilização e os mecanismos de interação financeira entre grupos.
 
 ## 2.6 Viabilidade da Proposta
@@ -72,8 +84,8 @@ A proposta é considerada viável no **contexto da disciplina**, tendo em vista 
 Para garantir a viabilidade técnica, o cumprimento do prazo de desenvolvimento e a segurança da informação, o sistema possui as seguintes fronteiras de escopo estritamente definidas:
 
 - **Ausência de transações reais**: o sistema funcionará estritamente como uma ferramenta de gestão visual e diário financeiro. Não haverá, sob nenhuma hipótese, transição de dinheiro real, pagamentos ou transferências executadas por dentro da aplicação.
-- **Inserção exclusivamente declaratória**: todos os lançamentos de receitas e despesas deverão ser inseridos manualmente pelos usuários.
-- **Sem integração bancária**: o sistema não possuirá integração via API com instituições financeiras, operadoras de cartão de crédito ou com o ecossistema de Open Finance.
+- **Inserção declaratória no escopo atual**: no escopo atual, que inclui o MVP, todos os lançamentos de receitas e despesas são inseridos manualmente pelos usuários. A importação de extratos ([RF21](requisitos_funcionais.md#rf21), [RF47 a RF49](requisitos_funcionais.md#rf47)), a anexação de comprovantes ([RF50](requisitos_funcionais.md#rf50)) e a extração de dados de comprovantes ([RF60](requisitos_funcionais.md#rf60)) continuam no catálogo como possível evolução do produto, mas estão retiradas do escopo atual (*Won't have this time*), conforme a [D23](decisoes.md#d23).
+- **Sem integração bancária**: o sistema não possuirá integração via API com instituições financeiras, operadoras de cartão de crédito ou com o ecossistema de Open Finance. Uma eventual importação de arquivo de extrato, se voltar ao escopo, não é integração por API: o arquivo seria escolhido e enviado pelo próprio usuário.
 - **Dados Sensíveis**: a aplicação não solicitará e não armazenará dados bancários sensíveis (como senhas de banco, código de segurança de cartões ou números de contas reais), operando apenas com a representação virtual (ex: "Conta Corrente", "Carteira") criada pelo próprio usuário.
 
 ## 2.7 Benefícios Esperados
@@ -101,3 +113,4 @@ Para garantir a viabilidade técnica, o cumprimento do prazo de desenvolvimento 
 | 1.12 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
 | 1.13 | 05/11/2026 | Explicita a arquitetura local-first com suporte offline-first e a sincronização opcional pelo Firebase | Equipe UniCash |
 | 1.14 | 12/11/2026 | Registra o estado de validação dos vínculos de CP7 e CP8 com os objetivos específicos (issue #19) | Erick Alves |
+| 1.15 | 14/11/2026 | Separa o escopo atual do catálogo completo na seção 2.6, alinha a CP5 ao uso sem conta e registra a hipótese de valor do MVP (issue #16) | Bruno Duarte |
