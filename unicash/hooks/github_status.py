@@ -14,12 +14,13 @@ import os
 import re
 import unicodedata
 import urllib.request
-from datetime import datetime
-from zoneinfo import ZoneInfo
+from datetime import datetime, timedelta, timezone
 
 log = logging.getLogger("mkdocs.hooks.github_status")
 
-FUSO = ZoneInfo("America/Sao_Paulo")
+# Horário de Brasília com deslocamento fixo: o Brasil não tem horário de verão desde 2019,
+# e assim o hook não depende do pacote tzdata (ausente no Python do Windows).
+FUSO = timezone(timedelta(hours=-3), "America/Sao_Paulo")
 API = "https://api.github.com"
 TITULO_UC = re.compile(r"^(UC\d{2})\b")
 INDISPONIVEL = {"coletado_em": None, "fonte": "indisponivel", "casos": {}}
@@ -54,6 +55,7 @@ EM_DESENVOLVIMENTO = "Em desenvolvimento"
 IMPLEMENTADO = "Implementado na develop"
 PUBLICADO = "Publicado na main"
 NAO_INFORMADO = "Não informado"
+STATUS_VALIDOS = {SEM_ISSUE, PLANEJADO, EM_DESENVOLVIMENTO, IMPLEMENTADO, PUBLICADO}
 
 
 def _nivel_pr(pr: dict) -> int:
@@ -61,7 +63,11 @@ def _nivel_pr(pr: dict) -> int:
     if pr.get("estado") == "OPEN":
         return 1
     if pr.get("estado") == "MERGED":
-        return 3 if pr.get("base") == "main" or pr.get("na_main") else 2
+        if pr.get("base") == "main" or pr.get("na_main"):
+            return 3
+        # Só a develop conta como implementação; um PR integrado na docs, por
+        # exemplo, apenas documenta o caso de uso.
+        return 2 if pr.get("base") == "develop" else 0
     return 0
 
 
@@ -91,8 +97,13 @@ def _post_graphql(token: str, query: str, variaveis: dict, timeout: float) -> di
     pedido = urllib.request.Request(f"{API}/graphql", data=corpo, headers=_cabecalhos(token), method="POST")
     with urllib.request.urlopen(pedido, timeout=timeout) as resposta:
         dados = json.load(resposta)
+    # Com permissão parcial, o GitHub devolve os dados que pode e uma lista de erros:
+    # aproveita os dados e só falha quando não vier nada.
+    if not dados.get("data"):
+        mensagem = (dados.get("errors") or [{}])[0].get("message")
+        raise RuntimeError(f"GraphQL não devolveu dados: {mensagem}")
     if dados.get("errors"):
-        raise RuntimeError(f"GraphQL respondeu com erro: {dados['errors'][0].get('message')}")
+        log.info("Status dos casos de uso: a API devolveu dados parciais (%d erro(s)).", len(dados["errors"]))
     return dados
 
 
@@ -175,6 +186,28 @@ def coletar(repo: str, token: str, codigos: list[str], timeout: float = 10.0) ->
     return {"coletado_em": datetime.now(FUSO).isoformat(timespec="seconds"), "fonte": "api", "casos": casos}
 
 
+def _caso_valido(caso) -> bool:
+    """Confere a forma de um caso lido do JSON publicado, que pode ser de uma versão antiga."""
+    if not isinstance(caso, dict) or caso.get("status") not in STATUS_VALIDOS:
+        return False
+    issue, prs = caso.get("issue"), caso.get("prs")
+    if issue is not None and not (isinstance(issue, dict) and isinstance(issue.get("numero"), int)):
+        return False
+    campos_pr = ("numero", "titulo", "url", "estado", "base")
+    return isinstance(prs, list) and all(isinstance(pr, dict) and all(k in pr for k in campos_pr) for pr in prs)
+
+
+def _normalizar_publicado(publicado: dict, codigos: list[str]) -> dict:
+    """Mantém só os casos bem formados e uma data de coleta legível."""
+    coletado_em = publicado.get("coletado_em")
+    try:
+        datetime.fromisoformat(str(coletado_em).replace("Z", "+00:00"))
+    except ValueError:
+        coletado_em = None
+    casos = {cod: caso for cod, caso in publicado["casos"].items() if cod in codigos and _caso_valido(caso)}
+    return {"coletado_em": coletado_em, "fonte": "publicado", "casos": casos}
+
+
 def carregar(repo: str, codigos: list[str], url_publicada: str) -> dict:
     """Dados para o build: API, senão o JSON já publicado, senão indisponível. Nunca lança."""
     token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
@@ -191,7 +224,7 @@ def carregar(repo: str, codigos: list[str], url_publicada: str) -> dict:
         publicado = _get_json(url_publicada, None, 10.0)
         if isinstance(publicado, dict) and isinstance(publicado.get("casos"), dict):
             log.info("Status dos casos de uso: usando os dados publicados no site.")
-            return {**publicado, "fonte": "publicado"}
+            return _normalizar_publicado(publicado, codigos)
     except Exception as erro:  # noqa: BLE001
         log.info("Status dos casos de uso: dados publicados indisponíveis (%s).", type(erro).__name__)
     log.info("Status dos casos de uso: dados do GitHub indisponíveis neste build.")

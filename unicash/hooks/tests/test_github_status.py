@@ -1,5 +1,6 @@
 """Testes do módulo github_status (rodar em unicash/: python3 -m unittest discover -s hooks/tests -v)."""
 
+import io
 import json
 import os
 import sys
@@ -170,6 +171,43 @@ class TestQuadro(unittest.TestCase):
 
     def test_quadro_sem_linha_em_branco(self):
         self.assertNotIn("\n\n", quadro_html("UC01", self.dados_api()))
+
+
+class TestCorrecoesDaRevisao(unittest.TestCase):
+    def test_pr_integrado_na_docs_nao_conta(self):
+        caso = {"issue": {"numero": 1}, "prs": [{"estado": "MERGED", "base": "docs", "na_main": False}]}
+        self.assertEqual(derivar_status(caso), "Planejado")
+
+    def test_fuso_fixo_sem_tzdata(self):
+        from datetime import timedelta
+        self.assertEqual(github_status.FUSO.utcoffset(None), timedelta(hours=-3))
+
+    def test_graphql_aceita_dados_parciais_com_erros(self):
+        resposta = io.BytesIO(json.dumps({"data": {"ok": 1}, "errors": [{"message": "FORBIDDEN"}]}).encode())
+        with patch("urllib.request.urlopen", return_value=resposta):
+            self.assertEqual(github_status._post_graphql("t", "q", {}, 1)["data"], {"ok": 1})
+
+    def test_graphql_sem_dados_lanca(self):
+        resposta = io.BytesIO(json.dumps({"data": None, "errors": [{"message": "ruim"}]}).encode())
+        with patch("urllib.request.urlopen", return_value=resposta):
+            with self.assertRaises(RuntimeError):
+                github_status._post_graphql("t", "q", {}, 1)
+
+    def test_publicado_parcial_nao_quebra(self):
+        publicado = {"coletado_em": "ontem", "casos": {
+            "UC01": {"issue": {"numero": 28}, "prs": []},
+            "UC02": "texto",
+            "UC03": {"status": None, "issue": None, "prs": []},
+            "UC04": {"status": "Planejado", "issue": "x", "prs": [{"numero": 9}]},
+            "UC05": {"status": "Planejado", "issue": {"numero": 32, "url": "https://github.com/a/b/issues/32",
+                                                      "estado": "OPEN", "responsaveis": []}, "prs": []}}}
+        with patch.dict(os.environ, {}, clear=True), \
+             patch.object(github_status, "_get_json", return_value=publicado):
+            dados = carregar(REPO, ["UC01", "UC02", "UC03", "UC04", "UC05"], URL_PUBLICADA)
+        self.assertEqual(list(dados["casos"]), ["UC05"])
+        self.assertIsNone(dados["coletado_em"])
+        for cod in ["UC01", "UC02", "UC03", "UC04", "UC05"]:
+            quadro_html(cod, dados)
 
 
 if __name__ == "__main__":
