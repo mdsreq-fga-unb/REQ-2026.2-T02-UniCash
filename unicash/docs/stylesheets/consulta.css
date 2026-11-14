@@ -109,7 +109,8 @@
 }
 
 .catalogo-status-concluido,
-.catalogo-status-implementado {
+.catalogo-status-implementado,
+.catalogo-status-implementado-na-develop {
   background: #e6f4ea;
   border-color: #b7dfc2;
   color: #1e6b34;
@@ -122,14 +123,17 @@
   color: var(--uc-azul);
 }
 
-.catalogo-status-nao-iniciado {
+.catalogo-status-nao-iniciado,
+.catalogo-status-planejado,
+.catalogo-status-sem-issue {
   background: #f1f3f5;
   border-color: #d6dade;
   color: #495057;
 }
 
 [data-md-color-scheme="slate"] .catalogo-status-concluido,
-[data-md-color-scheme="slate"] .catalogo-status-implementado {
+[data-md-color-scheme="slate"] .catalogo-status-implementado,
+[data-md-color-scheme="slate"] .catalogo-status-implementado-na-develop {
   background: rgba(60, 170, 100, 0.15);
   border-color: rgba(60, 170, 100, 0.4);
   color: #7fd39c;
@@ -141,10 +145,49 @@
   border-color: #3b78bf;
 }
 
-[data-md-color-scheme="slate"] .catalogo-status-nao-iniciado {
+[data-md-color-scheme="slate"] .catalogo-status-nao-iniciado,
+[data-md-color-scheme="slate"] .catalogo-status-planejado,
+[data-md-color-scheme="slate"] .catalogo-status-sem-issue {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.18);
   color: var(--md-default-fg-color--light);
+}
+
+.catalogo-status-publicado-na-main {
+  background: #1e6b34;
+  border-color: #1e6b34;
+  color: #ffffff;
+}
+
+[data-md-color-scheme="slate"] .catalogo-status-publicado-na-main {
+  background: rgba(60, 170, 100, 0.45);
+  border-color: rgba(60, 170, 100, 0.8);
+  color: #ffffff;
+}
+
+/* ----- Quadro de status do caso de uso (dados do GitHub) ----- */
+
+.uc-status {
+  margin: 0 0 1.2em;
+  padding: 0.6em 0.9em;
+  border: 1px solid var(--uc-borda);
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+
+.md-typeset .uc-status-evidencias {
+  margin: 0.5em 0 0.3em;
+  padding-left: 1.1em;
+}
+
+.md-typeset .uc-status-evidencias li {
+  margin: 0.15em 0;
+}
+
+.md-typeset .uc-status-rodape {
+  margin: 0;
+  color: var(--md-default-fg-color--light);
+  font-size: 0.7rem;
 }
 
 /* ----- Dependências funcionais ----- */
