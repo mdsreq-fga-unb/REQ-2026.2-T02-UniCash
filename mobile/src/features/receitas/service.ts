@@ -250,8 +250,8 @@ export function editarReceita(id: string, input: ReceitaInput, escopo: EscopoSer
     if (!r) {
       if (escopo === 'proximas') {
         await atualizarSelecionada();
-        await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND data > ? AND excluido_em IS NULL`, [
-          ts, ts, rec.id, atual.data,
+        await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND data > ? AND id <> ? AND excluido_em IS NULL`, [
+          ts, ts, rec.id, atual.data, id,
         ]);
         const fim = input.data > atual.data ? input.data : atual.data;
         await tx.runAsync(

@@ -4,7 +4,12 @@ import {
   excluirReceita,
   registrarReceita,
 } from '@/features/receitas/service';
-import { sincronizarPendentes } from '@/features/receitas/sync';
+import {
+  consumirAcessoNegado,
+  FalhaRestauracao,
+  restaurarDaNuvem,
+  sincronizarPendentes,
+} from '@/features/receitas/sync';
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
 import { input } from '../helpers/dados';
@@ -13,6 +18,7 @@ import { input } from '../helpers/dados';
 const mockNuvem = new Map<string, any>();
 let mockUsuario: { uid: string } | null = { uid: 'u1' };
 let mockRedeFora = false;
+let mockCodigoErro = 'unavailable';
 
 jest.mock('@/lib/firebase', () => ({
   auth: {
@@ -25,17 +31,25 @@ jest.mock('@/lib/firebase', () => ({
 
 jest.mock('firebase/firestore', () => ({
   doc: (_db: unknown, ...partes: string[]) => ({ path: partes.join('/') }),
+  collection: (_db: unknown, ...partes: string[]) => ({ path: partes.join('/') }),
+  getDocs: async (col: any) => {
+    if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
+    const docs = [...mockNuvem.entries()]
+      .filter(([k]) => k.startsWith(col.path + '/'))
+      .map(([k, v]) => ({ id: k.slice(col.path.length + 1), data: () => v }));
+    return { docs };
+  },
   setDoc: async (ref: any, dados: any) => {
-    if (mockRedeFora) throw new Error('unavailable');
+    if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
     mockNuvem.set(ref.path, JSON.parse(JSON.stringify(dados)));
   },
   getDoc: async (ref: any) => {
-    if (mockRedeFora) throw new Error('unavailable');
+    if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
     const d = mockNuvem.get(ref.path);
     return { exists: () => d !== undefined, data: () => d };
   },
   deleteDoc: async (ref: any) => {
-    if (mockRedeFora) throw new Error('unavailable');
+    if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
     mockNuvem.delete(ref.path);
   },
 }));
@@ -50,6 +64,8 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     mockNuvem.clear();
     mockUsuario = { uid: 'u1' };
     mockRedeFora = false;
+    mockCodigoErro = 'unavailable';
+    consumirAcessoNegado();
   });
   afterEach(restaurarTempo);
 
@@ -230,6 +246,81 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       await sincronizarPendentes();
       expect(mockNuvem.has(caminho(id))).toBe(false);
       expect(banco.receitas()).toHaveLength(0);
+    });
+  });
+
+  describe('acesso negado (EX07)', () => {
+    it('permission-denied na sincronização: registro segue pendente e o aviso é sinalizado uma vez', async () => {
+      await registrarReceita(input());
+      mockRedeFora = true;
+      mockCodigoErro = 'permission-denied';
+      await expect(sincronizarPendentes()).resolves.toBe(false);
+      expect(banco.receitas()[0].sync_status).toBe('pendente');
+      expect(consumirAcessoNegado()).toBe(true);
+      expect(consumirAcessoNegado()).toBe(false);
+    });
+
+    it('falha de rede comum não sinaliza acesso negado', async () => {
+      await registrarReceita(input());
+      mockRedeFora = true;
+      await sincronizarPendentes();
+      expect(consumirAcessoNegado()).toBe(false);
+    });
+  });
+
+  describe('restauração da nuvem', () => {
+    it('recupera receitas e séries num aparelho limpo, já como sincronizadas', async () => {
+      await registrarReceita(input({ recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' } }));
+      await registrarReceita(input({ titulo: 'Avulsa' }));
+      await sincronizarPendentes();
+      const antes = banco.receitas().map((r) => r.id).sort();
+
+      banco = instalarBanco(); // aparelho novo
+      const r = await restaurarDaNuvem();
+
+      expect(r.recorrencias).toBe(1);
+      expect(banco.receitas().map((x) => x.id).sort()).toEqual(antes);
+      expect(banco.receitas().every((x) => x.sync_status === 'sincronizado')).toBe(true);
+    });
+
+    it('é idempotente: restaurar duas vezes (e abrir o app) não duplica ocorrências', async () => {
+      await registrarReceita(input({ recorrencia: { intervalo: 1, unidade: 'mes', termino: null } }));
+      await sincronizarPendentes();
+      banco = instalarBanco();
+      await restaurarDaNuvem();
+      const n = banco.receitas().length;
+      expect((await restaurarDaNuvem()).receitas).toBe(0);
+      await completarRecorrencias();
+      expect(banco.receitas()).toHaveLength(n);
+    });
+
+    it('não traz de volta o que foi excluído (lápide local) nem sobrescreve edição pendente', async () => {
+      await registrarReceita(input({ titulo: 'A' }));
+      await registrarReceita(input({ titulo: 'B' }));
+      await sincronizarPendentes();
+      const [a, b] = banco.receitas();
+      await excluirReceita(a.id);
+      await editarReceita(b.id, input({ titulo: 'B editada' }));
+
+      await restaurarDaNuvem(); // nuvem ainda tem as versões antigas
+
+      expect(banco.receitas().find((r) => r.id === a.id).excluido_em).toBeTruthy();
+      expect(banco.receitas().find((r) => r.id === b.id).titulo).toBe('B editada');
+    });
+
+    it('falha de rede ou acesso negado: lança FalhaRestauracao e não altera a base', async () => {
+      await registrarReceita(input());
+      const antes = banco.instantaneo();
+      mockRedeFora = true;
+      mockCodigoErro = 'permission-denied';
+      await expect(restaurarDaNuvem()).rejects.toBeInstanceOf(FalhaRestauracao);
+      expect(banco.instantaneo()).toEqual(antes);
+      expect(consumirAcessoNegado()).toBe(true);
+    });
+
+    it('sem conta: não restaura', async () => {
+      mockUsuario = null;
+      await expect(restaurarDaNuvem()).rejects.toBeInstanceOf(FalhaRestauracao);
     });
   });
 
