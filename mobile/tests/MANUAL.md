@@ -15,8 +15,6 @@ Em `package.json`, em `scripts`:
 ```
 
 - `npm test` roda unitários, serviço (SQLite em memória) e telas. Não precisa de emulador nem de celular.
-- Se um teste de tela falhar por timeout de forma intermitente, rode os testes em modo
-  serial com `npm test -- --runInBand`.
 - `npm run test:rules` roda as Security Rules no Firebase Emulator Suite (precisa de `firebase-tools`, Java e do `firebase.json` com a chave `firestore`). Se o `firestore.rules` não estiver na raiz do repositório, defina `FIRESTORE_RULES_PATH`.
 
 ## 2. Mapa do checklist → arquivos
