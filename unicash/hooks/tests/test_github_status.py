@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import github_status  # noqa: E402
-from github_status import carregar, coletar, derivar_status, quadro_html, slug_status  # noqa: E402
+from github_status import carregar, coletar, derivar_status, quadro_html, resumo, slug_status  # noqa: E402
 
 REPO = "mdsreq-fga-unb/REQ-2026.2-T02-UniCash"
 URL_PUBLICADA = "https://exemplo.invalid/consulta/dados/github.json"
@@ -208,6 +208,31 @@ class TestQuadro(unittest.TestCase):
 
     def test_card_sem_linha_em_branco(self):
         self.assertNotIn("\n\n", quadro_html("UC01", self.dados_api()))
+
+
+class TestResumo(unittest.TestCase):
+    """Resumo curto para o catálogo: a mesma frase do card e o link da evidência principal."""
+
+    def dados_api(self):
+        with patch.object(github_status, "_post_graphql", return_value=FIXTURE), \
+             patch.object(github_status, "_get_json", side_effect=comparacao("ahead")):
+            return coletar(REPO, "token-falso", ["UC01", "UC02"])
+
+    def test_resumo_com_pr(self):
+        self.assertEqual(resumo("UC01", self.dados_api()), {
+            "frase": "Integrado na develop em 09/11/2026",
+            "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/48",
+            "rotulo": "PR #48"})
+
+    def test_resumo_sem_pr_aponta_issue(self):
+        self.assertEqual(resumo("UC02", self.dados_api()), {
+            "frase": "Ainda sem código",
+            "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/29",
+            "rotulo": "Issue #29"})
+
+    def test_resumo_indisponivel(self):
+        self.assertEqual(resumo("UC01", {"coletado_em": None, "fonte": "indisponivel", "casos": {}}),
+                         {"frase": "Dados do GitHub indisponíveis neste build", "url": None, "rotulo": None})
 
 
 class TestCorrecoesDaRevisao(unittest.TestCase):

@@ -18,7 +18,19 @@
   var base = raiz.dataset.fonte.replace(/dados\/catalogo\.json$/, "../");
 
   var dados, porCodigo = {}, ativos = { CP: true, UC: true, RF: true, RNF: true, RN: true };
-  var grafo, modo3d = !matchMedia("(max-width: 720px)").matches, selecionado = null, vizinhos = new Set();
+  var temWebGL = suportaWebGL();
+  var grafo, modo3d = temWebGL && !matchMedia("(max-width: 720px)").matches, selecionado = null, vizinhos = new Set();
+  if (!temWebGL) {
+    botaoModo.disabled = true;
+    botaoModo.title = "Este navegador não oferece WebGL; o grafo é exibido em 2D.";
+  }
+
+  function suportaWebGL() {
+    try {
+      var c = document.createElement("canvas");
+      return !!(window.WebGLRenderingContext && (c.getContext("webgl") || c.getContext("experimental-webgl")));
+    } catch (e) { return false; }
+  }
 
   fetch(raiz.dataset.fonte).then(function (r) { return r.json(); }).then(function (d) {
     dados = d;
@@ -32,8 +44,8 @@
       tiposEl.appendChild(l);
     });
     desenhar();
-  }).catch(function () {
-    area.textContent = "Não foi possível carregar o grafo.";
+  }, function () {
+    area.textContent = "Não foi possível carregar os dados do grafo.";
   });
 
   function montarDados() {
@@ -43,13 +55,19 @@
       return true;
     }).map(function (i) { return { id: i.codigo, tipo: i.tipo, nome: i.nome, item: i }; });
     var ids = new Set(nos.map(function (n) { return n.id; }));
-    var links = [], vistos = new Set();
+    var links = [], vistos = new Set(), relUc = {};
+    nos.forEach(function (n) {
+      (n.item.ligacoes_uc || []).forEach(function (l) { relUc[n.id + "|" + l.alvo] = l.tipo; });
+    });
     nos.forEach(function (n) {
       (n.item.relacoes || []).forEach(function (r) {
         var chave = [n.id, r].sort().join("|");
         if (ids.has(r) && !vistos.has(chave)) {
           vistos.add(chave);
-          links.push({ source: n.id, target: r });
+          // Entre casos de uso, a aresta segue o sentido do diagrama (origem «include»/«extend» destino).
+          var tipoUc = relUc[n.id + "|" + r] || relUc[r + "|" + n.id];
+          var origem = relUc[r + "|" + n.id] ? r : n.id;
+          links.push({ source: origem, target: origem === n.id ? r : n.id, tipoUc: tipoUc || null });
         }
       });
     });
@@ -84,7 +102,22 @@
     botaoModo.textContent = fabrica === window.ForceGraph3D ? "Mudar para 2D" : "Mudar para 3D";
 
     var ultimoClique = 0;
-    grafo = fabrica()(area)
+    try {
+      grafo = fabrica()(area);
+    } catch (erro) {
+      // Sem contexto WebGL o 3D falha: volta para o 2D em vez de deixar a área vazia.
+      if (fabrica === window.ForceGraph3D) {
+        modo3d = false;
+        temWebGL = false;
+        botaoModo.disabled = true;
+        botaoModo.title = "O 3D não pôde ser iniciado neste navegador; o grafo é exibido em 2D.";
+        desenhar();
+        return;
+      }
+      area.textContent = "Não foi possível desenhar o grafo.";
+      return;
+    }
+    grafo
       .width(largura).height(altura)
       .backgroundColor(escuro ? "#1e2129" : "#f8fafc")
       .graphData(montarDados())
@@ -93,7 +126,10 @@
       .nodeVal(function (n) { return TAMANHO[n.tipo]; })
       .nodeColor(corNo)
       .linkColor(corLink)
-      .linkWidth(function (l) { return selecionado && corLink(l) === "#f59e0b" ? 2 : 0.6; })
+      .linkWidth(function (l) { return selecionado && corLink(l) === "#f59e0b" ? 2 : (l.tipoUc ? 1.4 : 0.6); })
+      .linkLabel(function (l) { return l.tipoUc ? "«" + l.tipoUc + "»" : ""; })
+      .linkDirectionalArrowLength(function (l) { return l.tipoUc ? 5 : 0; })
+      .linkDirectionalArrowRelPos(1)
       .onNodeClick(function (n) {
         var agora = Date.now();
         if (agora - ultimoClique < 400 && selecionado === n.id) {

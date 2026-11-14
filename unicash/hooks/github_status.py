@@ -337,3 +337,18 @@ def quadro_html(cod: str, dados: dict) -> str:
                       f'<ul>{"".join(_linha_pr(pr) for pr in prs)}</ul></details>')
     partes.append("</div>")
     return "".join(partes)
+
+
+def resumo(cod: str, dados: dict) -> dict:
+    """Frase do card e o link da evidência principal (PR, senão issue), para o catálogo."""
+    caso = (dados.get("casos") or {}).get(cod)
+    status = caso["status"] if caso else NAO_INFORMADO
+    principal = _pr_principal(caso.get("prs", [])) if caso else None
+    issue = caso.get("issue") if caso else None
+    if principal:
+        url, rotulo = principal["url"], f"PR #{principal['numero']}"
+    elif issue and issue.get("url"):
+        url, rotulo = issue["url"], f"Issue #{issue.get('numero', '?')}"
+    else:
+        url, rotulo = None, None
+    return {"frase": _titulo(status, principal), "url": url, "rotulo": rotulo}

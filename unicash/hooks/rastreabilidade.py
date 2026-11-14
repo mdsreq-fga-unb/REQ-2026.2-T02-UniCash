@@ -71,6 +71,9 @@ FONTE = {
 }
  
 STATUS_PADRAO = "Não informado"
+
+# Arestas do diagrama de casos de uso, ex.: UC04 -.->|"«include»"| UC01
+RELACAO_UC = re.compile(r"\b(UC\d{2})\s*-\.->\s*\|\s*\"?«(include|extend)»\"?\s*\|\s*(UC\d{2})\b")
  
 # Páginas geradas não entram na contagem de menções.
 PREFIXO_GERADO = "consulta/"
@@ -240,6 +243,13 @@ def ler_requisitos(docs: Path, repo: str) -> None:
                       "relacionados": codigos(titulo + " " + corpo)}
  
  
+    # Relações formais entre casos de uso: só as «include»/«extend» do diagrama.
+    # Uma simples menção a outro UC no texto não vira vínculo de rastreabilidade.
+    ligacoes_uc: dict[str, list[dict]] = defaultdict(list)
+    for m in RELACAO_UC.finditer(uc_md):
+        origem_uc, tipo_rel, destino_uc = m.group(1), m.group(2), m.group(3)
+        ligacoes_uc[origem_uc].append({"alvo": destino_uc, "tipo": tipo_rel})
+
     for m in re.finditer(r"^##\s+(UC\d{2})\s*-\s*(.+?)\s*$", uc_md, re.M):
         cod, nome = m.group(1), m.group(2)
         resto = uc_md[m.end():]
@@ -250,7 +260,9 @@ def ler_requisitos(docs: Path, repo: str) -> None:
         itens[cod] = {"codigo": cod, "tipo": "UC", "nome": limpar(nome),
                       "descricao": limpar(valor.group(1)) if valor else "",
                       "ancora": slugify(f"{cod} - {nome}", "-"),
-                      "relacionados": codigos(corpo),
+                      "relacionados": [c for c in codigos(corpo) if tipo_de(c) != "UC"]
+                      + [l["alvo"] for l in ligacoes_uc[cod]],
+                      "ligacoes_uc": ligacoes_uc[cod],
                       "rf_principais": rf_principais,
                       "rf_relacionados": rf_relacionados}
  
@@ -489,6 +501,8 @@ def publico(item: dict, mencoes: list) -> dict:
             + [dependencia(c, False) for c in item.get("rf_relacionados", [])]
         )
         dado["status_implementacao"] = item.get("status_implementacao", STATUS_PADRAO)
+        dado["ligacoes_uc"] = item.get("ligacoes_uc", [])
+        dado["evidencia"] = github_status.resumo(item["codigo"], dados_github)
     dado["url"] = url(item["codigo"])
     dado["mencoes"] = len(mencoes)
     return dado
