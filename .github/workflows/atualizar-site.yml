@@ -1,0 +1,28 @@
+name: Atualizar o site
+
+# O site do projeto (branch docs) mostra o status dos casos de uso a partir das
+# issues e dos pull requests. Agendamentos e eventos de issue e PR só disparam
+# workflows da branch padrão, por isso este fica na main e apenas pede um novo
+# deploy da docs.
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  pull_request:
+    types: [closed]
+  issues:
+    types: [opened, edited, closed, reopened]
+  workflow_dispatch:
+
+permissions:
+  actions: write
+
+jobs:
+  disparar-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reconstruir o site da branch docs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh workflow run deploy-pages.yml --ref docs
