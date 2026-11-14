@@ -4,11 +4,15 @@ on:
   pull_request:
     paths:
       - 'mobile/**'
+      - 'firestore.rules'
+      - 'firebase.json'
       - '.github/workflows/mobile-ci.yml'
   push:
     branches: [main, develop]
     paths:
       - 'mobile/**'
+      - 'firestore.rules'
+      - 'firebase.json'
       - '.github/workflows/mobile-ci.yml'
 
 concurrency:
@@ -17,8 +21,16 @@ concurrency:
 
 jobs:
   check:
-    name: Lint e typecheck
+    name: Lint, typecheck, testes e build
     runs-on: ubuntu-latest
+    env:
+      # Valores fictícios: o build só empacota o JS e os testes mockam o Firebase.
+      EXPO_PUBLIC_FIREBASE_API_KEY: ci
+      EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ci.firebaseapp.com
+      EXPO_PUBLIC_FIREBASE_PROJECT_ID: ci
+      EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ci.appspot.com
+      EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: '0'
+      EXPO_PUBLIC_FIREBASE_APP_ID: ci
     defaults:
       run:
         working-directory: mobile
@@ -36,6 +48,41 @@ jobs:
       # expo-env.d.ts é gerado pelo `expo start` e fica fora do git; o typecheck precisa dele
       - run: echo '/// <reference types="expo/types" />' > expo-env.d.ts
       - run: npm run typecheck
+      # Testes automatizados (unitários, serviço com SQLite em memória e telas), com cobertura
+      - run: npm test -- --ci --coverage
+      # Build: empacota o app (bundle JS) sem gastar a cota de builds do EAS
+      - run: npx expo export --platform android
+      - name: Publicar cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: mobile/coverage
       # As versões esperadas vêm da API do Expo e mudam sem aviso; o doctor só alerta
       - run: npx expo-doctor
         continue-on-error: true
+
+  rules:
+    name: Security Rules (Firebase Emulator)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: mobile/.nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - run: npm ci
+      # O firebase.json e o firestore.rules ficam na raiz do repositório
+      - run: npm install --no-save firebase-tools
+      - run: npm run test:rules
