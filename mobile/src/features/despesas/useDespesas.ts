@@ -29,15 +29,13 @@ export function useDespesas(filtro: FiltroDespesa) {
   const [erroLeitura, setErroLeitura] = useState(false);
 
   const carregar = useCallback(async () => {
-    setCarregando(true);
-    setErroLeitura(false);
-
     try {
       const { inicio, fim } = intervaloDoFiltro(filtro);
       const resultado = await listarDespesas(inicio, fim);
 
       setItens(resultado.itens);
       setTotal(resultado.total);
+      setErroLeitura(false);
     } catch (erro) {
       if (erro instanceof FalhaLeitura) {
         setErroLeitura(true);
@@ -50,6 +48,16 @@ export function useDespesas(filtro: FiltroDespesa) {
   }, [filtro]);
 
   useEffect(() => {
+    const temporizador = setTimeout(() => {
+      void carregar();
+    }, 0);
+
+    return () => clearTimeout(temporizador);
+  }, [carregar]);
+
+  const recarregar = useCallback(() => {
+    setCarregando(true);
+    setErroLeitura(false);
     void carregar();
   }, [carregar]);
 
@@ -58,6 +66,6 @@ export function useDespesas(filtro: FiltroDespesa) {
     total,
     carregando,
     erroLeitura,
-    recarregar: carregar,
+    recarregar,
   };
 }
