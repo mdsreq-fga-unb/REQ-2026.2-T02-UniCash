@@ -184,7 +184,7 @@ export function ReceitaForm({
         )}
       </View>
 
-      <Modal visible={repeticaoAberta} transparent animationType="slide" onRequestClose={() => setRepeticaoAberta(false)}>
+      <Modal testID="modal-repeticao" visible={repeticaoAberta} transparent animationType="slide" onRequestClose={() => setRepeticaoAberta(false)}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={estilos.modalFundo}
