@@ -4,6 +4,7 @@
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/ui": "~58.0.25",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~58.0.21",
     "expo-constants": "~58.0.14",
     "expo-device": "~58.0.5",
@@ -13,24 +14,33 @@
     "expo-linking": "~58.0.15",
     "expo-router": "~58.0.28",
     "expo-splash-screen": "~58.0.12",
+    "expo-sqlite": "~58.0.15",
     "expo-status-bar": "~58.0.4",
     "expo-symbols": "~58.0.4",
     "expo-system-ui": "~58.0.7",
     "expo-web-browser": "~58.0.7",
+    "firebase": "^13.2.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
     "react-native-gesture-handler": "~3.3.0",
     "react-native-reanimated": "4.7.1",
-    "react-native-safe-area-context": "~5.10.1",
+    "react-native-safe-area-context": "~5.11.1",
     "react-native-screens": "~4.30.0",
     "react-native-web": "~0.21.4",
     "react-native-worklets": "0.13.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "@testing-library/react-native": "^14.1.0",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.3.0",
+    "better-sqlite3": "^13.0.3",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.0",
+    "jest": "^30.5.2",
+    "jest-expo": "^58.0.14",
     "typescript": "~6.0.3"
   },
   "scripts": {
@@ -44,7 +54,13 @@
     "doctor": "expo-doctor",
     "build:apk": "eas build -p android --profile preview",
     "build:aab": "eas build -p android --profile production",
-    "build:ios": "eas build -p ios --profile preview"
+    "build:ios": "eas build -p ios --profile preview",
+    "test": "jest",
+    "test:rules": "firebase emulators:exec --only firestore --project unicash-rules-test \"jest --config jest.rules.config.js\""
   },
-  "private": true
+  "private": true,
+  "allowScripts": {
+    "@firebase/util@1.15.3": true,
+    "better-sqlite3@13.0.3": true
+  }
 }

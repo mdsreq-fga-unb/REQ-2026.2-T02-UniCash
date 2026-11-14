@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function dono(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    function receitaValida(d) {
+      return d.keys().hasOnly(['valor_centavos', 'data', 'titulo', 'descricao', 'recorrencia_id', 'criado_em', 'atualizado_em'])
+        && d.keys().hasAll(['valor_centavos', 'data', 'titulo', 'criado_em', 'atualizado_em'])
+        && d.valor_centavos is int && d.valor_centavos > 0 && d.valor_centavos <= 99999999999
+        && d.data is string && d.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.titulo is string && d.titulo.size() >= 1 && d.titulo.size() <= 80
+        && (!('descricao' in d) || (d.descricao is string && d.descricao.size() <= 255));
+    }
+
+    function recorrenciaValida(d) {
+      return d.keys().hasOnly(['intervalo', 'unidade', 'inicio', 'termino', 'ativa', 'valor_centavos', 'titulo', 'descricao', 'atualizado_em'])
+        && d.keys().hasAll(['intervalo', 'unidade', 'inicio', 'ativa', 'valor_centavos', 'titulo', 'atualizado_em'])
+        && d.intervalo is int && d.intervalo > 0
+        && d.unidade in ['dia', 'mes', 'ano']
+        && d.valor_centavos is int && d.valor_centavos > 0 && d.valor_centavos <= 99999999999
+        && d.titulo is string && d.titulo.size() >= 1 && d.titulo.size() <= 80
+        && (!('descricao' in d) || (d.descricao is string && d.descricao.size() <= 255))
+        && (!('termino' in d) || d.termino >= d.inicio);
+    }
+
+    match /usuarios/{uid}/receitas/{id} {
+      allow read, delete: if dono(uid);
+      allow create, update: if dono(uid) && receitaValida(request.resource.data);
+    }
+
+    match /usuarios/{uid}/recorrencias/{id} {
+      allow read, delete: if dono(uid);
+      allow create, update: if dono(uid) && recorrenciaValida(request.resource.data);
+    }
+  }
+}
