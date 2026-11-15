@@ -17,8 +17,11 @@ Dependências funcionais dos casos de uso: saem das linhas
 ``**Requisitos funcionais:**`` (principais) e ``**Funcionais:** ... Relacionados: ...``
 (relacionados) de cada UC em ``casos_de_uso.md``.
  
-Status de implementação dos casos de uso: opcional, lido de
-``docs/dados/status_casos_de_uso.csv`` (colunas: codigo,status).
+Status de implementação dos casos de uso: vem do GitHub (issues ``UCnn`` e os
+pull requests ligados a elas), pelo módulo ``github_status.py``. No GitHub Actions
+o build usa o ``GITHUB_TOKEN``; sem token, reaproveita o ``consulta/dados/github.json``
+já publicado. Para ver os dados reais no computador:
+``GITHUB_TOKEN=$(gh auth token) mkdocs serve``.
 """
  
 from __future__ import annotations
@@ -27,11 +30,17 @@ import csv
 import json
 import posixpath
 import re
+import sys
 from collections import defaultdict
 from pathlib import Path
  
 from markdown.extensions.toc import slugify
 from mkdocs.structure.files import File
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import github_status  # noqa: E402
+
+URL_GITHUB_PUBLICADO = "https://mdsreq-fga-unb.github.io/REQ-2026.2-T02-UniCash/consulta/dados/github.json"
  
 CODIGO = re.compile(r"\b(RNF\d{2}|RF\d{2}|RN\d{2}|UC\d{2}|CP\d)\b")
  
@@ -62,11 +71,15 @@ FONTE = {
 }
  
 STATUS_PADRAO = "Não informado"
+
+# Arestas do diagrama de casos de uso, ex.: UC04 -.->|"«include»"| UC01
+RELACAO_UC = re.compile(r"\b(UC\d{2})\s*-\.->\s*\|\s*\"?«(include|extend)»\"?\s*\|\s*(UC\d{2})\b")
  
 # Páginas geradas não entram na contagem de menções.
 PREFIXO_GERADO = "consulta/"
  
 itens: dict[str, dict] = {}
+dados_github: dict = {"coletado_em": None, "fonte": "indisponivel", "casos": {}}
  
  
 def tipo_de(codigo: str) -> str:
@@ -140,17 +153,8 @@ def dependencias_funcionais_uc(corpo: str) -> tuple[list[str], list[str]]:
     return principais, relacionados
  
  
-def ler_status_uc(docs: Path) -> dict[str, str]:
-    """Lê docs/dados/status_casos_de_uso.csv (opcional)."""
-    arquivo = docs / "dados" / "status_casos_de_uso.csv"
-    if not arquivo.exists():
-        return {}
-    with open(arquivo, encoding="utf-8", newline="") as arq:
-        linhas = list(csv.reader(arq))[1:]
-    return {l[0].strip(): l[1].strip() for l in linhas if len(l) >= 2 and l[0].strip()}
- 
- 
-def ler_requisitos(docs: Path) -> None:
+def ler_requisitos(docs: Path, repo: str) -> None:
+    global dados_github
     itens.clear()
     rf_md = (docs / "requisitos_funcionais.md").read_text(encoding="utf-8")
     rnf_md = (docs / "requisitos_nao_funcionais.md").read_text(encoding="utf-8")
@@ -238,8 +242,14 @@ def ler_requisitos(docs: Path) -> None:
                       "ancora": slugify(f"{cod}: {titulo}", "-"),
                       "relacionados": codigos(titulo + " " + corpo)}
  
-    status_uc = ler_status_uc(docs)
  
+    # Relações formais entre casos de uso: só as «include»/«extend» do diagrama.
+    # Uma simples menção a outro UC no texto não vira vínculo de rastreabilidade.
+    ligacoes_uc: dict[str, list[dict]] = defaultdict(list)
+    for m in RELACAO_UC.finditer(uc_md):
+        origem_uc, tipo_rel, destino_uc = m.group(1), m.group(2), m.group(3)
+        ligacoes_uc[origem_uc].append({"alvo": destino_uc, "tipo": tipo_rel})
+
     for m in re.finditer(r"^##\s+(UC\d{2})\s*-\s*(.+?)\s*$", uc_md, re.M):
         cod, nome = m.group(1), m.group(2)
         resto = uc_md[m.end():]
@@ -250,11 +260,18 @@ def ler_requisitos(docs: Path) -> None:
         itens[cod] = {"codigo": cod, "tipo": "UC", "nome": limpar(nome),
                       "descricao": limpar(valor.group(1)) if valor else "",
                       "ancora": slugify(f"{cod} - {nome}", "-"),
-                      "relacionados": codigos(corpo),
+                      "relacionados": [c for c in codigos(corpo) if tipo_de(c) != "UC"]
+                      + [l["alvo"] for l in ligacoes_uc[cod]],
+                      "ligacoes_uc": ligacoes_uc[cod],
                       "rf_principais": rf_principais,
-                      "rf_relacionados": rf_relacionados,
-                      "status_implementacao": status_uc.get(cod, STATUS_PADRAO)}
+                      "rf_relacionados": rf_relacionados}
  
+    codigos_uc = sorted(c for c in itens if tipo_de(c) == "UC")
+    dados_github = github_status.carregar(repo, codigos_uc, URL_GITHUB_PUBLICADO)
+    for cod in codigos_uc:
+        caso = dados_github["casos"].get(cod)
+        itens[cod]["status_implementacao"] = caso["status"] if caso else STATUS_PADRAO
+
     # MVP: RFs listados na tabela "Resultado da priorização".
     mvp = set(codigos(secao(mvp_md, "1.3 Resultado da priorização")))
     # Notas de priorização: fonte única em docs/dados/priorizacao.csv.
@@ -320,7 +337,8 @@ def relativo(destino: str, origem: str) -> str:
 # --------------------------------------------------------------------------- #
  
 def on_config(config, **kwargs):
-    ler_requisitos(Path(config["docs_dir"]))
+    repo = (config.get("repo_url") or "").rstrip("/").removeprefix("https://github.com/")
+    ler_requisitos(Path(config["docs_dir"]), repo)
     ordenados = sorted(itens, key=ordem)
  
     def lista(tipo: str) -> list:
@@ -364,6 +382,7 @@ def on_files(files, config, **kwargs):
                                     content=json.dumps(dado, ensure_ascii=False)))
  
     files.append(File.generated(config, "consulta/glossario.md", content=glossario(config)))
+    publica("github", dados_github)
  
     publica("catalogo", {
         "itens": [publico(itens[c], mencoes.get(c, [])) for c in sorted(itens, key=ordem)],
@@ -401,6 +420,17 @@ def on_files(files, config, **kwargs):
     return files
  
  
+TITULO_UC = re.compile(r"^(##\s+(UC\d{2})\s*-.*)$", re.M)
+
+
+def on_page_markdown(markdown, page, config, files, **kwargs):
+    """Insere, abaixo do título de cada caso de uso, o quadro de status do GitHub."""
+    if page.file.src_uri != FONTE["UC"]:
+        return markdown
+    return TITULO_UC.sub(lambda m: f"{m.group(1)}\n\n{github_status.quadro_html(m.group(2), dados_github)}\n",
+                         markdown)
+
+
 def on_page_content(html, page, config, files, **kwargs):
     if page.file.src_uri in (FONTE["RF"], FONTE["RNF"]):
         html = re.sub(r"<tr>(\s*<td><strong>((?:RNF|RF)\d{2})</strong>)",
@@ -471,6 +501,8 @@ def publico(item: dict, mencoes: list) -> dict:
             + [dependencia(c, False) for c in item.get("rf_relacionados", [])]
         )
         dado["status_implementacao"] = item.get("status_implementacao", STATUS_PADRAO)
+        dado["ligacoes_uc"] = item.get("ligacoes_uc", [])
+        dado["evidencia"] = github_status.resumo(item["codigo"], dados_github)
     dado["url"] = url(item["codigo"])
     dado["mencoes"] = len(mencoes)
     return dado
@@ -508,6 +540,8 @@ def pagina(cod: str, mencoes: list[tuple[str, str]]) -> str:
     if "situacao" in item:
         selos.append(f'<span class="selo selo-{slugify(item["situacao"], "-")}">{item["situacao"]}</span>')
     linhas += ['<div class="selos">' + " ".join(selos) + "</div>", ""]
+    if tipo == "UC":
+        linhas += [github_status.quadro_html(cod, dados_github), ""]
  
     if tipo == "RN":
         descricao = re.sub(
