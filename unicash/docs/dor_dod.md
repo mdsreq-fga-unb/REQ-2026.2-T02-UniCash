@@ -53,7 +53,6 @@ O **Nível 1** deve ser preenchido pelos responsáveis técnicos antes de solici
 #### Integração, documentação e evidências
 
 - [ ] Os checklists técnicos foram totalmente preenchidos.
-- [ ] Os fluxos foram validados por print ou vídeo, anexado ao item de trabalho. Além de evidências da cobertura dos testes.
 - [ ] A rastreabilidade vertical (requisito → caso de uso → código → teste) foi mantida e atualizada na ferramenta de gestão.
 - [ ] A documentação técnica foi atualizada no GitPages.
 
