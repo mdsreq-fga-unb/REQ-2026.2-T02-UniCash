@@ -18,7 +18,7 @@ Para preparar o ambiente e rodar o app (Node ou Docker + Expo Go), siga o [READM
 2. **Branch a partir da `main`**, com prefixo pelo tipo de mudança:
     - `feat/` funcionalidade nova (ex.: `feat/rf07-lancar-despesa`)
     - `fix/` correção de bug
-    - `docs/` documentação (a partir da branch `docs`)
+    - `docs-` documentação, a partir da branch `docs` (ex.: `docs-cronograma-timebox4`). O prefixo com barra (`docs/...`) não funciona, porque já existe uma branch chamada `docs`
     - `chore/` configuração, dependências, CI
 3. **Commits** no padrão [Conventional Commits](https://www.conventionalcommits.org/pt-br/v1.0.0/), em português: `feat(mobile): permite lançar despesa sem conexão`.
 4. **Antes do PR**, dentro de `mobile/`:
@@ -29,7 +29,15 @@ Para preparar o ambiente e rodar o app (Node ou Docker + Expo Go), siga o [READM
     npm run doctor
     ```
 
-5. **Pull request** para a `main` (ou para a `docs`, quando for documentação), preenchendo o template e citando a issue com `Closes #<número>`.
+5. **Pull request** para a `main` (ou para a `docs`, quando for documentação), preenchendo o template adequado e citando a issue com `Closes #<número>`. Os templates ficam em `.github/`:
+
+    | Mudança | Template | Como usar |
+    | --- | --- | --- |
+    | App (`mobile/`) | `PULL_REQUEST_TEMPLATE.md` | Padrão: aparece sozinho ao abrir a PR |
+    | Documentação (branch `docs`) | `PULL_REQUEST_TEMPLATE/documentacao.md` | `gh pr create --base docs --template documentacao.md`, ou acrescente `?template=documentacao.md` ao endereço de criação da PR |
+    | Workflows, scripts, hooks e configurações | `PULL_REQUEST_TEMPLATE/automacao.md` | `gh pr create --template automacao.md`, ou `?template=automacao.md` |
+
+    Em PRs para a `docs`, `Closes #<número>` não fecha a issue sozinho, porque o GitHub só fecha issues em merges na branch padrão (`main`). Feche a issue manualmente depois do merge.
 6. **Revisão:** pelo menos uma pessoa da equipe revisa e aprova. O CI (Mobile CI) precisa passar antes do merge.
 
 ## Regras do app

@@ -1,3 +1,8 @@
+<!--
+Template padrão, para mudanças no app (`mobile/`). Para documentação ou automação,
+use `documentacao.md` ou `automacao.md` (veja a seção de pull requests do CONTRIBUTING).
+-->
+
 ## O que muda
 
 <!-- Descreva a mudança em poucas linhas. -->
