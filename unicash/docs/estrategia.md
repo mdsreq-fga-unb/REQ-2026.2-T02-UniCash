@@ -16,18 +16,7 @@ Para caber na realidade da equipe, o processo foi calibrado da seguinte forma:
 1. **Fases:** Pré-projeto, Viabilidade, Fundamentos, Desenvolvimento Evolutivo, Implantação e Pós-projeto, organizados de forma a acompanhar a evolução do projeto desde a definição inicial até a avaliação e evolução após a implantação (AGILE BUSINESS CONSORTIUM, 2021).
 2. **Timeboxes:** Timeboxes de até duas semanas, com 7 a 14 dias conforme o calendário da disciplina ([cronograma](cronograma.md)), aproximadamente seis após o estudo inicial, alinhados às unidades da disciplina. Prazo e equipe permanecem fixos; o escopo alocado a cada timebox é o que se ajusta.
 3. **Priorização MoSCoW:** Cada requisito é classificado em *Must have*, *Should have*, *Could have* ou *Won’t have this time*. Os *Must have* delimitam o MVP e são dimensionados para um ritmo conservador; as classes inferiores funcionam como margem de manobra em semanas de sobrecarga (MARSICANO, 2026).
-4. **Papéis:**
-
-| Integrante | Papéis atribuídos |
-| :--- | :--- |
-| **BRUNO BERNARDES DUARTE** | Desenvolvedor; Facilitador; Escrivão; Testador |
-| **CAIO PACHECO SANTOS** | Desenvolvedor; Coordenador Técnico; Escrivão; Testador |
-| **DANTE FERNANDES SCARPATI** | Desenvolvedor; Comunicador; Escrivão; Testador |
-| **ERICK ALVES DOS SANTOS** | Desenvolvedor; Campeão do produto; Escrivão; Testador |
-| **EVELLYN DE SOUSA ROCHA** | Desenvolvedora; Intermediadora; Escrivã; Testadora |
-| **LEONARDO RAMIRO ALVES DE OLIVEIRA** | Desenvolvedor; Gerenciador de Timebox; Escrivão; Testador |
-| **NATAN JOSE FRANCA** | Desenvolvedor; Visionário; Escrivão; Testador |
-| **Clientes** | Embaixadoras do Negócio |
+4. **Papéis:** a composição da equipe, os papéis atribuídos e as responsabilidades de cada integrante estão centralizados na [seção 7.1 — Composição da Equipe](interacao.md#71-composição-da-equipe). Essa seção é a referência única para essas informações.
 
 5. **Elicitação:** Por workshops facilitados no início de cada fase, com protótipos evolutivos como principal instrumento de captura, comunicação e validação de requisitos.
 6. **Documentação “quanto basta”:** Business case enxuto, definição de arquitetura e protótipos, somados aos artefatos exigidos pela disciplina. As decisões sobre tratamento de dados pessoais e financeiros, controle de acesso e itens do checklist estruturado de segurança e privacidade também devem ser registradas.
@@ -80,3 +69,4 @@ O OpenUP permanece uma alternativa viável, pois é leve, adaptável, iterativo 
 | 1.5 | 12/10/2026 | Alinha estrutura do DSDM na estratégia | Leonardo Ramiro |
 | 1.6 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
 | 1.7 | 07/11/2026 | Explicita a cadência dos timeboxes adotada no cronograma (issue #26) | Dante Scarpati |
+| 1.8 | 11/11/2026 | Centraliza a composição e os papéis da equipe na seção de interação | Equipe UniCash |

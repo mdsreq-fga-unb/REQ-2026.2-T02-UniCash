@@ -24,6 +24,17 @@ O objetivo do produto é **auxiliar estudantes universitários, famílias e dema
 | CP7 | Colaboração em grupo de amigos ou família | A solução deverá prover a capacidade de apoiar a organização financeira compartilhada entre amigos e familiares, conciliando objetivos coletivos e necessidades individuais. | VN7 | Facilitação do planejamento financeiro conjunto, respeitando as necessidades e a privacidade dos participantes. | OE4 | OE2 |
 | CP8 | Engajamento e incentivo ao cumprimento de metas | A solução deverá prover a capacidade de estimular o envolvimento contínuo dos usuários na organização de suas finanças e na busca por seus objetivos financeiros. | VN8 | Maior continuidade no acompanhamento financeiro e incentivo à formação de hábitos de organização e economia. | OE4 | OE2 |
 
+### Estado de validação dos vínculos entre CP e OE
+
+Os vínculos da tabela acima são propostas da equipe. Um vínculo só passa a "Confirmado" quando uma ata registra a confirmação pela cliente. Os vínculos de CP7 e CP8 constam como pendentes de validação na página de [Requisitos Funcionais](requisitos_funcionais.md#pontos-para-validacao).
+
+| CP | Contribuição principal | Contribuição secundária | Estado de validação | Evidência de validação |
+|---|---|---|---|---|
+| CP7 — Colaboração em grupo de amigos ou família | OE4 | OE2 | **Proposto: pendente de confirmação pela cliente** | Nenhuma. A [R07](atas/posts/r07.md) registra apenas que os grupos ficam fora do MVP e não confirma o vínculo. |
+| CP8 — Engajamento e incentivo ao cumprimento de metas | OE4 | OE2 | **Proposto: pendente de confirmação pela cliente** | Nenhuma. |
+
+Os vínculos de CP1 a CP6 não constam entre os pontos pendentes de validação. A rastreabilidade completa, do problema até a validação, está na [seção 5.5 de Engenharia de requisitos](engenharia_de_requisitos.md#55-rastreabilidade-dos-requisitos).
+
 ## 2.4 Tecnologias a Serem Utilizadas
 
 Para o desenvolvimento do UniCash, serão utilizadas tecnologias compatíveis com a arquitetura **local-first**, com suporte aos princípios **offline-first**, e com o escopo previsto para a disciplina. O aplicativo será desenvolvido em **React Native** com **Expo** e **TypeScript**, a partir de uma única base de código para Android e iOS. A navegação entre telas utilizará o **Expo Router**.
@@ -89,3 +100,4 @@ Para garantir a viabilidade técnica, o cumprimento do prazo de desenvolvimento 
 | 1.11 | 30/10/2026 | Troca Supabase por Firebase na sincronização e nos grupos | Bruno Duarte |
 | 1.12 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
 | 1.13 | 05/11/2026 | Explicita a arquitetura local-first com suporte offline-first e a sincronização opcional pelo Firebase | Equipe UniCash |
+| 1.14 | 12/11/2026 | Registra o estado de validação dos vínculos de CP7 e CP8 com os objetivos específicos (issue #19) | Erick Alves |

@@ -4,18 +4,18 @@
 
 A equipe do UniCash é composta por sete integrantes e conta com a participação de representantes do negócio e do público-alvo, com responsabilidades relacionadas à documentação, à Engenharia de Requisitos, ao desenvolvimento do sistema e à criação de protótipos.
 
-| Integrante | Função (responsabilidade) | Papel no processo | Responsabilidade principal |
-| --- | --- | --- | --- |
-| **Leinad Santos França** | Cliente e representante do negócio | Embaixadora do Negócio (*Business Ambassador*) | Apresentar as necessidades do negócio e participar da validação dos requisitos |
-| **Maria Vitória** | Usuária representante do público-alvo | Embaixadora do Negócio (*Business Ambassador*)/Representante de Usuários (*User Representative*) | Avaliar as funcionalidades, registrar justificativas, contribuir para a validação dos requisitos e apresentar as necessidades do negócio |
-| **Alana** | Usuária representante do público-alvo | Representante de Usuários (*User Representative*)/Embaixadora do Negócio (*Business Ambassador*) | Avaliar o valor das funcionalidades, registrar justificativas, contribuir para a priorização do MVP e apresentar as necessidades do negócio |
-| **BRUNO BERNARDES DUARTE** | Backend; documentação técnica e engenharia de requisitos | Facilitador (*Facilitator*) | Apoiar a condução de workshops e atividades colaborativas |
-| **CAIO PACHECO SANTOS** | Backend; documentação técnica e engenharia de requisitos | Coordenador Técnico (*Technical Coordinator*) | Avaliar a arquitetura e a viabilidade técnica |
-| **DANTE FERNANDES SCARPATI** | Backend; documentação técnica e engenharia de requisitos | Comunicador (*Communicator*) | Registrar e divulgar informações sobre o andamento do projeto |
-| **ERICK ALVES DOS SANTOS** | Testes; documentação técnica e engenharia de requisitos | Campeão do Produto (*Project Champion*) | Apoiar a equipe e contribuir para a priorização dos requisitos |
-| **EVELLYN DE SOUSA ROCHA** | Frontend; documentação técnica e engenharia de requisitos | Intermediadora (*Advisor/Intermediary*) | Facilitar a comunicação entre a equipe técnica e a cliente |
-| **LEONARDO RAMIRO ALVES DE OLIVEIRA** | Testes; documentação técnica e engenharia de requisitos | Gerenciador de *Timebox* (*Timebox Manager*) | Acompanhar o cronograma, as prioridades e os prazos |
-| **NATAN JOSE FRANCA** | Frontend; documentação técnica e engenharia de requisitos | Visionário do Negócio (*Business Visionary*) | Garantir o alinhamento entre os objetivos do produto e a solução |
+| Integrante | Função (responsabilidade) | Papel no processo | Papéis adicionais | Responsabilidade principal |
+| --- | --- | --- | --- | --- |
+| **Leinad Santos França** | Cliente e representante do negócio | Embaixadora do Negócio (*Business Ambassador*) | — | Apresentar as necessidades do negócio e participar da validação dos requisitos |
+| **Maria Vitória** | Usuária representante do público-alvo | Embaixadora do Negócio (*Business Ambassador*)/Representante de Usuários (*User Representative*) | — | Avaliar as funcionalidades, registrar justificativas, contribuir para a validação dos requisitos e apresentar as necessidades do negócio |
+| **Alana França** | Usuária representante do público-alvo | Representante de Usuários (*User Representative*)/Embaixadora do Negócio (*Business Ambassador*) | — | Avaliar o valor das funcionalidades, registrar justificativas, contribuir para a priorização do MVP e apresentar as necessidades do negócio |
+| **BRUNO BERNARDES DUARTE** | Backend; documentação técnica e engenharia de requisitos | Facilitador (*Facilitator*) | Desenvolvedor; Escrivão; Testador | Apoiar a condução de workshops e atividades colaborativas |
+| **CAIO PACHECO SANTOS** | Backend; documentação técnica e engenharia de requisitos | Coordenador Técnico (*Technical Coordinator*) | Desenvolvedor; Escrivão; Testador | Avaliar a arquitetura e a viabilidade técnica |
+| **DANTE FERNANDES SCARPATI** | Backend; documentação técnica e engenharia de requisitos | Comunicador (*Communicator*) | Desenvolvedor; Escrivão; Testador | Registrar e divulgar informações sobre o andamento do projeto |
+| **ERICK ALVES DOS SANTOS** | Testes; documentação técnica e engenharia de requisitos | Campeão do Produto (*Project Champion*) | Desenvolvedor; Escrivão; Testador | Apoiar a equipe e contribuir para a priorização dos requisitos |
+| **EVELLYN DE SOUSA ROCHA** | Frontend; documentação técnica e engenharia de requisitos | Intermediadora (*Advisor/Intermediary*) | Desenvolvedora; Escrivã; Testadora | Facilitar a comunicação entre a equipe técnica e a cliente |
+| **LEONARDO RAMIRO ALVES DE OLIVEIRA** | Testes; documentação técnica e engenharia de requisitos | Gerenciador de *Timebox* (*Timebox Manager*) | Desenvolvedor; Escrivão; Testador | Acompanhar o cronograma, as prioridades e os prazos |
+| **NATAN JOSE FRANCA** | Frontend; documentação técnica e engenharia de requisitos | Visionário do Negócio (*Business Visionary*) | Desenvolvedor; Escrivão; Testador | Garantir o alinhamento entre os objetivos do produto e a solução |
 
 ## 7.2 Comunicação
 

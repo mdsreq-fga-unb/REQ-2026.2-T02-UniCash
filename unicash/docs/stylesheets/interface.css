@@ -161,32 +161,8 @@
 }
 [data-md-color-scheme="slate"] .uc-aba-lateral { color: #082f49; background: #bae6fd; }
 
-/* Alternância por páginas / leitura contínua */
-.uc-visao {
-    display: inline-flex;
-    flex: none;
-    margin: 0 0.6rem;
-    padding: 3px;
-    background: rgb(255 255 255 / 10%);
-    border-radius: 999px;
-}
-.uc-visao a {
-    padding: 4px 12px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    color: rgb(255 255 255 / 80%);
-    white-space: nowrap;
-    border-radius: 999px;
-}
-.uc-visao a:hover { color: #fff; }
-.uc-visao a[aria-current="true"] { color: #082f49; background: #bae6fd; }
-@media screen and (max-width: 59.9844em) {
-    .uc-visao { display: none; }
-}
-.md-typeset .uc-imprimir { margin: 0 0 1.5rem; }
-body.uc-leitura-continua .uc-recolher { display: none; }
 @media print {
-    .uc-fab, .uc-aba-lateral, .uc-visao, .uc-recolher, .uc-imprimir, .uc-audio { display: none !important; }
+    .uc-fab, .uc-aba-lateral, .uc-recolher, .uc-audio { display: none !important; }
 }
 
 /* Áudio do resumo das atas */
