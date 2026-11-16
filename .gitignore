@@ -3,5 +3,10 @@
 node_modules/
 .env
 
+# Artefatos de build, testes e logs locais
+coverage/
+**/coverage/
+**/firestore-debug.log
+
 # Rascunhos do brainstorming (visual companion)
 .superpowers/
