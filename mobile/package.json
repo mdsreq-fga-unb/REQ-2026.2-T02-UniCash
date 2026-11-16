@@ -60,6 +60,7 @@
   },
   "private": true,
   "allowScripts": {
-    "@firebase/util@1.15.3": true
+    "@firebase/util@1.15.3": true,
+    "better-sqlite3@13.0.3": true
   }
 }
