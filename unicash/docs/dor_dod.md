@@ -6,6 +6,10 @@ Os registros que comprovam a aplicação do DoR estão organizados em
 [Evidências da Definition of Ready](evidencias_dor.md), separadamente dos
 critérios desta página.
 
+Os registros que comprovam a aplicação do DoD estão organizados em
+[Evidências da Definition of Done](evidencias_dod.md), separadamente dos
+critérios desta página.
+
 ## DoR (Definition of Ready) — Filtro de Entrada
 
 Para que um caso de uso seja movido para **Pronto para Desenvolvimento**, todos os itens abaixo devem estar marcados durante o refinamento.

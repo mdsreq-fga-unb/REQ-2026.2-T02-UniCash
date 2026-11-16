@@ -151,6 +151,7 @@ nav:
       - Engenharia de requisitos: engenharia_de_requisitos.md
       - Definition of Ready e Definition of Done: dor_dod.md
       - Evidências da Definition of Ready: evidencias_dor.md
+      - Evidências da Definition of Done: evidencias_dod.md
       - Requisitos:
           - Requisitos Funcionais: requisitos_funcionais.md
           - Requisitos Não Funcionais: requisitos_nao_funcionais.md
