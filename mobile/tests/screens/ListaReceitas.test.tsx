@@ -2,6 +2,7 @@
 import ListaReceitas from '@/app/receitas/index';
 import { FalhaLeitura, listarReceitas } from '@/features/receitas/service';
 import { contarPendentes } from '@/features/receitas/pendencias';
+import { consumirAcessoNegado } from '@/features/receitas/sync';
 import { setFeedback } from '@/features/receitas/feedback';
 import { MSG } from '@/features/receitas/validation';
 import { router } from '../helpers/expoRouterMock';
@@ -16,6 +17,7 @@ jest.mock('@/features/receitas/service', () => ({
 jest.mock('@/features/receitas/sync', () => ({
   sincronizarPendentes: jest.fn().mockResolvedValue(false),
   sincronizarEmSegundoPlano: jest.fn(),
+  consumirAcessoNegado: jest.fn().mockReturnValue(false),
 }));
 jest.mock('@/features/receitas/pendencias', () => ({ contarPendentes: jest.fn().mockResolvedValue(0) }));
 
@@ -42,6 +44,14 @@ describe('Lista de receitas (protótipo F6)', () => {
     expect(screen.getByText('+ R$ 100,00')).toBeTruthy();
     expect(screen.getByText('Estágio')).toBeTruthy();
     expect(screen.getByText('+ R$ 150,00')).toBeTruthy(); // total
+  });
+
+  it('EX07: acesso negado pela nuvem mostra aviso amigável e mantém a lista local', async () => {
+    (consumirAcessoNegado as jest.Mock).mockReturnValueOnce(true);
+    listar.mockResolvedValue({ itens: [receitaLinha({ id: '1', titulo: 'Estágio' })], total: 5000 });
+    await render(<ListaReceitas />);
+    expect(await screen.findByText(new RegExp(MSG.acessoNegado.slice(0, 30)))).toBeTruthy();
+    expect(screen.getByText('Estágio')).toBeTruthy();
   });
 
   it('estado vazio', async () => {
