@@ -48,6 +48,26 @@ Além disso, o aprofundamento na escrita dos requisitos trouxe a necessidade de 
 - Reforçar a distinção entre requisitos de negócio, de produto e de usuário durante a elaboração da documentação, garantindo que cada requisito represente adequadamente seu propósito e nível de detalhamento;
 - Reservar momentos para revisar e aprimorar a escrita dos requisitos, buscando maior clareza, consistência e alinhamento com as necessidades identificadas junto às clientes.
 
+## 8.3 Unidade 3
+
+### O que funcionou bem?
+
+A nova organização da documentação funcionou bem, tornando as informações mais acessíveis, organizadas e fáceis de consultar pela equipe e pelas partes interessadas, incluindo por meio da publicação no GitHub Pages.
+
+### Dificuldades enfrentadas
+
+A principal dificuldade da Unidade 3 foi a falta de comunicação entre os integrantes da equipe, o que prejudicou o alinhamento das atividades e a tomada de decisões. Também houve dificuldades no andamento e na realização das issues, com atrasos e falta de acompanhamento adequado das tarefas.
+
+Em comparação com a Unidade 2, esses problemas se intensificaram, principalmente porque, ao final do semestre, todos os integrantes ficaram sobrecarregados com os trabalhos finais de outras disciplinas. Essa sobrecarga reduziu a disponibilidade da equipe e dificultou a manutenção do ritmo necessário para concluir as atividades dentro dos prazos estabelecidos.
+
+### Ações a serem tomadas
+
+- Melhorar a eficiência da equipe por meio de um planejamento mais realista e da definição clara das responsabilidades de cada integrante;
+- Estabelecer uma rotina de comunicação e acompanhamento das issues, com atualizações frequentes sobre o andamento, os impedimentos e os prazos das tarefas;
+- Reforçar a responsabilidade individual e coletiva pelo cumprimento das atividades, evitando que as tarefas fiquem concentradas em poucos integrantes;
+- Antecipar a divisão das atividades em períodos de maior sobrecarga acadêmica, priorizando as entregas mais importantes e distribuindo o trabalho de forma equilibrada;
+- Manter a organização e a atualização contínua da documentação, preservando o uso do GitHub Pages como forma de facilitar o acesso às informações do projeto.
+
 ## Histórico de versões
 
 | Versão | Data | Descrição | Autor |
@@ -58,3 +78,4 @@ Além disso, o aprofundamento na escrita dos requisitos trouxe a necessidade de 
 | 1.3 | 24/09/2026 | Ajustes de texto e cabeçalho | Erick Alves |
 | 1.4 | 12/10/2026 | Adiciona liçoes aprendidas da unidade 2 | Natan França |
 | 1.5 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
+| 1.6 | 16/11/2026 | Adiciona lições aprendidas da unidade 3 | Natan França |
