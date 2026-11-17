@@ -1,0 +1,284 @@
+{
+ "data": {
+  "repository": {
+   "issues": {
+    "pageInfo": {
+     "hasNextPage": false,
+     "endCursor": null
+    },
+    "nodes": [
+     {
+      "number": 1,
+      "title": "Unidade 1 - Cenário Atual do Cliente e do Negócio",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/1",
+      "state": "CLOSED",
+      "assignees": {
+       "nodes": [
+        {
+         "login": "Natan8643"
+        }
+       ]
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 28,
+      "title": "UC01 - Gerenciar receitas",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/28",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": [
+        {
+         "login": "Natan8643"
+        }
+       ]
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": [
+        {
+         "number": 48,
+         "title": "Uc01 gerenciar receitas",
+         "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/48",
+         "state": "MERGED",
+         "baseRefName": "develop",
+         "mergedAt": "2026-11-09T14:47:16Z",
+         "repository": {
+          "nameWithOwner": "mdsreq-fga-unb/REQ-2026.2-T02-UniCash"
+         },
+         "mergeCommit": {
+          "oid": "1bc4f741a51b5932c3425eff05df35df0b44a9f2"
+         },
+         "commits": {
+          "nodes": [
+           {
+            "commit": {
+             "statusCheckRollup": {
+              "state": "SUCCESS"
+             }
+            }
+           }
+          ]
+         }
+        }
+       ]
+      },
+      "timelineItems": {
+       "nodes": [
+        {
+         "source": {
+          "number": 48,
+          "title": "Uc01 gerenciar receitas",
+          "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/48",
+          "state": "MERGED",
+          "baseRefName": "develop",
+          "mergedAt": "2026-11-09T14:47:16Z",
+          "repository": {
+           "nameWithOwner": "mdsreq-fga-unb/REQ-2026.2-T02-UniCash"
+          },
+          "mergeCommit": {
+           "oid": "1bc4f741a51b5932c3425eff05df35df0b44a9f2"
+          },
+          "commits": {
+           "nodes": [
+            {
+             "commit": {
+              "statusCheckRollup": {
+               "state": "SUCCESS"
+              }
+             }
+            }
+           ]
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "number": 29,
+      "title": "UC02 - Gerenciar despesas",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/29",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": [
+        {
+         "login": "ellevyn7"
+        }
+       ]
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 30,
+      "title": "UC03 - Consultar resumo financeiro ",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/30",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": [
+        {
+         "login": "dantescarpati"
+        }
+       ]
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 31,
+      "title": "UC04 - Gerenciar saldo mensal",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/31",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": [
+        {
+         "login": "erickaalves"
+        }
+       ]
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 32,
+      "title": "UC05 - Monitorar limites de gastos ",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": [
+        {
+         "login": "Natan8643"
+        }
+       ]
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 43,
+      "title": "UC06 - Gerenciar categorias",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/43",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": [
+        {
+         "login": "leoramiroo"
+        }
+       ]
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 44,
+      "title": "UC07 - Consultar evolução mensal",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/44",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": []
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 45,
+      "title": "UC08 - Gerenciar saldo inicial",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/45",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": []
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 46,
+      "title": "UC09 - Monitorar consumo por categoria",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/46",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": []
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 900,
+      "title": "UC01 - duplicada",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/900",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": [
+        {
+         "login": "Natan8643"
+        }
+       ]
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     },
+     {
+      "number": 901,
+      "title": "UC99 - inexistente no site",
+      "url": "https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/901",
+      "state": "OPEN",
+      "assignees": {
+       "nodes": [
+        {
+         "login": "Natan8643"
+        }
+       ]
+      },
+      "closedByPullRequestsReferences": {
+       "nodes": []
+      },
+      "timelineItems": {
+       "nodes": []
+      }
+     }
+    ]
+   }
+  }
+ }
+}

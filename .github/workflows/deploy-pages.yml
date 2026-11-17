@@ -10,6 +10,11 @@ permissions:
   contents: read
   pages: write
   id-token: write
+  # Leitura de issues, PRs e CI para o status dos casos de uso.
+  issues: read
+  pull-requests: read
+  checks: read
+  statuses: read
 
 concurrency:
   group: pages
@@ -39,6 +44,8 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Construir o site
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: mkdocs build --strict
 
       - name: Configurar GitHub Pages

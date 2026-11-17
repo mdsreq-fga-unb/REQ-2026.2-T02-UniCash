@@ -25,6 +25,8 @@ A priorização original ([R05 — 25/09/2026](atas/posts/r05.md)) usou a [plani
 
 As notas individuais de valor orientam a priorização MoSCoW. A média e a célula da matriz apoiam a seleção, mas não atribuem sozinhas uma decisão final de inclusão: dependências e decisões de escopo também precisam ser registradas.
 
+O backlog priorizado, com prioridade, responsável, dependências, timebox, estado e DoR de cada item, é mantido como campos do [Backlog do Produto (MoSCoW)](https://github.com/orgs/mdsreq-fga-unb/projects/123/views/7), no GitHub Project da organização (acesso para membros). Esta página não repete essa tabela.
+
 ### 1.1 Cálculo das médias
 
 As notas são calculadas em três passos:
@@ -46,7 +48,7 @@ As médias completas são usadas na classificação. Os números apresentados no
 
 A tabela acima, publicada no MkDocs, é a referência oficial para a classificação da priorização. Os limites são inclusivos na faixa superior: 1,5 pertence à faixa 2 e 2,5 pertence à faixa 3. A planilha permanece como fonte das notas, mas não substitui a regra de classificação documentada nesta página.
 
-A planilha cobre apenas RF01 a RF56; RF57 a RF64 ainda não têm notas nessa priorização.
+A planilha cobre apenas RF01 a RF56; RF57 a RF64 ainda não têm notas nessa priorização. A classificação desses requisitos na seção 1.4 decorre das decisões registradas, e não da matriz valor × esforço.
 
 ### 1.2 Critério de decisão
 
@@ -114,12 +116,14 @@ Quando a sincronização do **RF59** estiver habilitada, também são mínimos p
 
 | Classificacao | Inclui | Condicao |
 | :--- | :--- | :--- |
-| **Nucleo confirmado** | RF07 a RF20, RF32 a RF42, RF44, RF45, RF46, RF55, RF58 e RF59 | Execucao e persistencia locais, respeitando os RNFs aplicaveis; o RF59 tambem contempla o envio posterior quando a sincronizacao estiver ativa. |
-| **Condicional** | RF01 a RF06 e RF31 | Depende de conta e recuperacao de acesso; o uso financeiro local nao depende desses fluxos. |
-| **Proposto ou posterior** | RF22 a RF30, RF51 a RF54, RF56, RF65 a RF67 | Requer priorizacao, validacao ou planejamento de release posterior. |
-| **Fora do MVP (Won't have now)** | RF21, RF47, RF48, RF49, RF50, RF60, RF63 e RF64 | Importação, consolidação, extração, anexos de comprovantes e backup por arquivo foram retirados do escopo atual. |
+| **Nucleo confirmado** | RF07 a RF20, RF32 a RF42, RF44, RF45, RF46, RF55, RF58, RF59 e RF61 | Execucao e persistencia locais, respeitando os RNFs aplicaveis; o RF59 tambem contempla o envio posterior quando a sincronizacao estiver ativa; o RF61 formaliza o uso individual sem conta, conforme a D20. |
+| **Condicional** | RF01 a RF06, RF31 e RF62 | Depende de conta e recuperacao de acesso (RF01 a RF06 e RF31) ou de sincronizacao ativa (RF62); o uso financeiro local nao depende desses fluxos. |
+| **Proposto ou posterior** | RF22 a RF30, RF51 a RF53, RF56, RF57, RF65 a RF67 | Requer priorizacao, validacao ou planejamento de release posterior. O RF57 pertence aos grupos (CP7), que ficaram fora do MVP pela D09. |
+| **Fora do MVP (Won't have now)** | RF21, RF47, RF48, RF49, RF50, RF60, RF63 e RF64 | Importação, consolidação, extração, anexos de comprovantes e backup por arquivo foram retirados do escopo atual, conforme a [D23](decisoes.md#d23). |
 
 O agrupamento acima e uma sintese de escopo, nao altera a situacao dos requisitos no catalogo. RF58 e RF59 estao confirmados no MVP. RF37, RF38 e RF46 utilizam as preferencias configuradas no RF58.
+
+**Requisitos sem nota na priorização:** RF57, RF61 e RF62 não constam da planilha (seção 1.1), assim como RF58, RF59, RF63 e RF64. Sua classificação acima decorre de decisões registradas: RF61 e RF62 pelas [D10](decisoes.md#d10) e [D20](decisoes.md#d20) (uso local sem conta e sincronização opcional), RF57 pela [D09](decisoes.md#d09) (grupos fora do MVP) e RF63 e RF64 pela [D23](decisoes.md#d23). O RF54 foi fundido ao RF21 e não é classificado.
 
 ---
 
@@ -202,7 +206,7 @@ Cada linha contém somente os RNFs que citam aquele RF na coluna **Aplica-se a**
 - **Gamificação individual e classificação em grupo:** RNF22 cita RF45, mas seu prazo de atualização se refere à classificação do grupo (RF30), fora do MVP atual. A relação foi preservada por constar no catálogo; não implica incluir grupos no MVP nem aplicar esse prazo à pontuação exclusivamente local.
 - **Alertas e tutorial:** não há RNF específico associado a RF55 na coluna **Aplica-se a**; valem os transversais. RF37 e RF38 têm vínculo específico com RNF29. As condições de disparo e o conteúdo dos alertas estão nos próprios RFs e na RN03, e não no RNF18, que trata da restauração do backup do servidor.
 - **Preferencias de notificacao:** RF58 e um requisito vigente do MVP e configura as preferências utilizadas pelos RF37, RF38 e RF46.
-- **Backup e recuperação:** RNF17 e RNF18 tratam apenas dos dados sincronizados no Cloud Firestore e não se aplicam aos RFs do recorte. Quem usa o app sem conta recupera os dados pelo arquivo do RF63 (RNF40), e RF61 a RF64 estão fora do recorte da seção 1.3.
+- **Backup e recuperação:** RNF17 e RNF18 tratam apenas dos dados sincronizados no Cloud Firestore e não se aplicam aos RFs do recorte. O backup e a restauração por arquivo (RF63 e RF64) foram retirados do escopo pela [D23](decisoes.md#d23). Pelo RNF40, a recuperação dos dados em aparelho novo ou reinstalado depende de conta e do Cloud Firestore (RF61 e RF62); para quem usa o app sem conta, o escopo atual não prevê recuperação fora do aparelho. Esse ponto deve ser levado à validação com a cliente.
 - **Códigos retirados:** RNF06, RNF13, RNF15 e RNF23 não são usados como requisitos ativos nesta matriz. Seus destinos constam no catálogo.
 
 ## Histórico de versões
@@ -222,6 +226,7 @@ Cada linha contém somente os RNFs que citam aquele RF na coluna **Aplica-se a**
 | 1.10 | 04/11/2026 | Move o código do gráfico de priorização para arquivo JavaScript carregado pelo MkDocs e inclui orientação para prévias sem suporte a scripts. | Erick Alves |
 | 1.11 | 07/11/2026 | Atualiza a matriz RF–RNF conforme a revisão dos RNFs da D21 (issue #21) | Dante Scarpati |
 | 1.12 | 10/11/2026 | Corrige a classificacao do RF31, alinha o recorte a arquitetura local-first da D20 e explicita fluxos condicionais e limites do MVP. | Equipe UniCash |
+| 1.13 | 10/11/2026 | Inclui o RF59 no MVP como requisito confirmado de registro local e sincronização opcional. | Equipe UniCash |
 | 1.14 | 10/11/2026 | Define o MkDocs como referencia da priorizacao e corrige o RF58 como requisito vigente do nucleo do MVP. | Equipe UniCash |
 | 1.15 | 10/11/2026 | Classifica importacao e exportacao como Won't have now e alinha os limites do MVP. | Equipe UniCash |
-| 1.13 | 10/11/2026 | Inclui o RF59 no MVP como requisito confirmado de registro local e sincronização opcional. | Equipe UniCash |
+| 1.16 | 14/11/2026 | Classifica RF57, RF61 e RF62 na tabela 1.4 e registra a base da classificação dos requisitos sem nota; corrige a recuperação de dados sem conta, que citava o RF63 retirado na D23; informa que o backlog priorizado fica nos campos do GitHub Project; ordena o histórico de versões (issue #24) | Erick Alves |
