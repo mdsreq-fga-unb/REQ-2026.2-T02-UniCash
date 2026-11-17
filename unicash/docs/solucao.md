@@ -87,7 +87,9 @@ Até esta versão, a equipe **não observou diretamente** estudantes universitá
 
 Esses registros sustentam decisões de escopo, como o uso sem conta e sem internet, mas não mostram se estudantes e famílias mantêm o hábito de registrar, quanto tempo levam em cada registro nem onde desistem. Essa observação direta virá do **diário financeiro** e da **entrevista contextual**, previstos no processo de ER, com participantes, responsáveis e períodos na seção [Técnicas de ER previstas no processo](cronograma.md#tecnicas-de-er-previstas-no-processo) do cronograma. Até que essas técnicas sejam executadas e registradas, a hipótese de valor do MVP permanece como proposta da equipe.
 
-Dessa forma, a proposta do UniCash combina características já existentes individualmente no mercado, como gratuidade, código aberto e armazenamento local, com uma experiência voltada à organização financeira individual. Na primeira versão, o valor oferecido é o descrito na hipótese de valor do MVP: registro individual sem conta e sem internet, sem infraestrutura própria a instalar, com semáforo de limites e conquistas. A interação financeira entre grupos é um diferencial previsto para o produto completo, ainda não entregue nem validado com usuários.
+**Pendência em aberto:** a observação direta de estudantes e famílias ainda não foi feita. Esta pendência só será encerrada quando o diário financeiro ou a entrevista contextual forem executados e o resultado for registrado nesta seção. Até lá, a hipótese de valor do MVP não tem validação com usuários.
+
+Dessa forma, a proposta do UniCash combina características já existentes individualmente no mercado, como gratuidade, código aberto e armazenamento local, com uma experiência voltada à organização financeira individual. Na primeira versão, o valor oferecido é o descrito na hipótese de valor do MVP: registro individual sem conta e sem internet, sem infraestrutura própria a instalar, com semáforo de limites e conquistas. Os grupos de amigos e família ficam para versões posteriores ao MVP e não fazem parte do valor da primeira versão; eles ainda não foram entregues nem validados com usuários.
 
 ## 2.6 Viabilidade da Proposta
 
@@ -127,3 +129,4 @@ Para garantir a viabilidade técnica, o cumprimento do prazo de desenvolvimento 
 | 1.14 | 12/11/2026 | Registra o estado de validação dos vínculos de CP7 e CP8 com os objetivos específicos (issue #19) | Erick Alves |
 | 1.15 | 14/11/2026 | Separa o escopo atual do catálogo completo na seção 2.6, alinha a CP5 ao uso sem conta e registra a hipótese de valor do MVP (issue #16) | Bruno Duarte |
 | 1.16 | 15/11/2026 | Retira os grupos do diferencial da primeira versão nos comparativos com Securo e Monekin e na conclusão da seção 2.5 e registra a base empírica da hipótese de valor do MVP (issue #16) | Bruno Duarte |
+| 1.17 | 17/11/2026 | Registra na seção 2.5 a observação direta de estudantes e famílias como pendência em aberto e remove da conclusão a menção aos grupos como diferencial (issue #16) | Bruno Duarte |
