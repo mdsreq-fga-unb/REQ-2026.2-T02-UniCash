@@ -163,6 +163,22 @@ Como os quadros só aparecem para membros da organização, a situação do [Kan
 
 **Decisão a tomar na Revisão e validação (13/11 a 19/11):** voltar a respeitar o limite de WIP, concluindo ou devolvendo a *Ready* um dos itens em andamento antes de puxar novos, e atribuir revisores aos itens em *In review*. A decisão tomada deve ser registrada no [Registro de decisões](decisoes.md).
 
+### Situação do quadro em 15/11/2026
+
+Nova exportação do GitHub Project, feita em 15/11/2026 para acompanhar a decisão acima:
+
+| Coluna | Itens | Issues |
+| --- | --- | --- |
+| Backlog | 2 | [#45](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/45) e [#46](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/46) (sem responsável) |
+| Ready | 2 | [#20](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/20) (Leonardo), [#27](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/27) (Bruno e Evellyn) |
+| In progress | **1** | [#23](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/23) (Natan) |
+| In review | **4** | [#16](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/16) e [#17](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/17) (Bruno), [#51](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/51) (Bruno), [#54](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/54) (Bruno) |
+| Done | 27 | — |
+
+**WIP observado:** a coluna *In progress* voltou a ficar dentro do limite de 3, com 1 item. As issues [#18](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/18), [#22](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/22), [#24](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/24) e [#25](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/25) foram concluídas.
+
+**Gargalo identificado:** o acúmulo passou para *In review*, com 4 itens, todos de Bruno e sem revisor atribuído. A equipe não definiu limite de WIP para essa coluna; a proposta é adotar limite de 2 itens em *In review* e atribuir um revisor a cada item, decisão a confirmar na Revisão e validação e registrar no [Registro de decisões](decisoes.md).
+
 As revisões de timebox e as validações serão realizadas com a cliente conforme os objetivos de cada ciclo. Os usuários finais considerados para validação são estudantes universitários e representantes de famílias, representados por Maria Vitória e Alana França. As práticas de testes automatizados, integração contínua e revisão por pull request serão mantidas durante os ciclos de desenvolvimento.
 
 ## Evidências de construção
@@ -193,3 +209,4 @@ A [seção 4.1](estrategia.md#41-estrategia-priorizada) compromete a equipe com 
 | 1.10 | 14/11/2026 | Corrige a data da reunião de diagnóstico (R01, 29/08/2026), remove a referência à reunião de 01/09/2026 e move a gravação do Teams para o Pré-projeto; troca o bloco de acompanhamento do GitHub Projects por markdown simples, para exibir corretamente na prévia do GitHub (issue #18) | Erick Alves |
 | 1.11 | 14/11/2026 | Registra que prioridade, responsável, dependências, timebox, estado e DoR ficam como campos do Backlog do Produto no GitHub Project e remove as referências ao RF63 e RF64, retirados na D23 (issue #24) | Erick Alves |
 | 1.12 | 14/11/2026 | Registra o planejamento e o fechamento dos Timeboxes 1 a 4, a situação do Kanban com o WIP observado, as evidências de construção e o vínculo com os riscos; alinha o escopo de backup e importação à D23 (issue #17) | Bruno Duarte |
+| 1.13 | 15/11/2026 | Registra a situação do Kanban em 15/11/2026, com o WIP de *In progress* dentro do limite e o gargalo em *In review* (issue #17) | Bruno Duarte |
