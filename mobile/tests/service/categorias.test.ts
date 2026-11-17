@@ -1,6 +1,7 @@
 import { getDb } from '@/db/database';
 import {
   CategoriaIndisponivel,
+  FalhaLeituraCategoria,
   FalhaPersistenciaCategoria,
   NomeDuplicado,
   NomeReservadoCategoriasPadrao,
@@ -231,6 +232,68 @@ describe('Serviço de categorias (UC06)', () => {
       );
       expect((await buscarCategoria(id))!.nome).toBe('Mercado');
     });
+
+    it('edita categoria própria removendo o limite', async () => {
+      const id = await criarCategoria(comValor);
+      await editarCategoria(id, { nome: 'Mercado Novo', limite: null });
+
+      expect((await buscarCategoria(id))!).toMatchObject({
+        nome: 'Mercado Novo',
+        limite_tipo: null,
+        limite_centavos: null,
+        limite_percentual_centesimos: null,
+      });
+    });
+
+    it('edita categoria própria com limite percentual', async () => {
+      const id = await criarCategoria(semLimite);
+      await editarCategoria(id, { nome: 'Mercado Novo', limite: comPercentual.limite });
+
+      expect((await buscarCategoria(id))!).toMatchObject({
+        nome: 'Mercado Novo',
+        limite_tipo: 'percentual_renda',
+        limite_centavos: null,
+        limite_percentual_centesimos: 1_250,
+      });
+    });
+
+    it('edita categoria própria sem alterar o nome', async () => {
+      const id = await criarCategoria(semLimite);
+      await editarCategoria(id, { nome: 'Mercado', limite: comValor.limite });
+
+      expect((await buscarCategoria(id))!).toMatchObject({
+        nome: 'Mercado',
+        limite_tipo: 'valor',
+        limite_centavos: 150_000,
+      });
+    });
+
+    it('categoria padrão: remove o limite', async () => {
+      await semearCategoriasPadrao();
+      const padrao = (banco.sqlite.prepare('SELECT * FROM categorias WHERE padrao = 1 LIMIT 1').get() as any);
+      await editarCategoria(padrao.id, { nome: padrao.nome, limite: comValor.limite });
+      await editarCategoria(padrao.id, { nome: padrao.nome, limite: null });
+
+      const depois = (banco.sqlite.prepare('SELECT * FROM categorias WHERE id = ?').get(padrao.id) as any);
+      expect(depois).toMatchObject({
+        limite_tipo: null,
+        limite_centavos: null,
+        limite_percentual_centesimos: null,
+      });
+    });
+
+    it('categoria padrão: aceita limite percentual', async () => {
+      await semearCategoriasPadrao();
+      const padrao = (banco.sqlite.prepare('SELECT * FROM categorias WHERE padrao = 1 LIMIT 1').get() as any);
+      await editarCategoria(padrao.id, { nome: padrao.nome, limite: comPercentual.limite });
+
+      const depois = (banco.sqlite.prepare('SELECT * FROM categorias WHERE id = ?').get(padrao.id) as any);
+      expect(depois).toMatchObject({
+        limite_tipo: 'percentual_renda',
+        limite_centavos: null,
+        limite_percentual_centesimos: 1_250,
+      });
+    });
   });
 
   // ---------------------------------------------------------------- excluir (D)
@@ -285,6 +348,11 @@ describe('Serviço de categorias (UC06)', () => {
       }
       const proprias = itens.filter((i) => i.padrao === 0).map((i) => i.nome);
       expect(proprias).toEqual(['Abacaxi', 'Zebra']); // nome ASC dentro do grupo
+    });
+
+    it('falha de leitura vira FalhaLeituraCategoria (EX08)', async () => {
+      (getDb as jest.Mock).mockRejectedValueOnce(new Error('db fechado'));
+      await expect(listarCategorias()).rejects.toThrow(FalhaLeituraCategoria);
     });
 
     it('contarPendentesCategorias conta gravações pendentes (RN11)', async () => {

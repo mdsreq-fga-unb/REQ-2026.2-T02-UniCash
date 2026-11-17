@@ -553,6 +553,45 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
       return sqlite;
     }
 
+    /** Banco parcial com apenas uma das tabelas canônicas (a outra será criada pelo DDL). */
+    function bancoParcialSomente(tabelaExistente: 'receitas' | 'recorrencias'): Database.Database {
+      const sqlite = novoSqlite();
+      sqlite.exec(DDL_ESQUEMA);
+      sqlite.exec('DROP INDEX idx_categorias_nome_unico; DROP INDEX idx_categorias_sync; DROP TABLE categorias;');
+      // Insere antes de dropar a tabela pai: a FK de receitas exige recorrencias para o INSERT.
+      if (tabelaExistente === 'receitas') inserirReceitaValida(sqlite);
+      sqlite.exec(tabelaExistente === 'receitas' ? 'DROP TABLE recorrencias' : 'DROP TABLE receitas');
+      return sqlite;
+    }
+
+    /** Tabela receitas com uma divergência real (tipo, NOT NULL ou PK) e os índices canônicos. */
+    function bancoReceitasDivergente(sqlId: string, sqlDescricao = 'descricao TEXT'): Database.Database {
+      const sqlite = novoSqlite();
+      sqlite.exec(DDL_ESQUEMA);
+      sqlite.exec(
+        'DROP INDEX idx_categorias_nome_unico; DROP INDEX idx_categorias_sync; DROP TABLE categorias; DROP TABLE receitas;',
+      );
+      sqlite.exec(`
+        CREATE TABLE receitas (
+          ${sqlId},
+          valor_centavos INTEGER NOT NULL,
+          data TEXT NOT NULL,
+          titulo TEXT NOT NULL,
+          ${sqlDescricao},
+          recorrencia_id TEXT REFERENCES recorrencias(id),
+          sync_status TEXT NOT NULL DEFAULT 'pendente',
+          excluido_em TEXT,
+          criado_em TEXT NOT NULL,
+          atualizado_em TEXT NOT NULL
+        );
+        CREATE INDEX idx_receitas_data ON receitas(data);
+        CREATE INDEX idx_receitas_recorrencia ON receitas(recorrencia_id);
+        CREATE INDEX idx_receitas_sync ON receitas(sync_status);
+      `);
+      inserirReceitaValida(sqlite);
+      return sqlite;
+    }
+
     it('banco realmente vazio instala normalmente', async () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
@@ -575,6 +614,37 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
       expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1); // dado preservado
     });
 
+    it('banco parcial somente com receitas completa a instalação e preserva os dados', async () => {
+      const sqlite = bancoParcialSomente('receitas');
+
+      await migrarSeNecessario(criarAdaptador(sqlite));
+
+      expect(versao(sqlite)).toBe(1);
+      expect(sqlCategorias(sqlite)).toContain('limite_coerente');
+      expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1); // dado preservado
+      expect(
+        sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'recorrencias'").get(),
+      ).toBeTruthy(); // tabela ausente criada pelo DDL
+    });
+
+    it('banco parcial somente com recorrencias completa a instalação e preserva os dados', async () => {
+      const sqlite = bancoParcialSomente('recorrencias');
+      sqlite
+        .prepare(
+          "INSERT INTO recorrencias (id, intervalo, unidade, inicio, ativa, valor_centavos, titulo, sync_status, atualizado_em) VALUES ('rec-1', 1, 'mes', '2026-01-10', 1, 50000, 'Aluguel', 'pendente', '2026-01-10T08:00:00Z')",
+        )
+        .run();
+
+      await migrarSeNecessario(criarAdaptador(sqlite));
+
+      expect(versao(sqlite)).toBe(1);
+      expect(sqlCategorias(sqlite)).toContain('limite_coerente');
+      expect(sqlite.prepare('SELECT * FROM recorrencias').all()).toHaveLength(1); // dado preservado
+      expect(
+        sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'receitas'").get(),
+      ).toBeTruthy(); // tabela ausente criada pelo DDL
+    });
+
     it('banco parcial com tabela divergente aborta, preservando objetos e versão', async () => {
       const sqlite = bancoParcialCompativel();
       sqlite.exec('ALTER TABLE receitas ADD COLUMN obs TEXT');
@@ -590,6 +660,42 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
         (sqlite.prepare('PRAGMA table_info(receitas)').all() as any[]).map((c) => c.name),
       ).toContain('obs'); // alteração do colega preservada
       expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1); // dado preservado
+    });
+
+    it('banco parcial com tipo divergente em receitas aborta, preservando dados', async () => {
+      const sqlite = bancoReceitasDivergente('id TEXT PRIMARY KEY NOT NULL', 'descricao INTEGER');
+
+      await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toThrow(/diverge do esquema canônico/);
+
+      expect(versao(sqlite)).toBe(0);
+      expect(sqlCategorias(sqlite)).toBe('');
+      expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1);
+      expect((sqlite.prepare('PRAGMA table_info(receitas)').all() as any[])[4].type).toBe('INTEGER');
+    });
+
+    it('banco parcial com NOT NULL divergente em receitas aborta, preservando dados', async () => {
+      const sqlite = bancoReceitasDivergente(
+        'id TEXT PRIMARY KEY NOT NULL',
+        "descricao TEXT NOT NULL DEFAULT ''",
+      );
+
+      await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toThrow(/diverge do esquema canônico/);
+
+      expect(versao(sqlite)).toBe(0);
+      expect(sqlCategorias(sqlite)).toBe('');
+      expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1);
+      expect((sqlite.prepare('PRAGMA table_info(receitas)').all() as any[])[4].notnull).toBe(1);
+    });
+
+    it('banco parcial com chave primária divergente em receitas aborta, preservando dados', async () => {
+      const sqlite = bancoReceitasDivergente('id TEXT NOT NULL');
+
+      await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toThrow(/diverge do esquema canônico/);
+
+      expect(versao(sqlite)).toBe(0);
+      expect(sqlCategorias(sqlite)).toBe('');
+      expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1);
+      expect((sqlite.prepare('PRAGMA table_info(receitas)').all() as any[])[0].pk).toBe(0);
     });
 
     it('banco parcial com objeto inesperado aborta, preservando objetos e versão', async () => {

@@ -155,9 +155,71 @@ describe('useCategorias (base da interface UC06)', () => {
       await Promise.resolve(); // carga em andamento, aguardando listarCategorias
     });
 
-    unmount(); // a carga só se resolve depois do fim da tela
+    await unmount(); // a carga só se resolve depois do fim da tela
     resolver([cat({ id: '1' })]);
     await p; // fora de act: qualquer setState pós-desmontagem dispararia aviso no console
+
+    expect(erroConsole).not.toHaveBeenCalled();
+    erroConsole.mockRestore();
+  });
+
+  it('não atualiza estado após desmontagem durante a semeadura (resolução)', async () => {
+    const erroConsole = jest.spyOn(console, 'error').mockImplementation(() => {});
+    let resolverSemeadura!: () => void;
+    semear.mockImplementationOnce(() => new Promise<void>((res) => (resolverSemeadura = res)));
+    listar.mockResolvedValue([cat({ id: '1' })]);
+
+    const { result, unmount } = await renderHook(() => useCategorias());
+    let p!: Promise<void>;
+    await act(async () => {
+      p = result.current.recarregar();
+      await Promise.resolve();
+    });
+
+    await unmount();
+    resolverSemeadura();
+    await p;
+
+    expect(erroConsole).not.toHaveBeenCalled();
+    erroConsole.mockRestore();
+  });
+
+  it('não atualiza estado após desmontagem durante a semeadura (rejeição)', async () => {
+    const erroConsole = jest.spyOn(console, 'error').mockImplementation(() => {});
+    let rejeitarSemeadura!: (e: unknown) => void;
+    semear.mockImplementationOnce(() => new Promise<void>((_, rej) => (rejeitarSemeadura = rej)));
+    listar.mockResolvedValue([]);
+
+    const { result, unmount } = await renderHook(() => useCategorias());
+    let p!: Promise<void>;
+    await act(async () => {
+      p = result.current.recarregar();
+      await Promise.resolve();
+    });
+
+    await unmount();
+    rejeitarSemeadura(new Error('falha na semeadura'));
+    await p;
+
+    expect(erroConsole).not.toHaveBeenCalled();
+    erroConsole.mockRestore();
+  });
+
+  it('não atualiza estado após desmontagem durante a consulta (rejeição)', async () => {
+    const erroConsole = jest.spyOn(console, 'error').mockImplementation(() => {});
+    let rejeitarLista!: (e: unknown) => void;
+    listar.mockImplementationOnce(() => new Promise<Categoria[]>((_, rej) => (rejeitarLista = rej)));
+
+    const { result, unmount } = await renderHook(() => useCategorias());
+    let p!: Promise<void>;
+    await act(async () => {
+      p = result.current.recarregar();
+      await Promise.resolve();
+    });
+
+    await unmount();
+    rejeitarLista(new Error('db fechado'));
+    await p;
 
     expect(erroConsole).not.toHaveBeenCalled();
     erroConsole.mockRestore();

@@ -6,6 +6,7 @@ import * as useCategoriasModulo from '@/features/categorias/useCategorias';
 import type { useCategorias } from '@/features/categorias/useCategorias';
 import { CATEGORIA_CRIADA, setFeedback } from '@/features/categorias/feedback';
 import { MSG_CAT } from '@/features/categorias/validation';
+import { cores } from '@/lib/theme';
 import { router } from '../helpers/expoRouterMock';
 import { categoriaLinha } from '../helpers/categorias';
 
@@ -124,6 +125,16 @@ describe('Lista de categorias (fluxo A do UC06)', () => {
     await render(<ListaCategorias />);
 
     expect(await screen.findByText('✓  Categoria criada no dispositivo.')).toBeTruthy();
+  });
+
+  it('exibe feedback de erro com prefixo e cor de erro', async () => {
+    setFeedback({ tipo: 'erro', texto: 'Não foi possível salvar.' });
+    listar.mockResolvedValue([]);
+    await render(<ListaCategorias />);
+
+    const texto = await screen.findByText('!  Não foi possível salvar.');
+    expect(texto).toBeTruthy();
+    expect(texto.parent).toHaveStyle({ backgroundColor: cores.erro });
   });
 
   it('navegação: FAB → nova, toque na categoria → editar', async () => {

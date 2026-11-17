@@ -106,6 +106,34 @@ describe('Formulário de categoria (B e C do UC06)', () => {
       expect(screen.getByLabelText('Valor').props.value).toBe('abc'); // preservado
     });
 
+    it('valor vazio é rejeitado com a mensagem específica', async () => {
+      const { onSalvar } = await montar();
+      await apertar('Valor fixo');
+      await digitar('Nome', 'Mercado');
+      await salvar();
+      expect(screen.getByText(MSG_CAT.limiteValorVazio)).toBeTruthy();
+      expect(onSalvar).not.toHaveBeenCalled();
+    });
+
+    it('valor acima do teto é rejeitado com a mensagem específica', async () => {
+      const { onSalvar } = await montar();
+      await apertar('Valor fixo');
+      await digitar('Nome', 'Mercado');
+      await digitar('Valor', '1000000000,00');
+      await salvar();
+      expect(screen.getByText(MSG_CAT.limiteValorLimite)).toBeTruthy();
+      expect(onSalvar).not.toHaveBeenCalled();
+    });
+
+    it('percentual vazio é rejeitado com a mensagem específica', async () => {
+      const { onSalvar } = await montar();
+      await apertar('% da renda');
+      await digitar('Nome', 'Mercado');
+      await salvar();
+      expect(screen.getByText(MSG_CAT.limitePercentualVazio)).toBeTruthy();
+      expect(onSalvar).not.toHaveBeenCalled();
+    });
+
     it('voltar ao estado "Sem limite" descarta o limite mesmo com texto preenchido', async () => {
       const { onSalvar } = await montar();
       await apertar('Valor fixo');

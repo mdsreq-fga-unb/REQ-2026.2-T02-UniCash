@@ -106,11 +106,11 @@ describe('Nova categoria (fluxo B do UC06)', () => {
   it('erro de validação do serviço: mensagem sem sair da tela', async () => {
     criar.mockRejectedValue(new EntradaCategoriaInvalida(MSG_CAT.nomeLongo));
     await render(<NovaCategoria />);
-    await preencher('a'.repeat(31));
+    await preencher('Mercado'); // entrada válida: o formulário não bloqueia antes do serviço
     await salvar();
 
     await waitFor(() => expect(screen.getByText(MSG_CAT.nomeLongo)).toBeTruthy());
-    expect(screen.getByLabelText('Nome').props.value).toBe('a'.repeat(31));
+    expect(screen.getByLabelText('Nome').props.value).toBe('Mercado');
     expect(router.dismissTo).not.toHaveBeenCalled();
   });
 

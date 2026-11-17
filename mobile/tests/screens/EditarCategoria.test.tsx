@@ -179,11 +179,11 @@ describe('Editar categoria (fluxos C e D do UC06)', () => {
       await render(<Editar />);
       await screen.findByText('Editar categoria');
 
-      await digitar('Nome', 'a'.repeat(31));
+      await digitar('Nome', 'Mercado Livre'); // entrada válida: o formulário não bloqueia antes do serviço
       await salvar();
 
       await waitFor(() => expect(screen.getByText(MSG_CAT.nomeLongo)).toBeTruthy());
-      expect(screen.getByLabelText('Nome').props.value).toBe('a'.repeat(31));
+      expect(screen.getByLabelText('Nome').props.value).toBe('Mercado Livre');
       expect(router.dismissTo).not.toHaveBeenCalled();
     });
 
@@ -317,6 +317,37 @@ describe('Editar categoria (fluxos C e D do UC06)', () => {
       expect(excluir).not.toHaveBeenCalled();
       expect(router.dismissTo).not.toHaveBeenCalled();
       expect(screen.getByText('Editar categoria')).toBeTruthy(); // segue na edição
+    });
+
+    it('exclusão com CategoriaIndisponivel: feedback de erro e retorno à lista (EX06)', async () => {
+      buscar.mockResolvedValue(propria());
+      excluir.mockRejectedValueOnce(new CategoriaIndisponivel());
+      await render(<Editar />);
+      await screen.findByText('Editar categoria');
+
+      await fireEvent.press(screen.getByLabelText('Excluir categoria'));
+      await fireEvent.press(screen.getByText('Excluir'));
+
+      await waitFor(() => expect(excluir).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/categorias'));
+      expect(consumirFeedback()).toEqual({ tipo: 'erro', texto: MSG_CAT.indisponivel });
+      expect(router.dismissTo).not.toHaveBeenCalled();
+    });
+
+    it('exclusão com CategoriaPadraoProtegida: mensagem de proteção sem sair da tela (EX02)', async () => {
+      buscar.mockResolvedValue(propria());
+      excluir.mockRejectedValueOnce(new CategoriaPadraoProtegida());
+      await render(<Editar />);
+      await screen.findByText('Editar categoria');
+
+      await fireEvent.press(screen.getByLabelText('Excluir categoria'));
+      await fireEvent.press(screen.getByText('Excluir'));
+
+      await waitFor(() => expect(excluir).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(screen.getByText(MSG_CAT.categoriaPadrao)).toBeTruthy());
+      expect(router.dismissTo).not.toHaveBeenCalled();
+      expect(router.replace).not.toHaveBeenCalled();
+      expect(screen.getByLabelText('Nome').props.value).toBe('Mercado'); // dados preservados
     });
 
     it('falha de exclusão: mensagem, sem navegação, e nova tentativa funciona', async () => {
