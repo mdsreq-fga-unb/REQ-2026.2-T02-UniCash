@@ -19,6 +19,8 @@ flowchart LR
         UC07([UC07<br/>Consultar evolução mensal])
         UC08([UC08<br/>Gerenciar saldo inicial])
         UC09([UC09<br/>Monitorar consumo por categoria])
+        UC10([UC10<br/>Autenticar usuário])
+        UC11([UC11<br/>Gerenciar perfil])
     end
  
     U --- UC01
@@ -30,6 +32,8 @@ flowchart LR
     U --- UC07
     U --- UC08
     U --- UC09
+    U --- UC10
+    U --- UC11
  
     UC04 -.->|"«include»"| UC01
     UC04 -.->|"«include»"| UC02
@@ -39,6 +43,7 @@ flowchart LR
     UC08 -.->|"«extend»"| UC04
     UC05 -.->|"«extend»"| UC02
     UC05 -.->|"«extend»"| UC06
+    UC11 -.->|"«include»"| UC10
 ```
 
 <div class="pagina-casos-de-uso" markdown="1">
@@ -528,6 +533,668 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Funcionais:** RF39. Relacionados: RF19 (UC06), RF12, RF15, RF34, RF37 e RF38 (UC05).
 - **Não funcionais específicos:** RNF07, RNF08, RNF29, RNF38. A exigência de não depender apenas da cor segue a mesma linha do RNF33, mesmo que a tela não conste na lista de telas principais dele.
 - **Regras de negócio:** RN02, RN06, RN07, RN13, RN14.
+---
+
+## UC10 - Autenticar usuário
+
+- **Ator principal:** Usuário.
+- **Classificação:** condicional. O uso financeiro individual funciona sem conta, internet ou Firebase (D20, RF61); a conta serve para sincronizar e restaurar os dados.
+- **Valor:** proteger os dados do usuário em uma conta própria, para que ele possa sincronizar o que registrou e recuperar os dados em outro aparelho.
+- **Requisitos funcionais:** RF01, RF02, RF06, RF31.
+
+### Pré-condições
+
+- O usuário escolheu usar conta e sincronização; quem não escolheu continua usando o aplicativo apenas no aparelho (RN06).
+- Para cadastrar (A), confirmar o e-mail (E) e recuperar a senha (C), há conexão com a internet (RN06).
+- Para entrar (B), existe uma conta cadastrada.
+- Para encerrar a sessão (D), existe uma sessão ativa.
+
+### Pós-condições
+
+- **Sucesso (A):** a conta e o perfil estão criados e a ligação de confirmação foi enviada ao e-mail; a conta só vale depois da confirmação (E).
+- **Sucesso (E):** o e-mail está confirmado, a sessão está iniciada e o usuário decidiu se os dados do aparelho vão para a nuvem.
+- **Sucesso (B):** a sessão está iniciada e a sincronização está retomada (RNF02).
+- **Sucesso (C):** a nova senha está gravada, protegida (RNF01), e a ligação temporária deixa de valer.
+- **Sucesso (D):** a sessão está invalidada, a sincronização está suspensa (RNF02) e os dados locais continuam disponíveis (RN06).
+- **Falha:** nenhuma conta, senha ou sessão fica parcialmente alterada.
+
+### Fluxo principal
+
+1. O usuário acessa a área "Conta".
+2. O sistema apresenta as opções conforme o estado: sem sessão, **criar conta** (A), **entrar** (B) e **recuperar senha** (C); com sessão, **encerrar sessão** (D).
+3. O usuário escolhe uma operação.
+
+#### A - Cadastrar usuário (RF01)
+
+1. O usuário aciona "Criar conta".
+2. O sistema informa a finalidade do tratamento dos dados pessoais (RNF32) e apresenta o formulário com e-mail e senha. O cadastro não pede CPF.
+3. O usuário preenche os campos e solicita a criação.
+4. O sistema valida no aparelho, antes de enviar (RNF04): e-mail e senha preenchidos, e-mail em formato válido, senha com no mínimo 8 caracteres, com letra maiúscula, letra minúscula e ao menos um caractere especial (política de senha) e e-mail ainda não utilizado em outra conta.
+5. O sistema cria a conta, com a senha protegida (RNF01), e registra o perfil. O cadastro só é confirmado se as duas etapas forem concluídas; o servidor valida os dados de novo nas Firebase Security Rules (RNF04).
+6. O sistema envia a ligação de confirmação para o e-mail informado e informa: "Enviamos uma ligação de confirmação para <e-mail>. Confirme o e-mail para ativar a conta. A ligação vale por 5 minutos." A sessão só é iniciada depois da confirmação (fluxo E).
+
+#### B - Autenticar (RF02)
+
+1. O usuário informa e-mail e senha e aciona "Entrar".
+2. O sistema valida o preenchimento dos campos (RNF04).
+3. O sistema verifica as credenciais no serviço de autenticação (RNF02) e se o e-mail da conta está confirmado.
+4. O sistema inicia a sessão e retoma a sincronização, enviando as alterações pendentes (RF62).
+5. O sistema leva o usuário à tela inicial.
+
+#### C - Recuperar senha (RF31)
+
+1. O usuário aciona "Esqueci minha senha" e informa o e-mail da conta.
+2. O sistema envia a ligação temporária de uso único, válida por 5 minutos, para o e-mail informado e informa que, se existir uma conta com esse e-mail, a ligação foi enviada.
+3. O usuário abre a ligação e informa a nova senha.
+4. O sistema valida a nova senha conforme a política de senha (fluxo A, passo 4), grava a nova senha protegida (RNF01) e invalida a ligação.
+5. O sistema confirma a redefinição e leva o usuário à tela de entrada (fluxo B).
+
+#### D - Encerrar sessão (RF06)
+
+1. O usuário aciona "Sair".
+2. O sistema invalida a sessão ativa e suspende a sincronização (RNF02).
+3. O sistema mantém os dados locais acessíveis (RN06) e informa que a sessão foi encerrada.
+
+#### E - Confirmar e-mail (RF01)
+
+1. O usuário abre a ligação de confirmação recebida no e-mail e volta ao aplicativo.
+2. O usuário aciona "Já confirmei".
+3. O sistema verifica a confirmação no serviço de autenticação (RNF02).
+4. O sistema confirma o cadastro e inicia a sessão.
+5. O sistema pergunta se o usuário quer enviar os dados que já estão no aparelho.
+6. Se o usuário aceita, o sistema marca os registros existentes como pendentes e sincroniza (RF62, RNF26, RNF36).
+
+### Fluxos alternativos
+
+- **FA01 - Dados do aparelho não enviados (E5):** o usuário recusa o envio. Os dados existentes permanecem só no aparelho (ver pontos para validação).
+- **FA02 - Aparelho novo ou reinstalado (B4):** o sistema restaura os dados da conta a partir do Cloud Firestore (RNF40, RF61).
+- **FA03 - Alterações pendentes ao sair (D2):** o sistema informa que há alterações pendentes de sincronização (RF62) e oferece sincronizar antes de encerrar. Sem conexão, o usuário pode sair mesmo assim.
+- **FA04 - Operação sem conexão (D):** encerrar a sessão não exige conexão (RNF34).
+- **FA05 - Cancelamento:** se o usuário desiste do cadastro, da entrada ou da recuperação, nada é criado nem alterado.
+- **FA06 - Conta já com sessão ativa:** as opções A, B e C não são oferecidas; apenas D.
+- **FA07 - Reenvio da confirmação (E):** se o usuário não recebeu a ligação, aciona "Reenviar" e o sistema envia uma nova ligação de confirmação ao e-mail.
+
+### Exceções
+
+Cada exceção indica o passo em que ocorre e o ponto de retorno.
+
+- **EX01 - Dados do cadastro inválidos (A4):** o sistema não cria a conta e mostra o motivo ao lado de cada campo inválido (RNF04, RNF14). **Retorno:** ao passo 3 do fluxo A, com os dados digitados preservados, exceto a senha. Mensagens:
+  - e-mail não informado: "Informe o e-mail."
+  - e-mail em formato inválido: "Informe um e-mail válido."
+  - senha não informada: "Informe a senha."
+  - senha fora da política: "A senha deve ter no mínimo 8 caracteres, com letra maiúscula, letra minúscula e um caractere especial."
+- **EX02 - E-mail já utilizado (A4 e A5):** o sistema rejeita e informa: "Este e-mail já está em uso." **Retorno:** ao passo 3 do fluxo A.
+- **EX03 - Sem conexão no cadastro, na confirmação ou na recuperação (A5, E3, C2, C4):** o sistema não executa a operação e informa: "Sem conexão. Conecte-se à internet para continuar." (RN06). **Retorno:** ao passo 2 do fluxo principal, com os dados preservados, exceto a senha.
+- **EX04 - Credenciais rejeitadas (B3):** o sistema não inicia a sessão e informa: "E-mail ou senha incorretos. Confira e tente novamente." A mensagem não revela a senha nem indica qual dos dois errou (RF02, RNF14). **Retorno:** ao passo 1 do fluxo B, com o e-mail preservado.
+- **EX05 - Sem conexão na entrada (B3):** o sistema informa: "Sem conexão. Conecte-se à internet para entrar." O uso local continua disponível (RN06). **Retorno:** ao passo 2 do fluxo principal.
+- **EX06 - Ligação temporária inválida (C3 e E1):** a ligação enviada ao e-mail, válida por 5 minutos, expirou ou já foi usada. O sistema informa: "Esta ligação expirou ou já foi usada. Solicite uma nova." **Retorno:** ao passo 1 do fluxo C ou, na confirmação do e-mail, ao reenvio da ligação (FA07).
+- **EX07 - Falha ao criar a conta ou o perfil (A5):** nenhuma conta ou perfil permanece parcialmente criado. O sistema informa: "Não foi possível criar a conta. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao passo 3 do fluxo A, com os dados preservados, exceto a senha.
+- **EX08 - Falha na sincronização inicial (E6, B4):** a conta e a sessão já estão válidas. Os registros permanecem pendentes e são reenviados quando houver conexão (RF62, RNF26). **Retorno:** o fluxo segue normalmente no passo seguinte.
+- **EX09 - Falha ao invalidar a sessão (D2):** o sistema informa: "Não foi possível sair. Tente novamente." e mantém a sessão ativa. **Retorno:** ao passo 1 do fluxo D.
+- **EX10 - Dados recusados pelas Security Rules (A5):** o servidor recusa o cadastro. O sistema informa o motivo conforme o RNF14. **Retorno:** ao passo 3 do fluxo A, com os dados preservados, exceto a senha.
+- **EX11 - E-mail ainda não confirmado (B3 e E3):** o sistema não inicia a sessão e informa: "Este e-mail ainda não foi confirmado. Abra a ligação enviada ao seu e-mail ou peça um reenvio." **Retorno:** à tela de confirmação (passo 1 do fluxo E), com a opção "Reenviar" (FA07).
+
+### Pontos para validação
+
+- **Mudança em relação à D12:** a D12 e a R07 registram que o cadastro não pede CPF nem e-mail (recomendação de uma representante, com objeção prevalecendo sobre a maioria, R07). Este caso de uso adota e-mail e senha por decisão da equipe. É preciso registrar uma nova decisão em `decisoes.md`, confirmar com a cliente e as representantes e ajustar o RF01, o RF31 e o RNF32. A política de senha e a exigência de confirmar o e-mail também precisam entrar no catálogo como regra de negócio.
+- **Caractere especial:** a política de senha exige um caractere especial, mas não define quais caracteres contam; o texto assume qualquer caractere que não seja letra nem número.
+- **Prazo de 5 minutos (RF01, RF31):** o prazo de 5 minutos foi definido para as ligações de confirmação do e-mail e de redefinição de senha. Até onde sei, o Firebase Authentication não permite configurar esse prazo nos e-mails que envia; cumprir os 5 minutos pode exigir outra solução técnica, a avaliar antes da implementação. O prazo ainda não consta no RF01 nem no RF31.
+- **Autenticação sem conexão (RF02):** o RNF34 não retira o RF02 da operação sem conexão, mas validar credenciais depende do serviço de autenticação. O texto assume que a primeira entrada exige conexão (EX05) e que uma sessão já iniciada continua válida no aparelho.
+- **Dados locais ao encerrar a sessão (RF06):** não há regra sobre manter ou apagar a base local. O texto assume que ela permanece (D20).
+- **Recusa do envio de dados no cadastro (FA01):** falta definir se os registros feitos depois do cadastro passam a sincronizar.
+- **Tentativas de acesso:** não há regra para limitar tentativas de autenticação.
+
+### Dependências planejadas (DoR)
+
+- **Projeto Firebase (acessos e ambientes):** o desenvolvimento e os testes usam o Firebase Emulator Suite (RNF30); nenhuma tarefa depende do projeto de produção.
+- **Sincronização (RF62), sem caso de uso próprio:** o contrato é o estado de sincronização (sincronizado, pendente, sem conexão, erro). Os passos E6 e B4 usam um serviço de sincronização simulado; o envio real dos dados fica como **integração posterior**.
+- **Modelo de dados dos registros (UC01 a UC06):** o contrato é o campo de estado de sincronização de cada registro, usado para marcar os dados do aparelho como pendentes (E6). Os testes usam registros de exemplo.
+- **Envio dos e-mails de confirmação e de redefinição (RF01, RF31):** usa o envio do próprio Firebase Authentication; em desenvolvimento e testes, o Emulator Suite, sem enviar e-mails reais.
+- **Prazo de 5 minutos das ligações:** sem solução técnica definida; registrado como pendência com decisão a registrar em `decisoes.md`. O prazo fica em uma constante única, e o teste de expiração usa tempo simulado; a verificação com o serviço real fica como **integração posterior**.
+- **Mudança em relação à D12:** pendência registrada acima, com a nova decisão a registrar em `decisoes.md`. O texto do cadastro já usa e-mail e senha; a cliente pode pedir ajuste depois sem mudar o contrato.
+- **Política de senha e confirmação do e-mail:** ainda sem regra de negócio no catálogo; o texto do caso de uso as define (A4 e E), e a validação fica em uma função única, fácil de ajustar se a cliente pedir mudança.
+- **UC11:** consome a sessão deste caso de uso pelo contrato `SessionState`, aprovado no início do timebox.
+
+### Requisitos e regras associados
+
+- **Funcionais:** RF01, RF02, RF06, RF31. Relacionados: RF03 a RF05 (UC11), RF59, RF61, RF62.
+- **Não funcionais específicos:** RNF01, RNF02, RNF04, RNF14, RNF19, RNF26, RNF30, RNF32, RNF33, RNF34, RNF36, RNF38, RNF40.
+- **Regras de negócio:** RN06.
+
+---
+
+## UC11 - Gerenciar perfil
+
+- **Ator principal:** Usuário.
+- **Classificação:** condicional. Exige uma conta e uma sessão ativa (UC10); o uso financeiro local não depende deste caso de uso (D20).
+- **Valor:** manter os dados da conta corretos e permitir que o usuário exerça o controle sobre os próprios dados pessoais, inclusive a exclusão.
+- **Requisitos funcionais:** RF03, RF04, RF05.
+
+### Pré-condições
+
+- O usuário está autenticado (UC10, RNF02).
+- A base local está disponível (RN06).
+- Para editar o perfil (A e B), há conexão com a internet: alterar o e-mail ou a senha depende do serviço de autenticação.
+
+### Pós-condições
+
+- **Sucesso (visualizar):** nenhum dado é alterado; a tela apresenta os dados do próprio perfil.
+- **Sucesso (editar, A):** a nova senha, se houve, está gravada protegida (RNF01); o novo e-mail aguarda confirmação e o e-mail atual continua valendo até lá.
+- **Sucesso (confirmar novo e-mail, B):** o novo e-mail passa a ser o e-mail da conta.
+- **Sucesso (excluir, C):** a base local está apagada, a sessão está encerrada, a exclusão está registrada na trilha de auditoria (RNF16) e a remoção no servidor está solicitada ou pendente, dentro do prazo da RN04.
+- **Falha:** nenhum dado do perfil ou da conta é alterado (RN11, RNF05).
+
+### Fluxo principal
+
+1. O usuário acessa a área "Perfil".
+2. O sistema exibe os dados do próprio perfil (RF03).
+3. O usuário escolhe uma operação: **editar** (A) ou **excluir a conta** (C). A confirmação do novo e-mail (B) segue a edição.
+
+#### A - Editar perfil (RF04)
+
+1. O usuário aciona "Editar perfil".
+2. O sistema apresenta o formulário com o e-mail atual e um campo opcional para a nova senha.
+3. O usuário altera o e-mail, a senha ou ambos e solicita o salvamento.
+4. O sistema valida os dados no aparelho (RNF04): e-mail preenchido, em formato válido e ainda não utilizado em outra conta; se há nova senha, ela deve ter no mínimo 8 caracteres, com letra maiúscula, letra minúscula e ao menos um caractere especial (política de senha do UC10, fluxo A).
+5. Se a senha mudou, o sistema grava a nova senha protegida (RNF01).
+6. Se o e-mail mudou, o sistema envia a ligação de confirmação, válida por 5 minutos, para o novo e-mail e informa que o e-mail atual continua valendo até a confirmação (fluxo B).
+7. O sistema confirma a edição.
+
+#### B - Confirmar novo e-mail (RF04)
+
+1. O usuário abre a ligação de confirmação recebida no novo e-mail e volta ao aplicativo.
+2. O usuário aciona "Já confirmei".
+3. O sistema verifica a confirmação no serviço de autenticação (RNF02).
+4. O sistema passa a usar o novo e-mail na conta, atualiza o perfil e confirma.
+
+#### C - Excluir perfil (RF05)
+
+1. O usuário aciona "Excluir conta".
+2. O sistema verifica se o usuário é o único Administrador de algum grupo (RN04, RN01).
+3. O sistema solicita confirmação explícita e informa o que será removido: dados de perfil, lançamentos, categorias, metas, conquistas, pontuação, preferências e participação em grupos; que a base do aparelho será apagada na confirmação; que a remoção no servidor ocorre em até 30 dias e nos backups em até 60 dias; e que a exclusão é definitiva (RN04, RN11).
+4. O usuário confirma.
+5. O sistema registra a exclusão na trilha de auditoria, com usuário, operação, data e horário (RNF16).
+6. O sistema apaga a base local e encerra a sessão (UC10, fluxo D).
+7. Se houver conexão, o sistema solicita a remoção da conta e dos dados no servidor (RN04).
+8. O sistema informa que a conta foi excluída e leva o usuário ao uso sem conta.
+
+### Fluxos alternativos
+
+- **FA01 - Exclusão sem conexão (C7):** a remoção no servidor fica pendente e é solicitada quando houver conexão, dentro do prazo da RN04 (RN06, RF62).
+- **FA02 - Nenhuma alteração (A3):** se o usuário salva sem mudar nenhum dado, o sistema não altera nada e volta ao perfil.
+- **FA03 - Cancelamento:** edição descartada ou exclusão não confirmada não alteram nada (RN11).
+- **FA04 - Troca de e-mail pendente (A6):** até o novo e-mail ser confirmado, a entrada e a recuperação de senha (UC10) continuam usando o e-mail atual.
+- **FA05 - Conta sem sessão ativa:** o sistema não exibe o perfil e leva o usuário ao UC10.
+- **FA06 - Reenvio da confirmação (B):** se o usuário não recebeu a ligação, aciona "Reenviar" e o sistema envia uma nova ligação ao novo e-mail.
+- **FA07 - Visualização sem conexão (passo 2 do fluxo principal):** o sistema exibe os dados do perfil guardados no aparelho (RNF34).
+
+### Exceções
+
+Cada exceção indica o passo em que ocorre e o ponto de retorno.
+
+- **EX01 - Dados inválidos (A4):** o sistema não altera nada e mostra o motivo ao lado de cada campo inválido (RNF04, RNF14). **Retorno:** ao passo 3 do fluxo A, com os dados digitados preservados, exceto a senha. Mensagens:
+  - e-mail não informado: "Informe o e-mail."
+  - e-mail em formato inválido: "Informe um e-mail válido."
+  - e-mail já utilizado em outra conta: "Este e-mail já está em uso."
+  - senha fora da política: "A senha deve ter no mínimo 8 caracteres, com letra maiúscula, letra minúscula e um caractere especial."
+- **EX02 - Falha na gravação (A5 e A6):** o sistema não confirma e informa: "Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente." (RNF05). **Retorno:** ao passo 3 do fluxo A, com os dados preservados, exceto a senha.
+- **EX03 - Sem conexão na edição (A5, A6 e B3):** o sistema não executa a operação e informa: "Sem conexão. Conecte-se à internet para alterar o perfil." **Retorno:** ao passo 2 do fluxo principal.
+- **EX04 - Ligação de confirmação inválida (B1):** a ligação, válida por 5 minutos, expirou ou já foi usada. O sistema informa: "Esta ligação expirou ou já foi usada. Solicite uma nova." **Retorno:** ao passo 2 do fluxo principal, com a opção de reenviar (FA06).
+- **EX05 - Novo e-mail ainda não confirmado (B3):** o sistema informa: "Este e-mail ainda não foi confirmado. Abra a ligação enviada ao novo e-mail ou peça um reenvio." **Retorno:** ao passo 1 do fluxo B.
+- **EX06 - Único Administrador de grupo (C2):** o sistema bloqueia a exclusão e informa: "Você é o único Administrador de um grupo. Indique outro Administrador antes de excluir a conta." (RN04, RN01). **Retorno:** ao passo 2 do fluxo principal. Aplica-se quando houver grupos, que estão fora do MVP (D09).
+- **EX07 - Falha ao registrar a auditoria ou apagar a base local (C5, C6):** nenhuma alteração permanece e a conta continua ativa (RN11, RNF05). O sistema informa: "Não foi possível excluir a conta. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao passo 2 do fluxo principal.
+- **EX08 - Falha na remoção no servidor (C7):** a base local já foi apagada. A remoção permanece pendente e é solicitada de novo quando houver conexão, dentro do prazo da RN04. **Retorno:** o fluxo segue no passo C8.
+- **EX09 - Acesso a perfil de outro usuário (passo 2 do fluxo principal, A1, C1):** o sistema nega o acesso (RNF03) e informa: "Você não tem acesso a este perfil." **Retorno:** ao passo 2 do fluxo principal, com o perfil do próprio usuário.
+- **EX10 - Falha na leitura local (passo 2 do fluxo principal):** o sistema informa: "Não foi possível carregar o perfil. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo principal, ao tentar novamente.
+
+### Pontos para validação
+
+- **Dados do perfil:** com o cadastro por e-mail e senha (UC10), o perfil exibe e permite editar o e-mail e a senha. Outros dados, como nome de exibição, não estão definidos; confirmar se o perfil terá algum.
+- **Edição exige conexão (RF04):** o RN06 e o RNF34 não listam o RF04 entre as funcionalidades que exigem conexão, mas trocar e-mail ou senha depende do serviço de autenticação. O catálogo precisa ser ajustado.
+- **Prazo de 5 minutos (RF04):** vale também para a ligação de confirmação do novo e-mail; a viabilidade técnica está nos pontos para validação do UC10.
+- **Remoção no servidor sem Cloud Functions (RN04):** o aplicativo não tem servidor próprio; a remoção da conta e dos dados em até 30 dias depende de o próprio aplicativo solicitá-la, o que exige conexão e sessão. O texto trata a remoção como pendente quando não há conexão, mas falta definir como ela continua depois que a base local e a sessão são apagadas.
+- **Confirmação da senha atual:** o serviço de autenticação pode exigir um acesso recente para trocar a senha ou o e-mail ou para excluir a conta; o RF04 e o RF05 não dizem como o aplicativo deve pedir essa confirmação.
+- **Administrador único (RN04):** só se aplica quando os grupos forem implementados (D09).
+
+### Dependências planejadas (DoR)
+
+- **Sessão e autenticação (UC10):** o contrato é o `SessionState` e o `AuthService` (incluindo trocar senha e trocar e-mail), aprovados no início do timebox. As duas frentes usam uma sessão e um serviço simulados até a implementação do UC10 ficar pronta; o que depende do serviço real, como o encerramento no passo C6 e a confirmação do e-mail no fluxo B, fica como **integração posterior**.
+- **Política de senha e mudança em relação à D12:** pendências do UC10. O formulário e a validação usam a função única de validação de e-mail e senha do UC10 e um perfil de exemplo.
+- **Remoção no servidor (RN04):** sem solução definida; registrado como pendência com decisão a registrar em `decisoes.md`. O fluxo C é implementado atrás da interface `AccountRemovalService`, com uma fila de remoções pendentes e versão simulada.
+- **Trilha de auditoria (RNF16, proposto):** o contrato é `AuditLog.record({usuario, operacao, data})`. Usa versão simulada até as Security Rules da trilha existirem; o teste de que a trilha fica protegida e anonimizada depois dos prazos da RN04 fica como **integração posterior**.
+- **Base local (UC01 a UC06):** o contrato é a função `clearLocalDatabase()`, que apaga todas as tabelas do modelo de dados vigente. A lista de tabelas vem do modelo de dados e o teste usa SQLite em memória.
+- **Grupos (RF22 a RF25, fora do MVP):** a verificação do passo C2 é implementada atrás de uma interface que, enquanto não houver grupos, informa que o usuário não é Administrador de nenhum.
+- **Envio dos e-mails de confirmação:** usa o envio do Firebase Authentication; em desenvolvimento e testes, o Emulator Suite, sem enviar e-mails reais. O prazo de 5 minutos das ligações segue o tratamento do UC10.
+
+### Requisitos e regras associados
+
+- **Funcionais:** RF03, RF04, RF05. Relacionados: RF01, RF02, RF06, RF31 (UC10), RF62.
+- **Não funcionais específicos:** RNF01, RNF02, RNF03, RNF04, RNF05, RNF14, RNF16, RNF32, RNF34, RNF38.
+- **Regras de negócio:** RN01 (administrador único), RN04, RN06, RN11.
+
+## UC12 - Gerenciar metas financeiras
+
+- **Ator principal:** Usuário.
+- **Valor:** definir objetivos de gasto ou de investimento e acompanhar quanto falta para alcançá-los.
+- **Requisitos funcionais:** RF12, RF13, RF14, RF20, RF36.
+
+### Pré-condições
+
+- A base local está disponível (RN06).
+- O usuário abriu o aplicativo. A conexão só é necessária para sincronizar, não para operar localmente.
+- Para acompanhar, editar ou excluir, existe ao menos uma meta registrada.
+
+### Pós-condições
+
+- **Sucesso:** a meta fica gravada na base local; progresso, situação, indicadores e alertas de meta de gasto refletem a alteração; sem conexão, o registro fica pendente de sincronização (RN06, RF62). Na exclusão, a meta deixa de aparecer, os lançamentos associados são mantidos e um marcador de exclusão é guardado para ser sincronizado (RN07).
+- **Falha:** nenhuma meta, indicador ou alerta é alterado (RN11, RNF05).
+- **Consulta (B):** nenhum dado é alterado.
+
+### Fluxo principal
+
+1. O usuário acessa a área de metas.
+2. O sistema lista as metas com objetivo, tipo, valor alvo, prazo, valor realizado e situação atual (RF20).
+3. O usuário escolhe uma operação: **registrar** (A), **acompanhar o progresso** (B), **editar** (C) ou **excluir** (D).
+
+#### A - Registrar meta (RF12)
+
+1. O usuário aciona "Nova meta".
+2. O sistema apresenta o formulário com objetivo, valor alvo, prazo e tipo (gasto ou investimento).
+3. O usuário preenche os campos e solicita o registro.
+4. O sistema valida no aparelho, antes da gravação na base local (RNF04): todos os campos preenchidos; objetivo com 1 a 80 caracteres após remover espaços das pontas (RN10); valor alvo conforme a RN09.
+5. O sistema persiste a meta na base local e só então confirma o registro (RN06).
+6. O sistema calcula o valor realizado e a situação da meta. Se for meta de gasto, recalcula também os indicadores e os alertas de limite (UC05, UC09).
+7. Se houver conexão, o sistema sincroniza a meta.
+8. A nova meta aparece na lista.
+
+#### B - Acompanhar progresso (RF36)
+
+1. O usuário seleciona uma meta.
+2. O sistema compara o valor realizado com o valor alvo (RNF07) e apresenta o progresso em percentual com uma casa decimal (RN21), o valor realizado, o valor restante, o prazo e a situação atual.
+
+#### C - Editar meta (RF13)
+
+1. O usuário seleciona a meta e aciona "Editar".
+2. O sistema apresenta o formulário preenchido com os dados atuais.
+3. O usuário altera um ou mais parâmetros e solicita o salvamento.
+4. O sistema valida os dados (RNF04, RN09, RN10).
+5. O sistema persiste a alteração localmente e recalcula, na mesma operação, valor realizado, progresso, situação e, se for meta de gasto, indicadores e alertas (UC05, UC09; RN03).
+6. Se houver conexão, o sistema sincroniza a alteração.
+7. O sistema confirma a edição.
+
+#### D - Excluir meta (RF14)
+
+1. O usuário seleciona a meta e aciona "Excluir".
+2. O sistema solicita confirmação explícita e informa que os lançamentos associados serão mantidos (RN11).
+3. O usuário confirma.
+4. O sistema exclui a meta e, na mesma operação, recalcula indicadores e alertas que dependiam dela (RN11).
+5. Se houver conexão, o sistema sincroniza a exclusão.
+6. O sistema informa que a meta foi excluída. A exclusão é definitiva (RN11).
+
+### Fluxos alternativos
+
+- **FA01 - Operação offline:** o sistema grava localmente, marca a alteração como pendente de sincronização e sincroniza quando a conexão voltar (RN06, RF62).
+- **FA02 - Nenhuma meta:** o sistema exibe "Nenhuma meta" e oferece a ação "Nova meta".
+- **FA03 - Cancelamento:** se o usuário desiste do registro ou da edição ou não confirma a exclusão, nada é alterado.
+- **FA04 - Meta de gasto:** o valor alvo é o limite usado nos alertas de aproximação (80%) e de ultrapassagem (100%), emitidos uma vez por mês (RN03, UC05).
+- **FA05 - Meta de investimento:** não gera alertas de limite (RN03 se aplica só às metas de gasto).
+- **FA06 - Valor realizado igual ou acima do valor alvo (B2):** o valor restante é zero (ver pontos para validação).
+- **FA07 - Lançamento alterado ou excluído:** o valor realizado, o progresso e a situação são recalculados (UC01, UC02).
+- **FA08 - Prazo já vencido ou sem lançamentos:** o sistema apresenta o progresso com os valores existentes, sem bloquear a operação (ver pontos para validação).
+
+### Exceções
+
+Cada exceção indica o passo em que ocorre e o ponto de retorno.
+
+- **EX01 - Dados inválidos (A4 e C4):** o sistema não grava e mostra o motivo ao lado de cada campo inválido (RN09, RN10, RNF04, RNF14). **Retorno:** ao passo 3 do fluxo A ou C, com os dados digitados preservados. Mensagens:
+  - objetivo não informado ou só com espaços: "Informe o objetivo da meta."
+  - objetivo com mais de 80 caracteres: "O objetivo deve ter até 80 caracteres."
+  - valor alvo não informado: "Informe o valor alvo da meta."
+  - valor alvo menor ou igual a zero ou com mais de duas casas decimais: "O valor deve ser maior que zero, com no máximo duas casas decimais."
+  - valor alvo acima do limite: "O valor máximo permitido é R$ 999.999.999,99."
+  - prazo não informado: "Informe o prazo da meta."
+  - tipo não informado: "Informe o tipo da meta: gasto ou investimento."
+- **EX02 - Falha na gravação ou no recálculo (A5 e A6, C5, D4):** nenhuma alteração parcial permanece, nem na meta, nem em indicadores ou alertas (RN11, RNF05). O sistema informa: "Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao passo 3 do fluxo A ou C, com os dados preservados; no fluxo D, à lista de metas (passo 2 do fluxo principal).
+- **EX03 - Falha na sincronização (A7, C6, D5):** a operação já está concluída na base local. O registro permanece pendente de sincronização e é reenviado quando houver conexão. **Retorno:** o fluxo segue normalmente no passo seguinte.
+- **EX04 - Conflito de sincronização (depois de A7, C6 ou D5):** aplica-se a RN07; em edição contra exclusão, a exclusão prevalece. **Retorno:** ao concluir a sincronização, a lista de metas é atualizada.
+- **EX05 - Meta inexistente ou já excluída (B1, C1, D1):** o sistema informa: "Esta meta não está mais disponível." **Retorno:** à lista de metas atualizada (passo 2 do fluxo principal).
+- **EX06 - Acesso a meta de outro usuário (B1, C1, D1):** o sistema nega o acesso (RNF03) e informa: "Você não tem acesso a esta meta." **Retorno:** à lista de metas.
+- **EX07 - Falha na leitura local ou no cálculo do progresso (passo 2 do fluxo principal, B2):** o sistema informa: "Não foi possível carregar as metas. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo principal, ao tentar novamente.
+
+### Pontos para validação
+
+- **Valor realizado (RF20, RF36):** o catálogo não define quais lançamentos compõem o valor realizado de cada tipo de meta: quais despesas contam numa meta de gasto (todas, ou de certas categorias) e o que conta numa meta de investimento (por exemplo, a categoria "Reserva financeira").
+- **Situação atual e conclusão (RF20, RF45):** não estão definidas as situações possíveis de uma meta nem o critério de conclusão de cada tipo, inclusive o tratamento de meta com prazo vencido (FA08) e de meta de gasto que ultrapassa o alvo.
+- **Campos obrigatórios e regras do formulário (RF12):** o texto trata os quatro campos como obrigatórios e aplica ao objetivo a regra de tamanho do título (RN10). Não há regra sobre prazo anterior à data atual nem sobre alterar o tipo da meta na edição.
+- **Valor restante (FA06):** o texto assume zero quando o valor realizado alcança ou supera o alvo.
+- **Efeito na pontuação (RF45, UC13):** não está definido o que acontece com os pontos de uma meta concluída que é editada ou excluída.
+
+### Dependências planejadas (DoR)
+
+- **Modelo da meta:** o contrato é `Meta` (id, objetivo, valor alvo em centavos inteiros, prazo, tipo, situação) e a função compartilhada `calcularProgresso(meta, lançamentos)`, aprovados no início do timebox. UC05, UC09 e UC13 consomem esse contrato e usam metas de exemplo até o UC12 ficar pronto.
+- **Valor realizado e conclusão:** sem solução definida; registrados como pendência com decisão a registrar em `decisoes.md`. O cálculo fica atrás da interface `ValorRealizadoCalculator`, por tipo de meta, com uma versão simulada.
+- **Lançamentos (UC01 e UC02):** o contrato é o modelo de lançamento (valor em centavos, data, categoria). Os testes usam lançamentos de exemplo; a integração com os registros reais é verificada depois que o UC01 e o UC02 estiverem prontos.
+- **Alertas e indicadores (UC05, UC09):** o recálculo dos passos A6 e C5 chama a função de recálculo de limites desses casos de uso; até lá, usa-se uma versão simulada, e a integração real fica como **integração posterior**.
+- **Sincronização (RF62), sem caso de uso próprio:** o contrato é o estado de sincronização do registro (sincronizado, pendente, erro), com serviço simulado.
+
+### Requisitos e regras associados
+
+- **Funcionais:** RF12, RF13, RF14, RF20, RF36. Relacionados: RF37, RF38 e RF39 (UC05 e UC09), RF40 (UC03), RF44 e RF45 (UC13), RF55, RF58, RF62.
+- **Não funcionais específicos:** RNF03, RNF04, RNF05, RNF07, RNF14, RNF29, RNF34, RNF35, RNF38.
+- **Regras de negócio:** RN03, RN06, RN07, RN09, RN10, RN11, RN21.
+
+---
+
+## UC13 - Acompanhar conquistas e pontuação
+
+- **Ator principal:** Usuário (o sistema concede selos e pontos e dispara as notificações).
+- **Valor:** reconhecer o progresso financeiro do usuário com selos e pontos, para incentivar a continuidade da organização das finanças.
+- **Requisitos funcionais:** RF44, RF45, RF46.
+
+### Pré-condições
+
+- A base local está disponível (RN06).
+- Os marcos financeiros e os pontos de cada meta estão definidos na configuração do sistema (ver pontos para validação).
+- Para conceder pontos, existe ao menos uma meta concluída (UC12).
+
+### Pós-condições
+
+- **Sucesso:** os selos dos marcos cumpridos ficam registrados no perfil do usuário e o total de pontos está atualizado, sem duplicidade; sem conexão, o registro fica pendente de sincronização (RN06, RF62).
+- **Falha:** nenhum selo nem ponto fica parcialmente registrado; lançamentos, metas e saldo não são afetados.
+- **Consulta (B):** nenhum dado é alterado.
+
+### Fluxo principal
+
+1. O usuário registra, edita ou exclui um lançamento ou uma meta (UC01, UC02, UC12), ou muda o mês.
+2. O sistema avalia os marcos financeiros definidos, a partir dos lançamentos e das metas da base local (RF44).
+3. O sistema segue com a concessão de selos e pontos (A). O usuário pode consultar as conquistas a qualquer momento (B).
+
+#### A - Conceder selos e pontos (RF44, RF45, RF46)
+
+1. Para cada marco cumprido que ainda não tem selo, o sistema registra o selo no perfil do usuário, com a data da conquista (RF44).
+2. Para cada meta concluída cujos pontos ainda não foram somados, o sistema soma os pontos definidos para a meta e atualiza o total (RF45).
+3. Se o tipo de alerta "conquistas" estiver ativado nas preferências (RF58), o sistema notifica o usuário de cada selo concedido, com a identificação do marco atingido, e registra a emissão (RF46).
+
+#### B - Consultar conquistas e pontuação (RF44, RF45)
+
+1. O usuário acessa a área "Conquistas".
+2. O sistema exibe o total de pontos (RF45) e os selos conquistados, cada um com o marco atingido e a data (RF44).
+3. O usuário seleciona um selo e o sistema exibe os detalhes do marco atingido.
+
+### Fluxos alternativos
+
+- **FA01 - Nenhum selo ou ponto:** o sistema exibe total igual a zero e "Nenhuma conquista ainda."
+- **FA02 - Selo já concedido:** o sistema não registra o mesmo selo duas vezes.
+- **FA03 - Meta já pontuada:** o sistema não soma duas vezes os pontos da mesma meta.
+- **FA04 - Alertas de conquista desativados (RF58):** selos e pontos continuam sendo registrados; apenas a notificação deixa de ser exibida.
+- **FA05 - Vários marcos cumpridos na mesma operação:** o sistema registra todos os selos e notifica cada um (RF46).
+- **FA06 - Operação offline:** a avaliação, os selos e os pontos funcionam com os dados locais (RN06).
+- **FA07 - Sincronização ou restauração de dados:** selos e pontos são recalculados a partir dos lançamentos e das metas, nunca sincronizados como contadores (RN07).
+- **FA08 - Lançamento ou meta alterado ou excluído depois da conquista:** a avaliação é refeita (ver pontos para validação).
+
+### Exceções
+
+Cada exceção indica o passo em que ocorre e o ponto de retorno.
+
+- **EX01 - Falha na avaliação ou no registro (A1 e A2):** nenhum selo nem ponto permanece parcialmente registrado e os lançamentos e as metas não são afetados. O sistema avalia de novo na próxima operação. **Retorno:** ao passo 1 do fluxo principal.
+- **EX02 - Falha ao emitir a notificação (A3):** selo e pontos já estão registrados. O sistema não marca a notificação como emitida, para poder tentar de novo. **Retorno:** o fluxo segue normalmente.
+- **EX03 - Falha na leitura local (B2):** o sistema informa: "Não foi possível carregar as conquistas. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo B, ao tentar novamente.
+- **EX04 - Acesso a dados de outro usuário (B1, B3):** o sistema nega o acesso (RNF03) e informa: "Você não tem acesso a estas conquistas." **Retorno:** à área "Conquistas" do próprio usuário.
+- **EX05 - Falha na sincronização:** o registro permanece pendente e é reenviado quando houver conexão; selos e pontos são recalculados (RN07). **Retorno:** o fluxo segue normalmente.
+
+### Pontos para validação
+
+- **Marcos financeiros (RF44):** o catálogo não lista os marcos nem os selos correspondentes. A ata R01 registra apenas a ideia de premiar quem mantém as contas no verde, e a R07 pediu que as participantes definissem as conquistas.
+- **Pontos por meta (RF45):** não está definido quantos pontos vale cada meta concluída, nem se o valor varia com o tipo ou o tamanho da meta.
+- **Meta concluída (RF45):** o critério de conclusão depende do UC12 (ver pontos para validação do UC12).
+- **Alteração ou exclusão depois da conquista (FA08):** a RN07 diz que selos e pontos são recalculados a partir dos lançamentos; falta definir se um selo ou pontos já concedidos podem ser retirados quando o lançamento ou a meta muda.
+- **Notificação de conquista (RF46):** o RF58 prevê o tipo de alerta "conquistas", mas não define o texto da mensagem.
+- **Classificação do grupo (RF30, RNF22):** a pontuação alimenta a classificação do grupo, que está fora do MVP (D09).
+
+### Dependências planejadas (DoR)
+
+- **Metas concluídas (UC12):** o contrato é o modelo `Meta`, com a situação, e a função `calcularProgresso`, aprovados no início do timebox. O UC13 usa metas concluídas de exemplo até o UC12 ficar pronto; o critério real de conclusão fica como **integração posterior**.
+- **Marcos e pontos:** sem solução definida; registrados como pendência com decisão a registrar em `decisoes.md`. A avaliação roda atrás de uma tabela de configuração dos marcos e dos pontos (`MARCOS`, `PONTOS_POR_META`), com valores de teste, para que a definição entre sem mudar o código.
+- **Lançamentos e saldo (UC01, UC02, UC04):** o contrato é o modelo de lançamento e a função de saldo mensal (RN15). Os testes usam dados de exemplo.
+- **Preferências de notificação (RF58), sem caso de uso próprio:** o contrato é `NotificationPreferences.isEnabled('conquistas')`, com versão simulada; o envio real da notificação fica como **integração posterior**.
+- **Sincronização (RF62) e grupos (RF30, fora do MVP):** selos e pontos são derivados (RN07), então não há contador a sincronizar; a classificação do grupo não faz parte deste caso de uso.
+
+### Requisitos e regras associados
+
+- **Funcionais:** RF44, RF45, RF46. Relacionados: RF12 a RF14, RF20 e RF36 (UC12), RF30 e RF57 (grupos, fora do MVP), RF58, RF62.
+- **Não funcionais específicos:** RNF03, RNF34, RNF38. RNF22 se aplica quando houver classificação do grupo (fora do MVP).
+- **Regras de negócio:** RN06, RN07.
+
+## UC14 - Configurar notificações
+
+- **Ator principal:** Usuário.
+- **Valor:** escolher quais avisos o aplicativo exibe, para receber só os alertas de que precisa.
+- **Requisitos funcionais:** RF58.
+
+### Pré-condições
+
+- A base local está disponível (RN06).
+- O usuário abriu a área de configurações.
+
+### Pós-condições
+
+- **Sucesso:** a escolha de cada tipo de alerta fica gravada na base local e vale a partir da próxima avaliação de alertas; sem conexão e com conta ativa, o registro fica pendente de sincronização (RN06, RF62).
+- **Falha:** nenhuma preferência é alterada.
+- **Consulta (passo 2 do fluxo principal):** nenhum dado é alterado.
+
+### Fluxo principal
+
+1. O usuário acessa "Notificações" nas configurações.
+2. O sistema exibe os três tipos de alerta, cada um com o estado atual (ativado ou desativado): **aproximação do limite** (RF37), **ultrapassagem do limite** (RF38) e **conquistas** (RF46).
+3. O usuário ativa ou desativa um ou mais tipos.
+4. O sistema grava a escolha na base local e só então confirma a alteração.
+5. Se houver conta com sessão ativa e conexão, o sistema sincroniza a preferência (RF62).
+6. O sistema passa a respeitar a nova escolha nos alertas seguintes (UC05, UC13).
+
+### Fluxos alternativos
+
+- **FA01 - Alteração a qualquer momento:** o usuário pode voltar à tela e mudar a escolha quantas vezes quiser (RF58).
+- **FA02 - Tipo desativado:** o consumo do limite continua sendo calculado (UC09) e os selos continuam sendo concedidos (UC13); apenas a notificação deixa de ser exibida.
+- **FA03 - Tipo reativado:** o alerta volta a ser emitido na próxima avaliação, se a condição ainda existir e a emissão não estiver registrada no período (RN03, UC05).
+- **FA04 - Alerta de saldo negativo:** não aparece na lista, pois o RF58 não o prevê; ele permanece sempre ativo, até validação (RN18).
+- **FA05 - Operação offline:** a escolha é gravada localmente e, havendo conta, fica pendente de sincronização (RN06, RF62).
+- **FA06 - Permissão de notificações do aparelho negada:** o sistema mantém a escolha gravada, informa que as notificações do aparelho estão bloqueadas e orienta o usuário a liberá-las nas configurações do aparelho.
+- **FA07 - Cancelamento:** se o usuário sai da tela sem alterar nada, nada é gravado.
+
+### Exceções
+
+Cada exceção indica o passo em que ocorre e o ponto de retorno.
+
+- **EX01 - Falha na gravação (passo 4):** o sistema não confirma e mantém a escolha anterior. Informa: "Não foi possível salvar a configuração. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao passo 3 do fluxo principal, com a escolha do usuário preservada na tela.
+- **EX02 - Falha na leitura local (passo 2):** o sistema informa: "Não foi possível carregar as notificações. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo principal, ao tentar novamente.
+- **EX03 - Falha na sincronização (passo 5):** a preferência já está gravada localmente e permanece pendente de sincronização. **Retorno:** o fluxo segue normalmente no passo 6.
+- **EX04 - Conflito de sincronização (depois do passo 5):** aplica-se a RN07; vale a escolha mais recente. **Retorno:** ao concluir a sincronização, a tela é atualizada (passo 2 do fluxo principal).
+- **EX05 - Acesso a dados de outro usuário (passo 2):** o sistema nega o acesso (RNF03). **Retorno:** ao passo 2 do fluxo principal, com as preferências do próprio usuário.
+
+### Pontos para validação
+
+- **Estado inicial (RF58):** o catálogo não diz se cada tipo de alerta começa ativado ou desativado.
+- **Alerta de saldo negativo (RN18):** a inclusão desse tipo nas preferências está pendente de validação com a cliente.
+- **Preferências e sincronização:** a RN04 trata as preferências como dados do usuário, mas não está definido se elas voltam na restauração dos dados em aparelho novo.
+- **Permissão do aparelho (FA06):** o texto orienta o usuário, mas o catálogo não define esse comportamento.
+
+### Dependências planejadas (DoR)
+
+- **Alertas (UC05) e conquistas (UC13):** consomem as preferências pelo contrato `NotificationPreferences.isEnabled(tipo)`, com os tipos `aproximacao`, `ultrapassagem` e `conquistas`, aprovado no início do timebox. Até o UC14 ficar pronto, as duas frentes usam uma versão simulada com todos os tipos ativados.
+- **Estado inicial:** sem solução definida; registrado como pendência com decisão a registrar em `decisoes.md`. O valor inicial fica em uma constante única.
+- **Sincronização (UC16):** o contrato é o estado de sincronização do registro; a sincronização real da preferência fica como **integração posterior**.
+- **Permissão de notificações do aparelho:** o acesso à permissão fica atrás de uma interface (`NotificationPermission`), com versão simulada nos testes.
+
+### Requisitos e regras associados
+
+- **Funcionais:** RF58. Relacionados: RF37 e RF38 (UC05), RF46 (UC13), RF62.
+- **Não funcionais específicos:** RNF03, RNF14, RNF34, RNF38.
+- **Regras de negócio:** RN03, RN06, RN07, RN18.
+
+---
+
+## UC15 - Consultar tutorial inicial
+
+- **Ator principal:** Usuário.
+- **Valor:** entender o que o aplicativo faz e o que não faz e aprender, passo a passo, a registrar receitas, despesas e metas e a ler o resumo, em linguagem simples.
+- **Requisitos funcionais:** RF55.
+
+### Pré-condições
+
+- A base local está disponível (RN06).
+- Para a abertura automática (A), é o primeiro acesso ao aplicativo.
+- Para a reabertura (B), o usuário está no menu de ajuda ou na tela de estado vazio do resumo.
+
+### Pós-condições
+
+- **Sucesso:** o tutorial foi apresentado até o fim ou encerrado pelo usuário, e o sistema guarda no aparelho que ele já foi oferecido.
+- **Falha:** o aplicativo continua utilizável e o tutorial pode ser aberto de novo pelo menu de ajuda.
+- **Consulta:** o tutorial em si não altera dados financeiros; os registros feitos nas etapas seguem os casos de uso correspondentes.
+
+### Fluxo principal
+
+1. O usuário abre o aplicativo pela primeira vez (A) ou aciona o tutorial no menu de ajuda ou no atalho do estado vazio (B).
+2. O sistema oferece o tutorial interativo e o usuário o inicia.
+3. O sistema informa o que o aplicativo faz e o que não faz: organiza e apresenta as informações financeiras, sem aumentar a renda nem garantir a redução de dívidas (RF55).
+4. O sistema guia o usuário, etapa por etapa, por **registrar receita** (RF07), **registrar despesa** (RF15), **criar meta financeira** (RF12) e **ler o resumo inicial** (RF40), explicando em linguagem simples os termos financeiros que aparecem, como saldo, receita, despesa e meta.
+5. Em cada etapa, o usuário pode avançar ou encerrar o tutorial.
+6. Ao concluir a última etapa, o sistema encerra o tutorial e leva o usuário ao resumo inicial.
+7. O sistema guarda no aparelho que o tutorial já foi oferecido.
+
+#### A - Abertura no primeiro acesso
+
+1. O sistema detecta que é o primeiro acesso e oferece o tutorial antes do resumo inicial.
+2. O usuário escolhe iniciar o tutorial ou pular (FA01).
+
+#### B - Reabertura pelo menu de ajuda
+
+1. O usuário aciona "Tutorial" no menu de ajuda, ou o atalho exibido no estado vazio do resumo (UC03, FA02).
+2. O sistema abre o tutorial desde a primeira etapa (passo 2 do fluxo principal).
+
+### Fluxos alternativos
+
+- **FA01 - Tutorial pulado no primeiro acesso:** o sistema leva o usuário ao resumo inicial, guarda que o tutorial foi oferecido e não o oferece de novo sozinho; ele continua disponível no menu de ajuda.
+- **FA02 - Encerramento em uma etapa:** o sistema fecha o tutorial, sem desfazer o que o usuário já registrou, e guarda que ele foi oferecido.
+- **FA03 - Uso offline:** o tutorial funciona sem conexão e sem conta (RN06, RF61).
+- **FA04 - Etapa que pede um registro:** o sistema leva o usuário à tela do caso de uso correspondente (UC01, UC02 ou UC12), que segue suas próprias validações e regras.
+- **FA05 - Resumo sem lançamentos:** na etapa de leitura do resumo, o sistema explica cada valor mesmo que ainda seja zero (RF40).
+
+### Exceções
+
+Cada exceção indica o passo em que ocorre e o ponto de retorno.
+
+- **EX01 - Falha ao abrir o tutorial (passo 2):** o sistema informa: "Não foi possível abrir o tutorial. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo principal; no primeiro acesso, o usuário segue para o resumo inicial.
+- **EX02 - Falha ao gravar que o tutorial foi oferecido (passo 7):** o sistema segue sem interromper o usuário. O tutorial pode ser oferecido de novo no próximo acesso. **Retorno:** ao resumo inicial.
+- **EX03 - Falha no registro de uma etapa (passo 4):** a falha é tratada pelo caso de uso correspondente, que não grava nada parcial (UC01, UC02, UC12). O sistema permite tentar de novo ou avançar para a próxima etapa. **Retorno:** à etapa em que ocorreu a falha.
+
+### Pontos para validação
+
+- **Registros do tutorial (RF55):** o catálogo não diz se os registros feitos nas etapas são reais ou apenas de exemplo. O texto assume que são os formulários de sempre, gravados só se o usuário confirmar.
+- **Conteúdo do tutorial:** os textos das etapas e a lista dos termos financeiros explicados precisam ser validados com as clientes e as representantes, em linguagem simples.
+- **Retomada:** o texto reabre o tutorial desde o início; não há regra para retomar da etapa em que o usuário parou.
+
+### Dependências planejadas (DoR)
+
+- **Telas de destino (UC01, UC02, UC12 e UC03):** o contrato é a lista de rotas de destino de cada etapa (`registrar-receita`, `registrar-despesa`, `criar-meta`, `resumo`), aprovada no início do timebox. As duas frentes usam telas simuladas até os casos de uso correspondentes ficarem prontos; a integração real de cada etapa fica como **integração posterior**.
+- **Menu de ajuda e estado vazio do resumo (UC03):** o contrato é o ponto de entrada `abrirTutorial()`, chamado pelos dois.
+- **Estado "tutorial já oferecido":** guardado na base local por uma chave única, `tutorialOferecido`; sem dependência de conta.
+- **Conteúdo do tutorial:** os textos ficam em um arquivo de conteúdo separado do código, para ajustar sem nova implementação.
+
+### Requisitos e regras associados
+
+- **Funcionais:** RF55. Relacionados: RF07 (UC01), RF15 (UC02), RF12 (UC12), RF40 (UC03), RF61.
+- **Não funcionais específicos:** RNF20, RNF34, RNF38.
+- **Regras de negócio:** RN06.
+
+---
+
+## UC16 - Acompanhar sincronização
+
+- **Ator principal:** Usuário.
+- **Valor:** saber se os dados registrados no aparelho já estão guardados na nuvem e enviá-los na hora, quando quiser.
+- **Requisitos funcionais:** RF62, RF59.
+
+### Pré-condições
+
+- A base local está disponível (RN06).
+- Para sincronizar, o usuário tem uma conta com sessão ativa (UC10, RNF02, RF61); sem conta, o aplicativo continua funcionando só no aparelho.
+
+### Pós-condições
+
+- **Sucesso:** as alterações pendentes foram aceitas pelo Cloud Firestore e o estado e a data da última sincronização estão atualizados; saldos e totais foram recalculados a partir dos lançamentos (RN07).
+- **Falha:** nenhum lançamento é perdido nem duplicado; os registros não enviados permanecem na base local, pendentes ou com erro (RNF26, RNF36).
+- **Consulta (passo 2 do fluxo principal e B):** nenhum dado é alterado.
+
+### Fluxo principal
+
+1. O usuário acessa a área "Sincronização".
+2. O sistema exibe o estado atual (sincronizado, pendente, sem conexão ou erro), a data e a hora da última sincronização e o número de alterações pendentes (RF62).
+3. O usuário escolhe uma operação: **sincronizar agora** (A) ou **ver as alterações pendentes** (B). O envio automático quando a conexão volta (C) não depende do usuário.
+
+#### A - Sincronizar agora (RF62)
+
+1. O usuário aciona "Sincronizar agora".
+2. O sistema confirma que há sessão válida e conexão (RNF02).
+3. O sistema envia as alterações pendentes ao Cloud Firestore, pelo SDK oficial e com conexão protegida (RNF19, RNF30), e aplica cada alteração de forma idempotente (RNF36).
+4. O sistema recebe as alterações do servidor e as combina com as locais conforme a RN07; saldos, totais, progresso, pontos e selos são recalculados a partir dos lançamentos, nunca sincronizados como contadores (RN07).
+5. O sistema atualiza o estado para "sincronizado" e registra a data e a hora da sincronização.
+6. O sistema informa o resultado: "Tudo sincronizado."
+
+#### B - Ver alterações pendentes (RF62, RF59)
+
+1. O usuário aciona "Alterações pendentes".
+2. O sistema lista as alterações ainda não aceitas pelo servidor, com o tipo de registro (lançamento, categoria, meta e outros), a operação (criação, edição ou exclusão) e o estado de envio de cada uma (RF59).
+3. O usuário seleciona uma alteração com erro e o sistema mostra o motivo (RNF14) e a ação "Tentar de novo".
+
+#### C - Enviar automaticamente quando a conexão volta (RF59)
+
+1. O usuário registrou lançamentos sem conexão e eles ficaram guardados no aparelho, com o estado "pendente" (UC01, UC02).
+2. Quando a conexão volta e a sincronização está ativa, o sistema envia os registros pendentes ao Cloud Firestore, sem perda nem duplicidade (RNF26, RNF36).
+3. O sistema atualiza o estado de envio de cada registro e o estado geral da sincronização.
+
+### Fluxos alternativos
+
+- **FA01 - Sem conexão:** o estado é "sem conexão"; as alterações continuam guardadas no aparelho e o usuário continua operando normalmente (RN06, RNF34).
+- **FA02 - Nada pendente:** o estado é "sincronizado" e o sistema informa "Não há alterações pendentes."
+- **FA03 - Sem conta ou sem sessão:** o sistema informa que a sincronização está inativa, que os dados estão só neste aparelho, e oferece entrar ou criar uma conta (UC10). Nenhum dado é enviado (RNF02, RF61).
+- **FA04 - Aparelho novo ou reinstalado:** depois de entrar na conta, o sistema restaura os dados a partir do Cloud Firestore e mostra o andamento nesta área (RNF40, UC10 FA02).
+- **FA05 - Alteração feita durante a sincronização:** o sistema inclui a alteração na próxima sincronização e mantém o estado "pendente" até lá.
+- **FA06 - Operação em andamento:** durante o envio, o sistema mostra um indicador de progresso e desativa a ação "Sincronizar agora" até terminar.
+- **FA07 - Cancelamento:** se o usuário sai da área, o envio em andamento continua em segundo plano e o estado é atualizado ao concluir.
+
+### Exceções
+
+Cada exceção indica o passo em que ocorre e o ponto de retorno.
+
+- **EX01 - Sem conexão ao sincronizar (A2):** o sistema não envia e informa: "Sem conexão. Suas alterações continuam guardadas no aparelho e serão enviadas quando a conexão voltar." **Retorno:** ao passo 2 do fluxo principal, com o estado "sem conexão".
+- **EX02 - Sessão inválida ou expirada (A2):** o sistema suspende a sincronização sem bloquear os dados locais (RNF02) e informa: "Sua sessão expirou. Entre novamente para sincronizar." **Retorno:** ao UC10, fluxo B; depois de entrar, ao passo 2 do fluxo principal.
+- **EX03 - Falha no envio (A3 e C2):** os registros não enviados permanecem na base local e o estado passa a "erro". O sistema informa: "Não foi possível sincronizar. Suas alterações continuam guardadas no aparelho." **Retorno:** ao passo 2 do fluxo principal, com a ação "Tentar de novo".
+- **EX04 - Registro recusado pelo servidor (A3 e C2):** o servidor recusa o registro nas Firebase Security Rules (RNF04). O registro permanece na base local com erro de sincronização e o sistema mostra o motivo (RNF14). **Retorno:** à lista de alterações pendentes (fluxo B), sem bloquear os demais registros.
+- **EX05 - Interrupção durante o envio (A3 e C2):** o sistema reenvia os registros na próxima tentativa, sem duplicar os já aceitos (RNF26, RNF36). **Retorno:** ao passo 3 do fluxo A, ao tentar de novo.
+- **EX06 - Conflito de sincronização (A4):** aplica-se a RN07; no mesmo campo vale a alteração mais recente por ordem lógica, e em edição contra exclusão a exclusão prevalece. **Retorno:** ao concluir, o fluxo segue no passo A5.
+- **EX07 - Falha na leitura local (passo 2 do fluxo principal, B2):** o sistema informa: "Não foi possível carregar o estado da sincronização. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo principal, ao tentar novamente.
+- **EX08 - Acesso a dados de outro usuário (A3, A4, B2):** o sistema nega o acesso (RNF03) e não envia nem recebe o registro. **Retorno:** ao passo 2 do fluxo principal.
+
+### Pontos para validação
+
+- **Estados do RF62:** o RF62 define quatro estados (sincronizado, pendente, sem conexão e erro). O estado "sem conta" (FA03) e o andamento durante o envio (FA06) não estão entre eles; o texto os trata como informações à parte.
+- **Registro recusado pelo servidor (EX04):** o catálogo diz que o registro permanece na base local com erro (RNF04), mas não define se o usuário pode corrigi-lo ou descartá-lo.
+- **Aparelho único (RNF40):** com uso em um só aparelho, a sincronização serve de cópia e restauração; o texto mantém a RN07 para conflitos, mas não há desempate entre aparelhos.
+- **Mensagens:** os textos de erro do servidor não são exibidos como vêm; falta definir o conjunto de motivos que o usuário vê (RNF14).
+
+### Dependências planejadas (DoR)
+
+- **Sessão (UC10):** o contrato é o `SessionState`, aprovado no início do timebox; as duas frentes usam uma sessão simulada até o UC10 ficar pronto.
+- **Projeto Firebase (acessos e ambientes):** o desenvolvimento e os testes usam o Firebase Emulator Suite (RNF30); nenhuma tarefa depende do projeto de produção.
+- **Registros pendentes (UC01, UC02, UC06, UC12, UC14):** o contrato é o campo de estado de sincronização de cada registro e a fila de pendências (`SyncService`: `getStatus`, `pendingChanges`, `syncNow`, `onStatusChange`). Os casos de uso que gravam registros preenchem esse contrato; os testes usam registros de exemplo.
+- **Resolução de conflitos (RN07):** o contrato é a função compartilhada de combinação de alterações por campo, com a ordem lógica (relógio lógico híbrido). Até existir, usa-se uma versão simulada; a verificação com duas réplicas reais fica como **integração posterior**.
+- **Estados do RF62 e motivos de erro:** pendências registradas acima, com decisão a registrar em `decisoes.md`.
+
+### Requisitos e regras associados
+
+- **Funcionais:** RF62, RF59. Relacionados: RF07 e RF15 (UC01 e UC02), RF01, RF02 e RF06 (UC10), RF61.
+- **Não funcionais específicos:** RNF02, RNF03, RNF04, RNF14, RNF19, RNF20, RNF26, RNF30, RNF34, RNF35, RNF36, RNF38, RNF40.
+- **Regras de negócio:** RN06, RN07.
 </div>
 
 ## Histórico de versões
