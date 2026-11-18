@@ -4,6 +4,8 @@ import {
   excluirReceita,
   registrarReceita,
 } from '@/features/receitas/service';
+import { consultarAlertas } from '@/features/saldo/alertas';
+import { registrarDespesa } from '@/features/saldo/service';
 import { sincronizarPendentes } from '@/features/receitas/sync';
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
@@ -90,6 +92,26 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       await sincronizarPendentes();
       expect(banco.receitas()[0].sync_status).toBe('pendente');
     });
+  });
+
+  it('mantém o alerta offline e reenvia com o mesmo ID se a confirmação local falhar', async () => {
+    await registrarDespesa('2026-10-16', 1000);
+    const [alerta] = await consultarAlertas();
+    const ref = `usuarios/u1/alertas_emitidos/${alerta.id}`;
+
+    mockRedeFora = true;
+    await sincronizarPendentes();
+    expect(mockNuvem.size).toBe(0);
+    expect(await consultarAlertas()).toEqual([alerta]);
+
+    mockRedeFora = false;
+    banco.falharNaOperacao(1);
+    await sincronizarPendentes();
+    await sincronizarPendentes();
+    expect([...mockNuvem.keys()]).toEqual([ref]);
+    expect(mockNuvem.get(ref)).toMatchObject({ saldo_centavos: -1000, anterior_centavos: 0 });
+    expect(banco.sqlite.prepare('SELECT sync_status FROM alertas_emitidos').get())
+      .toEqual({ sync_status: 'sincronizado' });
   });
 
   describe('envio', () => {

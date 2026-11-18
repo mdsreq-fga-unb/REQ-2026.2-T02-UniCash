@@ -5,11 +5,15 @@ on:
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
+      - 'firebase.json'
+      - 'firestore.rules'
   push:
     branches: [main, develop]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ci.yml'
+      - 'firebase.json'
+      - 'firestore.rules'
 
 concurrency:
   group: mobile-ci-${{ github.ref }}
@@ -17,7 +21,7 @@ concurrency:
 
 jobs:
   check:
-    name: Lint e typecheck
+    name: Validação do app Android
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -36,6 +40,26 @@ jobs:
       # expo-env.d.ts é gerado pelo `expo start` e fica fora do git; o typecheck precisa dele
       - run: echo '/// <reference types="expo/types" />' > expo-env.d.ts
       - run: npm run typecheck
+      - name: Testes e cobertura do UC04
+        run: npm test -- --config jest.uc04.config.js --runInBand
+
+      - name: Anexar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-uc04
+          path: mobile/coverage/uc04/
+
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Testar Security Rules
+        run: npx --yes --package firebase-tools@15.36.0 firebase emulators:exec --only firestore --project unicash-rules-test "npm test -- --config jest.rules.config.js --runInBand"
+
+      - name: Gerar bundle Android
+        run: npx --no-install expo export --platform android
       # As versões esperadas vêm da API do Expo e mudam sem aviso; o doctor só alerta
       - run: npx expo-doctor
         continue-on-error: true

@@ -30,6 +30,30 @@ export const ESQUEMA_SQL = `
       atualizado_em TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS despesas (
+      id INTEGER PRIMARY KEY,
+      valor_centavos INTEGER NOT NULL CHECK (valor_centavos > 0),
+      data TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_despesas_data ON despesas(data);
+
+    CREATE TABLE IF NOT EXISTS saldo_inicial (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      mes TEXT NOT NULL,
+      valor_centavos INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS alertas_emitidos (
+      id TEXT PRIMARY KEY NOT NULL,
+      mes TEXT NOT NULL,
+      anterior_centavos INTEGER NOT NULL,
+      saldo_centavos INTEGER NOT NULL,
+      criado_em TEXT NOT NULL,
+      lido INTEGER NOT NULL DEFAULT 0,
+      sync_status TEXT NOT NULL DEFAULT 'pendente'
+    );
+
     CREATE INDEX IF NOT EXISTS idx_receitas_data ON receitas(data);
     CREATE INDEX IF NOT EXISTS idx_receitas_recorrencia ON receitas(recorrencia_id);
     CREATE INDEX IF NOT EXISTS idx_receitas_sync ON receitas(sync_status);
