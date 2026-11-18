@@ -29,9 +29,10 @@ describe('Schema do banco — restrições de categorias', () => {
     atualizado_em: '2026-11-12T10:00:00Z',
   };
 
-  function inserir(overrides: Partial<typeof base> = {}): void {
+  function inserir(overrides: Partial<typeof base> = {}): string {
     sequenciaId++;
-    const linha = { id: `cat-${sequenciaId}`, ...base, ...overrides };
+    const id = `cat-${sequenciaId}`;
+    const linha = { id, ...base, ...overrides };
     sqlite
       .prepare(
         `INSERT INTO categorias
@@ -41,6 +42,7 @@ describe('Schema do banco — restrições de categorias', () => {
             @limite_percentual_centesimos, @sync_status, @excluido_em, @criado_em, @atualizado_em)`,
       )
       .run(linha);
+    return id;
   }
 
   const contaCategorias = () => (sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get() as any).n;
@@ -64,18 +66,29 @@ describe('Schema do banco — restrições de categorias', () => {
       ).not.toThrow();
     });
 
-    it('aceita 100,01% enquanto o máximo de negócio não for aprovado (RN14)', () => {
+    it('aceita 100% (10.000 centésimos), máximo provisório da RN14', () => {
       expect(() =>
         inserir({
           nome: 'Cem',
           nome_normalizado: 'cem',
           limite_tipo: 'percentual_renda',
-          limite_percentual_centesimos: 10_001,
+          limite_percentual_centesimos: 10_000,
         }),
       ).not.toThrow();
     });
 
-    it('aceita o limite técnico de Number.MAX_SAFE_INTEGER em centésimos', () => {
+    it('rejeita 100,01% (10.001 centésimos) pela faixa provisória (RN14)', () => {
+      expect(() =>
+        inserir({
+          nome: 'Cem um',
+          nome_normalizado: 'cem um',
+          limite_tipo: 'percentual_renda',
+          limite_percentual_centesimos: 10_001,
+        }),
+      ).toThrow(/limite_percentual_faixa/);
+    });
+
+    it('rejeita o limite técnico de Number.MAX_SAFE_INTEGER pela faixa provisória', () => {
       expect(() =>
         inserir({
           nome: 'Maximo',
@@ -83,7 +96,7 @@ describe('Schema do banco — restrições de categorias', () => {
           limite_tipo: 'percentual_renda',
           limite_percentual_centesimos: Number.MAX_SAFE_INTEGER,
         }),
-      ).not.toThrow();
+      ).toThrow(/limite_percentual_faixa/);
     });
 
     it('conta caracteres Unicode no nome: 30 emojis aceitos e 31 rejeitados (RN13)', () => {
@@ -93,7 +106,7 @@ describe('Schema do banco — restrições de categorias', () => {
       expect(() => inserir({ nome: nome31, nome_normalizado: nome31 })).toThrow(/nome_valido/);
     });
 
-    it('rejeita percentual acima de Number.MAX_SAFE_INTEGER (limite técnico)', () => {
+    it('rejeita percentual acima de Number.MAX_SAFE_INTEGER (também fora da faixa)', () => {
       expect(() =>
         inserir({
           nome: 'Excedente',
@@ -101,7 +114,7 @@ describe('Schema do banco — restrições de categorias', () => {
           limite_tipo: 'percentual_renda',
           limite_percentual_centesimos: 9007199254740992n as any,
         }),
-      ).toThrow(/limite_percentual_valido/);
+      ).toThrow(/limite_percentual_faixa/);
     });
 
     it('aceita limite percentual em centésimos', () => {
@@ -201,6 +214,48 @@ describe('Schema do banco — restrições de categorias', () => {
       expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 'dez' as any })).toThrow(
         /CHECK constraint failed: limite_percentual_valido/,
       );
+    });
+
+    it('aceita 99,99% (9.999 centésimos), imediatamente abaixo do máximo', () => {
+      expect(() =>
+        inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 9_999 }),
+      ).not.toThrow();
+    });
+
+    it('rejeita 200000% (20.000.000 centésimos) pelo trigger de faixa', () => {
+      expect(() =>
+        inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 20_000_000 }),
+      ).toThrow(/limite_percentual_faixa/);
+    });
+
+    it('rejeita UPDATE de limite para 100,01%', () => {
+      const id = inserir({
+        limite_tipo: 'percentual_renda',
+        limite_percentual_centesimos: 10_000,
+      });
+      expect(() =>
+        sqlite
+          .prepare('UPDATE categorias SET limite_percentual_centesimos = 10001 WHERE id = ?')
+          .run(id),
+      ).toThrow(/limite_percentual_faixa/);
+    });
+
+    it('permite atualizar tombstone e sync_status sem tocar no limite', () => {
+      const id = inserir({
+        limite_tipo: 'percentual_renda',
+        limite_percentual_centesimos: 10_000,
+      });
+      expect(() =>
+        sqlite
+          .prepare(
+            "UPDATE categorias SET sync_status = 'sincronizado', excluido_em = '2026-11-18T10:00:00Z' WHERE id = ?",
+          )
+          .run(id),
+      ).not.toThrow();
+      const linha = sqlite
+        .prepare('SELECT limite_percentual_centesimos AS p, excluido_em AS e FROM categorias WHERE id = ?')
+        .get(id) as any;
+      expect(linha).toEqual({ p: 10_000, e: '2026-11-18T10:00:00Z' });
     });
   });
 

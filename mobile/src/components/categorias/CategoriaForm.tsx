@@ -180,7 +180,7 @@ export function CategoriaForm({
             placeholder="Ex.: 12,5"
             keyboardType="decimal-pad"
             erro={erros.limitePercentual}
-            abaixo={<Text style={estilos.dica}>Percentual da sua renda mensal, com até duas casas decimais.</Text>}
+            abaixo={<Text style={estilos.dica}>Percentual da sua renda mensal, de 0,01% a 100%, com até duas casas decimais.</Text>}
             acao={<Text style={estilos.sufixo}>%</Text>}
           />
         ) : null}

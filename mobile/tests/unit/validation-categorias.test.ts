@@ -6,18 +6,19 @@ import {
   EntradaCategoriaInvalida,
 } from '@/features/categorias/validation';
 
-describe('parsePercentualParaCentesimos (conversão segura, sem máximo)', () => {
+describe('parsePercentualParaCentesimos (faixa provisória 0,01%–100%)', () => {
   const casosValidos: Array<[string, number]> = [
     ['1', 100],
     ['12,5', 1250],
     ['12.5', 1250],
     ['0,01', 1],
     ['0.05', 5],
+    ['50', 5_000],
+    ['99,99', 9_999],
     ['100', 10_000],
-    ['100,01', 10_001],
+    ['100,00', 10_000],
     [' 5 ', 500],
     ['007,5', 750],
-    ['1234,56', 123_456],
   ];
 
   it.each(casosValidos)('aceita "%s" → %i centésimos', (texto, esperado) => {
@@ -26,6 +27,12 @@ describe('parsePercentualParaCentesimos (conversão segura, sem máximo)', () =>
 
   it.each([
     ['', 'texto vazio'],
+    ['0', 'zero'],
+    ['0,00', 'zero com casas'],
+    ['0,001', 'abaixo do mínimo (três casas)'],
+    ['100,01', 'acima do máximo'],
+    ['101', 'acima do máximo'],
+    ['200000', 'muito acima do máximo'],
     ['1e2', 'notação científica'],
     ['0x1f', 'hexadecimal'],
     ['Infinity', 'palavra reservada'],
@@ -39,23 +46,10 @@ describe('parsePercentualParaCentesimos (conversão segura, sem máximo)', () =>
     ['1,999', 'três casas decimais'],
     ['1 2', 'espaço interno'],
     ['12 ,5', 'espaço interno'],
+    ['99999999999999999999', 'muitos dígitos'],
+    ['99999999999999999999,99', 'muitos dígitos com casas'],
   ])('rejeita %s (%s)', (texto) => {
     expect(parsePercentualParaCentesimos(texto)).toBeNull();
-  });
-
-  it('não impõe máximo percentual (decisão da cliente pendente)', () => {
-    expect(parsePercentualParaCentesimos('500')).toBe(50_000);
-    expect(parsePercentualParaCentesimos('999999')).toBe(99_999_900);
-  });
-
-  it('rejeita resultado acima de Number.MAX_SAFE_INTEGER (overflow/precisão)', () => {
-    // MAX_SAFE_INTEGER = 9.007.199.254.740.991 centésimos: limite exato é aceito.
-    expect(parsePercentualParaCentesimos('90071992547409.91')).toBe(Number.MAX_SAFE_INTEGER);
-    // Um centésimo acima já não é representável com segurança.
-    expect(parsePercentualParaCentesimos('90071992547409.92')).toBeNull();
-    // Muito acima do limite, com muitas casas inteiras.
-    expect(parsePercentualParaCentesimos('99999999999999999999')).toBeNull();
-    expect(parsePercentualParaCentesimos('99999999999999999999,99')).toBeNull();
   });
 });
 
@@ -102,6 +96,8 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
     [{ tipo: 'percentual_renda', valor: 0 }, 'percentual zero'],
     [{ tipo: 'percentual_renda', valor: -10 }, 'percentual negativo'],
     [{ tipo: 'percentual_renda', valor: 1.5 }, 'percentual não inteiro'],
+    [{ tipo: 'percentual_renda', valor: 10_001 }, 'percentual acima de 100%'],
+    [{ tipo: 'percentual_renda', valor: 200_000 }, 'percentual muito acima de 100%'],
     [{ tipo: 'percentual_renda', valor: 9_007_199_254_740_993 }, 'percentual acima de MAX_SAFE_INTEGER'],
     [{ tipo: 'outro', valor: 10 }, 'tipo desconhecido'],
   ] as any[])('rejeita limite inválido: %j (%s)', (limite) => {
@@ -114,22 +110,22 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
     );
   });
 
-  it('não impõe máximo percentual no domínio (decisão da cliente pendente)', () => {
-    expect(() =>
-      validarDadosCategoria('X', { tipo: 'percentual_renda', valor: 50_000 }),
-    ).not.toThrow();
+  it.each([
+    [1, '0,01%'],
+    [5_000, '50%'],
+    [9_999, '99,99%'],
+    [10_000, '100%'],
+  ])('aceita percentual de %i centésimos (%s) no domínio', (valor) => {
+    expect(() => validarDadosCategoria('X', { tipo: 'percentual_renda', valor })).not.toThrow();
   });
 
-  it('exige inteiro seguro no percentual (Number.isSafeInteger)', () => {
-    // O literal já é arredondado pelo próprio Number para 9.007.199.254.740.992,
-    // que está acima de MAX_SAFE_INTEGER — exatamente o caso que deve ser rejeitado.
+  it('rejeita percentual fora da faixa provisória com a mensagem literal', () => {
     expect(() =>
-      validarDadosCategoria('X', { tipo: 'percentual_renda', valor: 9_007_199_254_740_993 }),
-    ).toThrow(EntradaCategoriaInvalida);
-    // O limite exato de segurança ainda é aceito.
+      validarDadosCategoria('X', { tipo: 'percentual_renda', valor: 10_001 }),
+    ).toThrow(MSG_CAT.limitePercentualInvalido);
     expect(() =>
-      validarDadosCategoria('X', { tipo: 'percentual_renda', valor: Number.MAX_SAFE_INTEGER }),
-    ).not.toThrow();
+      validarDadosCategoria('X', { tipo: 'percentual_renda', valor: 0 }),
+    ).toThrow(MSG_CAT.limitePercentualInvalido);
   });
 
   it('monetário rejeita inteiro não seguro e mantém o teto de centavos', () => {
@@ -141,7 +137,7 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
     ).not.toThrow();
   });
 
-  describe('validarFormularioCategoria — sem teto percentual provisório', () => {
+  describe('validarFormularioCategoria — faixa provisória 0,01%–100%', () => {
     const base = {
       nome: 'X',
       comLimite: true,
@@ -150,16 +146,36 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
       limitePercentual: '',
     };
 
-    it('aceita 100,01% (máximo de negócio ainda não aprovado)', () => {
-      const r = validarFormularioCategoria({ ...base, limitePercentual: '100,01' });
+    it.each([
+      ['0,01', 1],
+      ['50', 5_000],
+      ['99,99', 9_999],
+      ['100', 10_000],
+      ['100,00', 10_000],
+    ])('aceita "%s" → %i centésimos', (texto, esperado) => {
+      const r = validarFormularioCategoria({ ...base, limitePercentual: texto });
       expect(r.erros).toEqual({});
-      expect(r.dados).toEqual({ nome: 'X', limite: { tipo: 'percentual_renda', valor: 10_001 } });
+      expect(r.dados).toEqual({ nome: 'X', limite: { tipo: 'percentual_renda', valor: esperado } });
     });
 
-    it('continua exigindo positivo e formato com até duas casas', () => {
-      expect(validarFormularioCategoria({ ...base, limitePercentual: '0' }).dados).toBeNull();
-      expect(validarFormularioCategoria({ ...base, limitePercentual: '1,999' }).dados).toBeNull();
-      expect(validarFormularioCategoria({ ...base, limitePercentual: '1 2' }).dados).toBeNull();
+    it.each(['0', '0,001', '100,01', '101', '200000', '1,999', '1 2'])(
+      'rejeita "%s"',
+      (texto) => {
+        expect(validarFormularioCategoria({ ...base, limitePercentual: texto }).dados).toBeNull();
+      },
+    );
+
+    it('vazio usa a mensagem específica e fora da faixa usa a mensagem literal', () => {
+      expect(
+        validarFormularioCategoria({ ...base, limitePercentual: '' }).erros.limitePercentual,
+      ).toBe(MSG_CAT.limitePercentualVazio);
+      expect(
+        validarFormularioCategoria({ ...base, limitePercentual: '100,01' }).erros
+          .limitePercentual,
+      ).toBe(MSG_CAT.limitePercentualInvalido);
+      expect(MSG_CAT.limitePercentualInvalido).toBe(
+        'O percentual deve ser maior que 0% e até 100%.',
+      );
     });
   });
 });

@@ -12,7 +12,7 @@ import {
   listarCategorias,
   semearCategoriasPadrao,
 } from '@/features/categorias/service';
-import { EntradaCategoriaInvalida } from '@/features/categorias/validation';
+import { EntradaCategoriaInvalida, MSG_CAT } from '@/features/categorias/validation';
 import { CATEGORIAS_PADRAO } from '@/features/categorias/types';
 import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
 
@@ -204,16 +204,32 @@ describe('Serviço de categorias (UC06)', () => {
       });
     });
 
-    it('persiste 100,01% enquanto a faixa de negócio não for aprovada', async () => {
-      const id = await criarCategoria({
-        nome: 'Acima de cem',
-        limite: { tipo: 'percentual_renda', valor: 10_001 },
-      });
-      expect((await buscarCategoria(id))!).toMatchObject({
-        limite_tipo: 'percentual_renda',
-        limite_percentual_centesimos: 10_001,
-      });
-    });
+    it.each([0, 10_001, 200_000])(
+      'rejeita limite percentual de %i centésimos no serviço, sem gravar nada (RN14, EX01)',
+      async (valor) => {
+        await expect(
+          criarCategoria({
+            nome: 'Percentual inválido',
+            limite: { tipo: 'percentual_renda', valor },
+          }),
+        ).rejects.toThrow(MSG_CAT.limitePercentualInvalido);
+        expect((banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get() as any).n).toBe(0);
+      },
+    );
+
+    it.each([1, 5_000, 9_999, 10_000])(
+      'persiste o percentual válido de %i centésimos',
+      async (valor) => {
+        const id = await criarCategoria({
+          nome: `Categoria ${valor}`,
+          limite: { tipo: 'percentual_renda', valor },
+        });
+        expect((await buscarCategoria(id))!).toMatchObject({
+          limite_tipo: 'percentual_renda',
+          limite_percentual_centesimos: valor,
+        });
+      },
+    );
 
     it('rejeita nome duplicado ativo, sem diferenciar caixa (RN13, EX07)', async () => {
       await criarCategoria({ nome: 'Casa', limite: null });

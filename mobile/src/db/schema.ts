@@ -1,4 +1,5 @@
 /** Esquema da base local (RN06). Compartilhado pelo app e pelos testes. */
+import { PERCENTUAL_MAX_CENTESIMOS } from '@/features/categorias/limites';
 
 /**
  * PRAGMAs de conexão/banco. Executar FORA de transação: journal_mode não pode
@@ -12,17 +13,19 @@ export const PRAGMAS_SQL = `
 
 /**
  * Limite técnico seguro para percentuais em centésimos (Number.MAX_SAFE_INTEGER).
- * Não é um limite de negócio: a faixa percentual máxima continua pendente de
- * validação da cliente.
+ * Não é um limite de negócio: a faixa provisória de 0,01% a 100% é aplicada
+ * separadamente por triggers aditivos (DDL_TRIGGER_PERCENTUAL).
  */
 export const LIMITE_PERCENTUAL_MAX = 9007199254740991;
 
 /**
  * DDL da tabela de categorias, parametrizado para reuso na migração 001
  * (reconstrução segura de bancos legados — ver migrations.ts).
- * A faixa máxima de percentual (0,01% a 100%) NÃO é fixada aqui: pendente de
- * validação da cliente. Exige-se apenas valor inteiro, positivo e seguro para
- * o JavaScript (até Number.MAX_SAFE_INTEGER).
+ * A faixa de negócio (0,01% a 100%, provisória) NÃO é fixada por CHECK nesta
+ * tabela: os triggers de DDL_TRIGGER_PERCENTUAL a aplicam sem bloquear a
+ * abertura de bancos legados que ainda tenham percentuais acima de 100%.
+ * Aqui exige-se apenas valor inteiro, positivo e seguro para o JavaScript
+ * (até Number.MAX_SAFE_INTEGER).
  */
 export const DDL_TABELA_CATEGORIAS = (tabela: string) => `
     CREATE TABLE IF NOT EXISTS ${tabela} (
@@ -109,9 +112,37 @@ export const DDL_ESQUEMA = `
     CREATE INDEX IF NOT EXISTS idx_categorias_sync ON categorias(sync_status);
   `;
 
+/** Triggers de faixa percentual (provisória 0,01%–100%). */
+export const TRIGGERS_PERCENTUAL = [
+  'trg_categorias_percentual_insert',
+  'trg_categorias_percentual_update',
+] as const;
+
+export const DDL_TRIGGER_PERCENTUAL = `
+    CREATE TRIGGER IF NOT EXISTS trg_categorias_percentual_insert
+    BEFORE INSERT ON categorias
+    WHEN NEW.limite_tipo = 'percentual_renda'
+      AND typeof(NEW.limite_percentual_centesimos) = 'integer'
+      AND NEW.limite_percentual_centesimos > ${PERCENTUAL_MAX_CENTESIMOS}
+    BEGIN
+      SELECT RAISE(ABORT, 'limite_percentual_faixa');
+    END;
+
+    CREATE TRIGGER IF NOT EXISTS trg_categorias_percentual_update
+    BEFORE UPDATE OF limite_tipo, limite_percentual_centesimos ON categorias
+    WHEN NEW.limite_tipo = 'percentual_renda'
+      AND typeof(NEW.limite_percentual_centesimos) = 'integer'
+      AND NEW.limite_percentual_centesimos > ${PERCENTUAL_MAX_CENTESIMOS}
+    BEGIN
+      SELECT RAISE(ABORT, 'limite_percentual_faixa');
+    END;
+  `;
+
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
 
     ${DDL_ESQUEMA}
+
+    ${DDL_TRIGGER_PERCENTUAL}
   `;

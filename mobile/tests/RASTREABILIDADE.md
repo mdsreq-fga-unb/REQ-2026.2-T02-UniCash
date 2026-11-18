@@ -103,7 +103,7 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 | RN09 — valor monetário | B, C, EX03 | `validation.ts`, `src/features/receitas/money.ts`, `src/db/schema.ts` | `tests/unit/validation-categorias.test.ts`, `tests/db/schema.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Testado: 1 centavo, zero, teto e inteiros |
 | RN11 — exclusão/atomicidade | C, D, EX04 | `service.ts` (`transacao`, `excluirCategoria`), `[id]/editar.tsx` | `tests/service/categorias.test.ts` (falha em criar/editar/excluir), `tests/screens/EditarCategoria.test.tsx` | Operação local testada; recálculo pendente |
 | RN13 — nome, unicidade e padrões | A, B, C, D | `validation.ts`, `service.ts`, `src/db/schema.ts`, `useCategorias.ts` | `tests/service/categorias.test.ts`, `tests/db/schema.test.ts`, `tests/unit/validation-categorias.test.ts`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx` | Testado (30/31 caracteres, Unicode/emoji, duplicidade, padrões, tombstone); conflito isolado reportado |
-| RN14 — limites por valor/percentual | B, C | `validation.ts`, `formato.ts`, `CategoriaForm.tsx`, `[id]/editar.tsx` | `tests/unit/validation-categorias.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Limites testados; 100,01% aceito sem máximo aprovado; máximo percentual e recálculo pendentes |
+| RN14 — limites por valor/percentual | B, C | `validation.ts`, `formato.ts`, `CategoriaForm.tsx`, `[id]/editar.tsx`, `src/db/schema.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx`, `tests/db/schema.test.ts`, `tests/db/migrations.test.ts` | Faixa provisória 0,01%–100% testada em formulário/domínio/serviço/SQLite; homologação da cliente e recálculo pendentes |
 | RNF03 — isolamento por usuário | EX09, sincronização | Sem regras de categorias no Firestore | `tests/rules/firestore.rules.test.ts` cobre apenas UC01 | **Não aplicável nesta entrega**; pendente com Firebase |
 | RNF04 — validação local | B, C | `validation.ts`, `CategoriaForm.tsx` | `tests/unit/validation-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Testado |
 | RNF05 — evitar estado parcial | B, C, D | `service.ts` (`transacao`) | `tests/service/categorias.test.ts` (falha em criar/editar/excluir) | Testado no escopo local |
@@ -146,7 +146,7 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 - **Isolamento:** **não aplicável nesta entrega**. Categorias são locais e ainda não têm sincronização nem Security Rules; `tests/rules/firestore.rules.test.ts` cobre apenas receitas/recorrências. Não há resultado de `test:rules` para categorias a apresentar.
 - **Persistência:** testes automatizados de SQLite em memória, schema e migrações (`tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts`). A prova manual no Expo Go registrada no PR #58 foi feita **antes** do merge da develop. O smoke pós-merge dos fluxos principais foi executado; a persistência após fechar e reabrir **não foi confirmada** e permanece pendente.
 - **Sincronização:** **não implementada**. O campo `sync_status` está preparado, mas não há envio, restauração nem Security Rules de categorias; EX05, EX08, EX09 e RNF03/RNF36 permanecem pendentes.
-- **Cobertura de código (informativa, não é critério do DoD):** núcleo de 13 arquivos com 98,88% de statements, 94,53% de branches, 100% de funções e 99,36% de linhas. O DoD Nível 1 não exige 100% de cobertura de código; exige a matriz fluxo/RN → teste e os casos válido/inválido/limite.
+- **Cobertura de código (informativa, não é critério do DoD):** `db` com 97,47% de statements, 86,04% de branches, 100% de funções e 97,07% de linhas; `features/categorias` com 100% de statements, 99,15% de branches, 100% de funções e 100% de linhas. O DoD Nível 1 não exige 100% de cobertura de código; exige a matriz fluxo/RN → teste e os casos válido/inválido/limite.
 
 ### 4.4. Resultados
 
@@ -160,24 +160,24 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 
 ### 4.5. Pendências de integração
 
-- **UC02:** despesas, contagem/atalho de lançamentos, exclusão com desvinculação de `despesas.categoria_id` e `recorrencias.categoria_id` (migração **003**, após a 002 de limite técnico; ver 4.9).
+- **UC02:** despesas, contagem/atalho de lançamentos, exclusão com desvinculação de `despesas.categoria_id` e `recorrencias.categoria_id` (migração **004**, após a 003 da faixa percentual; ver 4.9).
 - **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria.
 - **Firebase:** sincronização de categorias, conflito RN07 (EX08), isolamento por usuário (EX09/RNF03) e Security Rules/test:rules.
-- **Cliente:** faixa máxima do limite percentual; contradição RF66 × RN13 sobre limite de categoria padrão.
+- **Cliente:** homologação da faixa percentual provisória 0,01%–100%; contradição RF66 × RN13 sobre limite de categoria padrão.
 - **Revisão:** smoke dos fluxos principais executado; confirmar persistência após fechar/reabrir e demais apontamentos da revisão do PR #58.
 - **Semeadura:** conflitos são reportados uma vez por instância e a semeadura não é repetida a cada foco. Após excluir uma categoria própria com nome reservado, um sinal único faz a lista tentar a semeadura no próximo foco; não há conversão automática da categoria própria. Se a tentativa posterior falhar, a exclusão já confirmada permanece e o erro é exibido como falha de preparação das padrão, não como falha da exclusão.
 
-### 4.6. Limite percentual — política e risco
+### 4.6. Limite percentual — faixa provisória 0,01%–100%
 
-**Política atual:** não há máximo de negócio aprovado. Formulário, validação e serviço aceitam qualquer percentual positivo com até duas casas; 100,01%, 101% e 999999% são aceitos e formatados exatamente. O máximo de 100% proposto no checklist não foi imposto por falta de validação da cliente (RN14 e issue #43).
+**Política provisória:** formulário, domínio, serviço e SQLite aceitam percentuais de **0,01% a 100,00%** (1 a 10.000 centésimos), com até duas casas. A mensagem literal é **“O percentual deve ser maior que 0% e até 100%.”** O teto de 100% é **provisório e pendente de homologação da cliente**; 100,01%, 101% e 200000% são rejeitados. A RN09 permanece inalterada: o limite monetário continua de R$ 0,01 a R$ 999.999.999,99.
 
-**Limite técnico:** o parser e a validação exigem inteiro seguro (`Number.isSafeInteger`) em centésimos, até `Number.MAX_SAFE_INTEGER` (90071992547409,91%); a conversão e a formatação usam BigInt, sem float nem arredondamento. O schema SQLite aceita `INTEGER > 0`, mas **não** limita a `MAX_SAFE_INTEGER`. Uma escrita direta por SQL/importação com inteiro acima do que o JavaScript representa com segurança pode ser lida como Number impreciso e fazer `centesimosParaTextoPercentual` lançar `RangeError`; o caminho do app é protegido pelo parser e pelo serviço.
+**Limite técnico preservado:** o CHECK da migração 002 continua exigindo inteiro seguro em centésimos até `Number.MAX_SAFE_INTEGER` (90071992547409,91%). A conversão e a formatação seguem em BigInt, sem float nem arredondamento.
 
-**Correção técnica aplicada:** o CHECK do schema agora exige `limite_percentual_centesimos <= 9007199254740991`, e a migração **002** reconstrói bancos v1 com o DDL novo, preservando registros, tombstones e índices. Bancos v1 com valor acima do limite técnico **abortam sem alteração** (`DadosLegadosInvalidos`, versão e dados preservados). O caminho de instalação nova já usa o DDL novo. Isso não altera o máximo de negócio.
+**Migração 003 (aditiva):** cria os triggers `trg_categorias_percentual_insert` e `trg_categorias_percentual_update`, que rejeitam INSERT/UPDATE de limite percentual inteiro acima de 10.000 centésimos. Nenhuma tabela é reconstruída e nenhum dado é apagado, reduzido, convertido ou alterado. Bancos novos, v1 e v2 terminam na versão 3; a versão é gravada na mesma transação dos triggers. Um trigger preexistente com o mesmo nome e definição divergente aborta a migração sem alterar dados, trigger ou versão.
 
-**Risco de negócio:** aceitar percentuais acima de 100% pode criar limites e alertas sem sentido; se a cliente aprovar a faixa 0,01%–100%, será necessário definir limpeza ou migração dos dados fora da faixa. A decisão permanece pendente.
+**Dados legados acima de 100%:** permanecem armazenados e visíveis. Novas escritas/edições de limite fora da faixa são rejeitadas; atualizações de `excluido_em`/`sync_status` não são bloqueadas. O usuário pode reduzir o limite para até 100%, removê-lo ou excluir a categoria própria. Não há cap automático nem migração destrutiva; esses registros não impedem a abertura do aplicativo.
 
-**Testes de limite percentual:** `tests/unit/validation-categorias.test.ts` (0,01%, 100%, 100,01%, 101%, 999999%, `MAX_SAFE_INTEGER` e overflow), `tests/unit/formato-categorias.test.ts` (100,01%, 101%, 999999% e `MAX_SAFE_INTEGER`), `tests/db/schema.test.ts` (100,01%, `MAX_SAFE_INTEGER` e rejeição de 2^53) e `tests/screens/CategoriaForm.test.tsx` (100,01%); `tests/service/categorias.test.ts` confirma a persistência de 100,01%. A migração 002 é coberta em `tests/db/migrations.test.ts` (v1 válido, v1 com valor inseguro, DDL novo com versão 1 e instalação nova).
+**Testes:** `tests/unit/validation-categorias.test.ts` cobre a tabela vazio/0%/0,001%/0,01%/50%/99,99%/100%/100,00%/100,01%/101%/200000%, o domínio e a mensagem literal; `tests/db/schema.test.ts` cobre INSERT/UPDATE do trigger (9.999, 10.000, 10.001, 20.000.000 e `MAX_SAFE_INTEGER`); `tests/service/categorias.test.ts` confirma a rejeição de 10.001 e a persistência de 10.000; `tests/screens/CategoriaForm.test.tsx` cobre a rejeição de 100,01% e a orientação da faixa; `tests/unit/formato-categorias.test.ts` mantém a formatação de valores legados; `tests/db/migrations.test.ts` cobre instalação nova v3, v1→v3, v2→v3, v2 com 200000% preservado, trigger divergente e rollback.
 
 ### 4.7. Contagem de caracteres (RN13)
 
@@ -194,14 +194,14 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 - **Firebase futuro (não implementado):** as Security Rules deverão (a) limitar ao próprio `uid`; (b) impedir criar/alterar `padrao` para verdadeiro; (c) em categoria padrão, permitir somente campos de limite, mantendo nome, `nome_normalizado`, `padrao` e `excluido_em` imutáveis; (d) impedir tombstone/exclusão de padrão; (e) validar nome de 1 a 30 code points e limites coerentes, incluindo o teto técnico. Unicidade por usuário não é verificável apenas por Rules; exigirá chave determinística ou validação transacional no cliente.
 - **Estado:** categorias ainda não sincronizam; não há `test:rules` de categorias nem evidência de isolamento Firebase.
 
-### 4.9. Integração UC02, migração 003 e proposta de issue
+### 4.9. Integração UC02, migração 004 e proposta de issue
 
 Não existe issue dedicada para a desvinculação `despesas.categoria_id`/`recorrencias.categoria_id` na exclusão de categoria. A issue #29 e o PR #55 tratam da UC02, mas não desse fluxo; a issue #43 registra a pendência do UC06.
 
 **Proposta de issue técnica (não publicada):**
-- **Título:** UC02/UC06 — integrar despesas e recorrências às categorias (migração 003 e desvinculação na exclusão).
-- **Escopo:** criar migração **003** para `despesas` e novas colunas de `recorrencias` (`tipo`, `categoria_id`, `fixa_ou_variavel`, `essencial`), atualizar `ESTRUTURAS_ESPERADAS`/DDL e preservar dados; na exclusão de categoria, na mesma transação, definir `categoria_id = NULL` em `despesas` e `recorrencias` ativas, mantendo os lançamentos e recalculando limites/alertas quando UC05/UC09 existirem; cobrir restauração de despesa com categoria excluída.
-- **Testes:** migração v2→v3 com dados e rollback; exclusão com despesas e séries; despesa mantida como “Sem categoria”; atomicidade; banco novo; nenhuma duplicação.
+- **Título:** UC02/UC06 — integrar despesas e recorrências às categorias (migração 004 e desvinculação na exclusão).
+- **Escopo:** criar migração **004** para `despesas` e novas colunas de `recorrencias` (`tipo`, `categoria_id`, `fixa_ou_variavel`, `essencial`), atualizar `ESTRUTURAS_ESPERADAS`/DDL e preservar dados; na exclusão de categoria, na mesma transação, definir `categoria_id = NULL` em `despesas` e `recorrencias` ativas, mantendo os lançamentos e recalculando limites/alertas quando UC05/UC09 existirem; cobrir restauração de despesa com categoria excluída.
+- **Testes:** migração v3→v4 com dados e rollback; exclusão com despesas e séries; despesa mantida como “Sem categoria”; atomicidade; banco novo; nenhuma duplicação.
 - **Dependências:** UC06 (PR #58), UC02 (issue #29/PR #55), UC05/UC09 e Firebase.
 
-**Risco de colisão de migração:** a versão **002** já pertence ao UC06 (limite técnico percentual). A integração UC02 deve usar **003** e incrementar `VERSAO_ESQUEMA` para 3. A branch UC02/PR #55 ainda não tem `migrations.ts`; usa alteração não versionada em `database.ts`. Se a UC02 for integrada antes, `prepararInstalacaoNova` pode rejeitar `recorrencias` com colunas extras, pois `ESTRUTURAS_ESPERADAS` exige a estrutura canônica. A ordem recomendada é integrar o UC06 primeiro e rebasear a UC02 sobre a migração 003, ou coordenar a atualização das estruturas esperadas.
+**Risco de colisão de migração:** a versão **003** agora pertence ao UC06 (faixa percentual provisória por triggers). A integração UC02 deve usar **004** e incrementar `VERSAO_ESQUEMA` para 4. A branch UC02/PR #55 ainda não tem `migrations.ts`; usa alteração não versionada em `database.ts`. Se a UC02 for integrada antes, `prepararInstalacaoNova` pode rejeitar `recorrencias` com colunas extras, pois `ESTRUTURAS_ESPERADAS` exige a estrutura canônica. A ordem recomendada é integrar o UC06 primeiro e rebasear a UC02 sobre a migração 004. Se a UC02 reconstruir `categorias`, deverá preservar ou recriar os triggers da 003.

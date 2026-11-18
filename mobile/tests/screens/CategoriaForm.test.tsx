@@ -59,13 +59,29 @@ describe('Formulário de categoria (B e C do UC06)', () => {
       expect(onSalvar).toHaveBeenCalledWith({ nome: 'Mercado', limite: { tipo: 'percentual_renda', valor: 1250 } });
     });
 
-    it('não impõe máximo percentual (decisão da cliente pendente)', async () => {
+    it('rejeita 100,01% no formulário (faixa provisória 0,01%–100%)', async () => {
       const { onSalvar } = await montar();
       await apertar('% da renda');
       await digitar('Nome', 'Mercado');
       await digitar('Percentual da renda', '100,01');
       await salvar();
-      expect(onSalvar).toHaveBeenCalledWith({ nome: 'Mercado', limite: { tipo: 'percentual_renda', valor: 10_001 } });
+      expect(screen.getByText(MSG_CAT.limitePercentualInvalido)).toBeTruthy();
+      expect(onSalvar).not.toHaveBeenCalled();
+    });
+
+    it('aceita exatamente 100% e orienta a faixa permitida', async () => {
+      const { onSalvar } = await montar();
+      await apertar('% da renda');
+      await digitar('Nome', 'Mercado');
+      await digitar('Percentual da renda', '100');
+      await salvar();
+      expect(onSalvar).toHaveBeenCalledWith({
+        nome: 'Mercado',
+        limite: { tipo: 'percentual_renda', valor: 10_000 },
+      });
+      expect(
+        screen.getByText('Percentual da sua renda mensal, de 0,01% a 100%, com até duas casas decimais.'),
+      ).toBeTruthy();
     });
   });
 

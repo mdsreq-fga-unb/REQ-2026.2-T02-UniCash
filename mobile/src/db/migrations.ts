@@ -6,10 +6,17 @@
  * ao registro MIGRACOES. Nunca ler nem gravar user_version fora deste arquivo.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { DDL_ESQUEMA, DDL_TABELA_CATEGORIAS, LIMITE_PERCENTUAL_MAX } from './schema';
+import { PERCENTUAL_MAX_CENTESIMOS } from '@/features/categorias/limites';
+import {
+  DDL_ESQUEMA,
+  DDL_TABELA_CATEGORIAS,
+  DDL_TRIGGER_PERCENTUAL,
+  LIMITE_PERCENTUAL_MAX,
+  TRIGGERS_PERCENTUAL,
+} from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 2;
+export const VERSAO_ESQUEMA = 3;
 
 export interface RegistroInvalido {
   id: string;
@@ -95,10 +102,14 @@ interface Migracao {
  * constraints da E2.1 (issue #43 / UC06), preservando registros e tombstones.
  * A 002 adiciona o limite técnico de Number.MAX_SAFE_INTEGER ao percentual,
  * sem impor máximo de negócio.
+ * A 003 aplica, por triggers aditivos, a faixa percentual provisória de
+ * 0,01% a 100% (1 a 10.000 centésimos), sem reconstruir a tabela nem alterar
+ * dados legados. A futura integração da UC02 fica reservada para a 004.
  */
 const MIGRACOES: Migracao[] = [
   { versao: 1, executar: migrar001 },
   { versao: 2, executar: migrar002 },
+  { versao: 3, executar: migrar003 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -325,6 +336,63 @@ async function validarFormaNova(tx: SQLiteDatabase, sqlCategorias: string): Prom
 }
 
 /**
+ * Marcas mínimas que comprovam que um trigger existente de mesmo nome aplica a
+ * faixa provisória. `CREATE TRIGGER IF NOT EXISTS` não falha se o nome já existir,
+ * então a definição precisa ser conferida antes de reutilizá-la.
+ */
+const MARCAS_TRIGGER_PERCENTUAL = [
+  'limite_percentual_faixa',
+  `> ${PERCENTUAL_MAX_CENTESIMOS}`,
+];
+
+async function verificarConflitoTriggersPercentual(tx: SQLiteDatabase): Promise<void> {
+  const linhas = await tx.getAllAsync<{ name: string; sql: string | null }>(
+    "SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND name IN (?, ?)",
+    [...TRIGGERS_PERCENTUAL],
+  );
+  const divergentes = linhas.filter(
+    (l) => !MARCAS_TRIGGER_PERCENTUAL.every((m) => (l.sql ?? '').includes(m)),
+  );
+  if (divergentes.length > 0) {
+    throw new DependenciaInesperada(
+      `trigger(s) com definição divergente: [${divergentes.map((d) => d.name).join(', ')}]`,
+    );
+  }
+}
+
+async function validarTriggersPercentual(tx: SQLiteDatabase): Promise<void> {
+  const linhas = await tx.getAllAsync<{ name: string; sql: string | null }>(
+    "SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND name IN (?, ?)",
+    [...TRIGGERS_PERCENTUAL],
+  );
+  const presentes = new Map(linhas.map((l) => [l.name, l.sql ?? '']));
+  const ausentes = TRIGGERS_PERCENTUAL.filter((n) => !presentes.has(n));
+  const divergentes = TRIGGERS_PERCENTUAL.filter((n) => {
+    const sql = presentes.get(n);
+    return sql !== undefined && !MARCAS_TRIGGER_PERCENTUAL.every((m) => sql.includes(m));
+  });
+  if (divergentes.length > 0) {
+    throw new DependenciaInesperada(
+      `trigger(s) com definição divergente: [${divergentes.join(', ')}]`,
+    );
+  }
+  if (ausentes.length > 0) {
+    throw new FalhaMigracao(`trigger(s) ausente(s) após a migração: [${ausentes.join(', ')}]`);
+  }
+}
+
+/**
+ * Cria os triggers da faixa percentual e confirma a definição resultante.
+ * A execução é idempotente; um trigger preexistente divergente aborta antes de
+ * qualquer DDL — a transação reverte e a versão não avança.
+ */
+async function aplicarTriggersPercentual(tx: SQLiteDatabase): Promise<void> {
+  await verificarConflitoTriggersPercentual(tx);
+  await tx.execAsync(DDL_TRIGGER_PERCENTUAL);
+  await validarTriggersPercentual(tx);
+}
+
+/**
  * Leva a base à VERSAO_ESQUEMA. Instalação nova e banco legado terminam
  * consistentes na mesma versão; qualquer falha reverte por completo —
  * inclusive a versão gravada, pois PRAGMA user_version participa da transação.
@@ -343,6 +411,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
     await db.withExclusiveTransactionAsync(async (tx) => {
       await prepararInstalacaoNova(tx);
       await tx.execAsync(DDL_ESQUEMA);
+      await aplicarTriggersPercentual(tx);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
     return;
@@ -387,7 +456,7 @@ async function migrar001(db: SQLiteDatabase, versaoDestino: number): Promise<voi
 
 /**
  * 002 — adiciona o limite técnico de Number.MAX_SAFE_INTEGER ao percentual.
- * Não altera o máximo de negócio (100% continua pendente da cliente).
+ * Não altera a faixa de negócio: a 003 aplica a faixa provisória por triggers.
  * Bancos já no DDL novo apenas avançam a versão; bancos v1 são reconstruídos
  * com validação prévia. Dados fora do limite técnico abortam sem alteração.
  */
@@ -407,6 +476,20 @@ async function migrar002(db: SQLiteDatabase, versaoDestino: number): Promise<voi
     // reconstruída por reconstruirCategorias com o DDL novo.
     await tx.execAsync(DDL_ESQUEMA);
     await reconstruirCategorias(tx, versaoDestino);
+  });
+}
+
+/**
+ * 003 — faixa percentual provisória de 0,01% a 100% (1 a 10.000 centésimos).
+ * Aditiva: cria apenas triggers de INSERT/UPDATE. Nenhuma tabela é reconstruída
+ * e nenhum dado legado é apagado, reduzido ou convertido — percentuais acima de
+ * 100% continuam armazenados e visíveis; novas escritas/edições de limite fora
+ * da faixa passam a ser rejeitadas. A versão 3 é gravada na mesma transação.
+ */
+async function migrar003(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await aplicarTriggersPercentual(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }
 
