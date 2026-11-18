@@ -20,7 +20,7 @@ Os níveis 2 e 3 ficam para a etapa com a cliente.
 | RN17, RN21, RNF38 | Indicador, cor, texto e precisão de exibição | `src/features/saldo/calculo.ts`, `src/app/index.tsx` | `tests/unit/saldo.test.ts` |
 | RF15, RF17, RF18 | FA05, cadastro, edição, mudança de mês e exclusão de despesas | `src/components/saldo/FormularioSaldo.tsx`, `src/features/saldo/service.ts` | `tests/screens/ResumoFinanceiro.test.tsx`, `tests/service/saldo.test.ts` |
 | RN18 | FA06, FA08, EX03 e reenvio | `src/features/saldo/alertas.ts`, `src/features/receitas/sync.ts`, `firestore.rules` na raiz | `tests/service/saldo.test.ts`, `tests/service/sync.test.ts`, `tests/rules/firestore.rules.test.ts` |
-| RNF29 | Testes das regras financeiras e cobertura | `jest.uc04.config.js`, workflow Mobile CI | Relatório HTML no artefato `cobertura-uc04` |
+| RNF29 | Testes das regras financeiras e cobertura | `jest.uc04.config.js`, workflow Mobile CI | Relatório HTML no subpasta `uc04` do artefato `coverage` |
 
 O saldo é calculado ao consultar o mês. Receitas excluídas e lançamentos anteriores à referência do saldo inicial ficam fora do cálculo. O saldo inicial é exibido como saldo anterior somente em seu mês de referência. A edição de despesa pode mover o lançamento entre meses.
 
@@ -29,7 +29,7 @@ O alerta é um aviso no app. Na transação de um lançamento, uma passagem de s
 ## Evidências locais
 
 - Lint, TypeScript e exportação do bundle Android aprovados.
-- 265 testes do app e 32 testes de Security Rules no emulador aprovados.
+- 340 testes do app e 32 testes de Security Rules no emulador aprovados.
 - 100% de linhas, instruções, funções e ramos na tela inicial, nos componentes de saldo e no módulo de saldo. As demais suítes também são executadas pelo CI.
 - Workflow configurado. O resultado remoto fica pendente até a execução no GitHub Actions.
 

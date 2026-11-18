@@ -46,3 +46,5 @@ example
 # editor config
 .vscode/*
 !.vscode/extensions.json
+
+coverage/
