@@ -31,6 +31,21 @@ service cloud.firestore {
       allow create, update: if dono(uid) && receitaValida(request.resource.data);
     }
 
+    match /usuarios/{uid}/alertas_emitidos/{id} {
+      allow read: if dono(uid);
+      allow create: if dono(uid)
+        && id.matches('^[0-9a-f]{32}$')
+        && request.resource.data.keys().hasOnly(['mes', 'anterior_centavos', 'saldo_centavos', 'criado_em'])
+        && request.resource.data.mes is string
+        && request.resource.data.mes.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && request.resource.data.anterior_centavos is int
+        && request.resource.data.anterior_centavos >= 0
+        && request.resource.data.saldo_centavos is int
+        && request.resource.data.saldo_centavos < 0
+        && request.resource.data.criado_em is string;
+      allow update: if dono(uid) && request.resource.data == resource.data;
+    }
+
     match /usuarios/{uid}/recorrencias/{id} {
       allow read, delete: if dono(uid);
       allow create, update: if dono(uid) && recorrenciaValida(request.resource.data);

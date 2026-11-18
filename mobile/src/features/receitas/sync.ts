@@ -1,6 +1,7 @@
 import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/firestore';
 import { auth, db as firestore } from '@/lib/firebase';
 import { getDb } from '@/db/database';
+import { registrarTransicoes, type AlertaSaldo } from '@/features/saldo/alertas';
 import type { Receita, Recorrencia } from './types';
 
 let emAndamento = false;
@@ -81,12 +82,15 @@ export async function sincronizarPendentes(): Promise<boolean> {
       if (remoto.exists()) {
         const d = remoto.data();
         if (typeof d.atualizado_em === 'string' && d.atualizado_em > r.atualizado_em) {
-          await sqlite.runAsync(
-            `UPDATE receitas SET valor_centavos = ?, data = ?, titulo = ?, descricao = ?,
-               sync_status = 'sincronizado', atualizado_em = ? WHERE id = ?`,
-            [d.valor_centavos, d.data, d.titulo, d.descricao ?? null, d.atualizado_em, r.id],
-          );
-          mudouLocal = true;
+          await sqlite.withExclusiveTransactionAsync(async (tx) => {
+            const atualizacao = await registrarTransicoes(tx, () => tx.runAsync(
+              `UPDATE receitas SET valor_centavos = ?, data = ?, titulo = ?, descricao = ?,
+                 sync_status = 'sincronizado', atualizado_em = ?
+               WHERE id = ? AND atualizado_em = ? AND excluido_em IS NULL`,
+              [d.valor_centavos, d.data, d.titulo, d.descricao ?? null, d.atualizado_em, r.id, r.atualizado_em],
+            ));
+            mudouLocal ||= atualizacao.changes > 0;
+          });
           continue;
         }
       }
@@ -105,6 +109,16 @@ export async function sincronizarPendentes(): Promise<boolean> {
       await sqlite.runAsync("UPDATE receitas SET sync_status = 'sincronizado' WHERE id = ? AND atualizado_em = ?", [
         r.id, r.atualizado_em,
       ]);
+    }
+
+    const alertas = await sqlite.getAllAsync<AlertaSaldo>(
+      "SELECT * FROM alertas_emitidos WHERE sync_status = 'pendente'",
+    );
+    for (const { id, mes, anterior_centavos, saldo_centavos, criado_em } of alertas) {
+      await setDoc(doc(firestore, 'usuarios', uid, 'alertas_emitidos', id), {
+        mes, anterior_centavos, saldo_centavos, criado_em,
+      });
+      await sqlite.runAsync("UPDATE alertas_emitidos SET sync_status = 'sincronizado' WHERE id = ?", [id]);
     }
   } catch (e) {
     // Permanece pendente e é reenviado depois (EX04). Acesso negado (EX07) é sinalizado para a tela.
