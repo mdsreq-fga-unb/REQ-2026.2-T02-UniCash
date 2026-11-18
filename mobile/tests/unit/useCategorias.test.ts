@@ -1,16 +1,16 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { useCategorias } from '@/features/categorias/useCategorias';
 import { listarCategorias, semearCategoriasPadrao } from '@/features/categorias/service';
+import {
+  limparSolicitacaoSemeadura,
+  solicitarSemeaduraAposExclusao,
+} from '@/features/categorias/semeaduraPendente';
 import type { Categoria } from '@/features/categorias/types';
 
 jest.mock('@/features/categorias/service', () => ({
   semearCategoriasPadrao: jest.fn(),
   listarCategorias: jest.fn(),
 }));
-
-// A classe vem do módulo real (o mock acima só substitui as funções usadas pelo hook).
-const { NomeReservadoCategoriasPadrao } =
-  jest.requireActual<typeof import('@/features/categorias/service')>('@/features/categorias/service');
 
 const semear = semearCategoriasPadrao as jest.Mock;
 const listar = listarCategorias as jest.Mock;
@@ -34,7 +34,8 @@ const cat = (extra: Partial<Categoria> = {}): Categoria =>
 describe('useCategorias (base da interface UC06)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    semear.mockResolvedValue(undefined);
+    limparSolicitacaoSemeadura();
+    semear.mockResolvedValue({ criadas: [], conflitos: [] });
   });
 
   it('semeia antes da primeira listagem e expõe os itens', async () => {
@@ -55,10 +56,11 @@ describe('useCategorias (base da interface UC06)', () => {
     expect(result.current.itens).toEqual(esperadas);
     expect(result.current.carregando).toBe(false);
     expect(result.current.erroLeitura).toBe(false);
-    expect(result.current.erroSemeadura).toBeNull();
+    expect(result.current.erroSemeadura).toBe(false);
   });
 
-  it('não repete a semeadura nas cargas seguintes (idempotente por instância)', async () => {
+  it('não repete a semeadura nas cargas seguintes mesmo quando há conflito', async () => {
+    semear.mockResolvedValue({ criadas: [], conflitos: ['Casa'] });
     listar.mockResolvedValue([]);
     const { result } = await renderHook(() => useCategorias());
 
@@ -71,6 +73,7 @@ describe('useCategorias (base da interface UC06)', () => {
 
     expect(semear).toHaveBeenCalledTimes(1);
     expect(listar).toHaveBeenCalledTimes(2);
+    expect(result.current.conflitosSemeadura).toEqual(['Casa']);
   });
 
   it('falha de leitura vira erroLeitura e preserva os itens anteriores', async () => {
@@ -90,9 +93,8 @@ describe('useCategorias (base da interface UC06)', () => {
     expect(result.current.carregando).toBe(false);
   });
 
-  it('erro semântico da semeadura é preservado (NomeReservadoCategoriasPadrao) e a listagem continua', async () => {
-    const conflito = new NomeReservadoCategoriasPadrao(['casa']);
-    semear.mockRejectedValue(conflito);
+  it('expõe conflitos remanescentes e a listagem continua', async () => {
+    semear.mockResolvedValue({ criadas: ['Lazer'], conflitos: ['Casa'] });
     listar.mockResolvedValue([cat({ id: '1', padrao: 0 })]);
 
     const { result } = await renderHook(() => useCategorias());
@@ -100,28 +102,101 @@ describe('useCategorias (base da interface UC06)', () => {
       await result.current.recarregar();
     });
 
-    expect(result.current.erroSemeadura).toBe(conflito);
-    expect(result.current.erroSemeadura).toBeInstanceOf(NomeReservadoCategoriasPadrao);
+    expect(result.current.conflitosSemeadura).toEqual(['Casa']);
+    expect(result.current.erroSemeadura).toBe(false);
     expect(result.current.erroLeitura).toBe(false);
     expect(result.current.itens).toHaveLength(1); // listagem segue apesar do conflito
     expect(result.current.carregando).toBe(false);
   });
 
-  it('após erro de semeadura, nova carga tenta semear novamente', async () => {
-    semear.mockRejectedValueOnce(new NomeReservadoCategoriasPadrao(['casa'])).mockResolvedValueOnce(undefined);
+  it('após falha de persistência, nova carga tenta semear novamente', async () => {
+    semear
+      .mockRejectedValueOnce(new Error('db fechado'))
+      .mockResolvedValueOnce({ criadas: [], conflitos: [] });
     listar.mockResolvedValue([]);
 
     const { result } = await renderHook(() => useCategorias());
     await act(async () => {
       await result.current.recarregar();
     });
-    expect(result.current.erroSemeadura).toBeInstanceOf(NomeReservadoCategoriasPadrao);
+    expect(result.current.erroSemeadura).toBe(true);
 
     await act(async () => {
       await result.current.recarregar();
     });
     expect(semear).toHaveBeenCalledTimes(2);
-    expect(result.current.erroSemeadura).toBeNull();
+    expect(result.current.erroSemeadura).toBe(false);
+    expect(result.current.conflitosSemeadura).toEqual([]);
+  });
+
+  it('reavalia a semeadura uma única vez após exclusão de nome reservado e cria a padrão', async () => {
+    semear
+      .mockResolvedValueOnce({ criadas: [], conflitos: ['Casa'] })
+      .mockResolvedValueOnce({ criadas: ['Casa'], conflitos: [] });
+    listar
+      .mockResolvedValueOnce([
+        cat({ id: 'propria', nome: 'Casa', nome_normalizado: 'casa', padrao: 0 }),
+      ])
+      .mockResolvedValueOnce([
+        cat({ id: 'padrao', nome: 'Casa', nome_normalizado: 'casa', padrao: 1 }),
+      ]);
+
+    const { result } = await renderHook(() => useCategorias());
+    await act(async () => {
+      await result.current.recarregar();
+    });
+    expect(result.current.conflitosSemeadura).toEqual(['Casa']);
+
+    solicitarSemeaduraAposExclusao('casa');
+
+    await act(async () => {
+      await result.current.recarregar();
+    });
+    expect(semear).toHaveBeenCalledTimes(2);
+    expect(result.current.conflitosSemeadura).toEqual([]);
+    expect(result.current.itens[0].id).toBe('padrao');
+
+    await act(async () => {
+      await result.current.recarregar();
+    });
+    expect(semear).toHaveBeenCalledTimes(2); // sinal consumido, sem repetição
+  });
+
+  it('não reavalia a semeadura após exclusão de nome não reservado', async () => {
+    listar.mockResolvedValue([]);
+    const { result } = await renderHook(() => useCategorias());
+
+    await act(async () => {
+      await result.current.recarregar();
+    });
+    solicitarSemeaduraAposExclusao('mercado');
+
+    await act(async () => {
+      await result.current.recarregar();
+    });
+    expect(semear).toHaveBeenCalledTimes(1);
+  });
+
+  it('falha na reavaliação após exclusão não é tratada como falha da exclusão', async () => {
+    semear
+      .mockResolvedValueOnce({ criadas: [], conflitos: ['Casa'] })
+      .mockRejectedValueOnce(new Error('db fechado'));
+    listar.mockResolvedValue([]);
+
+    const { result } = await renderHook(() => useCategorias());
+    await act(async () => {
+      await result.current.recarregar();
+    });
+    expect(result.current.conflitosSemeadura).toEqual(['Casa']);
+
+    solicitarSemeaduraAposExclusao('casa');
+    await act(async () => {
+      await result.current.recarregar();
+    });
+
+    expect(semear).toHaveBeenCalledTimes(2);
+    expect(result.current.erroSemeadura).toBe(true);
+    expect(result.current.conflitosSemeadura).toEqual([]);
   });
 
   it('chamadas concorrentes de recarregar são deduplicadas', async () => {
@@ -165,8 +240,8 @@ describe('useCategorias (base da interface UC06)', () => {
 
   it('não atualiza estado após desmontagem durante a semeadura (resolução)', async () => {
     const erroConsole = jest.spyOn(console, 'error').mockImplementation(() => {});
-    let resolverSemeadura!: () => void;
-    semear.mockImplementationOnce(() => new Promise<void>((res) => (resolverSemeadura = res)));
+    let resolverSemeadura!: (v: unknown) => void;
+    semear.mockImplementationOnce(() => new Promise<unknown>((res) => (resolverSemeadura = res)));
     listar.mockResolvedValue([cat({ id: '1' })]);
 
     const { result, unmount } = await renderHook(() => useCategorias());
@@ -177,7 +252,7 @@ describe('useCategorias (base da interface UC06)', () => {
     });
 
     await unmount();
-    resolverSemeadura();
+    resolverSemeadura({ criadas: [], conflitos: [] });
     await p;
 
     expect(erroConsole).not.toHaveBeenCalled();

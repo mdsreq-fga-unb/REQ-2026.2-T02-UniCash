@@ -7,7 +7,7 @@ import { useCategorias } from '@/features/categorias/useCategorias';
 import { consumirFeedback, type Feedback } from '@/features/categorias/feedback';
 import { centesimosParaTextoPercentual } from '@/features/categorias/formato';
 import { formatarBRL } from '@/features/receitas/money';
-import { MSG_CAT } from '@/features/categorias/validation';
+import { MSG_CAT, mensagemConflitoSemeadura } from '@/features/categorias/validation';
 import type { Categoria } from '@/features/categorias/types';
 
 /** Limite do item (RF65/RF66): texto discreto, sem contagem de lançamentos (UC02 futura). */
@@ -36,7 +36,7 @@ function CategoriaItem({ categoria, onPress }: { categoria: Categoria; onPress: 
 
 /** Fluxo A do UC06: consultar categorias (RF19). */
 export default function ListaCategorias() {
-  const { itens, carregando, erroLeitura, erroSemeadura, recarregar } = useCategorias();
+  const { itens, carregando, erroLeitura, erroSemeadura, conflitosSemeadura, recarregar } = useCategorias();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   // Ao voltar de outra tela: mensagem pendente (uma única vez) e recarrega (EX05).
@@ -73,9 +73,16 @@ export default function ListaCategorias() {
                 </Text>
               </View>
             ) : null}
+            {conflitosSemeadura.length > 0 ? (
+              <View style={[estilos.banner, estilos.bannerErro]}>
+                <Text style={estilos.bannerTexto}>
+                  !  {mensagemConflitoSemeadura(conflitosSemeadura)}
+                </Text>
+              </View>
+            ) : null}
             {erroSemeadura ? (
               <View style={[estilos.banner, estilos.bannerErro]}>
-                <Text style={estilos.bannerTexto}>!  {erroSemeadura.message}</Text>
+                <Text style={estilos.bannerTexto}>!  {MSG_CAT.falhaSemeadura}</Text>
               </View>
             ) : null}
             {erroLeitura && itens.length > 0 ? (

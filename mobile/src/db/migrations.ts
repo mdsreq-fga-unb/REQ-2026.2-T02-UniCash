@@ -6,10 +6,10 @@
  * ao registro MIGRACOES. Nunca ler nem gravar user_version fora deste arquivo.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { DDL_ESQUEMA, DDL_TABELA_CATEGORIAS } from './schema';
+import { DDL_ESQUEMA, DDL_TABELA_CATEGORIAS, LIMITE_PERCENTUAL_MAX } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 1;
+export const VERSAO_ESQUEMA = 2;
 
 export interface RegistroInvalido {
   id: string;
@@ -30,7 +30,8 @@ export class VersaoBancoDesconhecida extends Error {
 /**
  * Registros legados incompatíveis com as novas constraints. A migração aborta
  * SEM apagar nem corrigir dados; o usuário pode corrigir/excluir as categorias
- * indicadas pelo app e tentar de novo, ou a equipe pode produzir migração 002.
+ * indicadas pelo app e tentar de novo. A migração 002 não corrige esses dados
+ * automaticamente.
  */
 export class DadosLegadosInvalidos extends Error {
   constructor(readonly registros: RegistroInvalido[]) {
@@ -92,8 +93,13 @@ interface Migracao {
 /**
  * Registro centralizado de migrações. A 001 reconstrói `categorias` com as
  * constraints da E2.1 (issue #43 / UC06), preservando registros e tombstones.
+ * A 002 adiciona o limite técnico de Number.MAX_SAFE_INTEGER ao percentual,
+ * sem impor máximo de negócio.
  */
-const MIGRACOES: Migracao[] = [{ versao: 1, executar: migrar001 }];
+const MIGRACOES: Migracao[] = [
+  { versao: 1, executar: migrar001 },
+  { versao: 2, executar: migrar002 },
+];
 
 const COLUNAS_CATEGORIAS = [
   'id',
@@ -379,6 +385,31 @@ async function migrar001(db: SQLiteDatabase, versaoDestino: number): Promise<voi
   });
 }
 
+/**
+ * 002 — adiciona o limite técnico de Number.MAX_SAFE_INTEGER ao percentual.
+ * Não altera o máximo de negócio (100% continua pendente da cliente).
+ * Bancos já no DDL novo apenas avançam a versão; bancos v1 são reconstruídos
+ * com validação prévia. Dados fora do limite técnico abortam sem alteração.
+ */
+async function migrar002(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const forma = await tx.getFirstAsync<{ sql: string | null }>(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'categorias'",
+    );
+
+    if (forma?.sql?.includes(String(LIMITE_PERCENTUAL_MAX))) {
+      await validarFormaNova(tx, forma.sql);
+      await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+      return;
+    }
+
+    // Cria apenas o que falta em outras tabelas; a tabela categorias antiga é
+    // reconstruída por reconstruirCategorias com o DDL novo.
+    await tx.execAsync(DDL_ESQUEMA);
+    await reconstruirCategorias(tx, versaoDestino);
+  });
+}
+
 async function reconstruirCategorias(tx: SQLiteDatabase, versaoDestino: number): Promise<void> {
   // 0. Resíduo de migração anterior: o objeto temporário não é reutilizado,
   //    excluído nem sobrescrito — aborta com erro descritivo.
@@ -446,6 +477,10 @@ async function reconstruirCategorias(tx: SQLiteDatabase, versaoDestino: number):
                   limite_centavos IS NOT NULL OR limite_percentual_centesimos IS NULL
                   OR typeof(limite_percentual_centesimos) <> 'integer' OR limite_percentual_centesimos <= 0)
              THEN 'limite percentual incoerente'
+           WHEN limite_tipo = 'percentual_renda'
+                AND typeof(limite_percentual_centesimos) = 'integer'
+                AND limite_percentual_centesimos > ${LIMITE_PERCENTUAL_MAX}
+             THEN 'limite percentual acima do máximo técnico seguro'
            ELSE NULL
          END AS motivo
        FROM categorias

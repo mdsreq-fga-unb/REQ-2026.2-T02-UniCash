@@ -11,7 +11,9 @@ export const MSG_CAT = {
   limiteValorLimite: 'O valor máximo permitido é R\u00A0$ 999.999.999,99.',
   limitePercentualVazio: 'Informe o percentual do limite.',
   limitePercentualInvalido: 'O percentual deve ser maior que zero, com até duas casas decimais.',
+  dadosInvalidos: 'Não foi possível validar os dados da categoria. Tente novamente.',
   falhaSalvar: 'Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente.',
+  falhaSemeadura: 'Não foi possível preparar as categorias padrão. Tente novamente.',
   indisponivel: 'Esta categoria não está mais disponível.',
   categoriaPadrao: 'Categorias padrão não podem ser renomeadas nem excluídas.',
   falhaLeitura: 'Não foi possível carregar as categorias. Tente novamente.',
@@ -21,11 +23,25 @@ export const MSG_CAT = {
 export type ErrosCategoriaForm = Partial<Record<CampoCategoriaForm, string>>;
 
 /**
+ * Conta caracteres por code point, mesma semântica de `length()` do SQLite.
+ * Evita a diferença de `.length` do JavaScript, que conta unidades UTF-16 e
+ * rejeitaria emojis antes do limite de 30. O limite de negócio permanece 30.
+ */
+export function contarCaracteres(texto: string): number {
+  return Array.from(texto).length;
+}
+
+/**
  * Normaliza o nome para unicidade (RN13): trim + minúsculas.
  * Fonte única usada por formulário e serviço.
  */
 export function normalizarNome(nome: string): string {
   return nome.trim().toLowerCase();
+}
+
+/** Mensagem explícita para os padrões que não puderam ser criados por conflito de nome. */
+export function mensagemConflitoSemeadura(nomes: string[]): string {
+  return `Categorias padrão não criadas: ${nomes.join(', ')}. Já existem categorias próprias com esses nomes.`;
 }
 
 /** Entrada rejeitada na camada de serviço (defesa em profundidade; o formulário filtra antes). */
@@ -47,7 +63,7 @@ export interface DadosCategoriaValidos {
 export function validarDadosCategoria(nome: string, limite: CategoriaInput['limite']): DadosCategoriaValidos {
   const nomeTrim = nome.trim();
   if (!nomeTrim) throw new EntradaCategoriaInvalida(MSG_CAT.nomeVazio);
-  if (nomeTrim.length > 30) throw new EntradaCategoriaInvalida(MSG_CAT.nomeLongo);
+  if (contarCaracteres(nomeTrim) > 30) throw new EntradaCategoriaInvalida(MSG_CAT.nomeLongo);
 
   if (limite === null) {
     return { nome: nomeTrim, nomeNormalizado: normalizarNome(nomeTrim), limite: null };
@@ -67,7 +83,7 @@ export function validarDadosCategoria(nome: string, limite: CategoriaInput['limi
       throw new EntradaCategoriaInvalida(MSG_CAT.limitePercentualInvalido);
     }
   } else {
-    throw new EntradaCategoriaInvalida('Tipo de limite desconhecido.');
+    throw new EntradaCategoriaInvalida(MSG_CAT.dadosInvalidos);
   }
 
   return { nome: nomeTrim, nomeNormalizado: normalizarNome(nomeTrim), limite };
@@ -105,7 +121,7 @@ export function validarFormularioCategoria(
   // nome (RN13)
   const nome = v.nome.trim();
   if (!nome) erros.nome = MSG_CAT.nomeVazio;
-  else if (nome.length > 30) erros.nome = MSG_CAT.nomeLongo;
+  else if (contarCaracteres(nome) > 30) erros.nome = MSG_CAT.nomeLongo;
 
   // limite
   let limite: CategoriaInput['limite'] = null;

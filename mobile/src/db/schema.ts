@@ -11,10 +11,18 @@ export const PRAGMAS_SQL = `
   `;
 
 /**
+ * Limite técnico seguro para percentuais em centésimos (Number.MAX_SAFE_INTEGER).
+ * Não é um limite de negócio: a faixa percentual máxima continua pendente de
+ * validação da cliente.
+ */
+export const LIMITE_PERCENTUAL_MAX = 9007199254740991;
+
+/**
  * DDL da tabela de categorias, parametrizado para reuso na migração 001
  * (reconstrução segura de bancos legados — ver migrations.ts).
  * A faixa máxima de percentual (0,01% a 100%) NÃO é fixada aqui: pendente de
- * validação da cliente. Exige-se apenas valor inteiro e positivo.
+ * validação da cliente. Exige-se apenas valor inteiro, positivo e seguro para
+ * o JavaScript (até Number.MAX_SAFE_INTEGER).
  */
 export const DDL_TABELA_CATEGORIAS = (tabela: string) => `
     CREATE TABLE IF NOT EXISTS ${tabela} (
@@ -32,7 +40,11 @@ export const DDL_TABELA_CATEGORIAS = (tabela: string) => `
       limite_percentual_centesimos INTEGER CONSTRAINT limite_percentual_valido
         CHECK (
           limite_percentual_centesimos IS NULL
-          OR (typeof(limite_percentual_centesimos) = 'integer' AND limite_percentual_centesimos > 0)
+          OR (
+            typeof(limite_percentual_centesimos) = 'integer'
+            AND limite_percentual_centesimos > 0
+            AND limite_percentual_centesimos <= ${LIMITE_PERCENTUAL_MAX}
+          )
         ),
       sync_status TEXT NOT NULL DEFAULT 'pendente'
         CONSTRAINT sync_status_valido CHECK (sync_status IN ('pendente', 'sincronizado')),

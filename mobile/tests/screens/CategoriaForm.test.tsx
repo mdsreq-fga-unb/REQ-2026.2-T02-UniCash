@@ -63,9 +63,9 @@ describe('Formulário de categoria (B e C do UC06)', () => {
       const { onSalvar } = await montar();
       await apertar('% da renda');
       await digitar('Nome', 'Mercado');
-      await digitar('Percentual da renda', '101');
+      await digitar('Percentual da renda', '100,01');
       await salvar();
-      expect(onSalvar).toHaveBeenCalledWith({ nome: 'Mercado', limite: { tipo: 'percentual_renda', valor: 10_100 } });
+      expect(onSalvar).toHaveBeenCalledWith({ nome: 'Mercado', limite: { tipo: 'percentual_renda', valor: 10_001 } });
     });
   });
 
@@ -81,6 +81,22 @@ describe('Formulário de categoria (B e C do UC06)', () => {
     it('nome acima de 30 caracteres é rejeitado', async () => {
       const { onSalvar } = await montar();
       await digitar('Nome', 'a'.repeat(31));
+      await salvar();
+      expect(screen.getByText(MSG_CAT.nomeLongo)).toBeTruthy();
+      expect(onSalvar).not.toHaveBeenCalled();
+    });
+
+    it('aceita 30 emojis (contagem por code point, RN13)', async () => {
+      const { onSalvar } = await montar();
+      const nome30 = '😀'.repeat(30);
+      await digitar('Nome', nome30);
+      await salvar();
+      expect(onSalvar).toHaveBeenCalledWith({ nome: nome30, limite: null });
+    });
+
+    it('rejeita 31 emojis (contagem por code point, RN13)', async () => {
+      const { onSalvar } = await montar();
+      await digitar('Nome', '😀'.repeat(31));
       await salvar();
       expect(screen.getByText(MSG_CAT.nomeLongo)).toBeTruthy();
       expect(onSalvar).not.toHaveBeenCalled();

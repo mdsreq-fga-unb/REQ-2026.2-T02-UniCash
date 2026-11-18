@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { listarCategorias, semearCategoriasPadrao } from './service';
+import { consumirSolicitacaoSemeadura } from './semeaduraPendente';
 import type { Categoria } from './types';
 
 /**
@@ -12,11 +13,11 @@ export function useCategorias() {
   const [carregando, setCarregando] = useState(true);
   const [erroLeitura, setErroLeitura] = useState(false);
   /**
-   * Erro semântico da semeadura (ex.: NomeReservadoCategoriasPadrao), preservado
-   * como instância original — não vira falha genérica. A listagem continua,
-   * pois as categorias existentes permanecem visíveis.
+   * Falha de persistência da semeadura. Conflitos de nome não são erro: são
+   * devolvidos pela semeadura e expostos em `conflitosSemeadura`.
    */
-  const [erroSemeadura, setErroSemeadura] = useState<Error | null>(null);
+  const [erroSemeadura, setErroSemeadura] = useState(false);
+  const [conflitosSemeadura, setConflitosSemeadura] = useState<string[]>([]);
 
   // Sem atualizações de estado após a desmontagem.
   const montado = useRef(true);
@@ -38,15 +39,25 @@ export function useCategorias() {
     const tarefa = (async () => {
       setCarregando(true);
       setErroLeitura(false);
-      setErroSemeadura(null);
+      setErroSemeadura(false);
+
+      // Exclusão de uma categoria própria com nome reservado sinaliza uma única
+      // reavaliação; não há semeadura indiscriminada a cada foco.
+      if (consumirSolicitacaoSemeadura()) {
+        semeou.current = false;
+        // O conflito anterior pode ter sido resolvido pela exclusão; o resultado
+        // da nova tentativa substitui a lista de conflitos.
+        setConflitosSemeadura([]);
+      }
 
       if (!semeou.current) {
         try {
-          await semearCategoriasPadrao(); // antes da primeira listagem (RN13)
+          const resultado = await semearCategoriasPadrao(); // antes da primeira listagem (RN13)
           semeou.current = true;
-        } catch (e) {
-          // Semântico preservado; nova tentativa permitida no próximo foco.
-          if (montado.current) setErroSemeadura(e as Error);
+          if (montado.current) setConflitosSemeadura(resultado.conflitos);
+        } catch {
+          // Falha de persistência: permite nova tentativa no próximo foco.
+          if (montado.current) setErroSemeadura(true);
         }
       }
 
@@ -66,5 +77,5 @@ export function useCategorias() {
     return emAndamento.current;
   }, []);
 
-  return { itens, carregando, erroLeitura, erroSemeadura, recarregar: carregar };
+  return { itens, carregando, erroLeitura, erroSemeadura, conflitosSemeadura, recarregar: carregar };
 }

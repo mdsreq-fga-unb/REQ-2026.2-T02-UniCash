@@ -14,6 +14,7 @@ describe('parsePercentualParaCentesimos (conversão segura, sem máximo)', () =>
     ['0,01', 1],
     ['0.05', 5],
     ['100', 10_000],
+    ['100,01', 10_001],
     [' 5 ', 500],
     ['007,5', 750],
     ['1234,56', 123_456],
@@ -74,6 +75,25 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
     expect(() => validarDadosCategoria('a'.repeat(31), null)).toThrow(MSG_CAT.nomeLongo);
   });
 
+  it('conta caracteres Unicode por code point: 30 emojis aceitos e 31 rejeitados (RN13)', () => {
+    expect(() => validarDadosCategoria('😀'.repeat(30), null)).not.toThrow();
+    expect(() => validarDadosCategoria('😀'.repeat(31), null)).toThrow(MSG_CAT.nomeLongo);
+  });
+
+  it('mantém acentos e caracteres comuns no limite de 30 e 31 (RN13)', () => {
+    expect(() => validarDadosCategoria('á'.repeat(30), null)).not.toThrow();
+    expect(() => validarDadosCategoria('á'.repeat(31), null)).toThrow(MSG_CAT.nomeLongo);
+    expect(() => validarDadosCategoria('a'.repeat(30), null)).not.toThrow();
+    expect(() => validarDadosCategoria('a'.repeat(31), null)).toThrow(MSG_CAT.nomeLongo);
+  });
+
+  it('aceita os limites válidos: nome com 30 caracteres e valor de 1 centavo (RN13, RN09)', () => {
+    const nome30 = 'a'.repeat(30);
+    const r = validarDadosCategoria(nome30, { tipo: 'valor', valor: 1 });
+    expect(r.nome).toBe(nome30);
+    expect(r.limite).toEqual({ tipo: 'valor', valor: 1 });
+  });
+
   it.each([
     [{ tipo: 'valor', valor: 0 }, 'valor zero'],
     [{ tipo: 'valor', valor: -100 }, 'valor negativo'],
@@ -86,6 +106,12 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
     [{ tipo: 'outro', valor: 10 }, 'tipo desconhecido'],
   ] as any[])('rejeita limite inválido: %j (%s)', (limite) => {
     expect(() => validarDadosCategoria('X', limite)).toThrow(EntradaCategoriaInvalida);
+  });
+
+  it('tipo desconhecido usa mensagem amigável (defesa em profundidade)', () => {
+    expect(() => validarDadosCategoria('X', { tipo: 'outro', valor: 1 } as any)).toThrow(
+      MSG_CAT.dadosInvalidos,
+    );
   });
 
   it('não impõe máximo percentual no domínio (decisão da cliente pendente)', () => {
@@ -124,10 +150,10 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
       limitePercentual: '',
     };
 
-    it('aceita percentual acima de 100% (cap provisório removido)', () => {
-      const r = validarFormularioCategoria({ ...base, limitePercentual: '101' });
+    it('aceita 100,01% (máximo de negócio ainda não aprovado)', () => {
+      const r = validarFormularioCategoria({ ...base, limitePercentual: '100,01' });
       expect(r.erros).toEqual({});
-      expect(r.dados).toEqual({ nome: 'X', limite: { tipo: 'percentual_renda', valor: 10_100 } });
+      expect(r.dados).toEqual({ nome: 'X', limite: { tipo: 'percentual_renda', valor: 10_001 } });
     });
 
     it('continua exigindo positivo e formato com até duas casas', () => {

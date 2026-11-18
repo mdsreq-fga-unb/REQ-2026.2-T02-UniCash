@@ -4,7 +4,6 @@ import {
   FalhaLeituraCategoria,
   FalhaPersistenciaCategoria,
   NomeDuplicado,
-  NomeReservadoCategoriasPadrao,
   buscarCategoria,
   contarPendentesCategorias,
   criarCategoria,
@@ -31,7 +30,8 @@ describe('Serviço de categorias (UC06)', () => {
 
   describe('semearCategoriasPadrao (RN13)', () => {
     it('semeia os 7 padrões em banco vazio', async () => {
-      await semearCategoriasPadrao();
+      const resultado = await semearCategoriasPadrao();
+      expect(resultado).toEqual({ criadas: [...CATEGORIAS_PADRAO], conflitos: [] });
       const linhas = banco.sqlite.prepare('SELECT * FROM categorias').all() as any[];
       expect(linhas).toHaveLength(CATEGORIAS_PADRAO.length);
       for (const l of linhas) {
@@ -49,7 +49,8 @@ describe('Serviço de categorias (UC06)', () => {
 
     it('é idempotente: segunda chamada não duplica', async () => {
       await semearCategoriasPadrao();
-      await semearCategoriasPadrao();
+      const resultado = await semearCategoriasPadrao();
+      expect(resultado).toEqual({ criadas: [], conflitos: [] });
       expect(banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get()).toEqual({
         n: CATEGORIAS_PADRAO.length,
       });
@@ -58,7 +59,8 @@ describe('Serviço de categorias (UC06)', () => {
     it('re-semeia padrão ausente sem duplicar os presentes', async () => {
       await semearCategoriasPadrao();
       banco.sqlite.prepare('DELETE FROM categorias WHERE nome_normalizado = ?').run('casa');
-      await semearCategoriasPadrao();
+      const resultado = await semearCategoriasPadrao();
+      expect(resultado).toMatchObject({ criadas: ['Casa'], conflitos: [] });
       const casa = banco.sqlite.prepare("SELECT COUNT(*) AS n FROM categorias WHERE nome_normalizado = 'casa'").get();
       expect(casa).toEqual({ n: 1 });
     });
@@ -77,40 +79,96 @@ describe('Serviço de categorias (UC06)', () => {
       expect(linhas.filter((l) => l.excluido_em === null && l.padrao === 1)).toHaveLength(1); // nova ativa
     });
 
-    it('aborda conflito: nome reservado pertence a categoria própria ATIVA (padrao = 0)', async () => {
-      await criarCategoria({ nome: 'Casa', limite: null }); // própria ativa com nome reservado
-      const antes = banco.sqlite.prepare('SELECT * FROM categorias ORDER BY id').all();
+    it('cria as demais padrão e reporta conflito com categoria própria ativa, preservando-a', async () => {
+      const idPropria = await criarCategoria({
+        nome: 'Casa',
+        limite: { tipo: 'valor', valor: 12_345 },
+      });
 
-      await expect(semearCategoriasPadrao()).rejects.toThrow(NomeReservadoCategoriasPadrao);
+      const resultado = await semearCategoriasPadrao();
 
-      // Nada convertido, nada duplicado, transação revertida:
-      expect(banco.sqlite.prepare('SELECT * FROM categorias ORDER BY id').all()).toEqual(antes);
+      expect(resultado.conflitos).toEqual(['Casa']);
+      expect(resultado.criadas).toEqual(CATEGORIAS_PADRAO.filter((nome) => nome !== 'Casa'));
+
+      // A categoria própria não foi apagada, renomeada, convertida nem teve o limite alterado.
+      const propria = banco.sqlite.prepare('SELECT * FROM categorias WHERE id = ?').get(idPropria) as any;
+      expect(propria).toMatchObject({
+        nome: 'Casa',
+        nome_normalizado: 'casa',
+        padrao: 0,
+        limite_tipo: 'valor',
+        limite_centavos: 12_345,
+        excluido_em: null,
+      });
       expect(
-        (banco.sqlite.prepare("SELECT padrao FROM categorias WHERE nome_normalizado = 'casa'").get() as any).padrao,
-      ).toBe(0); // continua própria, não virou padrão
+        (banco.sqlite.prepare("SELECT COUNT(*) AS n FROM categorias WHERE nome_normalizado = 'casa' AND excluido_em IS NULL").get() as any).n,
+      ).toBe(1); // não duplicou o nome reservado
+      expect(
+        (banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias WHERE padrao = 1 AND excluido_em IS NULL').get() as any).n,
+      ).toBe(CATEGORIAS_PADRAO.length - 1); // as demais padrão foram criadas
+      expect(banco.sqlite.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
     });
 
-    it('erro lista todos os nomes reservados em conflito e preserva os dados', async () => {
-      await criarCategoria({ nome: 'Casa', limite: null });
-      await criarCategoria({ nome: 'Lazer', limite: null });
-      const antes = banco.sqlite.prepare('SELECT * FROM categorias ORDER BY id').all();
-
-      let mensagem = '';
-      await semearCategoriasPadrao().catch((e) => {
-        mensagem = e.message;
+    it('reporta todos os conflitos e cria todas as padrão sem conflito', async () => {
+      const idCasa = await criarCategoria({ nome: 'Casa', limite: null });
+      const idLazer = await criarCategoria({
+        nome: 'Lazer',
+        limite: { tipo: 'valor', valor: 5_000 },
       });
-      expect(mensagem).toContain('casa');
-      expect(mensagem).toContain('lazer');
-      expect(mensagem).toContain('Nada foi alterado');
-      expect(banco.sqlite.prepare('SELECT * FROM categorias ORDER BY id').all()).toEqual(antes);
-      expect((banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get() as any).n).toBe(2);
+
+      const resultado = await semearCategoriasPadrao();
+
+      expect(new Set(resultado.conflitos)).toEqual(new Set(['Casa', 'Lazer']));
+      expect(resultado.criadas).toEqual(CATEGORIAS_PADRAO.filter((nome) => nome !== 'Casa' && nome !== 'Lazer'));
+      expect((banco.sqlite.prepare('SELECT * FROM categorias WHERE id = ?').get(idCasa) as any)).toMatchObject({
+        padrao: 0,
+        excluido_em: null,
+      });
+      expect((banco.sqlite.prepare('SELECT * FROM categorias WHERE id = ?').get(idLazer) as any)).toMatchObject({
+        padrao: 0,
+        limite_tipo: 'valor',
+        limite_centavos: 5_000,
+        excluido_em: null,
+      });
+      expect(
+        (banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias WHERE padrao = 1 AND excluido_em IS NULL').get() as any).n,
+      ).toBe(CATEGORIAS_PADRAO.length - 2);
+      expect(banco.sqlite.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
+    });
+
+    it('após excluir a própria conflitante, a próxima semeadura cria a padrão sem duplicar', async () => {
+      const idPropria = await criarCategoria({
+        nome: 'Casa',
+        limite: { tipo: 'valor', valor: 12_345 },
+      });
+
+      const primeira = await semearCategoriasPadrao();
+      expect(primeira.conflitos).toEqual(['Casa']);
+      expect(primeira.criadas).toEqual(CATEGORIAS_PADRAO.filter((nome) => nome !== 'Casa'));
+
+      await excluirCategoria(idPropria);
+
+      const segunda = await semearCategoriasPadrao();
+      expect(segunda).toEqual({ criadas: ['Casa'], conflitos: [] });
+
+      const terceira = await semearCategoriasPadrao();
+      expect(terceira).toEqual({ criadas: [], conflitos: [] });
+
+      const casa = banco.sqlite.prepare("SELECT * FROM categorias WHERE nome_normalizado = 'casa'").all() as any[];
+      expect(casa.filter((l) => l.padrao === 1 && l.excluido_em === null)).toHaveLength(1);
+      expect(casa.filter((l) => l.padrao === 0 && l.excluido_em === null)).toHaveLength(0);
+      expect(
+        (banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias WHERE padrao = 1 AND excluido_em IS NULL').get() as any).n,
+      ).toBe(CATEGORIAS_PADRAO.length);
+      expect(banco.sqlite.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
     });
 
     it('nome reservado em tombstone de categoria própria não bloqueia a semeadura', async () => {
       const id = await criarCategoria({ nome: 'Casa', limite: null });
       await excluirCategoria(id); // tombstone própria: nome volta a estar livre
 
-      await expect(semearCategoriasPadrao()).resolves.toBeUndefined();
+      const resultado = await semearCategoriasPadrao();
+      expect(resultado).toMatchObject({ criadas: [...CATEGORIAS_PADRAO], conflitos: [] });
       const casa = banco.sqlite.prepare("SELECT * FROM categorias WHERE nome_normalizado = 'casa'").all() as any[];
       expect(casa).toHaveLength(2);
       expect(casa.some((l) => l.padrao === 1 && l.excluido_em === null)).toBe(true); // padrão criado
@@ -146,10 +204,30 @@ describe('Serviço de categorias (UC06)', () => {
       });
     });
 
+    it('persiste 100,01% enquanto a faixa de negócio não for aprovada', async () => {
+      const id = await criarCategoria({
+        nome: 'Acima de cem',
+        limite: { tipo: 'percentual_renda', valor: 10_001 },
+      });
+      expect((await buscarCategoria(id))!).toMatchObject({
+        limite_tipo: 'percentual_renda',
+        limite_percentual_centesimos: 10_001,
+      });
+    });
+
     it('rejeita nome duplicado ativo, sem diferenciar caixa (RN13, EX07)', async () => {
       await criarCategoria({ nome: 'Casa', limite: null });
       await expect(criarCategoria({ nome: 'casa', limite: null })).rejects.toThrow(NomeDuplicado);
       expect((banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get() as any).n).toBe(1);
+    });
+
+    it('conta caracteres Unicode por code point: 30 emojis aceitos e 31 rejeitados (RN13)', async () => {
+      const nome30 = '😀'.repeat(30);
+      const id = await criarCategoria({ nome: nome30, limite: null });
+      expect((await buscarCategoria(id))!.nome).toBe(nome30);
+      await expect(criarCategoria({ nome: '😀'.repeat(31), limite: null })).rejects.toThrow(
+        EntradaCategoriaInvalida,
+      );
     });
 
     it('permite nome igual a tombstone (unicidade vale só para ativas)', async () => {
@@ -369,6 +447,42 @@ describe('Serviço de categorias (UC06)', () => {
     banco.falharNaOperacao(1); // a próxima gravação lança erro
     await expect(criarCategoria(semLimite)).rejects.toThrow(FalhaPersistenciaCategoria);
     expect((banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get() as any).n).toBe(0);
+  });
+
+  it('falha no meio da semeadura reverte todas as categorias criadas na chamada (RN11, RNF05)', async () => {
+    banco.falharNaOperacao(3); // deixa as duas primeiras inserções acontecerem e falha na terceira
+
+    await expect(semearCategoriasPadrao()).rejects.toThrow(FalhaPersistenciaCategoria);
+    expect((banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get() as any).n).toBe(0);
+    expect(banco.sqlite.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
+  });
+
+  it('falha na edição reverte a alteração e mantém os dados anteriores (EX04, RN11)', async () => {
+    const id = await criarCategoria(comValor);
+    banco.falharNaOperacao(1); // a próxima gravação (UPDATE) lança erro
+
+    await expect(editarCategoria(id, { nome: 'Mercado Novo', limite: null })).rejects.toThrow(
+      FalhaPersistenciaCategoria,
+    );
+
+    expect(await buscarCategoria(id)).toMatchObject({
+      nome: 'Mercado',
+      limite_tipo: 'valor',
+      limite_centavos: 150_000,
+      sync_status: 'pendente',
+    });
+  });
+
+  it('falha na exclusão não grava o tombstone (EX04, RN11)', async () => {
+    const id = await criarCategoria(comValor);
+    banco.falharNaOperacao(1); // a próxima gravação (UPDATE) lança erro
+
+    await expect(excluirCategoria(id)).rejects.toThrow(FalhaPersistenciaCategoria);
+
+    const c = (banco.sqlite.prepare('SELECT * FROM categorias WHERE id = ?').get(id) as any);
+    expect(c.excluido_em).toBeNull();
+    expect(c.limite_centavos).toBe(150_000);
+    expect(await buscarCategoria(id)).not.toBeNull();
   });
 
   it('violação de CHECK do banco é a última defesa (defesa em profundidade)', async () => {

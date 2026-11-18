@@ -31,18 +31,10 @@ export class CategoriaPadraoProtegida extends Error {
   }
 }
 
-/**
- * Nome reservado aos sete padrões já pertence a categoria própria ativa (RN13).
- * A semeadura não converte o registro nem cria duplicata — aborta e reverte.
- */
-export class NomeReservadoCategoriasPadrao extends Error {
-  constructor(nomes: string[]) {
-    super(
-      `Semeadura abortada: nomes reservados às categorias padrão já pertencem a categorias ` +
-        `próprias ativas (${nomes.join(', ')}). Nada foi alterado.`,
-    );
-    this.name = 'NomeReservadoCategoriasPadrao';
-  }
+/** Resultado explícito da semeadura: o que foi criado e o que permaneceu em conflito. */
+export interface ResultadoSemeadura {
+  criadas: string[];
+  conflitos: string[];
 }
 
 const agora = () => new Date().toISOString();
@@ -60,7 +52,6 @@ async function transacao<T>(fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> 
     if (e instanceof CategoriaIndisponivel) throw e;
     if (e instanceof NomeDuplicado) throw e;
     if (e instanceof CategoriaPadraoProtegida) throw e;
-    if (e instanceof NomeReservadoCategoriasPadrao) throw e;
     if (e instanceof EntradaCategoriaInvalida) throw e;
     throw new FalhaPersistenciaCategoria(String(e));
   }
@@ -77,12 +68,14 @@ async function leitura<T>(fn: (db: SQLiteDatabase) => Promise<T>): Promise<T> {
 // ---------------------------------------------------------------- semeadura
 
 /**
- * Semeia as categorias padrão (RN13). Idempotente e transacional.
- * Insere apenas os padrões ausentes — funciona mesmo quando já existem
- * categorias próprias. Tombstones de padrões são preservados; uma nova
- * categoria ativa só é criada quando não existe linha ativa com o nome.
+ * Semeia as categorias padrão ausentes (RN13). Idempotente e transacional.
+ *
+ * Um nome reservado que já pertence a uma categoria própria ativa gera conflito
+ * explícito, mas NÃO impede a criação das demais padrão. A categoria própria é
+ * preservada (nome, limite, padrão e tombstone) e o conflito é devolvido para a
+ * interface. A transação só é revertida se houver falha de persistência.
  */
-export function semearCategoriasPadrao() {
+export function semearCategoriasPadrao(): Promise<ResultadoSemeadura> {
   return transacao(async (tx) => {
     const normais = CATEGORIAS_PADRAO.map(normalizarNome);
     const placeholders = normais.map(() => '?').join(', ');
@@ -92,24 +85,35 @@ export function semearCategoriasPadrao() {
       normais,
     );
 
-    // Nome reservado aos padrões pertencendo a categoria própria ativa (padrao = 0)
-    // não é convertido nem duplicado: aborta e reverte a transação inteira.
-    const proprias = linhas.filter((l) => l.padrao === 0).map((l) => l.nome_normalizado);
-    if (proprias.length > 0) throw new NomeReservadoCategoriasPadrao(proprias);
-
+    const proprias = new Set(
+      linhas.filter((l) => l.padrao === 0).map((l) => l.nome_normalizado),
+    );
     const ativos = new Set(linhas.map((l) => l.nome_normalizado));
 
+    const criadas: string[] = [];
+    const conflitos: string[] = [];
     const ts = agora();
+
     for (let i = 0; i < CATEGORIAS_PADRAO.length; i++) {
-      if (ativos.has(normais[i])) continue;
+      const normalizado = normais[i];
+      if (proprias.has(normalizado)) {
+        // Categoria própria ativa com nome reservado: preservar e reportar.
+        conflitos.push(CATEGORIAS_PADRAO[i]);
+        continue;
+      }
+      if (ativos.has(normalizado)) continue; // padrão já existe
+
       await tx.runAsync(
         `INSERT INTO categorias
           (id, nome, nome_normalizado, padrao, limite_tipo, limite_centavos, limite_percentual_centesimos,
            sync_status, excluido_em, criado_em, atualizado_em)
          VALUES (?, ?, ?, 1, NULL, NULL, NULL, 'pendente', NULL, ?, ?)`,
-        [gerarId(), CATEGORIAS_PADRAO[i], normais[i], ts, ts],
+        [gerarId(), CATEGORIAS_PADRAO[i], normalizado, ts, ts],
       );
+      criadas.push(CATEGORIAS_PADRAO[i]);
     }
+
+    return { criadas, conflitos };
   });
 }
 

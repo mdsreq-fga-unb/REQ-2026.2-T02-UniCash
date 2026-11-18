@@ -54,6 +54,56 @@ describe('Schema do banco — restrições de categorias', () => {
       expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 150_000 })).not.toThrow();
     });
 
+    it('aceita o limite mínimo de 1 centavo (RN09)', () => {
+      expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 1 })).not.toThrow();
+    });
+
+    it('aceita o limite percentual mínimo de 1 centésimo (RN14)', () => {
+      expect(() =>
+        inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 1 }),
+      ).not.toThrow();
+    });
+
+    it('aceita 100,01% enquanto o máximo de negócio não for aprovado (RN14)', () => {
+      expect(() =>
+        inserir({
+          nome: 'Cem',
+          nome_normalizado: 'cem',
+          limite_tipo: 'percentual_renda',
+          limite_percentual_centesimos: 10_001,
+        }),
+      ).not.toThrow();
+    });
+
+    it('aceita o limite técnico de Number.MAX_SAFE_INTEGER em centésimos', () => {
+      expect(() =>
+        inserir({
+          nome: 'Maximo',
+          nome_normalizado: 'maximo',
+          limite_tipo: 'percentual_renda',
+          limite_percentual_centesimos: Number.MAX_SAFE_INTEGER,
+        }),
+      ).not.toThrow();
+    });
+
+    it('conta caracteres Unicode no nome: 30 emojis aceitos e 31 rejeitados (RN13)', () => {
+      const nome30 = '😀'.repeat(30);
+      expect(() => inserir({ nome: nome30, nome_normalizado: nome30 })).not.toThrow();
+      const nome31 = '😀'.repeat(31);
+      expect(() => inserir({ nome: nome31, nome_normalizado: nome31 })).toThrow(/nome_valido/);
+    });
+
+    it('rejeita percentual acima de Number.MAX_SAFE_INTEGER (limite técnico)', () => {
+      expect(() =>
+        inserir({
+          nome: 'Excedente',
+          nome_normalizado: 'excedente',
+          limite_tipo: 'percentual_renda',
+          limite_percentual_centesimos: 9007199254740992n as any,
+        }),
+      ).toThrow(/limite_percentual_valido/);
+    });
+
     it('aceita limite percentual em centésimos', () => {
       expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 1_500 })).not.toThrow();
     });

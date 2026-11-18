@@ -11,6 +11,7 @@ import {
   NomeDuplicado,
 } from '@/features/categorias/service';
 import { CATEGORIA_EXCLUIDA, CATEGORIA_SALVA, consumirFeedback } from '@/features/categorias/feedback';
+import { solicitarSemeaduraAposExclusao } from '@/features/categorias/semeaduraPendente';
 import { EntradaCategoriaInvalida, MSG_CAT } from '@/features/categorias/validation';
 import { router, useLocalSearchParams } from '../helpers/expoRouterMock';
 import { categoriaLinha } from '../helpers/categorias';
@@ -40,10 +41,14 @@ jest.mock('@/features/categorias/service', () => ({
   editarCategoria: jest.fn(),
   excluirCategoria: jest.fn(),
 }));
+jest.mock('@/features/categorias/semeaduraPendente', () => ({
+  solicitarSemeaduraAposExclusao: jest.fn(),
+}));
 
 const buscar = buscarCategoria as jest.Mock;
 const editar = editarCategoria as jest.Mock;
 const excluir = excluirCategoria as jest.Mock;
+const solicitarSemeadura = solicitarSemeaduraAposExclusao as jest.Mock;
 
 const digitar = async (rotulo: string, texto: string) =>
   await fireEvent.changeText(screen.getByLabelText(rotulo), texto);
@@ -297,10 +302,27 @@ describe('Editar categoria (fluxos C e D do UC06)', () => {
       await fireEvent.press(screen.getByLabelText('Excluir categoria'));
       expect(screen.getByText('Excluir categoria?')).toBeTruthy();
       expect(screen.getByText(/A categoria “Mercado” será excluída/)).toBeTruthy();
+      expect(screen.getByText(/limite de gastos associado será perdido/)).toBeTruthy();
+      expect(screen.getByText(/UC02.*Sem categoria/)).toBeTruthy();
       expect(screen.getByText(/Esta ação não pode ser desfeita/)).toBeTruthy();
 
       await fireEvent.press(screen.getByText('Excluir')); // opção destrutiva do diálogo
       await waitFor(() => expect(excluir).toHaveBeenCalledWith('abc'));
+      await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith('/categorias'));
+      expect(consumirFeedback()).toEqual(CATEGORIA_EXCLUIDA);
+    });
+
+    it('exclusão de própria com nome reservado solicita reavaliação da semeadura', async () => {
+      buscar.mockResolvedValue(propria({ nome: 'Casa', nome_normalizado: 'casa' }));
+      excluir.mockResolvedValue(undefined);
+      await render(<Editar />);
+      await screen.findByText('Editar categoria');
+
+      await fireEvent.press(screen.getByLabelText('Excluir categoria'));
+      await fireEvent.press(screen.getByText('Excluir'));
+
+      await waitFor(() => expect(excluir).toHaveBeenCalledWith('abc'));
+      expect(solicitarSemeadura).toHaveBeenCalledWith('casa');
       await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith('/categorias'));
       expect(consumirFeedback()).toEqual(CATEGORIA_EXCLUIDA);
     });

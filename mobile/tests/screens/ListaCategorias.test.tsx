@@ -1,7 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import ListaCategorias from '@/app/categorias/index';
 import { listarCategorias, semearCategoriasPadrao } from '@/features/categorias/service';
-import type { NomeReservadoCategoriasPadrao } from '@/features/categorias/service';
 import * as useCategoriasModulo from '@/features/categorias/useCategorias';
 import type { useCategorias } from '@/features/categorias/useCategorias';
 import { CATEGORIA_CRIADA, setFeedback } from '@/features/categorias/feedback';
@@ -17,18 +16,13 @@ jest.mock('@/features/categorias/service', () => ({
   semearCategoriasPadrao: jest.fn(),
 }));
 
-// Classe real, para construir o erro semântico do conflito de nomes reservados.
-const NomeReservadoCategoriasPadraoReal =
-  jest.requireActual<typeof import('@/features/categorias/service')>('@/features/categorias/service')
-    .NomeReservadoCategoriasPadrao as typeof NomeReservadoCategoriasPadrao;
-
 const listar = listarCategorias as jest.Mock;
 const semear = semearCategoriasPadrao as jest.Mock;
 
 describe('Lista de categorias (fluxo A do UC06)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    semear.mockResolvedValue(undefined);
+    semear.mockResolvedValue({ criadas: [], conflitos: [] });
   });
 
   it('lista padrões com etiqueta e próprias, na ordem do serviço', async () => {
@@ -108,15 +102,25 @@ describe('Lista de categorias (fluxo A do UC06)', () => {
     expect(listar).toHaveBeenCalledTimes(2);
   });
 
-  it('falha de semeadura é exibida separadamente, sem ocultar as categorias', async () => {
-    semear.mockRejectedValue(new NomeReservadoCategoriasPadraoReal(['casa', 'lazer']));
+  it('conflito de semeadura é exibido sem ocultar as categorias', async () => {
+    semear.mockResolvedValue({ criadas: ['Casa'], conflitos: ['Lazer'] });
     listar.mockResolvedValue([categoriaLinha({ id: '1', nome: 'Zebra', padrao: 0, nome_normalizado: 'zebra' })]);
     await render(<ListaCategorias />);
 
-    const banner = await screen.findByText(/Semeadura abortada/);
-    expect(banner.props.children.join('')).toContain('casa');
-    expect(banner.props.children.join('')).toContain('Nada foi alterado');
+    const banner = await screen.findByText(/Categorias padrão não criadas: Lazer/);
+    expect(banner.props.children.join('')).toContain('Já existem categorias próprias com esses nomes');
+    expect(screen.queryByText(/Semeadura abortada/)).toBeNull();
     expect(await screen.findByText('Zebra')).toBeTruthy(); // categorias seguem visíveis
+  });
+
+  it('falha de persistência da semeadura exibe mensagem amigável e mantém as categorias', async () => {
+    semear.mockRejectedValueOnce(new Error('db fechado'));
+    listar.mockResolvedValue([categoriaLinha({ id: '1', nome: 'Zebra', padrao: 0, nome_normalizado: 'zebra' })]);
+    await render(<ListaCategorias />);
+
+    expect(await screen.findByText(/Não foi possível preparar as categorias padrão/)).toBeTruthy();
+    expect(screen.queryByText(/db fechado/)).toBeNull();
+    expect(await screen.findByText('Zebra')).toBeTruthy();
   });
 
   it('consome o feedback de outra tela uma única vez', async () => {
@@ -167,12 +171,12 @@ describe('Lista de categorias (fluxo A do UC06)', () => {
     const usarHook = jest.spyOn(useCategoriasModulo, 'useCategorias');
 
     // Listagem inicial bem-sucedida:
-    usarHook.mockReturnValue({ itens: [casa], carregando: false, erroLeitura: false, erroSemeadura: null, recarregar });
+    usarHook.mockReturnValue({ itens: [casa], carregando: false, erroLeitura: false, erroSemeadura: false, conflitosSemeadura: [], recarregar });
     const tela = await render(<ListaCategorias />);
     expect(await screen.findByText('Casa')).toBeTruthy();
 
     // Falha de atualização: o hook mantém os itens e reporta o erro.
-    usarHook.mockReturnValue({ itens: [casa], carregando: false, erroLeitura: true, erroSemeadura: null, recarregar });
+    usarHook.mockReturnValue({ itens: [casa], carregando: false, erroLeitura: true, erroSemeadura: false, conflitosSemeadura: [], recarregar });
     await tela.rerender(<ListaCategorias />);
 
     expect(screen.getByText('Casa')).toBeTruthy(); // itens continuam visíveis
@@ -183,7 +187,7 @@ describe('Lista de categorias (fluxo A do UC06)', () => {
     expect(recarregar).toHaveBeenCalled();
 
     // Recuperação: sem erro, banner some e os itens permanecem:
-    usarHook.mockReturnValue({ itens: [casa], carregando: false, erroLeitura: false, erroSemeadura: null, recarregar });
+    usarHook.mockReturnValue({ itens: [casa], carregando: false, erroLeitura: false, erroSemeadura: false, conflitosSemeadura: [], recarregar });
     await tela.rerender(<ListaCategorias />);
     expect(screen.queryByText(/Não foi possível atualizar a lista/)).toBeNull();
 

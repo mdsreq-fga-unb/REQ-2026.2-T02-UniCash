@@ -10,6 +10,7 @@ describe('centesimosParaTextoPercentual (formatação exata, sem arredondamento)
     [110, '1,1%'],
     [1250, '12,5%'],
     [10_000, '100%'],
+    [10_001, '100,01%'],
     [10_100, '101%'],
     [999_999, '9999,99%'],
   ] as Array<[number, string]>)('%i centésimos → "%s"', (entrada, esperado) => {

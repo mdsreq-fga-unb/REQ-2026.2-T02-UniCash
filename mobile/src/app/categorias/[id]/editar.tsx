@@ -13,6 +13,7 @@ import {
   NomeDuplicado,
 } from '@/features/categorias/service';
 import { CATEGORIA_EXCLUIDA, CATEGORIA_SALVA, setFeedback } from '@/features/categorias/feedback';
+import { solicitarSemeaduraAposExclusao } from '@/features/categorias/semeaduraPendente';
 import { EntradaCategoriaInvalida, MSG_CAT } from '@/features/categorias/validation';
 import type { Categoria, CategoriaInput } from '@/features/categorias/types';
 import { cores, raio } from '@/lib/theme';
@@ -110,6 +111,10 @@ export default function EditarCategoria() {
     setExcluindo(true);
     try {
       await excluirCategoria(id);
+      // A exclusão já está confirmada. O sinal apenas agenda uma reavaliação da
+      // semeadura no próximo foco, se o nome for reservado; falhas posteriores
+      // não revertem a exclusão nem são tratadas como falha dela.
+      if (categoria) solicitarSemeaduraAposExclusao(categoria.nome_normalizado);
       setFeedback(CATEGORIA_EXCLUIDA);
       router.dismissTo('/categorias');
       // Sucesso com navegação: a trava permanece — nada mais acontece nesta tela.
@@ -195,7 +200,7 @@ export default function EditarCategoria() {
       <OpcoesModal
         visivel={confirmando}
         titulo="Excluir categoria?"
-        mensagem={`A categoria “${categoria.nome}” será excluída. Esta ação não pode ser desfeita.`}
+        mensagem={`A categoria “${categoria.nome}” será excluída e o limite de gastos associado será perdido. Esta ação não pode ser desfeita. Quando a integração com despesas (UC02) estiver disponível, os lançamentos relacionados serão mantidos e ficarão como “Sem categoria”.`}
         opcoes={[
           {
             rotulo: 'Excluir',
