@@ -2,6 +2,7 @@ import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from 'firebase/fi
 import { auth, db as firestore } from '@/lib/firebase';
 import { getDb } from '@/db/database';
 import type { Receita } from './types';
+import { categoriaConhecida } from '@/features/despesas/categorias';
 import type { Despesa } from '@/features/despesas/types';
 
 type RecorrenciaSync = {
@@ -193,30 +194,26 @@ export async function sincronizarPendentes(): Promise<boolean> {
       try {
         const ref = doc(firestore, 'usuarios', uid, 'despesas', d.id);
 
-        if (d.excluido_em) {
-          await deleteDoc(ref);
+        const remoto = await getDoc(ref);
+        const exclusaoRemota = remoto.data()?.excluido_em;
 
-          if (d.recorrencia_id) {
-            await sqlite.runAsync(
-              "UPDATE despesas SET sync_status = 'sincronizado' WHERE id = ?",
-              [d.id],
-            );
-          } else {
-            await sqlite.runAsync(
-              'DELETE FROM despesas WHERE id = ? AND excluido_em IS NOT NULL',
-              [d.id],
-            );
-          }
-
+        // EX04: a exclusão prevalece mesmo quando a edição local é mais recente.
+        if (typeof exclusaoRemota === 'string') {
+          const resultado = await sqlite.runAsync(
+            `UPDATE despesas
+             SET excluido_em = ?, sync_status = 'sincronizado'
+             WHERE id = ?`,
+            [exclusaoRemota, d.id],
+          );
+          mudouLocal ||= resultado.changes > 0;
           continue;
         }
-
-        const remoto = await getDoc(ref);
 
         if (remoto.exists()) {
           const dados = remoto.data();
 
           if (
+            !d.excluido_em &&
             typeof dados.atualizado_em === 'string' &&
             dados.atualizado_em > d.atualizado_em
           ) {
@@ -226,18 +223,19 @@ export async function sincronizarPendentes(): Promise<boolean> {
                    categoria_id = ?, fixa_ou_variavel = ?, essencial = ?,
                    recorrencia_id = ?, sync_status = 'sincronizado',
                    atualizado_em = ?
-               WHERE id = ?`,
+               WHERE id = ? AND atualizado_em = ? AND excluido_em IS NULL`,
               [
                 dados.valor_centavos,
                 dados.data,
                 dados.titulo,
                 dados.descricao ?? null,
-                dados.categoria_id ?? null,
+                categoriaRemota(dados.categoria_id),
                 dados.fixa_ou_variavel ?? null,
                 dados.essencial ?? null,
                 dados.recorrencia_id ?? null,
                 dados.atualizado_em,
                 d.id,
+                d.atualizado_em,
               ],
             );
 
@@ -258,6 +256,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
         if (d.categoria_id != null) payload.categoria_id = d.categoria_id;
         if (d.fixa_ou_variavel != null) payload.fixa_ou_variavel = d.fixa_ou_variavel;
         if (d.essencial != null) payload.essencial = d.essencial;
+        if (d.excluido_em) payload.excluido_em = d.excluido_em;
         if (d.descricao) payload.descricao = d.descricao;
         if (d.recorrencia_id) payload.recorrencia_id = d.recorrencia_id;
 
@@ -266,8 +265,8 @@ export async function sincronizarPendentes(): Promise<boolean> {
         await sqlite.runAsync(
           `UPDATE despesas
            SET sync_status = 'sincronizado'
-           WHERE id = ? AND atualizado_em = ?`,
-          [d.id, d.atualizado_em],
+           WHERE id = ? AND atualizado_em = ? AND excluido_em IS ?`,
+          [d.id, d.atualizado_em, d.excluido_em],
         );
       } catch (e) {
         if (negadoPelaNuvem(e)) acessoNegado = true;
@@ -288,13 +287,8 @@ export function sincronizarEmSegundoPlano() {
   void sincronizarPendentes();
 }
 
-/**
- * Ponto de integração com o UC06 (categorias): enquanto não existir o cadastro de categorias,
- * qualquer id é aceito. Quando o UC06 existir, trocar por consulta à base local de categorias
- * para gravar categoria_id = NULL quando a categoria foi excluída (EX08).
- */
-function categoriaConhecida(_id: string): boolean {
-  return true;
+function categoriaRemota(id: unknown): string | null {
+  return typeof id === 'string' && categoriaConhecida(id) ? id : null;
 }
 
 export interface ResultadoRestauracao {
@@ -305,9 +299,8 @@ export interface ResultadoRestauracao {
 
 /**
  * Restaura da nuvem (usuarios/{uid}/...) para a base local, ao entrar numa conta.
- * Aditiva e idempotente: nunca sobrescreve linhas locais (inclusive lápides e edições pendentes),
- * então uma receita excluída não reaparece e as ocorrências de séries (ID derivado da série + data)
- * não são duplicadas. Tudo numa única transação (tudo ou nada).
+ * Idempotente e transacional. Preserva linhas locais, salvo quando um marcador remoto
+ * registra a exclusão da despesa (RN07).
  */
 export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
   const user = auth.currentUser;
@@ -342,7 +335,7 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
           [
             d.id, tipo, x.intervalo, x.unidade, x.inicio, x.termino ?? null, x.ativa === false ? 0 : 1,
             x.valor_centavos, x.titulo, x.descricao ?? null,
-            classificacao && typeof x.categoria_id === 'string' ? x.categoria_id : null,
+            classificacao ? categoriaRemota(x.categoria_id) : null,
             classificacao && (x.fixa_ou_variavel === 'fixa' || x.fixa_ou_variavel === 'variavel') ? x.fixa_ou_variavel : null,
             classificacao && typeof x.essencial === 'number' && (x.essencial === 0 || x.essencial === 1) ? x.essencial
               : classificacao && typeof x.essencial === 'boolean' ? (x.essencial ? 1 : 0) : null,
@@ -369,24 +362,31 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
       }
 
       // Despesas: INSERT OR IGNORE preserva lápides e edições locais (despesa excluída não reaparece).
-      // Categoria desconhecida → NULL (EX08); validar contra o UC06 quando existir.
+      // Categoria indisponível no catálogo local → NULL (EX08).
       for (const d of snapDespesas.docs) {
         const x = d.data();
         if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) continue;
         if (typeof x.data !== 'string' || typeof x.titulo !== 'string') continue;
         const ts = typeof x.atualizado_em === 'string' ? x.atualizado_em : new Date().toISOString();
+        const exclusao = typeof x.excluido_em === 'string' ? x.excluido_em : null;
+        if (exclusao) {
+          await tx.runAsync(
+            "UPDATE despesas SET excluido_em = ?, sync_status = 'sincronizado' WHERE id = ?",
+            [exclusao, d.id],
+          );
+        }
         const serie = typeof x.recorrencia_id === 'string' && conhecidas.has(x.recorrencia_id) ? x.recorrencia_id : null;
-        const categoria = typeof x.categoria_id === 'string' && categoriaConhecida(x.categoria_id) ? x.categoria_id : null;
+        const categoria = categoriaRemota(x.categoria_id);
         const fixa = x.fixa_ou_variavel === 'fixa' || x.fixa_ou_variavel === 'variavel' ? x.fixa_ou_variavel : null;
         const essencial = typeof x.essencial === 'boolean' ? (x.essencial ? 1 : 0) : x.essencial === 0 || x.essencial === 1 ? x.essencial : null;
         const r = await tx.runAsync(
           `INSERT OR IGNORE INTO despesas
             (id, valor_centavos, data, titulo, descricao, categoria_id, fixa_ou_variavel, essencial,
              recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', NULL, ?, ?)`,
-          [d.id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, categoria, fixa, essencial, serie, x.criado_em ?? ts, ts],
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', ?, ?, ?)`,
+          [d.id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, categoria, fixa, essencial, serie, exclusao, x.criado_em ?? ts, ts],
         );
-        if (r.changes > 0) resultado.despesas++;
+        if (r.changes > 0 && !exclusao) resultado.despesas++;
       }
     });
     return resultado;

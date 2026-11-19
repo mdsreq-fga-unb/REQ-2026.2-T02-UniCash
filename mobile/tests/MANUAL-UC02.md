@@ -45,7 +45,7 @@ que o caso de uso de autenticação existir:
    **Esperado:** tudo funciona; os itens mostram "Sincronização pendente" e a lista mostra "↻ N pendentes".
 2. Desative o modo avião e abra a lista. **Esperado:** as pendências somem e os documentos aparecem em
    `usuarios/{uid}/despesas` no console do Firebase, sem campos nulos para despesa sem categoria.
-3. Exclua uma despesa já sincronizada. **Esperado:** o documento some do console.
+3. Exclua uma despesa já sincronizada. **Esperado:** o documento recebe o campo `excluido_em` no console e a despesa sai da lista.
 4. Limpe o app, entre na mesma conta e acione a restauração. **Esperado:** despesas e séries voltam (séries
    continuam sendo de despesa) e a despesa excluída não reaparece.
 
@@ -53,3 +53,9 @@ que o caso de uso de autenticação existir:
 - **EX05:** abra uma despesa, exclua-a por outro caminho (ou por outro aparelho com a mesma conta) e tente
   editar ou salvar. **Esperado:** "Esta despesa não está mais disponível." na lista.
 - **EX06:** só reproduzível com autenticação e regras ativas; está coberto por teste automatizado.
+
+### 2.6 Registro simples em três etapas (RNF27)
+1. Na tela inicial, acione "Despesas".
+2. Na lista, acione "Nova despesa".
+3. Preencha título, valor e data e acione "Salvar despesa".
+   **Esperado:** a lista volta com a despesa registrada no mês correspondente e a confirmação de sucesso.

@@ -175,10 +175,14 @@ describe('receitas: campos e limites (RN08 a RN10)', () => {
   });
 });
 describe('despesas: campos e limites', () => {
-  it('permite criar, consultar e excluir a própria despesa', async () => {
-    await assertSucceeds(setDoc(desp(db('u1')), despesa()));
-    await assertSucceeds(getDoc(desp(db('u1'))));
-    await assertSucceeds(deleteDoc(desp(db('u1'))));
+  it('permite gravar o marcador de exclusão e impede a recriação da despesa', async () => {
+    const ref = desp(db('u1'));
+    await assertSucceeds(setDoc(ref, despesa()));
+    await assertSucceeds(getDoc(ref));
+    await assertFails(setDoc(ref, despesa({ excluido_em: null })));
+    await assertSucceeds(setDoc(ref, despesa({ excluido_em: '2026-10-16T12:00:00.000Z' })));
+    await assertFails(setDoc(ref, despesa()));
+    await assertFails(deleteDoc(ref));
   });
 
   it('impede outro usuário de acessar despesas', async () => {

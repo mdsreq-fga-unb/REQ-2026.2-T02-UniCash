@@ -49,12 +49,13 @@ service cloud.firestore {
       return d.keys().hasOnly([
           'valor_centavos', 'data', 'titulo', 'descricao',
           'categoria_id', 'fixa_ou_variavel', 'essencial',
-          'recorrencia_id', 'criado_em', 'atualizado_em'
+          'recorrencia_id', 'criado_em', 'atualizado_em', 'excluido_em'
         ])
         && d.keys().hasAll([
           'valor_centavos', 'data', 'titulo',
           'criado_em', 'atualizado_em'
         ])
+        && (!('excluido_em' in d) || (d.excluido_em is string && d.excluido_em.size() > 0))
         && valorValido(d)
         && dataValida(d.data)
         && d.titulo is string
@@ -117,8 +118,10 @@ service cloud.firestore {
     }
 
     match /usuarios/{uid}/despesas/{id} {
-      allow read, delete: if dono(uid);
-      allow create, update: if dono(uid)
+      allow read: if dono(uid);
+      allow create: if dono(uid) && despesaValida(request.resource.data);
+      allow update: if dono(uid)
+        && !('excluido_em' in resource.data)
         && despesaValida(request.resource.data);
     }
 

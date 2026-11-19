@@ -1,13 +1,13 @@
 # Checklist técnico e DoD (Nível 1) – UC02 Gerenciar despesas
 
 Legenda: ✅ feito e verificável · ⚠️ parcial ou dependente de outro caso de uso · ⏳ pendente (precisa de ação humana).
-Estado conforme o CI da branch `UC02-Gerenciar-despesas` (execução verde `44499580925`, commit `c6e2e6d`).
+CI de referência da branch antes das correções de EX04 e EX08: execução `44500334303`, commit `2eed560`.
 
 ## DoD – Nível 1
 
 | Item | Situação | Evidência / observação |
 |---|---|---|
-| Fluxos 100% implementados | ⚠️ | Principal, A, B, C e D implementados. Faltam por dependência: recálculo de saldo, totais, limites e alertas (UC04, UC05, UC09) e a regra de categoria excluída na restauração, EX08 (UC06). Ver `RASTREABILIDADE-UC02.md`, seção 4. |
+| Fluxos 100% implementados | ⚠️ | Principal, A, B, C e D implementados. Faltam por dependência: recálculo de saldo, totais, limites e alertas (UC04, UC05, UC09) e integração do catálogo de categorias próprias (UC06). Ver `RASTREABILIDADE-UC02.md`, seção 4. |
 | Exceções com feedback amigável | ✅ | EX01 a EX07 e EX09 com a mensagem do caso de uso; EX05 em editar e EX06 na lista incluídos. |
 | CI verde (build, testes, lint) | ✅ | Mobile CI: "Lint, typecheck, testes e build" e "Security Rules (Firebase Emulator)" verdes. |
 | Tabela fluxo/RN → teste, sem item sem teste | ✅ | `tests/RASTREABILIDADE-UC02.md`. Os itens ⏳ da tabela são dependências declaradas, não lacunas de teste. |
@@ -33,14 +33,16 @@ Estado conforme o CI da branch `UC02-Gerenciar-despesas` (execução verde `4449
 - [x] Payload sem campos opcionais nulos; falha em um registro não bloqueia os demais.
 - [x] Contador de pendentes inclui despesas.
 - [x] `restaurarDaNuvem` restaura despesas avulsas e séries, é idempotente e não ressuscita exclusões locais.
-- [ ] Categoria desconhecida → `NULL` na restauração (EX08): depende do UC06 (`categoriaConhecida()` em `sync.ts`).
-- [ ] Marcador de exclusão na nuvem para conflito entre aparelhos (EX04): escopo atual é um aparelho por conta.
+- [x] Categoria indisponível no catálogo padrão vira `NULL` ao restaurar ou aplicar uma edição remota (EX08).
+- [ ] Consultar categorias próprias e migrar IDs padrão após a integração com UC06.
+- [x] Marcador de exclusão na nuvem prevalece sobre edição pendente e evita regenerar ocorrência restaurada (EX04).
 
 ### Segurança
 - [x] `firestore.rules` valida despesas e séries de despesa (dono, campos, limites), com testes no Emulator.
 - [x] Teste do caso de outro usuário nas despesas.
 
 ### Interface
+- [x] A tela inicial abre Despesas. Para um registro simples, o caminho tem três etapas (RNF27): Despesas → Nova despesa → preencher e salvar.
 - [x] Lista com data, título, valor e categoria; mês corrente, mais recente primeiro.
 - [x] Filtros por dia, mês, período e categoria; estado vazio de FA04 ("Nenhum registro" com sugestão).
 - [x] Formulário com seletor das 7 categorias padrão (RN13), provisórias até o UC06.

@@ -96,7 +96,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         titulo: 'Aluguel',
         valorCentavos: 150000,
         descricao: 'Aluguel do apartamento',
-        categoriaId: 'moradia',
+        categoriaId: 'casa',
         fixaOuVariavel: 'fixa',
         essencial: 1,
         recorrencia: null,
@@ -115,7 +115,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         data: '2026-10-16',
         titulo: 'Aluguel',
         descricao: 'Aluguel do apartamento',
-        categoria_id: 'moradia',
+        categoria_id: 'casa',
         fixa_ou_variavel: 'fixa',
         essencial: 1,
       });
@@ -134,7 +134,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(mockNuvem.size).toBe(0);
     });
 
-    it('remove da nuvem uma despesa excluída', async () => {
+    it('grava na nuvem o marcador de uma despesa excluída', async () => {
       await registrarDespesa(inputDespesa());
       await sincronizarPendentes();
 
@@ -145,8 +145,8 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       await excluirDespesa(d.id);
       await sincronizarPendentes();
 
-      expect(mockNuvem.has(caminhoDespesa(d.id))).toBe(false);
-      expect(banco.despesas()).toHaveLength(0);
+      expect(mockNuvem.get(caminhoDespesa(d.id)).excluido_em).toBeTruthy();
+      expect(banco.despesas()[0].sync_status).toBe('sincronizado');
     });
     it('envia recorrência de despesa com tipo e classificações para a nuvem', async () => {
   await registrarDespesa(
@@ -171,7 +171,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       inicio: '2026-10-16',
       termino: '2026-12-16',
       ativa: true,
-      categoria_id: 'moradia',
+      categoria_id: 'casa',
       fixa_ou_variavel: 'fixa',
       essencial: 1,
     });
@@ -380,7 +380,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
   });
 
   describe('conflitos (RN07, EX05)', () => {
-    it('registro desatualizado: vale o atualizado_em mais recente (nuvem)', async () => {
+    it('EX08: edição mais recente na nuvem é aplicada com a categoria indisponível removida', async () => {
       await registrarReceita(input());
       await sincronizarPendentes();
       const id = banco.receitas()[0].id;
@@ -433,7 +433,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     });
     const caminhoD = (id: string) => `usuarios/u1/despesas/${id}`;
 
-    it('registro desatualizado: vale o atualizado_em mais recente (nuvem)', async () => {
+    it('EX08: edição mais recente na nuvem é aplicada com a categoria indisponível removida', async () => {
       await registrarDespesa(dados());
       await sincronizarPendentes();
       const id = banco.despesas()[0].id;
@@ -442,7 +442,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       mockNuvem.set(caminhoD(id), {
         ...mockNuvem.get(caminhoD(id)),
         titulo: 'Da nuvem',
-        categoria_id: 'lazer',
+        categoria_id: 'categoria-removida',
         atualizado_em: '2999-01-01T00:00:00.000Z',
       });
       const mudou = await sincronizarPendentes();
@@ -450,7 +450,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(mudou).toBe(true);
       expect(banco.despesas()[0]).toMatchObject({
         titulo: 'Da nuvem',
-        categoria_id: 'lazer',
+        categoria_id: null,
         sync_status: 'sincronizado',
       });
     });
@@ -471,6 +471,25 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(mockNuvem.get(caminhoD(id)).titulo).toBe('Local mais novo');
     });
 
+    it('EX04: marcador remoto vence uma edição pendente', async () => {
+      await registrarDespesa(dados());
+      const { id } = banco.despesas()[0];
+      await sincronizarPendentes();
+      await editarDespesa(id, dados({ titulo: 'Edição local' }));
+      const excluidoEm = '2026-10-15T12:00:00.000Z';
+      mockNuvem.set(caminhoD(id), {
+        ...mockNuvem.get(caminhoD(id)),
+        excluido_em: excluidoEm,
+      });
+
+      expect(await sincronizarPendentes()).toBe(true);
+      expect(banco.despesas()[0]).toMatchObject({
+        excluido_em: excluidoEm,
+        sync_status: 'sincronizado',
+      });
+      expect(mockNuvem.get(caminhoD(id)).titulo).toBe('Aluguel');
+    });
+
     it('edição contra exclusão: a exclusão local prevalece', async () => {
       await registrarDespesa(dados());
       await sincronizarPendentes();
@@ -485,8 +504,8 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
 
       await sincronizarPendentes();
 
-      expect(mockNuvem.has(caminhoD(id))).toBe(false);
-      expect(banco.despesas()).toHaveLength(0);
+      expect(mockNuvem.get(caminhoD(id)).excluido_em).toBeTruthy();
+      expect(banco.despesas()[0].sync_status).toBe('sincronizado');
     });
   });
 
@@ -565,7 +584,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         titulo: 'Aluguel',
         valorCentavos: 150000,
         descricao: null,
-        categoriaId: 'moradia',
+        categoriaId: 'casa',
         fixaOuVariavel: 'fixa',
         essencial: 1,
         recorrencia: null,
@@ -586,7 +605,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
           id: antes.id,
           valor_centavos: 150000,
           titulo: 'Aluguel',
-          categoria_id: 'moradia',
+          categoria_id: 'casa',
           fixa_ou_variavel: 'fixa',
           essencial: 1,
           sync_status: 'sincronizado',
@@ -623,7 +642,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         expect(resultado.recorrencias).toBe(1);
         expect(banco.recorrencias()[0]).toMatchObject({
           tipo: 'despesa',
-          categoria_id: 'moradia',
+          categoria_id: 'casa',
           fixa_ou_variavel: 'fixa',
           essencial: 1,
           sync_status: 'sincronizado',
@@ -633,6 +652,35 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         await completarRecorrenciasDespesas();
 
         expect(banco.receitas()).toHaveLength(0);
+      });
+
+      it('EX08: restaura uma série e suas ocorrências sem a categoria indisponível', async () => {
+        await registrarDespesa(dadosDespesa({
+          categoriaId: 'categoria-removida',
+          recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
+        }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        expect((await restaurarDaNuvem()).despesas).toBe(3);
+        expect(banco.recorrencias()[0].categoria_id).toBeNull();
+        expect(banco.despesas().map(d => d.categoria_id)).toEqual([null, null, null]);
+      });
+
+      it('RN07: restaura o marcador e não gera novamente a ocorrência excluída', async () => {
+        await registrarDespesa(dadosDespesa({
+          recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+        }));
+        const { id } = banco.despesas()[0];
+        await excluirDespesa(id, 'esta');
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        await restaurarDaNuvem();
+        await completarRecorrenciasDespesas();
+
+        expect(banco.despesas().find(d => d.id === id)?.excluido_em).toBeTruthy();
+        expect((await restaurarDaNuvem()).despesas).toBe(0);
       });
 
       it('é idempotente: restaurar duas vezes não duplica despesas', async () => {

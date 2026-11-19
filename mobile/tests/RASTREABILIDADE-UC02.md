@@ -29,11 +29,11 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | EX01 – Dados inválidos | `validation.ts`, `DespesaForm.tsx` | `tests/unit/despesas.validation.test.ts` (texto literal das mensagens), `tests/screens/DespesaForm.test.tsx` | ✅ |
 | EX02 – Falha na gravação | `service.ts` (`transacao`) | `tests/service/despesas.registrar.test.ts`, `tests/service/despesas.editar-excluir.test.ts` (inclui exclusão), `tests/service/despesas.recorrencia-editar-excluir.test.ts`, `tests/screens/NovaDespesa.test.tsx`, `tests/screens/EditarDespesa.test.tsx`, `tests/components/useExclusaoDespesas.test.tsx` | ✅ |
 | EX03 – Falha na sincronização | `sync.ts` (falha isolada por registro) | `tests/service/sync.test.ts` (offline, registro rejeitado não bloqueia os demais) | ✅ |
-| EX04 – Conflito de sincronização | `sync.ts` | `tests/service/sync.test.ts` ("conflitos de despesas (EX04)") | ⚠️ ver limitação 4 |
+| EX04 – Conflito de sincronização | `sync.ts` | `tests/service/sync.test.ts` ("conflitos de despesas (EX04)") | ✅ |
 | EX05 – Despesa indisponível | `editar.tsx`, `[id]/index.tsx`, `useExclusaoDespesas.tsx`, `service.ts` | `tests/screens/EditarDespesa.test.tsx` (mensagem ao abrir e ao salvar), `tests/screens/DetalheDespesa.test.tsx`, `tests/components/useExclusaoDespesas.test.tsx`, `tests/service/despesas.editar-excluir.test.ts` | ✅ |
 | EX06 – Acesso a dados de outro usuário | `src/app/despesas/index.tsx` (`consumirAcessoNegado`) | `tests/screens/TelaListaDespesas.test.tsx` (mensagem e dados locais intactos), `tests/rules/firestore.rules.test.ts` (nega na nuvem) | ✅ |
 | EX07 – Período inválido | `FiltroDespesas.tsx` | `tests/screens/FiltroDespesas.test.tsx` | ✅ |
-| EX08 – Categoria excluída na sincronização | `sync.ts` (`categoriaConhecida`, ponto de integração); na exibição, categoria desconhecida vira "Sem categoria" (`rotuloCategoria`) | `tests/unit/despesas.categorias.test.ts`, `tests/components/DespesaItem.test.tsx` | ⏳ restauração depende do UC06 |
+| EX08 – Categoria excluída na sincronização | `sync.ts` (`categoriaRemota`); o catálogo padrão determina a categoria disponível | `tests/service/sync.test.ts` (EX08 em edição remota e restauração), `tests/unit/despesas.categorias.test.ts` | ⚠️ categorias próprias dependem de UC06 |
 | EX09 – Falha na leitura local | `service.ts`, `useDespesas.ts`, telas | `tests/service/despesas.leitura.test.ts`, `tests/features/despesas/useDespesas.test.tsx`, `tests/screens/TelaListaDespesas.test.tsx` | ✅ |
 
 ## 2. Regras de negócio
@@ -41,7 +41,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | Regra | Código | Teste que verifica | Situação |
 |---|---|---|---|
 | RN06 – Base local | `src/db/schema.ts` | `tests/service/despesas.registrar.test.ts`, `tests/service/sync.test.ts` | ✅ |
-| RN07 – Exclusão e conflito | `sync.ts`, `service.ts` | `tests/service/sync.test.ts` (exclusão, restauração sem reaparecer, conflitos) | ⚠️ limitação 4 |
+| RN07 – Exclusão e conflito | `sync.ts`, `service.ts` | `tests/service/sync.test.ts` (exclusão, restauração sem reaparecer, conflitos) | ✅ |
 | RN08 – Obrigatórios | `validation.ts` | `tests/unit/despesas.validation.test.ts` | ✅ |
 | RN09 – Valor (válido, inválido, valor-limite) | `validation.ts`, `src/features/receitas/money.ts` | `tests/unit/despesas.validation.test.ts` (0,01 · 0,10 · 10,5 · 10,99 · 999.999.999,99 · 1.000.000.000,00), `tests/unit/money.test.ts`, `tests/service/despesas.leitura.test.ts` (0,10 + 0,20 = 30 centavos exatos) | ✅ |
 | RN10 – Título e descrição | `validation.ts` | `tests/unit/despesas.validation.test.ts` (80/81 e 255/256 caracteres) | ✅ |
@@ -50,6 +50,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | RN13 – Categorias padrão | `src/features/despesas/categorias.ts`, `DespesaForm.tsx` (seletor), `DespesaItem.tsx` e `[id]/index.tsx` (rótulo) | `tests/unit/despesas.categorias.test.ts`, `tests/screens/DespesaForm.test.tsx` (as 7 categorias), `tests/service/despesas.registrar.test.ts`, `tests/components/DespesaItem.test.tsx` | ⚠️ cadastro de categorias próprias é do UC06 |
 | RN19 – Recorrência | `validation.ts`, `service.ts` | `tests/unit/despesas.validation.test.ts`, `tests/service/despesas.recorrencia.test.ts` | ✅ |
 | RN20 – Editar qualquer campo | `service.ts` (`editarDespesa`) | `tests/service/despesas.editar-excluir.test.ts` | ✅ |
+| RNF27 – Registro simples em três etapas | `src/app/index.tsx` → `src/app/despesas/index.tsx` → `src/app/despesas/nova.tsx` | `tests/screens/HomeDespesas.test.tsx`, `tests/screens/TelaListaDespesas.test.tsx`, `tests/screens/NovaDespesa.test.tsx` | ✅ |
 | RNF03 – Security Rules | `firestore.rules` | `tests/rules/firestore.rules.test.ts` (`npm run test:rules`), incluindo série de despesa | ✅ |
 
 ## 3. Sincronização e restauração
@@ -70,10 +71,8 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
    (`src/features/despesas/categorias.ts`) para seletor, rótulo e filtro. Os ids dessas constantes
    (`casa`, `saude`…) **não** correspondem às linhas da tabela `categorias` do UC06, que usa ids
    gerados; ao integrar o UC06, esse módulo é o único ponto a trocar e as despesas existentes
-   precisam de migração de `categoria_id`. A regra de categoria excluída na restauração (EX08)
-   continua pendente: o ponto de integração é `categoriaConhecida()` em `sync.ts`.
+   precisam de migração de `categoria_id`. A restauração e a aplicação de edições remotas usam
+   o catálogo padrão para identificar categorias indisponíveis (EX08).
 3. **Recálculo de saldo, totais, limites e alertas (A6, C3, D3, FA06):** dependem de UC04, UC05 e UC09.
-4. **Conflito de exclusão remota (EX04):** a exclusão é enviada com `deleteDoc`, sem marcador na nuvem.
-   Se outra instalação excluir a despesa e houver edição local pendente, a edição recria o documento; do
-   mesmo modo, restaurar e completar uma série pode regerar uma ocorrência excluída em outro aparelho.
-   O escopo atual considera um aparelho por conta.
+4. **Exclusões antigas:** despesas removidas fisicamente do Firestore por versões anteriores não
+   têm marcador remoto. A garantia de restauração se aplica aos marcadores gravados pela versão atual.
