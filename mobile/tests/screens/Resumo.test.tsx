@@ -19,8 +19,8 @@ const atual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
 
 function resumo(extra: Partial<ResumoMensal> = {}): ResumoMensal {
   return {
-    ano: 2026,
-    mes: 10,
+    ano: atual.ano,
+    mes: atual.mes,
     totalReceitasCentavos: 150000,
     totalDespesasCentavos: 57435,
     saldoCentavos: 92565,
@@ -98,6 +98,27 @@ describe('Tela de resumo financeiro (UC03)', () => {
     const anterior = mesAnterior(atual.ano, atual.mes);
     await waitFor(() => expect(calcular).toHaveBeenLastCalledWith(anterior.ano, anterior.mes));
     expect(screen.getByTestId('mes-selecionado')).toHaveTextContent(nomeMes(anterior.ano, anterior.mes));
+  });
+
+  it('ao trocar de mês, não mostra os valores do mês anterior sob o título novo enquanto recalcula', async () => {
+    calcular.mockResolvedValueOnce(resumo());
+    await render(<ResumoFinanceiro />);
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+
+    // o cálculo do mês seguinte fica pendente até resolvermos manualmente
+    const seguinte = proximoMes(atual.ano, atual.mes);
+    let concluir!: (r: ResumoMensal) => void;
+    calcular.mockReturnValueOnce(new Promise<ResumoMensal>((ok) => (concluir = ok)));
+    await fireEvent.press(screen.getByLabelText('Próximo mês'));
+
+    expect(screen.getByTestId('mes-selecionado')).toHaveTextContent(nomeMes(seguinte.ano, seguinte.mes));
+    expect(screen.getByTestId('carregando')).toBeTruthy();
+    expect(screen.queryByTestId('saldo')).toBeNull();
+    expect(screen.queryByTestId('total-receitas')).toBeNull();
+
+    concluir(resumo({ ...seguinte, saldoCentavos: -100, totalReceitasCentavos: 0, receitasPorDia: [] }));
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('− R$ 1,00');
+    expect(screen.queryByTestId('carregando')).toBeNull();
   });
 
   it('FA02: sem lançamentos mostra estado vazio com atalho para o tutorial (RF55)', async () => {

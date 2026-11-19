@@ -18,7 +18,10 @@ function mesCorrente() {
 export default function ResumoFinanceiro() {
   // Passo 2: o mês corrente é o período padrão (RN12).
   const [periodo, setPeriodo] = useState(mesCorrente);
-  const { resumo, carregando, falhou, recarregar } = useResumo(periodo.ano, periodo.mes);
+  const { resumo, falhou, recarregar } = useResumo(periodo.ano, periodo.mes);
+  // Só exibe valores calculados para o mês selecionado: ao trocar de mês, os do mês anterior
+  // não podem aparecer sob o título novo enquanto o recálculo não termina.
+  const resumoDoPeriodo = resumo && resumo.ano === periodo.ano && resumo.mes === periodo.mes ? resumo : null;
 
   // Passos 3 e 6, FA05: recalcula ao abrir, ao voltar de outra tela e ao trocar de mês.
   useFocusEffect(
@@ -58,20 +61,20 @@ export default function ResumoFinanceiro() {
           </Pressable>
         </View>
 
-        {carregando && !resumo ? (
-          <ActivityIndicator color={cores.primaria} style={{ marginTop: 32 }} />
-        ) : falhou ? (
+        {falhou ? (
           <View style={estilos.vazio}>
             <Text style={estilos.erro}>{MSG_FALHA_CALCULO}</Text>
             <Pressable onPress={() => void recarregar()} style={estilos.botaoContorno} accessibilityRole="button">
               <Text style={estilos.botaoContornoTexto}>Tentar novamente</Text>
             </Pressable>
           </View>
-        ) : resumo?.semLancamentos ? (
+        ) : !resumoDoPeriodo ? (
+          <ActivityIndicator color={cores.primaria} style={{ marginTop: 32 }} testID="carregando" />
+        ) : resumoDoPeriodo.semLancamentos ? (
           <EstadoVazio />
-        ) : resumo ? (
-          <Conteudo resumo={resumo} />
-        ) : null}
+        ) : (
+          <Conteudo resumo={resumoDoPeriodo} />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
