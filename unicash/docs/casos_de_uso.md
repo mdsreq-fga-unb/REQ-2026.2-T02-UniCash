@@ -202,6 +202,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
  
 - **EX01 - Dados inválidos (A4 e C3):** o sistema não grava e mostra o motivo ao lado de cada campo inválido (RN08, RN09, RN10, RN19, RNF04, RNF14). **Retorno:** ao passo 3 do fluxo A ou ao passo 2 do fluxo C, com os dados digitados preservados. Mensagens:
   - data não informada: "Informe a data da despesa."
+  - data inválida: "Informe uma data válida no formato DD/MM/AAAA."
   - título não informado ou só com espaços: "Informe o título da despesa."
   - título com mais de 80 caracteres: "O título deve ter até 80 caracteres."
   - valor não informado: "Informe o valor da despesa."
@@ -209,7 +210,9 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
   - valor acima do limite: "O valor máximo permitido é R$ 999.999.999,99."
   - descrição com mais de 255 caracteres: "A descrição deve ter até 255 caracteres."
   - intervalo da recorrência menor ou igual a zero: "O intervalo da recorrência deve ser maior que zero."
+  - data de término inválida: "Informe a data de término no formato DD/MM/AAAA."
   - término anterior ao início: "A data de término deve ser igual ou posterior à data de início."
+  - série com mais de 3.700 ocorrências até o término ou, quando ele estiver em branco, até o horizonte de 12 meses: "A recorrência gera ocorrências demais. Antecipe a data de término ou aumente o intervalo."
 - **EX02 - Falha na gravação ou no recálculo (A5 e A6, C3, D3):** nenhuma alteração parcial permanece, nem na despesa, nem em saldo, indicadores ou alertas (RN11, RNF05). O sistema informa: "Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao formulário, com os dados preservados; no fluxo D, à lista.
 - **EX03 - Falha na sincronização (A7, C4, D4):** a operação já está concluída localmente e o registro permanece pendente de sincronização. **Retorno:** o fluxo segue no passo seguinte.
 - **EX04 - Conflito de sincronização:** aplica-se a RN07; a exclusão prevalece sobre a edição. **Retorno:** ao concluir a sincronização, a lista é atualizada.
@@ -223,6 +226,18 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Funcionais:** RF15, RF16, RF17, RF18. Relacionados: RF19 (UC06), RF34, RF37, RF38, RF39, RF59, RF62.
 - **Não funcionais específicos:** RNF03, RNF04, RNF05, RNF08, RNF14, RNF26, RNF27, RNF33, RNF35, RNF36, RNF38.
 - **Regras de negócio:** RN06, RN07, RN08, RN09, RN10, RN11, RN12, RN13, RN19, RN20.
+### Implementação técnica e evidências da UC02
+
+A base principal é o SQLite. A tabela `despesas` guarda o identificador textual, o título, o valor em centavos inteiros, a data no formato `AAAA-MM-DD`, a descrição, a categoria e as classificações opcionais, o vínculo com a série e os campos de sincronização. A tabela `recorrencias` guarda as séries com `tipo = 'despesa'`. Cada ocorrência usa um identificador derivado da série e da data. O cadastro, a edição e a exclusão de ocorrências são gravados em transação local. As consultas por período e categoria excluem registros marcados como excluídos e calculam o total a partir da mesma lista retornada.
+
+Com uma conta autenticada, o serviço envia pendências ao Firestore. Uma falha de rede interrompe a fila e as pendências permanecem no aparelho. Se as regras rejeitarem um registro por falta de permissão, ele permanece pendente e os demais podem ser processados. O Firestore guarda o marcador de exclusão no identificador da despesa, com apenas `excluido_em` e `atualizado_em`. Isso permite sincronizar uma despesa criada e excluída offline. Após a confirmação, o SQLite limpa os dados da despesa e mantém a chave para impedir que o registro reapareça na restauração ou na geração de novas ocorrências.
+
+O seletor e o filtro usam provisoriamente as sete categorias padrão com identificadores fixos, como `casa` e `alimentacao`. Ao restaurar ou aplicar uma edição remota de despesa com categoria indisponível, o serviço registra `categoria_id = NULL` e o app exibe **Sem categoria**. A integração com o UC06 deve incluir o catálogo de categorias próprias e migrar os identificadores provisórios nas despesas e nas séries, tanto no SQLite quanto no Firestore. [UC06, issue #43](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/43)
+
+O [PR #55](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/55) reúne a implementação da [issue #29](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/29) e a [matriz de rastreabilidade](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/blob/a2639b2ebff9f631f6d88888521982187ff0ae64/mobile/tests/RASTREABILIDADE-UC02.md). O CI do commit `a2639b2` aprovou [lint, typecheck, testes e build](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44631930863/job/135940531239) e [regras de segurança no emulador](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44631930863/job/135940531020).
+
+A prova manual de persistência local, precisão e encerramento forçado segue pendente, assim como a aprovação da revisão técnica. A prova de sincronização e restauração pelo app depende da [autenticação, issue #61](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/61). A validação integrada de saldo, limites e indicadores depende do [UC04](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/31), [UC05](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32) e [UC09](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/46).
+
 ---
 
 ## UC03 - Consultar resumo financeiro
