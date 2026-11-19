@@ -19,13 +19,25 @@ module.exports = {
     '!src/lib/firebase.ts',
     '!src/db/database.ts',
     '!src/features/receitas/types.ts',
-    '!src/app/index.tsx',
   ],
 
   coverageReporters: ['text', 'text-summary', 'lcov'],
 
   coverageThreshold: {
     'src/**/despesas/**/*.{ts,tsx}': {
+      statements: 90,
+      branches: 70,
+      functions: 85,
+      lines: 90,
+    },
+    // UC03: cálculos, hook e tela do resumo financeiro (tela inicial).
+    'src/**/resumo/**/*.{ts,tsx}': {
+      statements: 90,
+      branches: 70,
+      functions: 85,
+      lines: 90,
+    },
+    'src/app/index.tsx': {
       statements: 90,
       branches: 70,
       functions: 85,
