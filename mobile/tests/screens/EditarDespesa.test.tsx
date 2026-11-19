@@ -6,7 +6,7 @@ import {
   editarDespesa,
   DespesaIndisponivel,
 } from '@/features/despesas/service';
-import { consumirFeedback } from '@/features/receitas/feedback';
+import { consumirFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG_DESPESA } from '@/features/despesas/validation';
 import { router } from '../helpers/expoRouterMock';

@@ -15,7 +15,7 @@ import {
   editarDespesa,
   DespesaIndisponivel,
 } from '@/features/despesas/service';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { formatarBR } from '@/features/receitas/dates';
 import { centavosParaTexto } from '@/features/receitas/money';

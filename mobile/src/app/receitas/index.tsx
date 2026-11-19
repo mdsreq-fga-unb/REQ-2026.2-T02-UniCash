@@ -6,7 +6,7 @@ import { cores, raio } from '@/lib/theme';
 import { FiltroReceitas } from '@/components/receitas/FiltroReceitas';
 import { ReceitaItem } from '@/components/receitas/ReceitaItem';
 import { formatarBRL } from '@/features/receitas/money';
-import { consumirFeedback, type Feedback } from '@/features/receitas/feedback';
+import { consumirFeedback, type Feedback } from '@/lib/feedback';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import { useReceitas } from '@/features/receitas/useReceitas';
 import { consumirAcessoNegado, sincronizarPendentes } from '@/features/receitas/sync';

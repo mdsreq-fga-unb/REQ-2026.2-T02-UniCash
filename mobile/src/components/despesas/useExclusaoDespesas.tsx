@@ -8,7 +8,7 @@ import {
 } from '@/features/despesas/service';
 import { formatarBR } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG_DESPESA } from '@/features/despesas/validation';
 import type { EscopoSerie } from '@/features/despesas/types';

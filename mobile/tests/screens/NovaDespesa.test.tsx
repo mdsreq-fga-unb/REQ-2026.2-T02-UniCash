@@ -9,7 +9,7 @@ import {
 import NovaDespesa from '@/app/despesas/nova';
 import { registrarDespesa } from '@/features/despesas/service';
 import { MSG_DESPESA } from '@/features/despesas/validation';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 
 import { router } from '../helpers/expoRouterMock';
@@ -24,7 +24,7 @@ jest.mock('@/features/despesas/service', () => ({
   registrarDespesa: jest.fn(),
 }));
 
-jest.mock('@/features/receitas/feedback', () => ({
+jest.mock('@/lib/feedback', () => ({
   setFeedback: jest.fn(),
 }));
 

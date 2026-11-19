@@ -14,7 +14,7 @@ import {
   excluirDespesa,
   DespesaIndisponivel,
 } from '@/features/despesas/service';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { router } from 'expo-router';
 import { MSG_DESPESA } from '@/features/despesas/validation';
@@ -71,7 +71,7 @@ jest.mock('@/features/despesas/service', () => ({
   DespesaIndisponivel: class DespesaIndisponivel extends Error {},
 }));
 
-jest.mock('@/features/receitas/feedback', () => ({
+jest.mock('@/lib/feedback', () => ({
   setFeedback: jest.fn(),
 }));
 

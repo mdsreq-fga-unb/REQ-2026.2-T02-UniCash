@@ -24,7 +24,7 @@ import { consumirAcessoNegado, sincronizarPendentes } from '@/features/receitas/
 import {
   consumirFeedback,
   type Feedback,
-} from '@/features/receitas/feedback';
+} from '@/lib/feedback';
 import type { FiltroDespesa } from '@/features/despesas/types';
 
 function filtroMesCorrente(): FiltroDespesa {

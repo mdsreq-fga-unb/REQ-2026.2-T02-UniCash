@@ -12,7 +12,7 @@ import {
   FalhaLeitura,
   listarDespesas,
 } from '@/features/despesas/service';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import {
   consumirAcessoNegado,
