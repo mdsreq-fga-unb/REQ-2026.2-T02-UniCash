@@ -11,8 +11,9 @@ import type {
   DespesaInput,
   EscopoSerie,
 } from './types';
+import { MAX_OCORRENCIAS_SERIE } from './validation';
 
-const MAX_OCORRENCIAS = 3700;
+const MAX_OCORRENCIAS = MAX_OCORRENCIAS_SERIE;
 const HORIZONTE_MESES = 12;
 
 /** Falha ao gravar ou recalcular: a transação é revertida. */

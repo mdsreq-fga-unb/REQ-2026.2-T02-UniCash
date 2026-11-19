@@ -58,6 +58,50 @@ describe('Leitura de despesas', () => {
     expect(resultado.itens[1].titulo).toBe('Aluguel');
   });
 
+  it('FA03/RN12: despesa com data futura é contabilizada no mês da própria data', async () => {
+    // "hoje" é 16/10/2026; esta despesa é de dezembro.
+    await registrarDespesa(
+      inputDespesa({ data: '2026-12-20', titulo: 'Seguro', valorCentavos: 45000 }),
+    );
+
+    const outubro = await listarDespesas('2026-10-01', '2026-11-01');
+    const dezembro = await listarDespesas('2026-12-01', '2027-01-01');
+
+    expect(outubro.itens).toHaveLength(0);
+    expect(outubro.total).toBe(0);
+    expect(dezembro.itens.map((d) => d.titulo)).toEqual(['Seguro']);
+    expect(dezembro.total).toBe(45000);
+  });
+
+  it('RN09/precisão: soma em centavos inteiros (0,10 + 0,20 = 0,30 exato e 10,99 preservado)', async () => {
+    await registrarDespesa(inputDespesa({ titulo: 'A', valorCentavos: 10 }));
+    await registrarDespesa(inputDespesa({ titulo: 'B', valorCentavos: 20 }));
+
+    const soma = await listarDespesas('2026-10-01', '2026-11-01');
+
+    expect(soma.total).toBe(30);
+    expect(Number.isInteger(soma.total)).toBe(true);
+
+    await registrarDespesa(
+      inputDespesa({ titulo: 'C', data: '2026-11-02', valorCentavos: 1099 }),
+    );
+
+    const novembro = await listarDespesas('2026-11-01', '2026-12-01');
+
+    expect(novembro.total).toBe(1099);
+    expect(novembro.itens[0].valor_centavos).toBe(1099);
+  });
+
+  it('RN12: lista da mais recente para a mais antiga, incluindo datas futuras', async () => {
+    await registrarDespesa(inputDespesa({ data: '2026-10-10', titulo: 'Passada' }));
+    await registrarDespesa(inputDespesa({ data: '2026-10-30', titulo: 'Futura' }));
+    await registrarDespesa(inputDespesa({ data: '2026-10-16', titulo: 'Hoje' }));
+
+    const { itens } = await listarDespesas('2026-10-01', '2026-11-01');
+
+    expect(itens.map((d) => d.titulo)).toEqual(['Futura', 'Hoje', 'Passada']);
+  });
+
   it('não lista despesas excluídas nem inclui seus valores no total', async () => {
     await registrarDespesa(inputDespesa());
     await registrarDespesa(

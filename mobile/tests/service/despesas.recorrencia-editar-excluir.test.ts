@@ -1,6 +1,7 @@
 import {
   editarDespesa,
   excluirDespesa,
+  FalhaPersistencia,
   registrarDespesa,
 } from '@/features/despesas/service';
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
@@ -142,6 +143,22 @@ describe('Edição e exclusão de despesas recorrentes', () => {
     expect(banco.recorrencias().find((r) => r.id === serie.id)?.ativa)
       .toBe(0);
   });
+
+  it.each(['proximas', 'todas'] as const)(
+    'RN11: falha no meio da exclusão com alcance "%s" reverte tudo',
+    async (escopo) => {
+      const { despesas } = await criarSerie();
+      const antes = banco.instantaneo();
+
+      banco.falharNaOperacao(2); // a 2ª gravação falha (depois da lápide das ocorrências)
+
+      await expect(excluirDespesa(despesas[1].id, escopo)).rejects.toBeInstanceOf(
+        FalhaPersistencia,
+      );
+
+      expect(banco.instantaneo()).toEqual(antes);
+    },
+  );
 
   it('remove a repetição e edita esta e as próximas ocorrências', async () => {
     const { despesas, serie } = await criarSerie();

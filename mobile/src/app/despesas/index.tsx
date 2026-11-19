@@ -240,20 +240,20 @@ const estilos = StyleSheet.create({
     marginBottom: 12,
   },
   feedbackSucesso: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: cores.primaria,
   },
   feedbackErro: {
-    backgroundColor: '#FDECEA',
+    backgroundColor: cores.erro,
   },
   feedbackTexto: {
     fontSize: 14,
     fontWeight: '600',
   },
   feedbackTextoSucesso: {
-    color: '#256B36',
+    color: cores.branco,
   },
   feedbackTextoErro: {
-    color: cores.erro,
+    color: cores.branco,
   },
   chips: {
     flexDirection: 'row',

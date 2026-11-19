@@ -250,6 +250,44 @@ describe('recorrências (RN19)', () => {
     await assertSucceeds(setDoc(ser(db('u1'), 'u1', 'b'), serie({ termino: '2027-01-16', descricao: 'pai' })));
   });
 
+  it('aceita série de despesa com categoria e classificações', async () => {
+    await assertSucceeds(
+      setDoc(
+        ser(db('u1'), 'u1', 'desp'),
+        serie({
+          tipo: 'despesa',
+          categoria_id: 'casa',
+          fixa_ou_variavel: 'fixa',
+          essencial: 1,
+          titulo: 'Aluguel',
+        }),
+      ),
+    );
+  });
+
+  it('aceita série de despesa sem categoria (campos opcionais omitidos ou nulos)', async () => {
+    await assertSucceeds(
+      setDoc(ser(db('u1'), 'u1', 'desp-omitida'), serie({ tipo: 'despesa' })),
+    );
+    await assertSucceeds(
+      setDoc(
+        ser(db('u1'), 'u1', 'desp-nula'),
+        serie({ tipo: 'despesa', categoria_id: null, fixa_ou_variavel: null, essencial: null }),
+      ),
+    );
+  });
+
+  it('rejeita série de despesa com classificação inválida', async () => {
+    await assertFails(
+      setDoc(ser(db('u1')), serie({ tipo: 'despesa', fixa_ou_variavel: 'mensal' })),
+    );
+    await assertFails(setDoc(ser(db('u1')), serie({ tipo: 'despesa', essencial: 2 })));
+  });
+
+  it('rejeita série com tipo desconhecido', async () => {
+    await assertFails(setDoc(ser(db('u1')), serie({ tipo: 'transferencia' })));
+  });
+
   it.each([0, -1, 1.5, '1'])('rejeita intervalo %p', async (intervalo) => {
     await assertFails(setDoc(ser(db('u1')), serie({ intervalo })));
   });

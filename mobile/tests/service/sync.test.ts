@@ -419,6 +419,77 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     });
   });
 
+  describe('conflitos de despesas (EX04)', () => {
+    const dados = (extra: Partial<DespesaInput> = {}): DespesaInput => ({
+      data: '2026-10-16',
+      titulo: 'Aluguel',
+      valorCentavos: 150000,
+      descricao: null,
+      categoriaId: 'casa',
+      fixaOuVariavel: 'fixa',
+      essencial: 1,
+      recorrencia: null,
+      ...extra,
+    });
+    const caminhoD = (id: string) => `usuarios/u1/despesas/${id}`;
+
+    it('registro desatualizado: vale o atualizado_em mais recente (nuvem)', async () => {
+      await registrarDespesa(dados());
+      await sincronizarPendentes();
+      const id = banco.despesas()[0].id;
+      await editarDespesa(id, dados({ titulo: 'Local' }));
+
+      mockNuvem.set(caminhoD(id), {
+        ...mockNuvem.get(caminhoD(id)),
+        titulo: 'Da nuvem',
+        categoria_id: 'lazer',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      const mudou = await sincronizarPendentes();
+
+      expect(mudou).toBe(true);
+      expect(banco.despesas()[0]).toMatchObject({
+        titulo: 'Da nuvem',
+        categoria_id: 'lazer',
+        sync_status: 'sincronizado',
+      });
+    });
+
+    it('registro local mais recente sobrescreve a nuvem', async () => {
+      await registrarDespesa(dados());
+      await sincronizarPendentes();
+      const id = banco.despesas()[0].id;
+      mockNuvem.set(caminhoD(id), {
+        ...mockNuvem.get(caminhoD(id)),
+        titulo: 'Antigo',
+        atualizado_em: '2000-01-01T00:00:00.000Z',
+      });
+      await editarDespesa(id, dados({ titulo: 'Local mais novo' }));
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(caminhoD(id)).titulo).toBe('Local mais novo');
+    });
+
+    it('edição contra exclusão: a exclusão local prevalece', async () => {
+      await registrarDespesa(dados());
+      await sincronizarPendentes();
+      const id = banco.despesas()[0].id;
+
+      await excluirDespesa(id);
+      mockNuvem.set(caminhoD(id), {
+        ...mockNuvem.get(caminhoD(id)),
+        titulo: 'Editada em outro lugar',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.has(caminhoD(id))).toBe(false);
+      expect(banco.despesas()).toHaveLength(0);
+    });
+  });
+
   describe('acesso negado (EX07)', () => {
     it('permission-denied na sincronização: registro segue pendente e o aviso é sinalizado uma vez', async () => {
       await registrarReceita(input());

@@ -1,17 +1,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
+import { adicionarDias } from '../receitas/dates';
 import { listarDespesas } from './service';
 import type { Despesa, FiltroDespesa } from './types';
-
-/**
- * Acrescenta dias a uma data no formato AAAA-MM-DD.
- * O uso de UTC evita problemas com mudanças de horário de verão.
- */
-function adicionarDias(data: string, quantidade: number): string {
-  const resultado = new Date(`${data}T00:00:00.000Z`);
-  resultado.setUTCDate(resultado.getUTCDate() + quantidade);
-  return resultado.toISOString().slice(0, 10);
-}
 
 /**
  * Calcula o intervalo de datas usado na consulta.

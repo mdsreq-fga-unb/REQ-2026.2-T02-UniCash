@@ -4,6 +4,7 @@ import {
   editarDespesa,
   excluirDespesa,
   DespesaIndisponivel,
+  FalhaPersistencia,
 } from '@/features/despesas/service';
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
@@ -101,6 +102,21 @@ describe('Editar e excluir despesas', () => {
     await expect(
       excluirDespesa('id-inexistente'),
     ).rejects.toBeInstanceOf(DespesaIndisponivel);
+  });
+
+  it('RN11/EX02: falha ao excluir não altera a despesa e lança FalhaPersistencia', async () => {
+    await registrarDespesa(inputDespesa());
+
+    const antes = { ...banco.despesas()[0] };
+
+    banco.falharNaOperacao(1);
+
+    await expect(excluirDespesa(antes.id)).rejects.toBeInstanceOf(
+      FalhaPersistencia,
+    );
+
+    expect(banco.despesas()[0]).toEqual(antes);
+    expect(banco.despesas()[0].excluido_em).toBeNull();
   });
 
   it('reverte a edição quando ocorre falha na gravação', async () => {

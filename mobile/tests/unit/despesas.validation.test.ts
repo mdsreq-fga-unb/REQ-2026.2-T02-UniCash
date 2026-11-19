@@ -1,5 +1,6 @@
 
 import {
+  excedeLimiteOcorrencias,
   validarFormularioDespesa,
   MSG_DESPESA,
 } from '@/features/despesas/validation';
@@ -54,7 +55,9 @@ describe('campos obrigatórios', () => {
   });
 
   it('rejeita data inválida', () => {
-    expect(validar({ data: '31/02/2026' }).erros.data).toBeDefined();
+    expect(validar({ data: '31/02/2026' }).erros.data).toBe(
+      MSG_DESPESA.dataInvalida,
+    );
   });
 
   it('rejeita título vazio', () => {
@@ -81,18 +84,33 @@ describe('campos obrigatórios', () => {
     it.each(['0', '0,00', '-10'])(
       'rejeita valor inválido: %s',
       (valor) => {
-        expect(validar({ valor }).erros.valor).toBeDefined();
+        expect(validar({ valor }).erros.valor).toBe(MSG_DESPESA.valorInvalido);
       },
     );
 
+    it.each([
+      ['0,01', 1],
+      ['0,10', 10],
+      ['10,5', 1050],
+      ['10,99', 1099],
+      ['10', 1000],
+    ])('aceita %s como %i centavos (RN09: valor-limite e 1 casa decimal)', (valor, centavos) => {
+      const { erros, dados } = validar({ valor });
+
+      expect(erros.valor).toBeUndefined();
+      expect(dados?.valorCentavos).toBe(centavos);
+    });
+
     it('rejeita mais de duas casas decimais', () => {
-      expect(validar({ valor: '10,999' }).erros.valor).toBeDefined();
+      expect(validar({ valor: '10,999' }).erros.valor).toBe(
+        MSG_DESPESA.valorInvalido,
+      );
     });
 
     it('rejeita valor acima do limite', () => {
-      expect(
-        validar({ valor: '1.000.000.000,00' }).erros.valor,
-      ).toBeDefined();
+      expect(validar({ valor: '1.000.000.000,00' }).erros.valor).toBe(
+        MSG_DESPESA.valorLimite,
+      );
     });
 
     it('aceita o limite máximo', () => {
@@ -110,9 +128,9 @@ describe('campos obrigatórios', () => {
     });
 
     it('rejeita título com 81 caracteres', () => {
-      expect(
-        validar({ titulo: 'a'.repeat(81) }).erros.titulo,
-      ).toBeDefined();
+      expect(validar({ titulo: 'a'.repeat(81) }).erros.titulo).toBe(
+        MSG_DESPESA.tituloLongo,
+      );
     });
 
     it('transforma descrição vazia em nula', () => {
@@ -126,9 +144,9 @@ describe('campos obrigatórios', () => {
     });
 
     it('rejeita descrição com 256 caracteres', () => {
-      expect(
-        validar({ descricao: 'd'.repeat(256) }).erros.descricao,
-      ).toBeDefined();
+      expect(validar({ descricao: 'd'.repeat(256) }).erros.descricao).toBe(
+        MSG_DESPESA.descricaoLonga,
+      );
     });
   });
 
@@ -184,16 +202,16 @@ describe('campos obrigatórios', () => {
     it.each(['0', '', 'abc', '-1'])(
       'rejeita intervalo inválido: %s',
       (intervalo) => {
-        expect(
-          validar({ ...recorrente, intervalo }).erros.intervalo,
-        ).toBeDefined();
+        expect(validar({ ...recorrente, intervalo }).erros.intervalo).toBe(
+          MSG_DESPESA.intervaloInvalido,
+        );
       },
     );
 
     it('rejeita término anterior ao início', () => {
       expect(
         validar({ ...recorrente, termino: '15/10/2026' }).erros.termino,
-      ).toBeDefined();
+      ).toBe(MSG_DESPESA.terminoAnterior);
     });
 
     it('aceita término igual ao início', () => {
@@ -206,6 +224,60 @@ describe('campos obrigatórios', () => {
       expect(
         validar({ ...recorrente, termino: '16/12/2026' }).erros.termino,
       ).toBeUndefined();
+    });
+
+    it('rejeita término com data inválida', () => {
+      expect(
+        validar({ ...recorrente, termino: '31/02/2027' }).erros.termino,
+      ).toBe(MSG_DESPESA.terminoInvalido);
+    });
+
+    describe('limite de ocorrências (FA07)', () => {
+      it('série diária que passaria de 3700 ocorrências devolve erro em vez de truncar', () => {
+        const { erros, dados } = validar({
+          ...recorrente,
+          unidade: 'dia',
+          termino: '31/12/2100',
+        });
+
+        expect(erros.termino).toBe(MSG_DESPESA.recorrenciaLonga);
+        expect(dados).toBeNull();
+      });
+
+      it('série mensal até 2100 está dentro do limite', () => {
+        const { erros, dados } = validar({
+          ...recorrente,
+          unidade: 'mes',
+          termino: '31/12/2100',
+        });
+
+        expect(erros.termino).toBeUndefined();
+        expect(dados?.recorrencia?.termino).toBe('2100-12-31');
+      });
+
+      it('série anual longa está dentro do limite', () => {
+        expect(
+          validar({ ...recorrente, unidade: 'ano', termino: '16/10/2100' })
+            .erros.termino,
+        ).toBeUndefined();
+      });
+
+      it('valor-limite: 3700 ocorrências diárias é aceito e 3701 é rejeitado', () => {
+        // 16/10/2026 + 3699 dias = 3700ª ocorrência; + 3700 dias = 3701ª.
+        expect(excedeLimiteOcorrencias('2026-10-16', '2036-12-01', 1, 'dia')).toBe(false);
+        expect(excedeLimiteOcorrencias('2026-10-16', '2036-12-02', 1, 'dia')).toBe(true);
+      });
+
+      it('intervalo maior reduz o número de ocorrências', () => {
+        expect(
+          validar({
+            ...recorrente,
+            unidade: 'dia',
+            intervalo: '7',
+            termino: '31/12/2100',
+          }).erros.termino,
+        ).toBeUndefined();
+      });
     });
 
     it('ignora recorrência quando desativada', () => {
