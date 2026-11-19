@@ -25,7 +25,7 @@ As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 regis
 | RNF26 – sem duplicidade na geração de séries | A, abertura do app | `src/features/receitas/service.ts` (`completarRecorrencias`), `src/app/_layout.tsx` | `tests/service/recorrencia.test.ts`, `tests/screens/Layout.test.tsx`, `tests/service/sync.test.ts` | – |
 | RNF27 – registro em até 3 etapas | A | `src/app/receitas/nova.tsx`, `src/components/receitas/ReceitaForm.tsx` | `tests/screens/NovaReceita.test.tsx` | 3.4 |
 | RNF34 – base local principal | todos | `src/db/database.ts` | `tests/setup.ts`, `tests/helpers/fakeDb.ts` | – |
-| RNF35 – encerramento forçado | A | `src/features/receitas/service.ts`, `src/app/receitas/nova.tsx` | `tests/service/atomicidade.test.ts` (simulado) | 3.1 |
+| RNF35 — Persistir localmente com durabilidade | A | `src/features/receitas/service.ts`, `src/app/receitas/nova.tsx` | `tests/service/atomicidade.test.ts` (simulado) | 3.1 |
 
 ## 2. Fluxos e exceções do caso de uso
 
@@ -109,7 +109,7 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 | RNF05 — evitar estado parcial | B, C, D | `service.ts` (`transacao`) | `tests/service/categorias.test.ts` (falha em criar/editar/excluir) | Testado no escopo local |
 | RNF07 — precisão monetária | B, C | `money.ts`, `validation.ts`, `schema.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/db/schema.test.ts` | Testado com centavos/centésimos inteiros |
 | RNF14 — mensagens de rejeição | B, C, EX01–EX07 | `validation.ts` (`MSG_CAT`), `CategoriaForm.tsx` | `tests/screens/CategoriaForm.test.tsx`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx` | Testado nos fluxos implementados |
-| RNF35 - persistência local | todos | `schema.ts`, `service.ts` | `tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts` | SQLite testado; smoke anterior antes de `2445ee8`; diagnóstico manual v3 relatado pelo usuário (capturas pendentes); testes funcionais e persistência após encerramento completo pendentes |
+| RNF35 — Persistir localmente com durabilidade | todos | `schema.ts`, `service.ts` | `tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts` | SQLite testado; smoke anterior antes de `2445ee8`; diagnóstico manual v3 relatado pelo usuário (capturas pendentes); testes funcionais e persistência após encerramento completo pendentes |
 | RNF36 — convergência da sincronização | sincronização | Sem sincronização de categorias | — | **Pendente**; `sync_status` preparado, sem Firebase |
 
 ### 4.2. Fluxos e exceções
@@ -138,15 +138,9 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 | EX09 — dados de outro usuário | Sem Security Rules de categorias | — | **Pendente Firebase/RNF03** |
 | EX10 — falha de leitura local | `service.ts`, `useCategorias.ts`, `ListaCategorias`, `EditarCategoria` | `tests/service/categorias.test.ts`, `tests/screens/ListaCategorias.test.tsx`, `tests/screens/EditarCategoria.test.tsx` | Implementado/testado |
 
-### 4.3. Evidências do DoD Nível 1
+### 4.3. Localização das evidências do DoD
 
-- **Precisão:** `tests/db/schema.test.ts` verifica centavos inteiros, mínimo de 1 centavo e teto de R$ 999.999.999,99; `tests/unit/validation-categorias.test.ts` verifica o parser exato (BigInt), 1 centavo e 30 caracteres; `tests/unit/formato-categorias.test.ts` verifica a formatação exata de percentuais. **Executado.**
-- **Semeadura:** `tests/service/categorias.test.ts` cobre banco vazio, repetição sem duplicar, conflito com categoria própria ativa, criação das demais padrão, preservação da própria e do limite, rollback total em falha de persistência, `PRAGMA integrity_check` e o ciclo conflito → exclusão da própria → criação da padrão sem duplicação; `tests/unit/useCategorias.test.ts` cobre conflito, a não repetição por foco e a reavaliação única após a exclusão; `tests/unit/semeaduraPendente.test.ts` cobre o sinal; `tests/screens/ListaCategorias.test.tsx` cobre o aviso de conflito e a falha de persistência. **Executado.**
-- **Mensagens:** o conflito de nomes reservados usa `mensagemConflitoSemeadura` com os nomes não criados; falha de persistência usa `MSG_CAT.falhaSemeadura`; o fallback de tipo inválido usa `MSG_CAT.dadosInvalidos`; nenhum texto técnico (`db fechado`, “Semeadura abortada”, “Tipo de limite desconhecido”) é renderizado. Os testes de tela e unitários verificam as mensagens e a ausência do detalhe técnico.
-- **Isolamento:** **não aplicável nesta entrega**. Categorias são locais e ainda não têm sincronização nem Security Rules; `tests/rules/firestore.rules.test.ts` cobre apenas receitas/recorrências. Não há resultado de `test:rules` para categorias a apresentar.
-- **Persistência:** testes automatizados de SQLite em memória, schema e migrações (`tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts`). O smoke anterior no Expo Go foi executado antes do commit `2445ee8`. O diagnóstico manual da migração 003 no Android foi **relatado pelo usuário como bem-sucedido**: `unicash.db`, `user_version = 3`, os dois triggers e as três categorias preservadas; as capturas serão anexadas posteriormente e ainda não foram revisadas. O instante exato da migração não foi observado; o diagnóstico mostra o estado final após a inicialização normal. O full reload carregou o bundle v3, mas o encerramento completo do Expo Go, os testes funcionais posteriores e a persistência após reabrir **permanecem pendentes**.
-- **Sincronização:** **não implementada**. O campo `sync_status` está preparado, mas não há envio, restauração nem Security Rules de categorias; EX05, EX08, EX09 e RNF03/RNF36 permanecem pendentes.
-- **Cobertura de código (informativa, não é critério do DoD):** `db` com 97,47% de statements, 86,04% de branches, 100% de funções e 97,07% de linhas; `features/categorias` com 100% de statements, 99,15% de branches, 100% de funções e 100% de linhas (artefato `coverage` do Mobile CI #31, commit `2445ee8`). O DoD Nível 1 não exige 100% de cobertura de código; exige a matriz fluxo/RN → teste e os casos válido/inválido/limite.
+As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** — https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/43. Este arquivo mantém a matriz de rastreabilidade das seções 4.1 e 4.2 e os resultados de execução da seção 4.4.
 
 ### 4.4. Resultados
 
@@ -154,7 +148,8 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 |---|---|---|---|---|
 | 18/11/2026 | `npm test -- --ci --coverage` | 44 | 619 | **619 aprovados** |
 
-- **CI:** Mobile CI #31 — PR #58, `feat(uc06): gerenciar categorias (listagem, cadastro, edição e exclusão)` — no commit `2445ee8`, com 2/2 checks aprovados. https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44390887769
+- **CI — execução 31:** PR #58, `feat(uc06): gerenciar categorias (listagem, cadastro, edição e exclusão)`, commit `2445ee8` (código) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44390887769
+- **CI — execução 32:** PR #58, commit `aa84979` (documentação) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44418286085
 - **Manual:** o smoke anterior foi executado antes do commit `2445ee8`. O diagnóstico manual da migração 003 no Android foi **relatado pelo usuário como bem-sucedido**: `unicash.db`, `user_version = 3`, os dois triggers e as três categorias preservadas (`Normal` 5000, `Legado` 20000000, `Excluir` 10000, ativas). As capturas serão anexadas posteriormente e ainda não foram revisadas; o instante exato da migração não foi observado. O full reload carregou o bundle v3, mas o encerramento completo do Expo Go, os testes funcionais posteriores (editar `Normal` 50→80, excluir `Excluir`, rejeitar 100,01%, corrigir/renomear o legado) e a persistência final após reabrir **seguem pendentes**.
 - **Security Rules:** não aplicável à UC06 nesta entrega; `npm run test:rules` cobre a UC01.
 
