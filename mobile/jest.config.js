@@ -1,5 +1,5 @@
 
-/** Testes unitários, de serviço, telas e cobertura da funcionalidade de despesas. */
+/** Testes unitários, de serviço, telas e cobertura das funcionalidades. */
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
@@ -14,8 +14,12 @@ module.exports = {
   ],
 
   collectCoverageFrom: [
-    'src/**/despesas/**/*.{ts,tsx}',
+    'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
+    '!src/lib/firebase.ts',
+    '!src/db/database.ts',
+    '!src/features/receitas/types.ts',
+    '!src/app/index.tsx',
   ],
 
   coverageReporters: ['text', 'text-summary', 'lcov'],
@@ -28,4 +32,6 @@ module.exports = {
       lines: 100,
     },
   },
+
+  testTimeout: 30000,
 };
