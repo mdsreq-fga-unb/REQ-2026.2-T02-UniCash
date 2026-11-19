@@ -4,6 +4,14 @@ import {
   excluirReceita,
   registrarReceita,
 } from '@/features/receitas/service';
+
+import {
+  registrarDespesa,
+  excluirDespesa,
+} from '@/features/despesas/service';
+
+import type { DespesaInput } from '@/features/despesas/types';
+
 import {
   consumirAcessoNegado,
   FalhaRestauracao,
@@ -68,6 +76,101 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     consumirAcessoNegado();
   });
   afterEach(restaurarTempo);
+    describe('sincronização de despesas', () => {
+    const caminhoDespesa = (id: string) =>
+      `usuarios/u1/despesas/${id}`;
+
+    function inputDespesa(
+      extra: Partial<DespesaInput> = {},
+    ): DespesaInput {
+      return {
+        data: '2026-10-16',
+        titulo: 'Aluguel',
+        valorCentavos: 150000,
+        descricao: 'Aluguel do apartamento',
+        categoriaId: 'moradia',
+        fixaOuVariavel: 'fixa',
+        essencial: 1,
+        recorrencia: null,
+        ...extra,
+      };
+    }
+
+    it('envia despesa com categoria e classificações para a nuvem', async () => {
+      await registrarDespesa(inputDespesa());
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+
+      expect(mockNuvem.get(caminhoDespesa(d.id))).toMatchObject({
+        valor_centavos: 150000,
+        data: '2026-10-16',
+        titulo: 'Aluguel',
+        descricao: 'Aluguel do apartamento',
+        categoria_id: 'moradia',
+        fixa_ou_variavel: 'fixa',
+        essencial: 1,
+      });
+
+      expect(d.sync_status).toBe('sincronizado');
+    });
+
+    it('mantém despesa pendente quando não há conexão', async () => {
+      mockRedeFora = true;
+
+      await registrarDespesa(inputDespesa());
+      await sincronizarPendentes();
+
+      expect(banco.despesas()).toHaveLength(1);
+      expect(banco.despesas()[0].sync_status).toBe('pendente');
+      expect(mockNuvem.size).toBe(0);
+    });
+
+    it('remove da nuvem uma despesa excluída', async () => {
+      await registrarDespesa(inputDespesa());
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+
+      expect(mockNuvem.has(caminhoDespesa(d.id))).toBe(true);
+
+      await excluirDespesa(d.id);
+      await sincronizarPendentes();
+
+      expect(mockNuvem.has(caminhoDespesa(d.id))).toBe(false);
+      expect(banco.despesas()).toHaveLength(0);
+    });
+    it('envia recorrência de despesa com tipo e classificações para a nuvem', async () => {
+  await registrarDespesa(
+    inputDespesa({
+      recorrencia: {
+        intervalo: 1,
+        unidade: 'mes',
+        termino: '2026-12-16',
+      },
+    }),
+  );
+
+  await sincronizarPendentes();
+
+  const rec = banco.recorrencias()[0];
+
+  expect(mockNuvem.get(`usuarios/u1/recorrencias/${rec.id}`))
+    .toMatchObject({
+      tipo: 'despesa',
+      intervalo: 1,
+      unidade: 'mes',
+      inicio: '2026-10-16',
+      termino: '2026-12-16',
+      ativa: true,
+      categoria_id: 'moradia',
+      fixa_ou_variavel: 'fixa',
+      essencial: 1,
+    });
+
+  expect(rec.sync_status).toBe('sincronizado');
+});
+  });
 
   describe('offline e sem conta', () => {
     it('sem conta: tudo funciona localmente e permanece pendente', async () => {
