@@ -1,9 +1,18 @@
-/** Testes unitários, de serviço (SQLite em memória) e de telas. Regras do Firestore: jest.rules.config.js. */
+
+/** Testes unitários, de serviço, telas e cobertura das funcionalidades. */
 module.exports = {
   preset: 'jest-expo',
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
-  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/rules/'],
+
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+  },
+
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '<rootDir>/tests/rules/',
+  ],
+
   collectCoverageFrom: [
     'src/**/*.{ts,tsx}',
     '!src/**/*.d.ts',
@@ -12,5 +21,30 @@ module.exports = {
     '!src/features/receitas/types.ts',
     '!src/app/index.tsx',
   ],
+
+  coverageReporters: ['text', 'text-summary', 'lcov'],
+
+  coverageThreshold: {
+    'src/**/despesas/**/*.{ts,tsx}': {
+      statements: 90,
+      branches: 72,
+      functions: 85,
+      lines: 91,
+    },
+    './src/features/despesas/service.ts': {
+      statements: 100,
+      branches: 90,
+      functions: 100,
+      lines: 100,
+    },
+    // Sincronização do UC02 (envio e restauração de despesas) também fica sob controle.
+    './src/features/receitas/sync.ts': {
+      statements: 97,
+      branches: 90,
+      functions: 100,
+      lines: 98,
+    },
+  },
+
   testTimeout: 30000,
 };

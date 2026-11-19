@@ -1,4 +1,6 @@
+
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -6,34 +8,133 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function dataValida(data) {
+      return data is string
+        && data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function descricaoValida(d) {
+      return !('descricao' in d)
+        || d.descricao == null
+        || (d.descricao is string && d.descricao.size() <= 255);
+    }
+
+    function valorValido(d) {
+      return d.valor_centavos is int
+        && d.valor_centavos > 0
+        && d.valor_centavos <= 99999999999;
+    }
+
     function receitaValida(d) {
-      return d.keys().hasOnly(['valor_centavos', 'data', 'titulo', 'descricao', 'recorrencia_id', 'criado_em', 'atualizado_em'])
-        && d.keys().hasAll(['valor_centavos', 'data', 'titulo', 'criado_em', 'atualizado_em'])
-        && d.valor_centavos is int && d.valor_centavos > 0 && d.valor_centavos <= 99999999999
-        && d.data is string && d.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && d.titulo is string && d.titulo.size() >= 1 && d.titulo.size() <= 80
-        && (!('descricao' in d) || (d.descricao is string && d.descricao.size() <= 255));
+      return d.keys().hasOnly([
+          'valor_centavos', 'data', 'titulo', 'descricao',
+          'recorrencia_id', 'criado_em', 'atualizado_em'
+        ])
+        && d.keys().hasAll([
+          'valor_centavos', 'data', 'titulo',
+          'criado_em', 'atualizado_em'
+        ])
+        && valorValido(d)
+        && dataValida(d.data)
+        && d.titulo is string
+        && d.titulo.size() >= 1
+        && d.titulo.size() <= 80
+        && descricaoValida(d)
+        && (!('recorrencia_id' in d)
+          || d.recorrencia_id == null
+          || d.recorrencia_id is string);
+    }
+
+    function despesaValida(d) {
+      return d.keys().hasOnly([
+          'valor_centavos', 'data', 'titulo', 'descricao',
+          'categoria_id', 'fixa_ou_variavel', 'essencial',
+          'recorrencia_id', 'criado_em', 'atualizado_em'
+        ])
+        && d.keys().hasAll([
+          'valor_centavos', 'data', 'titulo',
+          'criado_em', 'atualizado_em'
+        ])
+        && valorValido(d)
+        && dataValida(d.data)
+        && d.titulo is string
+        && d.titulo.size() >= 1
+        && d.titulo.size() <= 80
+        && descricaoValida(d)
+        && (!('categoria_id' in d)
+          || d.categoria_id == null
+          || d.categoria_id is string)
+        && (!('fixa_ou_variavel' in d)
+          || d.fixa_ou_variavel == null
+          || d.fixa_ou_variavel in ['fixa', 'variavel'])
+        && (!('essencial' in d)
+          || d.essencial == null
+          || d.essencial in [0, 1])
+        && (!('recorrencia_id' in d)
+          || d.recorrencia_id == null
+          || d.recorrencia_id is string);
+    }
+
+    function marcadorDespesaValido(d) {
+      return d.keys().hasOnly(['excluido_em', 'atualizado_em'])
+        && d.excluido_em is string && d.excluido_em.size() > 0
+        && d.atualizado_em is string && d.atualizado_em.size() > 0;
     }
 
     function recorrenciaValida(d) {
-      return d.keys().hasOnly(['intervalo', 'unidade', 'inicio', 'termino', 'ativa', 'valor_centavos', 'titulo', 'descricao', 'atualizado_em'])
-        && d.keys().hasAll(['intervalo', 'unidade', 'inicio', 'ativa', 'valor_centavos', 'titulo', 'atualizado_em'])
-        && d.intervalo is int && d.intervalo > 0
+      return d.keys().hasOnly([
+          'tipo', 'intervalo', 'unidade', 'inicio', 'termino',
+          'ativa', 'valor_centavos', 'titulo', 'descricao',
+          'categoria_id', 'fixa_ou_variavel', 'essencial',
+          'atualizado_em'
+        ])
+        && d.keys().hasAll([
+          'tipo', 'intervalo', 'unidade', 'inicio',
+          'ativa', 'valor_centavos', 'titulo', 'atualizado_em'
+        ])
+        && d.tipo in ['receita', 'despesa']
+        && d.intervalo is int
+        && d.intervalo > 0
         && d.unidade in ['dia', 'mes', 'ano']
-        && d.valor_centavos is int && d.valor_centavos > 0 && d.valor_centavos <= 99999999999
-        && d.titulo is string && d.titulo.size() >= 1 && d.titulo.size() <= 80
-        && (!('descricao' in d) || (d.descricao is string && d.descricao.size() <= 255))
-        && (!('termino' in d) || d.termino >= d.inicio);
+        && dataValida(d.inicio)
+        && d.ativa is bool
+        && valorValido(d)
+        && d.titulo is string
+        && d.titulo.size() >= 1
+        && d.titulo.size() <= 80
+        && descricaoValida(d)
+        && (!('termino' in d)
+          || (dataValida(d.termino) && d.termino >= d.inicio))
+        && (!('categoria_id' in d)
+          || d.categoria_id == null
+          || d.categoria_id is string)
+        && (!('fixa_ou_variavel' in d)
+          || d.fixa_ou_variavel == null
+          || d.fixa_ou_variavel in ['fixa', 'variavel'])
+        && (!('essencial' in d)
+          || d.essencial == null
+          || d.essencial in [0, 1]);
     }
 
     match /usuarios/{uid}/receitas/{id} {
       allow read, delete: if dono(uid);
-      allow create, update: if dono(uid) && receitaValida(request.resource.data);
+      allow create, update: if dono(uid)
+        && receitaValida(request.resource.data);
+    }
+
+    match /usuarios/{uid}/despesas/{id} {
+      allow read: if dono(uid);
+      allow create: if dono(uid)
+        && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
+      allow update: if dono(uid)
+        && !('excluido_em' in resource.data)
+        && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
     }
 
     match /usuarios/{uid}/recorrencias/{id} {
       allow read, delete: if dono(uid);
-      allow create, update: if dono(uid) && recorrenciaValida(request.resource.data);
+      allow create, update: if dono(uid)
+        && recorrenciaValida(request.resource.data);
     }
   }
 }

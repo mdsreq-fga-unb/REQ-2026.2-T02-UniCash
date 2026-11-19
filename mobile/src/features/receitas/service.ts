@@ -101,7 +101,10 @@ async function gerarOcorrencias(tx: SQLiteDatabase, rec: Recorrencia, limite: st
 export function completarRecorrencias() {
   return transacao(async (tx) => {
     const series = await tx.getAllAsync<Recorrencia>(
-      'SELECT * FROM recorrencias WHERE ativa = 1 AND termino IS NULL',
+      `SELECT * FROM recorrencias
+WHERE ativa = 1
+   AND termino IS NULL
+   AND tipo = 'receita'`,
     );
     const limite = adicionarMeses(hojeISO(), HORIZONTE_MESES);
     for (const s of series) await gerarOcorrencias(tx, s, limite);

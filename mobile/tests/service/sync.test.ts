@@ -4,6 +4,16 @@ import {
   excluirReceita,
   registrarReceita,
 } from '@/features/receitas/service';
+
+import {
+  completarRecorrenciasDespesas,
+  editarDespesa,
+  registrarDespesa,
+  excluirDespesa,
+} from '@/features/despesas/service';
+
+import type { DespesaInput } from '@/features/despesas/types';
+
 import {
   consumirAcessoNegado,
   FalhaRestauracao,
@@ -18,7 +28,10 @@ import { input } from '../helpers/dados';
 const mockNuvem = new Map<string, any>();
 let mockUsuario: { uid: string } | null = { uid: 'u1' };
 let mockRedeFora = false;
+let mockLeiturasRemotas = 0;
 let mockCodigoErro = 'unavailable';
+/** Caminhos que a nuvem rejeita (permission-denied) mesmo com a rede funcionando. */
+const mockCaminhosRejeitados = new Set<string>();
 
 jest.mock('@/lib/firebase', () => ({
   auth: {
@@ -41,9 +54,13 @@ jest.mock('firebase/firestore', () => ({
   },
   setDoc: async (ref: any, dados: any) => {
     if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
+    if (mockCaminhosRejeitados.has(ref.path)) {
+      throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+    }
     mockNuvem.set(ref.path, JSON.parse(JSON.stringify(dados)));
   },
   getDoc: async (ref: any) => {
+    mockLeiturasRemotas++;
     if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
     const d = mockNuvem.get(ref.path);
     return { exists: () => d !== undefined, data: () => d };
@@ -64,10 +81,182 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     mockNuvem.clear();
     mockUsuario = { uid: 'u1' };
     mockRedeFora = false;
+    mockLeiturasRemotas = 0;
     mockCodigoErro = 'unavailable';
+    mockCaminhosRejeitados.clear();
     consumirAcessoNegado();
   });
   afterEach(restaurarTempo);
+    describe('sincronização de despesas', () => {
+    const caminhoDespesa = (id: string) =>
+      `usuarios/u1/despesas/${id}`;
+
+    function inputDespesa(
+      extra: Partial<DespesaInput> = {},
+    ): DespesaInput {
+      return {
+        data: '2026-10-16',
+        titulo: 'Aluguel',
+        valorCentavos: 150000,
+        descricao: 'Aluguel do apartamento',
+        categoriaId: 'casa',
+        fixaOuVariavel: 'fixa',
+        essencial: 1,
+        recorrencia: null,
+        ...extra,
+      };
+    }
+
+    it('envia despesa com categoria e classificações para a nuvem', async () => {
+      await registrarDespesa(inputDespesa());
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+
+      expect(mockNuvem.get(caminhoDespesa(d.id))).toMatchObject({
+        valor_centavos: 150000,
+        data: '2026-10-16',
+        titulo: 'Aluguel',
+        descricao: 'Aluguel do apartamento',
+        categoria_id: 'casa',
+        fixa_ou_variavel: 'fixa',
+        essencial: 1,
+      });
+
+      expect(d.sync_status).toBe('sincronizado');
+    });
+
+    it('mantém despesa pendente quando não há conexão', async () => {
+      mockRedeFora = true;
+
+      await registrarDespesa(inputDespesa());
+      await sincronizarPendentes();
+
+      expect(banco.despesas()).toHaveLength(1);
+      expect(banco.despesas()[0].sync_status).toBe('pendente');
+      expect(mockNuvem.size).toBe(0);
+    });
+
+    it('UC02 EX03: a primeira falha de rede interrompe a fila', async () => {
+      await registrarDespesa(inputDespesa());
+      await registrarDespesa(inputDespesa({ titulo: 'Outra despesa' }));
+      mockRedeFora = true;
+
+      await sincronizarPendentes();
+
+      expect(mockLeiturasRemotas).toBe(1);
+      expect(banco.despesas().every(d => d.sync_status === 'pendente')).toBe(true);
+    });
+
+    it('grava na nuvem o marcador de uma despesa excluída', async () => {
+      await registrarDespesa(inputDespesa());
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+
+      expect(mockNuvem.has(caminhoDespesa(d.id))).toBe(true);
+
+      await excluirDespesa(d.id);
+      await sincronizarPendentes();
+
+      const excluida = banco.despesas()[0];
+      expect(mockNuvem.get(caminhoDespesa(d.id))).toEqual({
+        excluido_em: expect.any(String), atualizado_em: expect.any(String),
+      });
+      expect(excluida).toMatchObject({
+        titulo: '', descricao: null, categoria_id: null, sync_status: 'sincronizado',
+      });
+    });
+    it('envia recorrência de despesa com tipo e classificações para a nuvem', async () => {
+  await registrarDespesa(
+    inputDespesa({
+      recorrencia: {
+        intervalo: 1,
+        unidade: 'mes',
+        termino: '2026-12-16',
+      },
+    }),
+  );
+
+  await sincronizarPendentes();
+
+  const rec = banco.recorrencias()[0];
+
+  expect(mockNuvem.get(`usuarios/u1/recorrencias/${rec.id}`))
+    .toMatchObject({
+      tipo: 'despesa',
+      intervalo: 1,
+      unidade: 'mes',
+      inicio: '2026-10-16',
+      termino: '2026-12-16',
+      ativa: true,
+      categoria_id: 'casa',
+      fixa_ou_variavel: 'fixa',
+      essencial: 1,
+    });
+
+  expect(rec.sync_status).toBe('sincronizado');
+});
+
+    it('FA01: despesa sem categoria não envia campos nulos para a nuvem', async () => {
+      await registrarDespesa(
+        inputDespesa({
+          categoriaId: null,
+          fixaOuVariavel: null,
+          essencial: null,
+          descricao: null,
+        }),
+      );
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+      const enviado = mockNuvem.get(caminhoDespesa(d.id));
+
+      expect(enviado).toBeDefined();
+      expect(enviado).not.toHaveProperty('categoria_id');
+      expect(enviado).not.toHaveProperty('fixa_ou_variavel');
+      expect(enviado).not.toHaveProperty('essencial');
+      expect(Object.values(enviado)).not.toContain(null);
+      expect(d.sync_status).toBe('sincronizado');
+    });
+
+    it('série de despesa sem categoria não envia campos nulos', async () => {
+      await registrarDespesa(
+        inputDespesa({
+          categoriaId: null,
+          fixaOuVariavel: null,
+          essencial: null,
+          recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
+        }),
+      );
+      await sincronizarPendentes();
+
+      const rec = banco.recorrencias()[0];
+      const enviado = mockNuvem.get(`usuarios/u1/recorrencias/${rec.id}`);
+
+      expect(enviado).toMatchObject({ tipo: 'despesa' });
+      expect(Object.values(enviado)).not.toContain(null);
+      expect(rec.sync_status).toBe('sincronizado');
+    });
+
+    it('um registro rejeitado pela nuvem não bloqueia os demais (fica pendente)', async () => {
+      await registrarDespesa(inputDespesa({ titulo: 'Rejeitada' }));
+      await registrarDespesa(inputDespesa({ titulo: 'Aceita', data: '2026-10-17' }));
+
+      const rejeitada = banco.despesas().find((d) => d.titulo === 'Rejeitada');
+      const aceita = banco.despesas().find((d) => d.titulo === 'Aceita');
+      mockCaminhosRejeitados.add(caminhoDespesa(rejeitada.id));
+
+      await sincronizarPendentes();
+
+      const depois = banco.despesas();
+      expect(depois.find((d) => d.id === rejeitada.id).sync_status).toBe('pendente');
+      expect(depois.find((d) => d.id === aceita.id).sync_status).toBe('sincronizado');
+      expect(mockNuvem.has(caminhoDespesa(aceita.id))).toBe(true);
+      expect(mockNuvem.has(caminhoDespesa(rejeitada.id))).toBe(false);
+      expect(consumirAcessoNegado()).toBe(true);
+    });
+  });
 
   describe('offline e sem conta', () => {
     it('sem conta: tudo funciona localmente e permanece pendente', async () => {
@@ -78,7 +267,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(banco.receitas()[0].sync_status).toBe('pendente');
     });
 
-    it('sem conexão (EX04): a operação já está concluída e o registro fica pendente', async () => {
+    it('sem conexão (UC01 EX04): a operação já está concluída e o registro fica pendente', async () => {
       mockRedeFora = true;
       await registrarReceita(input());
       await expect(sincronizarPendentes()).resolves.toBe(false); // não lança
@@ -210,7 +399,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
   });
 
   describe('conflitos (RN07, EX05)', () => {
-    it('registro desatualizado: vale o atualizado_em mais recente (nuvem)', async () => {
+    it('EX08: edição mais recente na nuvem é aplicada com a categoria indisponível removida', async () => {
       await registrarReceita(input());
       await sincronizarPendentes();
       const id = banco.receitas()[0].id;
@@ -249,7 +438,97 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     });
   });
 
-  describe('acesso negado (EX07)', () => {
+  describe('conflitos de despesas (EX04)', () => {
+    const dados = (extra: Partial<DespesaInput> = {}): DespesaInput => ({
+      data: '2026-10-16',
+      titulo: 'Aluguel',
+      valorCentavos: 150000,
+      descricao: null,
+      categoriaId: 'casa',
+      fixaOuVariavel: 'fixa',
+      essencial: 1,
+      recorrencia: null,
+      ...extra,
+    });
+    const caminhoD = (id: string) => `usuarios/u1/despesas/${id}`;
+
+    it('EX08: edição mais recente na nuvem é aplicada com a categoria indisponível removida', async () => {
+      await registrarDespesa(dados());
+      await sincronizarPendentes();
+      const id = banco.despesas()[0].id;
+      await editarDespesa(id, dados({ titulo: 'Local' }));
+
+      mockNuvem.set(caminhoD(id), {
+        ...mockNuvem.get(caminhoD(id)),
+        titulo: 'Da nuvem',
+        categoria_id: 'categoria-removida',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      const mudou = await sincronizarPendentes();
+
+      expect(mudou).toBe(true);
+      expect(banco.despesas()[0]).toMatchObject({
+        titulo: 'Da nuvem',
+        categoria_id: null,
+        sync_status: 'sincronizado',
+      });
+    });
+
+    it('registro local mais recente sobrescreve a nuvem', async () => {
+      await registrarDespesa(dados());
+      await sincronizarPendentes();
+      const id = banco.despesas()[0].id;
+      mockNuvem.set(caminhoD(id), {
+        ...mockNuvem.get(caminhoD(id)),
+        titulo: 'Antigo',
+        atualizado_em: '2000-01-01T00:00:00.000Z',
+      });
+      await editarDespesa(id, dados({ titulo: 'Local mais novo' }));
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(caminhoD(id)).titulo).toBe('Local mais novo');
+    });
+
+    it('EX04: marcador remoto vence uma edição pendente', async () => {
+      await registrarDespesa(dados());
+      const { id } = banco.despesas()[0];
+      await sincronizarPendentes();
+      await editarDespesa(id, dados({ titulo: 'Edição local' }));
+      const excluidoEm = '2026-10-15T12:00:00.000Z';
+      mockNuvem.set(caminhoD(id), {
+        ...mockNuvem.get(caminhoD(id)),
+        excluido_em: excluidoEm,
+      });
+
+      expect(await sincronizarPendentes()).toBe(true);
+      expect(banco.despesas()[0]).toMatchObject({
+        excluido_em: excluidoEm,
+        sync_status: 'sincronizado',
+      });
+      expect(mockNuvem.get(caminhoD(id)).titulo).toBe('Aluguel');
+    });
+
+    it('edição contra exclusão: a exclusão local prevalece', async () => {
+      await registrarDespesa(dados());
+      await sincronizarPendentes();
+      const id = banco.despesas()[0].id;
+
+      await excluirDespesa(id);
+      mockNuvem.set(caminhoD(id), {
+        ...mockNuvem.get(caminhoD(id)),
+        titulo: 'Editada em outro lugar',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(caminhoD(id)).excluido_em).toBeTruthy();
+      expect(banco.despesas()[0].sync_status).toBe('sincronizado');
+    });
+  });
+
+  describe('acesso negado (UC01 EX07 / UC02 EX06)', () => {
     it('permission-denied na sincronização: registro segue pendente e o aviso é sinalizado uma vez', async () => {
       await registrarReceita(input());
       mockRedeFora = true;
@@ -316,6 +595,150 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       await expect(restaurarDaNuvem()).rejects.toBeInstanceOf(FalhaRestauracao);
       expect(banco.instantaneo()).toEqual(antes);
       expect(consumirAcessoNegado()).toBe(true);
+    });
+
+    describe('despesas', () => {
+      const dadosDespesa = (extra: Partial<DespesaInput> = {}): DespesaInput => ({
+        data: '2026-10-16',
+        titulo: 'Aluguel',
+        valorCentavos: 150000,
+        descricao: null,
+        categoriaId: 'casa',
+        fixaOuVariavel: 'fixa',
+        essencial: 1,
+        recorrencia: null,
+        ...extra,
+      });
+
+      it('recupera despesa avulsa num aparelho limpo, já como sincronizada', async () => {
+        await registrarDespesa(dadosDespesa());
+        await sincronizarPendentes();
+        const antes = banco.despesas()[0];
+
+        banco = instalarBanco(); // aparelho novo
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.despesas).toBe(1);
+        expect(banco.despesas()).toHaveLength(1);
+        expect(banco.despesas()[0]).toMatchObject({
+          id: antes.id,
+          valor_centavos: 150000,
+          titulo: 'Aluguel',
+          categoria_id: 'casa',
+          fixa_ou_variavel: 'fixa',
+          essencial: 1,
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('despesa sem categoria (FA01) volta com categoria_id NULL', async () => {
+        await registrarDespesa(
+          dadosDespesa({ categoriaId: null, fixaOuVariavel: null, essencial: null }),
+        );
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        await restaurarDaNuvem();
+
+        expect(banco.despesas()[0]).toMatchObject({
+          categoria_id: null,
+          fixa_ou_variavel: null,
+          essencial: null,
+        });
+      });
+
+      it('série de despesa preserva o tipo e as classificações e não gera receitas', async () => {
+        await registrarDespesa(
+          dadosDespesa({
+            recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
+          }),
+        );
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.recorrencias).toBe(1);
+        expect(banco.recorrencias()[0]).toMatchObject({
+          tipo: 'despesa',
+          categoria_id: 'casa',
+          fixa_ou_variavel: 'fixa',
+          essencial: 1,
+          sync_status: 'sincronizado',
+        });
+
+        await completarRecorrencias();
+        await completarRecorrenciasDespesas();
+
+        expect(banco.receitas()).toHaveLength(0);
+      });
+
+      it('EX08: restaura uma série e suas ocorrências sem a categoria indisponível', async () => {
+        await registrarDespesa(dadosDespesa({
+          categoriaId: 'categoria-removida',
+          recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
+        }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        expect((await restaurarDaNuvem()).despesas).toBe(3);
+        expect(banco.recorrencias()[0].categoria_id).toBeNull();
+        expect(banco.despesas().map(d => d.categoria_id)).toEqual([null, null, null]);
+      });
+
+      it('RN07: restaura o marcador e não gera novamente a ocorrência excluída', async () => {
+        await registrarDespesa(dadosDespesa({
+          recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+        }));
+        const { id } = banco.despesas()[0];
+        await excluirDespesa(id, 'esta');
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        await restaurarDaNuvem();
+        await completarRecorrenciasDespesas();
+
+        expect(banco.despesas().find(d => d.id === id)?.excluido_em).toBeTruthy();
+        expect((await restaurarDaNuvem()).despesas).toBe(0);
+      });
+
+      it('é idempotente: restaurar duas vezes não duplica despesas', async () => {
+        await registrarDespesa(dadosDespesa({ titulo: 'Avulsa' }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        await restaurarDaNuvem();
+        const n = banco.despesas().length;
+
+        expect((await restaurarDaNuvem()).despesas).toBe(0);
+        expect(banco.despesas()).toHaveLength(n);
+      });
+
+      it('despesa excluída localmente não reaparece nem sobrescreve edição pendente', async () => {
+        await registrarDespesa(dadosDespesa({ titulo: 'A' }));
+        await registrarDespesa(dadosDespesa({ titulo: 'B', data: '2026-10-17' }));
+        await sincronizarPendentes();
+
+        const [a, b] = banco.despesas();
+        await excluirDespesa(a.id);
+        await editarDespesa(b.id, dadosDespesa({ titulo: 'B editada', data: '2026-10-17' }), 'esta');
+
+        const resultado = await restaurarDaNuvem(); // nuvem ainda tem as versões antigas
+
+        expect(resultado.despesas).toBe(0);
+        expect(banco.despesas().find((d) => d.id === a.id).excluido_em).toBeTruthy();
+        expect(banco.despesas().find((d) => d.id === b.id).titulo).toBe('B editada');
+      });
+
+      it('ignora documentos de despesa inválidos', async () => {
+        mockNuvem.set('usuarios/u1/despesas/ruim1', { valor_centavos: -5, data: '2026-10-16', titulo: 'X' });
+        mockNuvem.set('usuarios/u1/despesas/ruim2', { valor_centavos: 100, titulo: 'sem data' });
+
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.despesas).toBe(0);
+        expect(banco.despesas()).toHaveLength(0);
+      });
     });
 
     it('sem conta: não restaura', async () => {

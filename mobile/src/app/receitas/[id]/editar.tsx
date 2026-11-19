@@ -8,7 +8,7 @@ import { useExclusao } from '@/components/receitas/useExclusao';
 import { buscarReceita, editarReceita, ReceitaIndisponivel } from '@/features/receitas/service';
 import { formatarBR } from '@/features/receitas/dates';
 import { centavosParaTexto } from '@/features/receitas/money';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
 import type { EscopoSerie, FormValores, Receita, ReceitaInput } from '@/features/receitas/types';
