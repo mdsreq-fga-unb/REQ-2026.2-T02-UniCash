@@ -93,10 +93,10 @@ describe('useDespesas', () => {
   it('refaz a consulta ao trocar a categoria', async () => {
     listar.mockResolvedValue({ itens: [], total: 0 });
 
-    const { rerender } = render(<CategoriaHarness categoria="casa" />);
+    const { rerender } = await render(<CategoriaHarness categoria="casa" />);
     await waitFor(() => expect(listar).toHaveBeenCalledTimes(1));
 
-    rerender(<CategoriaHarness categoria="lazer" />);
+    await rerender(<CategoriaHarness categoria="lazer" />);
 
     await waitFor(() => {
       expect(listar).toHaveBeenLastCalledWith('2026-11-01', '2026-12-01', 'lazer');
