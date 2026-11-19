@@ -58,6 +58,15 @@ async function calculo<T>(fn: (db: SQLiteDatabase) => Promise<T>): Promise<T> {
   }
 }
 
+/** Executa as leituras numa transação exclusiva: nenhuma gravação entra no meio delas. */
+async function numaTransacao<T>(db: SQLiteDatabase, fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> {
+  let resultado!: T;
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    resultado = await fn(tx as unknown as SQLiteDatabase);
+  });
+  return resultado;
+}
+
 // ------------------------------------------------- funções base (recebem a conexão)
 
 async function somaNoIntervalo(db: SQLiteDatabase, tabela: Tabela, inicio: string, fim: string) {
@@ -129,24 +138,31 @@ export function progressoMetasDoMes(ano: number, mes: number) {
   return calculo((db) => metasDoPeriodo(db, inicio, fim));
 }
 
-/** Tudo o que a tela de resumo mostra, numa só leitura da base local (UC03 passo 3). Somente leitura. */
+/**
+ * Tudo o que a tela de resumo mostra, numa só leitura da base local (UC03 passo 3). Somente leitura.
+ *
+ * As consultas rodam dentro de uma transação para enxergarem o mesmo estado da base: se a geração de
+ * recorrências ou a sincronização gravarem no meio, o total do mês não diverge da soma por dia.
+ */
 export function calcularResumo(ano: number, mes: number): Promise<ResumoMensal> {
   const { inicio, fim } = intervaloDoMes(ano, mes);
-  return calculo(async (db) => {
-    const totalReceitasCentavos = await somaNoIntervalo(db, 'receitas', inicio, fim);
-    const totalDespesasCentavos = await somaNoIntervalo(db, 'despesas', inicio, fim);
-    const porDia = await receitasPorDiaNoIntervalo(db, inicio, fim);
-    const metas = await metasDoPeriodo(db, inicio, fim);
-    const semLancamentos = !(await existeLancamento(db));
-    return {
-      ano,
-      mes,
-      totalReceitasCentavos,
-      totalDespesasCentavos,
-      saldoCentavos: totalReceitasCentavos - totalDespesasCentavos,
-      receitasPorDia: porDia,
-      metas,
-      semLancamentos,
-    };
-  });
+  return calculo((db) =>
+    numaTransacao(db, async (tx) => {
+      const totalReceitasCentavos = await somaNoIntervalo(tx, 'receitas', inicio, fim);
+      const totalDespesasCentavos = await somaNoIntervalo(tx, 'despesas', inicio, fim);
+      const porDia = await receitasPorDiaNoIntervalo(tx, inicio, fim);
+      const metas = await metasDoPeriodo(tx, inicio, fim);
+      const semLancamentos = !(await existeLancamento(tx));
+      return {
+        ano,
+        mes,
+        totalReceitasCentavos,
+        totalDespesasCentavos,
+        saldoCentavos: totalReceitasCentavos - totalDespesasCentavos,
+        receitasPorDia: porDia,
+        metas,
+        semLancamentos,
+      };
+    }),
+  );
 }

@@ -226,6 +226,16 @@ describe('Resumo financeiro (UC03)', () => {
     });
   });
 
+  it('lê todos os totais numa única transação, para não divergirem se houver gravação no meio', async () => {
+    await registrarReceita(input({ data: '2026-10-05', valorCentavos: 10000 }));
+    const api = await getDb();
+    const transacao = jest.spyOn(api, 'withExclusiveTransactionAsync');
+    const r = await calcularResumo(2026, 10);
+    expect(transacao).toHaveBeenCalledTimes(1);
+    expect(r.totalReceitasCentavos).toBe(r.receitasPorDia.reduce((s, d) => s + d.totalCentavos, 0));
+    transacao.mockRestore();
+  });
+
   it('pós-condição: calcular e navegar pelo resumo não altera nenhum dado', async () => {
     await registrarReceita(input({ data: '2026-10-05', valorCentavos: 10000 }));
     await registrarDespesa(despesa({ data: '2026-10-06', valorCentavos: 4000 }));
