@@ -6,6 +6,7 @@ import { DespesaForm } from '@/components/despesas/DespesaForm';
 import { registrarDespesa } from '@/features/despesas/service';
 import { MSG_DESPESA } from '@/features/despesas/validation';
 import { setFeedback } from '@/features/receitas/feedback';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import type { DespesaInput } from '@/features/despesas/types';
 import { cores } from '@/lib/theme';
 
@@ -19,6 +20,7 @@ export default function NovaDespesa() {
 
     try {
       await registrarDespesa(dados);
+      sincronizarEmSegundoPlano(); // falha aqui não afeta o registro (EX03)
 
       setFeedback({
         tipo: 'sucesso',

@@ -6,6 +6,8 @@ import {
 } from '@/features/receitas/service';
 
 import {
+  completarRecorrenciasDespesas,
+  editarDespesa,
   registrarDespesa,
   excluirDespesa,
 } from '@/features/despesas/service';
@@ -27,6 +29,8 @@ const mockNuvem = new Map<string, any>();
 let mockUsuario: { uid: string } | null = { uid: 'u1' };
 let mockRedeFora = false;
 let mockCodigoErro = 'unavailable';
+/** Caminhos que a nuvem rejeita (permission-denied) mesmo com a rede funcionando. */
+const mockCaminhosRejeitados = new Set<string>();
 
 jest.mock('@/lib/firebase', () => ({
   auth: {
@@ -49,6 +53,9 @@ jest.mock('firebase/firestore', () => ({
   },
   setDoc: async (ref: any, dados: any) => {
     if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
+    if (mockCaminhosRejeitados.has(ref.path)) {
+      throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+    }
     mockNuvem.set(ref.path, JSON.parse(JSON.stringify(dados)));
   },
   getDoc: async (ref: any) => {
@@ -73,6 +80,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     mockUsuario = { uid: 'u1' };
     mockRedeFora = false;
     mockCodigoErro = 'unavailable';
+    mockCaminhosRejeitados.clear();
     consumirAcessoNegado();
   });
   afterEach(restaurarTempo);
@@ -170,6 +178,65 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
 
   expect(rec.sync_status).toBe('sincronizado');
 });
+
+    it('FA01: despesa sem categoria não envia campos nulos para a nuvem', async () => {
+      await registrarDespesa(
+        inputDespesa({
+          categoriaId: null,
+          fixaOuVariavel: null,
+          essencial: null,
+          descricao: null,
+        }),
+      );
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+      const enviado = mockNuvem.get(caminhoDespesa(d.id));
+
+      expect(enviado).toBeDefined();
+      expect(enviado).not.toHaveProperty('categoria_id');
+      expect(enviado).not.toHaveProperty('fixa_ou_variavel');
+      expect(enviado).not.toHaveProperty('essencial');
+      expect(Object.values(enviado)).not.toContain(null);
+      expect(d.sync_status).toBe('sincronizado');
+    });
+
+    it('série de despesa sem categoria não envia campos nulos', async () => {
+      await registrarDespesa(
+        inputDespesa({
+          categoriaId: null,
+          fixaOuVariavel: null,
+          essencial: null,
+          recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
+        }),
+      );
+      await sincronizarPendentes();
+
+      const rec = banco.recorrencias()[0];
+      const enviado = mockNuvem.get(`usuarios/u1/recorrencias/${rec.id}`);
+
+      expect(enviado).toMatchObject({ tipo: 'despesa' });
+      expect(Object.values(enviado)).not.toContain(null);
+      expect(rec.sync_status).toBe('sincronizado');
+    });
+
+    it('um registro rejeitado pela nuvem não bloqueia os demais (fica pendente)', async () => {
+      await registrarDespesa(inputDespesa({ titulo: 'Rejeitada' }));
+      await registrarDespesa(inputDespesa({ titulo: 'Aceita', data: '2026-10-17' }));
+
+      const rejeitada = banco.despesas().find((d) => d.titulo === 'Rejeitada');
+      const aceita = banco.despesas().find((d) => d.titulo === 'Aceita');
+      mockCaminhosRejeitados.add(caminhoDespesa(rejeitada.id));
+
+      await sincronizarPendentes();
+
+      const depois = banco.despesas();
+      expect(depois.find((d) => d.id === rejeitada.id).sync_status).toBe('pendente');
+      expect(depois.find((d) => d.id === aceita.id).sync_status).toBe('sincronizado');
+      expect(mockNuvem.has(caminhoDespesa(aceita.id))).toBe(true);
+      expect(mockNuvem.has(caminhoDespesa(rejeitada.id))).toBe(false);
+      expect(consumirAcessoNegado()).toBe(true);
+    });
   });
 
   describe('offline e sem conta', () => {
@@ -419,6 +486,121 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       await expect(restaurarDaNuvem()).rejects.toBeInstanceOf(FalhaRestauracao);
       expect(banco.instantaneo()).toEqual(antes);
       expect(consumirAcessoNegado()).toBe(true);
+    });
+
+    describe('despesas', () => {
+      const dadosDespesa = (extra: Partial<DespesaInput> = {}): DespesaInput => ({
+        data: '2026-10-16',
+        titulo: 'Aluguel',
+        valorCentavos: 150000,
+        descricao: null,
+        categoriaId: 'moradia',
+        fixaOuVariavel: 'fixa',
+        essencial: 1,
+        recorrencia: null,
+        ...extra,
+      });
+
+      it('recupera despesa avulsa num aparelho limpo, já como sincronizada', async () => {
+        await registrarDespesa(dadosDespesa());
+        await sincronizarPendentes();
+        const antes = banco.despesas()[0];
+
+        banco = instalarBanco(); // aparelho novo
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.despesas).toBe(1);
+        expect(banco.despesas()).toHaveLength(1);
+        expect(banco.despesas()[0]).toMatchObject({
+          id: antes.id,
+          valor_centavos: 150000,
+          titulo: 'Aluguel',
+          categoria_id: 'moradia',
+          fixa_ou_variavel: 'fixa',
+          essencial: 1,
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('despesa sem categoria (FA01) volta com categoria_id NULL', async () => {
+        await registrarDespesa(
+          dadosDespesa({ categoriaId: null, fixaOuVariavel: null, essencial: null }),
+        );
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        await restaurarDaNuvem();
+
+        expect(banco.despesas()[0]).toMatchObject({
+          categoria_id: null,
+          fixa_ou_variavel: null,
+          essencial: null,
+        });
+      });
+
+      it('série de despesa preserva o tipo e as classificações e não gera receitas', async () => {
+        await registrarDespesa(
+          dadosDespesa({
+            recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
+          }),
+        );
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.recorrencias).toBe(1);
+        expect(banco.recorrencias()[0]).toMatchObject({
+          tipo: 'despesa',
+          categoria_id: 'moradia',
+          fixa_ou_variavel: 'fixa',
+          essencial: 1,
+          sync_status: 'sincronizado',
+        });
+
+        await completarRecorrencias();
+        await completarRecorrenciasDespesas();
+
+        expect(banco.receitas()).toHaveLength(0);
+      });
+
+      it('é idempotente: restaurar duas vezes não duplica despesas', async () => {
+        await registrarDespesa(dadosDespesa({ titulo: 'Avulsa' }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        await restaurarDaNuvem();
+        const n = banco.despesas().length;
+
+        expect((await restaurarDaNuvem()).despesas).toBe(0);
+        expect(banco.despesas()).toHaveLength(n);
+      });
+
+      it('despesa excluída localmente não reaparece nem sobrescreve edição pendente', async () => {
+        await registrarDespesa(dadosDespesa({ titulo: 'A' }));
+        await registrarDespesa(dadosDespesa({ titulo: 'B', data: '2026-10-17' }));
+        await sincronizarPendentes();
+
+        const [a, b] = banco.despesas();
+        await excluirDespesa(a.id);
+        await editarDespesa(b.id, dadosDespesa({ titulo: 'B editada', data: '2026-10-17' }), 'esta');
+
+        const resultado = await restaurarDaNuvem(); // nuvem ainda tem as versões antigas
+
+        expect(resultado.despesas).toBe(0);
+        expect(banco.despesas().find((d) => d.id === a.id).excluido_em).toBeTruthy();
+        expect(banco.despesas().find((d) => d.id === b.id).titulo).toBe('B editada');
+      });
+
+      it('ignora documentos de despesa inválidos', async () => {
+        mockNuvem.set('usuarios/u1/despesas/ruim1', { valor_centavos: -5, data: '2026-10-16', titulo: 'X' });
+        mockNuvem.set('usuarios/u1/despesas/ruim2', { valor_centavos: 100, titulo: 'sem data' });
+
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.despesas).toBe(0);
+        expect(banco.despesas()).toHaveLength(0);
+      });
     });
 
     it('sem conta: não restaura', async () => {

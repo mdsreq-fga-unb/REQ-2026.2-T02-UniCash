@@ -16,6 +16,7 @@ import {
   DespesaIndisponivel,
 } from '@/features/despesas/service';
 import { setFeedback } from '@/features/receitas/feedback';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { formatarBR } from '@/features/receitas/dates';
 import { centavosParaTexto } from '@/features/receitas/money';
 import { MSG_DESPESA } from '@/features/despesas/validation';
@@ -48,6 +49,7 @@ export default function EditarDespesa() {
       const resultado = await buscarDespesa(id);
 
       if (!resultado) {
+        setFeedback({ tipo: 'erro', texto: MSG_DESPESA.indisponivel });
         router.replace('/despesas');
         return;
       }
@@ -94,6 +96,7 @@ export default function EditarDespesa() {
 
     try {
       await editarDespesa(id, dados, escopo);
+      sincronizarEmSegundoPlano(); // falha aqui não afeta a edição (EX03)
 
       setFeedback({
         tipo: 'sucesso',
@@ -103,6 +106,7 @@ export default function EditarDespesa() {
       router.dismissTo('/despesas');
     } catch (e) {
       if (e instanceof DespesaIndisponivel) {
+        setFeedback({ tipo: 'erro', texto: MSG_DESPESA.indisponivel });
         router.replace('/despesas');
         return;
       }

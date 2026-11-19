@@ -13,6 +13,12 @@ import {
   listarDespesas,
 } from '@/features/despesas/service';
 import { setFeedback } from '@/features/receitas/feedback';
+import { contarPendentes } from '@/features/receitas/pendencias';
+import {
+  consumirAcessoNegado,
+  sincronizarPendentes,
+} from '@/features/receitas/sync';
+import { MSG_DESPESA } from '@/features/despesas/validation';
 import { router } from '../helpers/expoRouterMock';
 import { despesaLinha } from '../helpers/dados';
 
@@ -27,11 +33,23 @@ jest.mock('@/features/despesas/service', () => ({
   listarDespesas: jest.fn(),
 }));
 
+jest.mock('@/features/receitas/sync', () => ({
+  sincronizarPendentes: jest.fn().mockResolvedValue(false),
+  sincronizarEmSegundoPlano: jest.fn(),
+  consumirAcessoNegado: jest.fn().mockReturnValue(false),
+}));
+jest.mock('@/features/receitas/pendencias', () => ({
+  contarPendentes: jest.fn().mockResolvedValue(0),
+}));
+
 const listar = listarDespesas as jest.Mock;
 
 describe('Lista de despesas', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (contarPendentes as jest.Mock).mockResolvedValue(0);
+    (sincronizarPendentes as jest.Mock).mockResolvedValue(false);
+    (consumirAcessoNegado as jest.Mock).mockReturnValue(false);
   });
 
   it('lista as despesas com data, título, valor e total', async () => {
@@ -150,6 +168,77 @@ describe('Lista de despesas', () => {
     expect(
       await screen.findByText('Não foi possível salvar a despesa.'),
     ).toBeTruthy();
+  });
+
+  describe('sincronização', () => {
+    it('tenta sincronizar ao focar a lista (A7, C4, D4)', async () => {
+      listar.mockResolvedValue({ itens: [], total: 0 });
+
+      await render(<ListaDespesas />);
+      await screen.findByText('Nenhuma despesa neste período');
+
+      await waitFor(() => {
+        expect(sincronizarPendentes).toHaveBeenCalled();
+      });
+    });
+
+    it('recarrega a lista quando a nuvem atualizou algum registro local', async () => {
+      listar.mockResolvedValue({ itens: [], total: 0 });
+      (sincronizarPendentes as jest.Mock).mockResolvedValue(true);
+
+      await render(<ListaDespesas />);
+
+      await waitFor(() => {
+        expect(listar.mock.calls.length).toBeGreaterThanOrEqual(2);
+      });
+    });
+
+    it('mostra o indicador de pendências no singular e no plural', async () => {
+      listar.mockResolvedValue({ itens: [], total: 0 });
+      (contarPendentes as jest.Mock).mockResolvedValue(1);
+
+      const { unmount } = await render(<ListaDespesas />);
+      expect(await screen.findByText('↻ 1 pendente')).toBeTruthy();
+      unmount();
+
+      (contarPendentes as jest.Mock).mockResolvedValue(3);
+      await render(<ListaDespesas />);
+      expect(await screen.findByText('↻ 3 pendentes')).toBeTruthy();
+    });
+
+    it('não mostra o indicador sem pendências', async () => {
+      listar.mockResolvedValue({ itens: [], total: 0 });
+
+      await render(<ListaDespesas />);
+      await screen.findByText('Nenhuma despesa neste período');
+
+      expect(screen.queryByText(/pendente/)).toBeNull();
+    });
+
+    it('mantém a lista quando o contador de pendências falha', async () => {
+      listar.mockResolvedValue({
+        itens: [despesaLinha({ id: '1', titulo: 'Aluguel' })],
+        total: 150000,
+      });
+      (contarPendentes as jest.Mock).mockRejectedValue(new Error('disco'));
+
+      await render(<ListaDespesas />);
+
+      expect(await screen.findByText('Aluguel')).toBeTruthy();
+    });
+
+    it('EX06: nuvem negou o acesso → mensagem e dados locais intactos', async () => {
+      listar.mockResolvedValue({
+        itens: [despesaLinha({ id: '1', titulo: 'Aluguel' })],
+        total: 150000,
+      });
+      (consumirAcessoNegado as jest.Mock).mockReturnValue(true);
+
+      await render(<ListaDespesas />);
+
+      expect(await screen.findByText(MSG_DESPESA.semAcesso)).toBeTruthy();
+      expect(screen.getByText('Aluguel')).toBeTruthy();
+    });
   });
 
   describe('falha na leitura local', () => {

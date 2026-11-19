@@ -9,6 +9,7 @@ import {
 import { formatarBR } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { setFeedback } from '@/features/receitas/feedback';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG_DESPESA } from '@/features/despesas/validation';
 import type { EscopoSerie } from '@/features/despesas/types';
 
@@ -44,6 +45,7 @@ export function useExclusaoDespesas(alvo: AlvoExclusaoDespesa | null) {
 
     try {
       await excluirDespesa(alvo.id, escopo);
+      sincronizarEmSegundoPlano(); // falha aqui não afeta a exclusão (EX03)
       setFeedback({ tipo: 'sucesso', texto: 'Despesa excluída.' });
     } catch (e) {
       setFeedback({

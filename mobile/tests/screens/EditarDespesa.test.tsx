@@ -7,6 +7,7 @@ import {
   DespesaIndisponivel,
 } from '@/features/despesas/service';
 import { consumirFeedback } from '@/features/receitas/feedback';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG_DESPESA } from '@/features/despesas/validation';
 import { router } from '../helpers/expoRouterMock';
 import { despesaLinha } from '../helpers/dados';
@@ -19,6 +20,12 @@ jest.mock('@/features/despesas/service', () => ({
   ...jest.requireActual('@/features/despesas/service'),
   buscarDespesa: jest.fn(),
   editarDespesa: jest.fn(),
+}));
+
+jest.mock('@/features/receitas/sync', () => ({
+  sincronizarPendentes: jest.fn().mockResolvedValue(false),
+  sincronizarEmSegundoPlano: jest.fn(),
+  consumirAcessoNegado: jest.fn().mockReturnValue(false),
 }));
 
 
@@ -105,6 +112,7 @@ describe('Editar despesa', () => {
     );
 
     expect(consumirFeedback()?.tipo).toBe('sucesso');
+    expect(sincronizarEmSegundoPlano).toHaveBeenCalledTimes(1);
   });
 
   it('dados inválidos não são gravados', async () => {
@@ -193,7 +201,7 @@ describe('Editar despesa', () => {
   });
 
   describe('despesa indisponível', () => {
-    it('ao abrir uma despesa inexistente, volta à lista', async () => {
+    it('ao abrir uma despesa inexistente, avisa (EX05) e volta à lista', async () => {
       buscar.mockResolvedValue(null);
 
       await render(<EditarDespesa />);
@@ -201,9 +209,13 @@ describe('Editar despesa', () => {
       await waitFor(() =>
         expect(router.replace).toHaveBeenCalledWith('/despesas'),
       );
+      expect(consumirFeedback()).toEqual({
+        tipo: 'erro',
+        texto: 'Esta despesa não está mais disponível.',
+      });
     });
 
-    it('despesa excluída entre abrir e salvar volta à lista', async () => {
+    it('despesa excluída entre abrir e salvar avisa (EX05) e volta à lista', async () => {
       buscar.mockResolvedValue(unica());
       editar.mockRejectedValue(new DespesaIndisponivel());
 
@@ -215,6 +227,11 @@ describe('Editar despesa', () => {
       await waitFor(() =>
         expect(router.replace).toHaveBeenCalledWith('/despesas'),
       );
+      expect(consumirFeedback()).toEqual({
+        tipo: 'erro',
+        texto: MSG_DESPESA.indisponivel,
+      });
+      expect(sincronizarEmSegundoPlano).not.toHaveBeenCalled();
     });
   });
 

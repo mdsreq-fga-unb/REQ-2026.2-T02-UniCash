@@ -16,6 +16,9 @@ import { FiltroDespesas } from '@/components/despesas/FiltroDespesas';
 import { DespesaItem } from '@/components/despesas/DespesaItem';
 import { formatarBRL } from '@/features/receitas/money';
 import { useDespesas } from '@/features/despesas/useDespesas';
+import { MSG_DESPESA } from '@/features/despesas/validation';
+import { contarPendentes } from '@/features/receitas/pendencias';
+import { consumirAcessoNegado, sincronizarPendentes } from '@/features/receitas/sync';
 import {
   consumirFeedback,
   type Feedback,
@@ -44,25 +47,51 @@ export default function ListaDespesas() {
     recarregar,
   } = useDespesas(filtro);
 
+  const [pendentes, setPendentes] = useState(0);
   const primeiraFocada = useRef(true);
 
-useFocusEffect(
-  useCallback(() => {
-    setFeedback(consumirFeedback());
-
-    if (primeiraFocada.current) {
-      primeiraFocada.current = false;
-      return;
+  const atualizarPendentes = useCallback(async () => {
+    try {
+      setPendentes(await contarPendentes());
+    } catch {
+      // indicador é informativo
     }
+  }, []);
 
-    void recarregar();
-  }, [recarregar]),
-);
+  // Ao focar: mostra mensagem pendente, recarrega e tenta sincronizar (EX03).
+  useFocusEffect(
+    useCallback(() => {
+      setFeedback(consumirFeedback());
+      void atualizarPendentes();
+
+      if (primeiraFocada.current) {
+        primeiraFocada.current = false;
+      } else {
+        void recarregar();
+      }
+
+      void sincronizarPendentes().then((mudou) => {
+        if (mudou) void recarregar();
+        // EX06: a nuvem negou o acesso; os dados locais seguem intactos.
+        if (consumirAcessoNegado()) {
+          setFeedback({ tipo: 'erro', texto: MSG_DESPESA.semAcesso });
+        }
+        void atualizarPendentes();
+      });
+    }, [recarregar, atualizarPendentes]),
+  );
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <View style={estilos.cabecalho}>
         <Text style={estilos.titulo}>Despesas</Text>
+        {pendentes > 0 ? (
+          <View style={estilos.pendentes}>
+            <Text style={estilos.pendentesTexto}>
+              ↻ {pendentes} {pendentes === 1 ? 'pendente' : 'pendentes'}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <FlatList
@@ -189,6 +218,17 @@ const estilos = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: cores.marinho,
+  },
+  pendentes: {
+    backgroundColor: cores.fundoSuave,
+    borderRadius: raio.botao,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  pendentesTexto: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: cores.textoSuave,
   },
   conteudo: {
     paddingHorizontal: 20,

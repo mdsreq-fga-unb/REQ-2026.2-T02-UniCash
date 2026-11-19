@@ -15,6 +15,7 @@ import {
   DespesaIndisponivel,
 } from '@/features/despesas/service';
 import { setFeedback } from '@/features/receitas/feedback';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { router } from 'expo-router';
 import { MSG_DESPESA } from '@/features/despesas/validation';
 
@@ -72,6 +73,10 @@ jest.mock('@/features/despesas/service', () => ({
 
 jest.mock('@/features/receitas/feedback', () => ({
   setFeedback: jest.fn(),
+}));
+
+jest.mock('@/features/receitas/sync', () => ({
+  sincronizarEmSegundoPlano: jest.fn(),
 }));
 
 jest.mock('expo-router', () => ({
@@ -188,6 +193,7 @@ describe('useExclusaoDespesas', () => {
         texto: 'Despesa excluída.',
       });
 
+      expect(sincronizarEmSegundoPlano).toHaveBeenCalledTimes(1);
       expect(dismissMock).toHaveBeenCalledWith('/despesas');
     },
   );
@@ -225,6 +231,7 @@ describe('useExclusaoDespesas', () => {
       });
     });
 
+    expect(sincronizarEmSegundoPlano).not.toHaveBeenCalled();
     expect(dismissMock).toHaveBeenCalledWith('/despesas');
   });
 
