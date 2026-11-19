@@ -170,6 +170,81 @@ describe('Lista de despesas', () => {
     ).toBeTruthy();
   });
 
+  describe('filtro por categoria (B, FA04)', () => {
+    it('mostra "Todas" e as sete categorias padrão', async () => {
+      listar.mockResolvedValue({ itens: [], total: 0 });
+
+      await render(<ListaDespesas />);
+
+      for (const nome of [
+        'Todas',
+        'Casa',
+        'Alimentação',
+        'Mobilidade',
+        'Estudos',
+        'Saúde',
+        'Lazer',
+        'Reserva financeira',
+      ]) {
+        expect(await screen.findByText(nome)).toBeTruthy();
+      }
+    });
+
+    it('escolher uma categoria refaz a consulta com ela e "Todas" volta ao normal', async () => {
+      listar.mockResolvedValue({ itens: [], total: 0 });
+
+      await render(<ListaDespesas />);
+      await screen.findByText('Nenhuma despesa neste período');
+
+      await fireEvent.press(screen.getByText('Saúde'));
+
+      await waitFor(() => {
+        expect(listar).toHaveBeenLastCalledWith(
+          expect.any(String),
+          expect.any(String),
+          'saude',
+        );
+      });
+
+      await fireEvent.press(screen.getByText('Todas'));
+
+      await waitFor(() => {
+        const ultima = listar.mock.calls[listar.mock.calls.length - 1];
+        expect(ultima).toHaveLength(2);
+      });
+    });
+
+    it('FA04: categoria sem resultados mostra "Nenhum registro" e sugere alterar o filtro', async () => {
+      listar.mockResolvedValue({ itens: [], total: 0 });
+
+      await render(<ListaDespesas />);
+      await screen.findByText('Nenhuma despesa neste período');
+
+      await fireEvent.press(screen.getByText('Lazer'));
+
+      expect(await screen.findByText('Nenhum registro')).toBeTruthy();
+      expect(
+        screen.getByText(
+          'Altere o filtro de categoria ou o período para ver outras despesas.',
+        ),
+      ).toBeTruthy();
+    });
+
+    it('a lista exibe a categoria de cada despesa', async () => {
+      listar.mockResolvedValue({
+        itens: [
+          despesaLinha({ id: '1', titulo: 'Aluguel', categoria_id: 'casa' }),
+        ],
+        total: 150000,
+      });
+
+      await render(<ListaDespesas />);
+
+      expect(await screen.findByText('Aluguel')).toBeTruthy();
+      expect(screen.getByTestId('categoria-despesa').props.children).toBe('Casa');
+    });
+  });
+
   describe('sincronização', () => {
     it('tenta sincronizar ao focar a lista (A7, C4, D4)', async () => {
       listar.mockResolvedValue({ itens: [], total: 0 });

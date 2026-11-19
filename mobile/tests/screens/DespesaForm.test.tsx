@@ -26,6 +26,20 @@ async function montar(
   return { onSalvar, onCancelar, onExcluir };
 }
 
+const FORM_BASE: FormValoresDespesa = {
+  valor: '250,00',
+  data: '16/10/2026',
+  titulo: 'Aluguel',
+  descricao: '',
+  categoriaId: '',
+  fixaOuVariavel: '',
+  essencial: '',
+  recorrente: false,
+  intervalo: '1',
+  unidade: 'mes',
+  termino: '',
+};
+
 const digitar = (rotulo: string, texto: string) =>
   fireEvent.changeText(screen.getByLabelText(rotulo), texto);
 
@@ -70,6 +84,81 @@ describe('Formulário de despesa', () => {
 
     expect(onSalvar).not.toHaveBeenCalled();
     expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
+  });
+
+  describe('categoria (RN13)', () => {
+    it('mostra "Sem categoria" e as sete categorias padrão', async () => {
+      await montar();
+
+      for (const nome of [
+        'Sem categoria',
+        'Casa',
+        'Alimentação',
+        'Mobilidade',
+        'Estudos',
+        'Saúde',
+        'Lazer',
+        'Reserva financeira',
+      ]) {
+        expect(screen.getByText(nome)).toBeTruthy();
+      }
+    });
+
+    it('por padrão salva sem categoria (FA01)', async () => {
+      const { onSalvar } = await montar();
+
+      await preencherValido();
+      await salvar();
+
+      expect(onSalvar).toHaveBeenCalledWith(
+        expect.objectContaining({ categoriaId: null }),
+      );
+    });
+
+    it.each([
+      ['Casa', 'casa'],
+      ['Alimentação', 'alimentacao'],
+      ['Mobilidade', 'mobilidade'],
+      ['Estudos', 'estudos'],
+      ['Saúde', 'saude'],
+      ['Lazer', 'lazer'],
+      ['Reserva financeira', 'reserva_financeira'],
+    ])('escolher %s salva a categoria %s', async (nome, id) => {
+      const { onSalvar } = await montar();
+
+      await preencherValido();
+      await fireEvent.press(screen.getByText(nome));
+      await salvar();
+
+      expect(onSalvar).toHaveBeenCalledWith(
+        expect.objectContaining({ categoriaId: id }),
+      );
+    });
+
+    it('voltar para "Sem categoria" remove a categoria escolhida', async () => {
+      const { onSalvar } = await montar();
+
+      await preencherValido();
+      await fireEvent.press(screen.getByText('Lazer'));
+      await fireEvent.press(screen.getByText('Sem categoria'));
+      await salvar();
+
+      expect(onSalvar).toHaveBeenCalledWith(
+        expect.objectContaining({ categoriaId: null }),
+      );
+    });
+
+    it('na edição, abre com a categoria atual selecionada', async () => {
+      const { onSalvar } = await montar({
+        inicial: { ...FORM_BASE, categoriaId: 'estudos' },
+      });
+
+      await salvar();
+
+      expect(onSalvar).toHaveBeenCalledWith(
+        expect.objectContaining({ categoriaId: 'estudos' }),
+      );
+    });
   });
 
   it('salva os dados válidos', async () => {

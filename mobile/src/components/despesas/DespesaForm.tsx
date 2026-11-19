@@ -30,6 +30,11 @@ import type {
   UnidadeRecorrencia,
 } from '@/features/despesas/types';
 
+import {
+  CATEGORIAS_PADRAO_DESPESA,
+  ROTULO_SEM_CATEGORIA,
+} from '@/features/despesas/categorias';
+
 export const FORM_DESPESA_VAZIO: FormValoresDespesa = {
   valor: '',
   data: formatarBR(hojeISO()),
@@ -219,19 +224,36 @@ export function DespesaForm({
 
         <View style={estilos.bloco}>
           <Text style={estilos.rotulo}>Categoria</Text>
-          <View
-            style={estilos.categoria}
-            accessibilityRole="text"
-            accessibilityLabel="Categoria não selecionada"
-          >
-            <Text style={estilos.categoriaTexto}>
-              Sem categoria
-            </Text>
+          <View style={estilos.categoriaOpcoes} accessibilityRole="radiogroup">
+            {[
+              { id: '', nome: ROTULO_SEM_CATEGORIA },
+              ...CATEGORIAS_PADRAO_DESPESA,
+            ].map((c) => {
+              const ativa = v.categoriaId === c.id;
+
+              return (
+                <Pressable
+                  key={c.id || 'sem-categoria'}
+                  onPress={() => set('categoriaId', c.id)}
+                  style={[
+                    estilos.categoriaChip,
+                    ativa && estilos.categoriaChipAtivo,
+                  ]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: ativa }}
+                >
+                  <Text
+                    style={[
+                      estilos.categoriaChipTexto,
+                      ativa && estilos.categoriaChipTextoAtivo,
+                    ]}
+                  >
+                    {c.nome}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
-          <Text style={estilos.dica}>
-            O cadastro e a seleção de categorias serão disponibilizados
-            quando o gerenciamento de categorias for integrado.
-          </Text>
         </View>
 
         <View style={estilos.bloco}>
@@ -422,15 +444,25 @@ const estilos = StyleSheet.create({
     color: cores.marinho,
     marginBottom: 6,
   },
-  categoria: {
+  categoriaOpcoes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoriaChip: {
     borderWidth: 1,
     borderColor: cores.borda,
     borderRadius: raio.campo,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: cores.branco,
   },
-  categoriaTexto: { fontSize: 15, color: cores.textoSuave },
+  categoriaChipAtivo: {
+    backgroundColor: cores.primaria,
+    borderColor: cores.primaria,
+  },
+  categoriaChipTexto: { fontSize: 13, color: cores.marinho },
+  categoriaChipTextoAtivo: { color: cores.branco, fontWeight: '600' },
   seletor: {
     flexDirection: 'row',
     alignItems: 'center',

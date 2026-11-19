@@ -66,20 +66,29 @@ async function leitura<T>(
 }
 // ---------------------------------------------------------------- consultas
 
-/** Lista despesas de um intervalo [inicio, fim), mais recentes primeiro. */
-export function listarDespesas(inicio: string, fim: string) {
+/**
+ * Lista despesas de um intervalo [inicio, fim), mais recentes primeiro.
+ * Com categoriaId, restringe a lista e o total a essa categoria (filtro por categoria, B/FA04).
+ */
+export function listarDespesas(
+  inicio: string,
+  fim: string,
+  categoriaId: string | null = null,
+) {
   return leitura(async (db) => {
     const itens = await db.getAllAsync<Despesa>(
       `SELECT * FROM despesas
        WHERE excluido_em IS NULL AND data >= ? AND data < ?
+         AND (? IS NULL OR categoria_id = ?)
        ORDER BY data DESC, criado_em DESC`,
-      [inicio, fim],
+      [inicio, fim, categoriaId, categoriaId],
     );
 
     const total = await db.getFirstAsync<{ total: number | null }>(
       `SELECT SUM(valor_centavos) AS total FROM despesas
-       WHERE excluido_em IS NULL AND data >= ? AND data < ?`,
-      [inicio, fim],
+       WHERE excluido_em IS NULL AND data >= ? AND data < ?
+         AND (? IS NULL OR categoria_id = ?)`,
+      [inicio, fim, categoriaId, categoriaId],
     );
 
     return {

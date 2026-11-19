@@ -19,6 +19,7 @@ import { buscarDespesa } from '@/features/despesas/service';
 import { formatarBR, formatarDataHora } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { MSG_DESPESA } from '@/features/despesas/validation';
+import { rotuloCategoria } from '@/features/despesas/categorias';
 import type { Despesa } from '@/features/despesas/types';
 import { useExclusaoDespesas } from '@/components/despesas/useExclusaoDespesas';
 import { cores, raio } from '@/lib/theme';
@@ -173,7 +174,7 @@ export default function DetalheDespesa() {
           <Linha rotulo="Descrição" valor={despesa.descricao ?? '—'} />
           <Linha
             rotulo="Categoria"
-            valor={despesa.categoria_id ?? 'Sem categoria'}
+            valor={rotuloCategoria(despesa.categoria_id)}
           />
 
           <Linha

@@ -31,7 +31,7 @@ export function intervaloDoFiltro(filtro: FiltroDespesa) {
   return { inicio, fim };
 }
 
-export function useDespesas(filtro: FiltroDespesa) {
+export function useDespesas(filtro: FiltroDespesa, categoriaId: string | null = null) {
   const [itens, setItens] = useState<Despesa[]>([]);
   const [total, setTotal] = useState(0);
   const [carregando, setCarregando] = useState(true);
@@ -43,7 +43,7 @@ export function useDespesas(filtro: FiltroDespesa) {
 
     const { inicio, fim } = intervaloDoFiltro(filtro);
 
-    listarDespesas(inicio, fim)
+    (categoriaId ? listarDespesas(inicio, fim, categoriaId) : listarDespesas(inicio, fim))
       .then((resultado) => {
         if (cancelado) return;
 
@@ -67,7 +67,7 @@ export function useDespesas(filtro: FiltroDespesa) {
     return () => {
       cancelado = true;
     };
-  }, [filtro, versao]);
+  }, [filtro, categoriaId, versao]);
 
   const recarregar = useCallback(() => {
     setCarregando(true);

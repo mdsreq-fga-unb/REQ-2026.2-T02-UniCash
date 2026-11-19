@@ -59,9 +59,49 @@ function DespesasHarness() {
   );
 }
 
+function CategoriaHarness({ categoria }: { categoria: string | null }) {
+  const estado = useDespesas(filtro, categoria);
+
+  return <Text>Total: {estado.total}</Text>;
+}
+
 describe('useDespesas', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('sem categoria consulta apenas o intervalo do filtro', async () => {
+    listar.mockResolvedValue({ itens: [], total: 0 });
+
+    render(<DespesasHarness />);
+
+    await waitFor(() => {
+      expect(listar).toHaveBeenCalledWith('2026-11-01', '2026-12-01');
+    });
+  });
+
+  it('com categoria repassa a categoria à consulta', async () => {
+    listar.mockResolvedValue({ itens: [], total: 0 });
+
+    render(<CategoriaHarness categoria="saude" />);
+
+    await waitFor(() => {
+      expect(listar).toHaveBeenCalledWith('2026-11-01', '2026-12-01', 'saude');
+    });
+  });
+
+  it('refaz a consulta ao trocar a categoria', async () => {
+    listar.mockResolvedValue({ itens: [], total: 0 });
+
+    const { rerender } = render(<CategoriaHarness categoria="casa" />);
+    await waitFor(() => expect(listar).toHaveBeenCalledTimes(1));
+
+    rerender(<CategoriaHarness categoria="lazer" />);
+
+    await waitFor(() => {
+      expect(listar).toHaveBeenLastCalledWith('2026-11-01', '2026-12-01', 'lazer');
+    });
+    expect(listar).toHaveBeenCalledTimes(2);
   });
 
   it('carrega despesas e o total', async () => {

@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cores, raio } from '@/lib/theme';
 import { formatarBR } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
+import { rotuloCategoria } from '@/features/despesas/categorias';
 import type { Despesa } from '@/features/despesas/types';
 
 export function DespesaItem({
@@ -27,6 +28,10 @@ export function DespesaItem({
         <Text style={estilos.sub}>
           Despesa · {formatarBR(despesa.data)}
           {despesa.recorrencia_id ? ' · Recorrente' : ''}
+        </Text>
+
+        <Text style={estilos.sub} testID="categoria-despesa">
+          {rotuloCategoria(despesa.categoria_id)}
         </Text>
 
         {despesa.fixa_ou_variavel ? (

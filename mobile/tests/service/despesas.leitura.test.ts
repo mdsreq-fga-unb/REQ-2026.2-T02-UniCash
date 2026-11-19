@@ -1,6 +1,7 @@
 
 import {
   FalhaLeitura,
+  excluirDespesa,
   registrarDespesa,
   listarDespesas,
   buscarDespesa,
@@ -56,6 +57,61 @@ describe('Leitura de despesas', () => {
     expect(resultado.total).toBe(180000);
     expect(resultado.itens[0].titulo).toBe('Mercado');
     expect(resultado.itens[1].titulo).toBe('Aluguel');
+  });
+
+  describe('filtro por categoria (B, FA04)', () => {
+    beforeEach(async () => {
+      await registrarDespesa(
+        inputDespesa({ titulo: 'Aluguel', categoriaId: 'casa', valorCentavos: 100000 }),
+      );
+      await registrarDespesa(
+        inputDespesa({ titulo: 'Condomínio', categoriaId: 'casa', valorCentavos: 30000 }),
+      );
+      await registrarDespesa(
+        inputDespesa({ titulo: 'Consulta', categoriaId: 'saude', valorCentavos: 20000 }),
+      );
+      await registrarDespesa(
+        inputDespesa({ titulo: 'Avulsa', categoriaId: null, valorCentavos: 5000 }),
+      );
+    });
+
+    it('sem categoria informada lista tudo', async () => {
+      const r = await listarDespesas('2026-10-01', '2026-11-01');
+
+      expect(r.itens).toHaveLength(4);
+      expect(r.total).toBe(155000);
+    });
+
+    it('lista e soma só a categoria escolhida', async () => {
+      const r = await listarDespesas('2026-10-01', '2026-11-01', 'casa');
+
+      expect(r.itens.map((d) => d.titulo).sort()).toEqual(['Aluguel', 'Condomínio']);
+      expect(r.total).toBe(130000);
+    });
+
+    it('FA04: categoria sem despesas no período devolve lista vazia e total zero', async () => {
+      const r = await listarDespesas('2026-10-01', '2026-11-01', 'lazer');
+
+      expect(r.itens).toEqual([]);
+      expect(r.total).toBe(0);
+    });
+
+    it('combina categoria e período', async () => {
+      const r = await listarDespesas('2026-11-01', '2026-12-01', 'casa');
+
+      expect(r.itens).toEqual([]);
+      expect(r.total).toBe(0);
+    });
+
+    it('não inclui despesas excluídas da categoria', async () => {
+      const aluguel = banco.despesas().find((d) => d.titulo === 'Aluguel');
+      await excluirDespesa(aluguel.id);
+
+      const r = await listarDespesas('2026-10-01', '2026-11-01', 'casa');
+
+      expect(r.itens.map((d) => d.titulo)).toEqual(['Condomínio']);
+      expect(r.total).toBe(30000);
+    });
   });
 
   it('FA03/RN12: despesa com data futura é contabilizada no mês da própria data', async () => {

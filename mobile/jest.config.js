@@ -31,6 +31,13 @@ module.exports = {
       functions: 85,
       lines: 90,
     },
+    // Sincronização do UC02 (envio e restauração de despesas) também fica sob controle.
+    './src/features/receitas/sync.ts': {
+      statements: 95,
+      branches: 85,
+      functions: 95,
+      lines: 95,
+    },
   },
 
   testTimeout: 30000,

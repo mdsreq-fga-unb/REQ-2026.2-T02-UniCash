@@ -4,6 +4,7 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -15,6 +16,7 @@ import { cores, raio } from '@/lib/theme';
 import { FiltroDespesas } from '@/components/despesas/FiltroDespesas';
 import { DespesaItem } from '@/components/despesas/DespesaItem';
 import { formatarBRL } from '@/features/receitas/money';
+import { CATEGORIAS_PADRAO_DESPESA } from '@/features/despesas/categorias';
 import { useDespesas } from '@/features/despesas/useDespesas';
 import { MSG_DESPESA } from '@/features/despesas/validation';
 import { contarPendentes } from '@/features/receitas/pendencias';
@@ -37,6 +39,7 @@ function filtroMesCorrente(): FiltroDespesa {
 
 export default function ListaDespesas() {
   const [filtro, setFiltro] = useState<FiltroDespesa>(filtroMesCorrente);
+  const [categoria, setCategoria] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const {
@@ -45,7 +48,7 @@ export default function ListaDespesas() {
     carregando,
     erroLeitura,
     recarregar,
-  } = useDespesas(filtro);
+  } = useDespesas(filtro, categoria);
 
   const [pendentes, setPendentes] = useState(0);
   const primeiraFocada = useRef(true);
@@ -127,6 +130,36 @@ export default function ListaDespesas() {
               <FiltroDespesas filtro={filtro} onChange={setFiltro} />
             </View>
 
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={estilos.categorias}
+              accessibilityLabel="Filtrar por categoria"
+            >
+              {[{ id: null, nome: 'Todas' }, ...CATEGORIAS_PADRAO_DESPESA].map((c) => {
+                const ativa = categoria === c.id;
+
+                return (
+                  <Pressable
+                    key={c.id ?? 'todas'}
+                    onPress={() => setCategoria(c.id)}
+                    style={[estilos.categoriaChip, ativa && estilos.categoriaChipAtivo]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: ativa }}
+                  >
+                    <Text
+                      style={[
+                        estilos.categoriaChipTexto,
+                        ativa && estilos.categoriaChipTextoAtivo,
+                      ]}
+                    >
+                      {c.nome}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
             <View style={estilos.total}>
               <Text style={estilos.totalRotulo}>Total de despesas</Text>
               <Text style={estilos.totalValor}>
@@ -178,11 +211,15 @@ export default function ListaDespesas() {
           ) : (
             <View style={estilos.vazio}>
               <Text style={estilos.vazioTitulo}>
-                Nenhuma despesa neste período
+                {categoria
+                  ? 'Nenhum registro'
+                  : 'Nenhuma despesa neste período'}
               </Text>
 
               <Text style={estilos.vazioTexto}>
-                Toque em + para registrar uma despesa.
+                {categoria
+                  ? 'Altere o filtro de categoria ou o período para ver outras despesas.'
+                  : 'Toque em + para registrar uma despesa.'}
               </Text>
             </View>
           )
@@ -259,6 +296,24 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 12,
   },
+  categorias: {
+    marginBottom: 12,
+  },
+  categoriaChip: {
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.campo,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    backgroundColor: cores.branco,
+  },
+  categoriaChipAtivo: {
+    backgroundColor: cores.primaria,
+    borderColor: cores.primaria,
+  },
+  categoriaChipTexto: { fontSize: 12, color: cores.marinho },
+  categoriaChipTextoAtivo: { color: cores.branco, fontWeight: '600' },
   total: {
     backgroundColor: cores.fundoSuave,
     borderRadius: raio.cartao,

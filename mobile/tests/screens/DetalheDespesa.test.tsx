@@ -42,7 +42,7 @@ function unica() {
       valor_centavos: 150000,
       data: '2026-10-16',
       descricao: 'Aluguel do apartamento',
-      categoria_id: 'Moradia',
+      categoria_id: 'casa',
       fixa_ou_variavel: 'fixa',
       essencial: 1,
       recorrencia_id: null,
@@ -82,7 +82,7 @@ describe('DetalheDespesa', () => {
     expect(await screen.findByText('Aluguel')).toBeTruthy();
     expect(screen.getByText('Detalhe da despesa')).toBeTruthy();
     expect(screen.getByText('Aluguel do apartamento')).toBeTruthy();
-    expect(screen.getByText('Moradia')).toBeTruthy();
+    expect(screen.getByText('Casa')).toBeTruthy();
     expect(screen.getByText('Fixa')).toBeTruthy();
     expect(screen.getByText('Essencial')).toBeTruthy();
     expect(screen.getByText('Pendente')).toBeTruthy();

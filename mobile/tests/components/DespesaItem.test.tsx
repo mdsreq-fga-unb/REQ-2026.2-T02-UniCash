@@ -40,6 +40,28 @@ describe('DespesaItem', () => {
     expect(screen.getByText('›')).toBeTruthy();
   });
 
+  it('exibe o nome da categoria da despesa', async () => {
+    await render(
+      <DespesaItem
+        despesa={{ ...despesaBase, categoria_id: 'alimentacao' }}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Alimentação')).toBeTruthy();
+  });
+
+  it.each([null, 'categoria-removida'])(
+    'categoria %p aparece como "Sem categoria"',
+    async (categoria_id) => {
+      await render(
+        <DespesaItem despesa={{ ...despesaBase, categoria_id }} onPress={jest.fn()} />,
+      );
+
+      expect(screen.getByText('Sem categoria')).toBeTruthy();
+    },
+  );
+
   it('exibe classificação fixa e essencial', async () => {
     await render(
       <DespesaItem despesa={despesaBase} onPress={jest.fn()} />,

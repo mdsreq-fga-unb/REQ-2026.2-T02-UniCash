@@ -13,7 +13,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | Principal – mês corrente, mais recente primeiro | `src/app/despesas/index.tsx`, `src/features/despesas/service.ts` (`listarDespesas`) | `tests/screens/TelaListaDespesas.test.tsx`, `tests/service/despesas.leitura.test.ts` | ✅ |
 | A – Registrar | `src/app/despesas/nova.tsx`, `src/components/despesas/DespesaForm.tsx`, `service.ts` (`registrarDespesa`) | `tests/screens/NovaDespesa.test.tsx`, `tests/screens/DespesaForm.test.tsx`, `tests/service/despesas.registrar.test.ts` | ✅ |
 | A7 – Sincronização após registrar | `src/app/despesas/nova.tsx` | `tests/screens/NovaDespesa.test.tsx` (dispara após gravar; não dispara se a gravação falha) | ✅ |
-| B – Filtrar por dia, mês e período; detalhar | `src/components/despesas/FiltroDespesas.tsx`, `src/features/despesas/useDespesas.ts`, `src/app/despesas/[id]/index.tsx` | `tests/screens/FiltroDespesas.test.tsx`, `tests/unit/despesas.intervalo-filtro.test.ts`, `tests/features/despesas/useDespesas.test.tsx`, `tests/screens/DetalheDespesa.test.tsx` | ⚠️ filtro por categoria depende do UC06 |
+| B – Filtrar por dia, mês, período e categoria; detalhar | `src/components/despesas/FiltroDespesas.tsx`, `src/app/despesas/index.tsx` (filtro por categoria), `src/features/despesas/useDespesas.ts`, `service.ts` (`listarDespesas`), `src/app/despesas/[id]/index.tsx` | `tests/screens/FiltroDespesas.test.tsx`, `tests/unit/despesas.intervalo-filtro.test.ts`, `tests/features/despesas/useDespesas.test.tsx`, `tests/service/despesas.leitura.test.ts` (filtro por categoria), `tests/screens/TelaListaDespesas.test.tsx`, `tests/screens/DetalheDespesa.test.tsx` | ✅ categorias provisórias (limitação 2) |
 | C – Editar | `src/app/despesas/[id]/editar.tsx`, `service.ts` (`editarDespesa`) | `tests/screens/EditarDespesa.test.tsx`, `tests/service/despesas.editar-excluir.test.ts`, `tests/service/despesas.recorrencia-editar-excluir.test.ts` | ✅ |
 | C4 – Sincronização após editar | `src/app/despesas/[id]/editar.tsx` | `tests/screens/EditarDespesa.test.tsx` | ✅ |
 | D – Excluir | `src/components/despesas/useExclusaoDespesas.tsx` | `tests/components/useExclusaoDespesas.test.tsx`, `tests/service/despesas.editar-excluir.test.ts` | ✅ |
@@ -21,7 +21,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | FA01 – Sem categoria | `service.ts`, `src/features/receitas/sync.ts` (payload sem campos nulos) | `tests/service/despesas.registrar.test.ts`, `tests/service/sync.test.ts` ("FA01…"), `tests/rules/firestore.rules.test.ts` | ✅ |
 | FA02 – Offline | `src/features/receitas/sync.ts` | `tests/service/sync.test.ts` ("mantém despesa pendente quando não há conexão") | ✅ |
 | FA03 – Data futura | `service.ts` (`listarDespesas`) | `tests/service/despesas.leitura.test.ts` ("FA03/RN12…") | ✅ |
-| FA04 – Filtro por categoria sem resultados | – | – | ⏳ UC06 (não há filtro por categoria) |
+| FA04 – Filtro por categoria sem resultados | `src/app/despesas/index.tsx` (estado vazio com categoria ativa) | `tests/screens/TelaListaDespesas.test.tsx` ("Nenhum registro" e sugestão de alterar o filtro), `tests/service/despesas.leitura.test.ts` | ✅ |
 | FA05 – Cancelamento | `editar.tsx`, `useExclusaoDespesas.tsx`, `DespesaForm.tsx` | `tests/screens/EditarDespesa.test.tsx`, `tests/components/useExclusaoDespesas.test.tsx`, `tests/screens/DespesaForm.test.tsx` | ✅ |
 | FA06 – Mudança de categoria e recálculo | `service.ts` (`editarDespesa`) | `tests/service/despesas.editar-excluir.test.ts` (muda categoria) | ⏳ recálculo de saldo/limites: UC04, UC05, UC09 |
 | FA07 – Recorrência | `service.ts` (`criarSerie`, `gerarOcorrencias`), `validation.ts` (`excedeLimiteOcorrencias`) | `tests/service/despesas.recorrencia.test.ts` (mês, dia e ano; com e sem término), `tests/unit/despesas.validation.test.ts` (limite de 3700 ocorrências) | ✅ |
@@ -33,7 +33,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | EX05 – Despesa indisponível | `editar.tsx`, `[id]/index.tsx`, `useExclusaoDespesas.tsx`, `service.ts` | `tests/screens/EditarDespesa.test.tsx` (mensagem ao abrir e ao salvar), `tests/screens/DetalheDespesa.test.tsx`, `tests/components/useExclusaoDespesas.test.tsx`, `tests/service/despesas.editar-excluir.test.ts` | ✅ |
 | EX06 – Acesso a dados de outro usuário | `src/app/despesas/index.tsx` (`consumirAcessoNegado`) | `tests/screens/TelaListaDespesas.test.tsx` (mensagem e dados locais intactos), `tests/rules/firestore.rules.test.ts` (nega na nuvem) | ✅ |
 | EX07 – Período inválido | `FiltroDespesas.tsx` | `tests/screens/FiltroDespesas.test.tsx` | ✅ |
-| EX08 – Categoria excluída na sincronização | `sync.ts` (`categoriaConhecida`, ponto de integração) | – | ⏳ UC06 |
+| EX08 – Categoria excluída na sincronização | `sync.ts` (`categoriaConhecida`, ponto de integração); na exibição, categoria desconhecida vira "Sem categoria" (`rotuloCategoria`) | `tests/unit/despesas.categorias.test.ts`, `tests/components/DespesaItem.test.tsx` | ⏳ restauração depende do UC06 |
 | EX09 – Falha na leitura local | `service.ts`, `useDespesas.ts`, telas | `tests/service/despesas.leitura.test.ts`, `tests/features/despesas/useDespesas.test.tsx`, `tests/screens/TelaListaDespesas.test.tsx` | ✅ |
 
 ## 2. Regras de negócio
@@ -47,7 +47,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | RN10 – Título e descrição | `validation.ts` | `tests/unit/despesas.validation.test.ts` (80/81 e 255/256 caracteres) | ✅ |
 | RN11 – Transação única | `service.ts` (`transacao`) | `tests/service/despesas.registrar.test.ts`, `tests/service/despesas.editar-excluir.test.ts`, `tests/service/despesas.recorrencia-editar-excluir.test.ts` (falha induzida na exclusão por alcance) | ✅ |
 | RN12 – Ordem e período | `service.ts` (`listarDespesas`) | `tests/service/despesas.leitura.test.ts` (ordem, data futura no mês da própria data), `tests/unit/despesas.intervalo-filtro.test.ts` | ✅ |
-| RN13 – Categorias padrão | `service.ts`, `DespesaForm.tsx` | `tests/service/despesas.registrar.test.ts` (as 7 categorias padrão) | ⚠️ cadastro/seletor completo depende do UC06 |
+| RN13 – Categorias padrão | `src/features/despesas/categorias.ts`, `DespesaForm.tsx` (seletor), `DespesaItem.tsx` e `[id]/index.tsx` (rótulo) | `tests/unit/despesas.categorias.test.ts`, `tests/screens/DespesaForm.test.tsx` (as 7 categorias), `tests/service/despesas.registrar.test.ts`, `tests/components/DespesaItem.test.tsx` | ⚠️ cadastro de categorias próprias é do UC06 |
 | RN19 – Recorrência | `validation.ts`, `service.ts` | `tests/unit/despesas.validation.test.ts`, `tests/service/despesas.recorrencia.test.ts` | ✅ |
 | RN20 – Editar qualquer campo | `service.ts` (`editarDespesa`) | `tests/service/despesas.editar-excluir.test.ts` | ✅ |
 | RNF03 – Security Rules | `firestore.rules` | `tests/rules/firestore.rules.test.ts` (`npm run test:rules`), incluindo série de despesa | ✅ |
@@ -66,9 +66,12 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
    `restaurarDaNuvem` não é chamada por nenhuma tela. A sincronização é validada só por testes
    automatizados (SQLite em memória e Firebase mockado); a prova manual fica pendente do caso de uso de
    autenticação.
-2. **Categorias (UC06):** seletor de categorias, rótulo na lista, filtro por categoria (B, FA04) e a
-   regra de categoria excluída na restauração (EX08) dependem do UC06. O ponto de integração é
-   `categoriaConhecida()` em `sync.ts`.
+2. **Categorias (UC06):** o UC02 usa as 7 categorias padrão como constantes provisórias
+   (`src/features/despesas/categorias.ts`) para seletor, rótulo e filtro. Os ids dessas constantes
+   (`casa`, `saude`…) **não** correspondem às linhas da tabela `categorias` do UC06, que usa ids
+   gerados; ao integrar o UC06, esse módulo é o único ponto a trocar e as despesas existentes
+   precisam de migração de `categoria_id`. A regra de categoria excluída na restauração (EX08)
+   continua pendente: o ponto de integração é `categoriaConhecida()` em `sync.ts`.
 3. **Recálculo de saldo, totais, limites e alertas (A6, C3, D3, FA06):** dependem de UC04, UC05 e UC09.
 4. **Conflito de exclusão remota (EX04):** a exclusão é enviada com `deleteDoc`, sem marcador na nuvem.
    Se outra instalação excluir a despesa e houver edição local pendente, a edição recria o documento; do
