@@ -184,6 +184,31 @@ describe('Edição e exclusão de despesas recorrentes', () => {
     expect(serieAtualizada?.termino).toBe(despesas[1].data);
   });
 
+  it('preserva a despesa adiada ao remover a repetição desta e das próximas', async () => {
+    const { despesas, serie } = await criarSerie();
+    const [anterior, selecionada, ...seguintes] = despesas;
+    const novaData = '2026-11-20';
+
+    await editarDespesa(
+      selecionada.id,
+      inputDespesa({ data: novaData, recorrencia: null }),
+      'proximas',
+    );
+
+    expect(banco.recorrencias().find((r) => r.id === serie.id)?.termino).toBe(novaData);
+
+    const ocorrencias = banco.despesas();
+    expect(ocorrencias.find((d) => d.id === selecionada.id)).toMatchObject({
+      data: novaData,
+      excluido_em: null,
+    });
+    expect(ocorrencias.filter((d) => !d.excluido_em).map((d) => d.id).sort())
+      .toEqual([anterior.id, selecionada.id].sort());
+    for (const seguinte of seguintes) {
+      expect(ocorrencias.find((d) => d.id === seguinte.id)?.excluido_em).toEqual(expect.any(String));
+    }
+  });
+
   it('remove a repetição e edita todas as ocorrências', async () => {
     const { despesas, serie } = await criarSerie();
 

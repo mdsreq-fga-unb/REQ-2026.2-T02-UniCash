@@ -471,9 +471,9 @@ export function editarDespesa(
 
         await tx.runAsync(
           `${LAPIDE}
-           WHERE recorrencia_id = ? AND data > ?
+           WHERE recorrencia_id = ? AND data > ? AND id <> ?
              AND excluido_em IS NULL`,
-          [ts, ts, rec.id, atual.data],
+          [ts, ts, rec.id, atual.data, id],
         );
 
         const fim =

@@ -86,8 +86,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 5. **Alteração da periodicidade em toda a série (FA08):** a regra implementada no UC01 também se aplica
    ao UC02. Ao escolher “Todas” e mudar a periodicidade, a nova série parte da data de início original.
    As ocorrências antigas recebem marcadores de exclusão, e as novas são geradas pela periodicidade
-   escolhida. O teste de serviço verifica as novas datas. O impacto sobre o histórico permanece como
-   ponto de validação com o revisor.
+   escolhida. O teste de serviço verifica as novas datas. Essa decisão foi confirmada na revisão do PR #55.
 
 6. **EX01:** data e término inválidos recebem instruções de formato para diferenciar ausência de data
    de data inexistente. A mensagem de excesso de ocorrências explica como ajustar a série antes de
