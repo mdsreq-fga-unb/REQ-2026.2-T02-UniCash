@@ -175,6 +175,7 @@ export default function EditarDespesa() {
         titulo="Editar despesa"
         textoSalvar="Salvar alterações"
         inicial={inicial}
+        emSerie={emSerie}
         salvando={salvando}
         erroGeral={erro}
         onSalvar={aoSalvar}

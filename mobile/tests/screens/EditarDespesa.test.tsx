@@ -84,6 +84,7 @@ describe('Editar despesa', () => {
     await render(<EditarDespesa />);
 
     expect(await screen.findByText('A cada 1 mês')).toBeTruthy();
+    expect(screen.getByText(/Despesa de uma série/)).toBeTruthy();
   });
 
   it('despesa única salva sem perguntar alcance, confirma e volta à lista', async () => {

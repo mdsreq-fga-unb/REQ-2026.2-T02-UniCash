@@ -6,13 +6,24 @@ import { sincronizarPendentes } from '@/features/receitas/sync';
 
 export default function RootLayout() {
   useEffect(() => {
-    // Completa as recorrências antes de tentar sincronizar.
-    Promise.all([
-      completarRecorrencias(),
-      completarRecorrenciasDespesas(),
-    ])
-      .catch(() => {})
-      .finally(() => void sincronizarPendentes());
+    // As duas rotinas gravam no mesmo SQLite, em transações exclusivas.
+    async function iniciar() {
+      try {
+        await completarRecorrencias();
+      } catch (erro) {
+        console.warn('Falha ao completar as recorrências de receitas.', erro);
+      }
+
+      try {
+        await completarRecorrenciasDespesas();
+      } catch (erro) {
+        console.warn('Falha ao completar as recorrências de despesas.', erro);
+      }
+
+      await sincronizarPendentes();
+    }
+
+    void iniciar();
   }, []);
 
   return <Stack screenOptions={{ headerShown: false }} />;

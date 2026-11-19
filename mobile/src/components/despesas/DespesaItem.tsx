@@ -12,6 +12,12 @@ export function DespesaItem({
   despesa: Despesa;
   onPress: () => void;
 }) {
+  const tipo = despesa.fixa_ou_variavel && (despesa.fixa_ou_variavel === 'fixa' ? 'Fixa' : 'Variável');
+  const importancia = despesa.essencial === null
+    ? null
+    : (despesa.essencial === 1 ? 'Essencial' : 'Não essencial');
+  const classificacao = [tipo, importancia].filter(Boolean).join(' · ');
+
   return (
     <Pressable onPress={onPress} style={estilos.linha} accessibilityRole="button">
       <View style={estilos.avatar}>
@@ -34,15 +40,8 @@ export function DespesaItem({
           {rotuloCategoria(despesa.categoria_id)}
         </Text>
 
-        {despesa.fixa_ou_variavel ? (
-          <Text style={estilos.classificacao}>
-            {despesa.fixa_ou_variavel === 'fixa' ? 'Fixa' : 'Variável'}
-            {despesa.essencial !== null
-              ? despesa.essencial === 1
-                ? ' · Essencial'
-                : ' · Não essencial'
-              : ''}
-          </Text>
+        {classificacao ? (
+          <Text style={estilos.classificacao}>{classificacao}</Text>
         ) : null}
 
         {despesa.sync_status === 'pendente' ? (

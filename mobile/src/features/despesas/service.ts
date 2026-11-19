@@ -84,16 +84,9 @@ export function listarDespesas(
       [inicio, fim, categoriaId, categoriaId],
     );
 
-    const total = await db.getFirstAsync<{ total: number | null }>(
-      `SELECT SUM(valor_centavos) AS total FROM despesas
-       WHERE excluido_em IS NULL AND data >= ? AND data < ?
-         AND (? IS NULL OR categoria_id = ?)`,
-      [inicio, fim, categoriaId, categoriaId],
-    );
-
     return {
       itens,
-      total: total?.total ?? 0,
+      total: itens.reduce((total, despesa) => total + despesa.valor_centavos, 0),
     };
   });
 }
@@ -234,7 +227,7 @@ async function criarSerie(
     atualizado_em: ts,
   };
 
-    await tx.runAsync(
+  await tx.runAsync(
     `INSERT INTO recorrencias
       (id, tipo, intervalo, unidade, inicio, termino, ativa,
        valor_centavos, titulo, descricao, categoria_id,

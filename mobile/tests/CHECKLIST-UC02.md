@@ -1,7 +1,7 @@
 # Checklist técnico e DoD (Nível 1) – UC02 Gerenciar despesas
 
 Legenda: ✅ feito e verificável · ⚠️ parcial ou dependente de outro caso de uso · ⏳ pendente (precisa de ação humana).
-CI de referência da branch antes das correções de EX04 e EX08: execução `44500334303`, commit `2eed560`.
+CI verde para as correções de EX04 e EX08 no commit `a97dde3`. [Mobile CI](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44629344486)
 
 ## DoD – Nível 1
 
@@ -13,7 +13,7 @@ CI de referência da branch antes das correções de EX04 e EX08: execução `44
 | Tabela fluxo/RN → teste, sem item sem teste | ✅ | `tests/RASTREABILIDADE-UC02.md`. Os itens ⏳ da tabela são dependências declaradas, não lacunas de teste. |
 | RN com teste válido, inválido e valor-limite | ✅ | RN09, RN10, RN12, RN13, RN19 em `unit/despesas.validation.test.ts`, `service/despesas.*.test.ts`. |
 | Checklists técnicos preenchidos | ✅ | Este documento e a seção "Mapa" da matriz. |
-| Evidência de precisão e isolamento (`test:rules`) | ⏳ | Os testes existem e passam no CI; falta anexar ao PR o log (ver `MANUAL-UC02.md`, seção 1). |
+| Evidência de precisão e isolamento (`test:rules`) | ✅ | [Testes e cobertura](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44629344486/job/135931525376) e [regras no emulador](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44629344486/job/135931525967). |
 | Evidência de persistência e sincronização | ⚠️ | Automatizada: ✅ (`service/sync.test.ts`). Manual no Expo Go/APK: ⏳ (`MANUAL-UC02.md`, 2.1 a 2.3). Sincronização real: bloqueada pela falta de autenticação (2.4). |
 | Rastreabilidade na ferramenta de gestão | ⏳ | Copiar a matriz para a ferramenta da equipe. |
 | Documentação técnica no GitPages | ⏳ | Fora do repositório; atualizar com o UC02 (esquema de despesas, sincronização, categorias provisórias). |

@@ -2,6 +2,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { DespesaForm } from '@/components/despesas/DespesaForm';
 import { formatarBR, hojeISO } from '@/features/receitas/dates';
+import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 import type { FormValoresDespesa } from '@/features/despesas/types';
 
 async function montar(
@@ -352,4 +353,15 @@ describe('Formulário de despesa', () => {
     expect(screen.getByLabelText('Valor').props.value).toBe('250,00');
     expect(screen.getByLabelText('Descrição (opcional)').props.value).toBe('Apartamento');
   });
+});
+
+it('preenche a data do dia em que o formulário é aberto', async () => {
+  fixarHoje('2027-01-01');
+  try {
+    await montar();
+
+    expect(screen.getByLabelText('Data').props.value).toBe('01/01/2027');
+  } finally {
+    restaurarTempo();
+  }
 });

@@ -3,6 +3,7 @@ import {
   registrarDespesa,
   editarDespesa,
   excluirDespesa,
+  listarDespesas,
   DespesaIndisponivel,
   FalhaPersistencia,
 } from '@/features/despesas/service';
@@ -60,6 +61,29 @@ describe('Editar e excluir despesas', () => {
       essencial: 0,
       sync_status: 'pendente',
     });
+  });
+
+  it('FA06/RN20: atualiza os totais dos meses e categorias envolvidos após editar e excluir', async () => {
+    await registrarDespesa(inputDespesa({ categoriaId: 'casa' }));
+    const origem = () => listarDespesas('2026-10-01', '2026-11-01', 'casa');
+    const destino = () => listarDespesas('2026-11-01', '2026-12-01', 'lazer');
+    const [{ id }] = (await origem()).itens;
+
+    expect((await origem()).total).toBe(150000);
+    expect((await destino()).total).toBe(0);
+
+    await editarDespesa(id, inputDespesa({
+      data: '2026-11-16',
+      categoriaId: 'lazer',
+      valorCentavos: 180000,
+    }));
+
+    expect(await origem()).toEqual({ itens: [], total: 0 });
+    expect((await destino()).total).toBe(180000);
+
+    await excluirDespesa(id);
+
+    expect(await destino()).toEqual({ itens: [], total: 0 });
   });
 
   it('não altera outras despesas ao editar uma despesa', async () => {

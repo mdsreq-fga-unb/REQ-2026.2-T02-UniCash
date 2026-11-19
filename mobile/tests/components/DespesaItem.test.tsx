@@ -99,6 +99,20 @@ describe('DespesaItem', () => {
     expect(screen.getByText('Fixa')).toBeTruthy();
   });
 
+  it.each([[1, 'Essencial'], [0, 'Não essencial']] as const)(
+    'exibe importância %i sem classificação fixa ou variável',
+    async (essencial, rotulo) => {
+      await render(
+        <DespesaItem
+          despesa={{ ...despesaBase, fixa_ou_variavel: null, essencial }}
+          onPress={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText(rotulo)).toBeTruthy();
+    },
+  );
+
   it('não exibe classificação quando ela não está definida', async () => {
     await render(
       <DespesaItem

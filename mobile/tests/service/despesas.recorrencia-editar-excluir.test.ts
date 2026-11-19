@@ -266,7 +266,7 @@ describe('Edição e exclusão de despesas recorrentes', () => {
     expect(novaSerie?.inicio).toBe(serie.inicio);
 
     const ativas = banco.despesas().filter((d) => !d.excluido_em);
-    expect(ativas.length).toBeGreaterThan(0);
+    expect(ativas.map((d) => d.data).sort()).toEqual(['2026-10-16', '2026-12-16', '2027-02-16']);
     expect(ativas.every((d) => d.recorrencia_id === novaSerie?.id)).toBe(true);
   });
 

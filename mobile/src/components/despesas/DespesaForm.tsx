@@ -35,9 +35,9 @@ import {
   ROTULO_SEM_CATEGORIA,
 } from '@/features/despesas/categorias';
 
-export const FORM_DESPESA_VAZIO: FormValoresDespesa = {
+const FORM_DESPESA_VAZIO: FormValoresDespesa = {
   valor: '',
-  data: formatarBR(hojeISO()),
+  data: '',
   titulo: '',
   descricao: '',
   categoriaId: '',
@@ -94,7 +94,7 @@ export function DespesaForm({
   onExcluir,
 }: Props) {
   const [v, setV] = useState<FormValoresDespesa>(
-    inicial ?? FORM_DESPESA_VAZIO,
+    () => inicial ?? { ...FORM_DESPESA_VAZIO, data: formatarBR(hojeISO()) },
   );
   const [erros, setErros] = useState<ErrosFormDespesa>({});
   const [repeticaoAberta, setRepeticaoAberta] = useState(false);

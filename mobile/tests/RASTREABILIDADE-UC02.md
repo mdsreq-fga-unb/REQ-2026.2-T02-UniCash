@@ -23,7 +23,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | FA03 – Data futura | `service.ts` (`listarDespesas`) | `tests/service/despesas.leitura.test.ts` ("FA03/RN12…") | ✅ |
 | FA04 – Filtro por categoria sem resultados | `src/app/despesas/index.tsx` (estado vazio com categoria ativa) | `tests/screens/TelaListaDespesas.test.tsx` ("Nenhum registro" e sugestão de alterar o filtro), `tests/service/despesas.leitura.test.ts` | ✅ |
 | FA05 – Cancelamento | `editar.tsx`, `useExclusaoDespesas.tsx`, `DespesaForm.tsx` | `tests/screens/EditarDespesa.test.tsx`, `tests/components/useExclusaoDespesas.test.tsx`, `tests/screens/DespesaForm.test.tsx` | ✅ |
-| FA06 – Mudança de categoria e recálculo | `service.ts` (`editarDespesa`) | `tests/service/despesas.editar-excluir.test.ts` (muda categoria) | ⏳ recálculo de saldo/limites: UC04, UC05, UC09 |
+| FA06 – Mudança de categoria e recálculo | `service.ts` (`editarDespesa`, `listarDespesas`) | `tests/service/despesas.editar-excluir.test.ts` (totais da origem e do destino após edição e exclusão) | ⚠️ totais do UC02 cobertos. Saldo, limites e alertas dependem de UC04, UC05 e UC09. |
 | FA07 – Recorrência | `service.ts` (`criarSerie`, `gerarOcorrencias`), `validation.ts` (`excedeLimiteOcorrencias`) | `tests/service/despesas.recorrencia.test.ts` (mês, dia e ano; com e sem término), `tests/unit/despesas.validation.test.ts` (limite de 3700 ocorrências) | ✅ |
 | FA08 – Alcance em série | `service.ts`, `editar.tsx`, `useExclusaoDespesas.tsx` | `tests/service/despesas.recorrencia-editar-excluir.test.ts`, `tests/screens/EditarDespesa.test.tsx`, `tests/components/useExclusaoDespesas.test.tsx` | ✅ |
 | EX01 – Dados inválidos | `validation.ts`, `DespesaForm.tsx` | `tests/unit/despesas.validation.test.ts` (texto literal das mensagens), `tests/screens/DespesaForm.test.tsx` | ✅ |
@@ -73,6 +73,18 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
    gerados; ao integrar o UC06, esse módulo é o único ponto a trocar e as despesas existentes
    precisam de migração de `categoria_id`. A restauração e a aplicação de edições remotas usam
    o catálogo padrão para identificar categorias indisponíveis (EX08).
-3. **Recálculo de saldo, totais, limites e alertas (A6, C3, D3, FA06):** dependem de UC04, UC05 e UC09.
+3. **Recálculo (A6, C3, D3, FA06):** o UC02 calcula o total a partir das despesas retornadas na mesma
+   consulta e testa edição com mudança de mês e categoria. Ao integrar UC04, UC05 e UC09, as leituras
+   devem usar `despesas` com `excluido_em IS NULL` e somar `valor_centavos` por intervalo de `data`.
+   Cada ocorrência conta individualmente. Limites por categoria devem considerar apenas registros da
+   categoria correspondente. No [PR #68](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/68),
+   alinhar as consultas ao filtro de exclusão lógica e delegar gravações aos serviços da UC02,
+   que usam IDs textuais e exigem título.
 4. **Exclusões antigas:** despesas removidas fisicamente do Firestore por versões anteriores não
    têm marcador remoto. A garantia de restauração se aplica aos marcadores gravados pela versão atual.
+
+5. **Alteração da periodicidade em toda a série (FA08):** a regra implementada no UC01 também se aplica
+   ao UC02. Ao escolher “Todas” e mudar a periodicidade, a nova série parte da data de início original.
+   As ocorrências antigas recebem marcadores de exclusão, e as novas são geradas pela periodicidade
+   escolhida. O teste de serviço verifica as novas datas. O impacto sobre o histórico permanece como
+   ponto de validação com o revisor.
