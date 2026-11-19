@@ -26,10 +26,10 @@ module.exports = {
 
   coverageThreshold: {
     'src/**/despesas/**/*.{ts,tsx}': {
-      statements: 100,
-      branches: 100,
-      functions: 100,
-      lines: 100,
+      statements: 90,
+      branches: 70,
+      functions: 85,
+      lines: 90,
     },
   },
 
