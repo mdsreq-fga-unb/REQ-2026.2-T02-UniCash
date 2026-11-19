@@ -48,9 +48,10 @@ export function useExclusaoDespesas(alvo: AlvoExclusaoDespesa | null) {
     } catch (e) {
       setFeedback({
         tipo: 'erro',
-        texto: e instanceof DespesaIndisponivel
-          ? MSG_DESPESA.indisponivel
-          : MSG_DESPESA.falhaSalvar,
+        texto:
+          e instanceof DespesaIndisponivel
+            ? MSG_DESPESA.indisponivel
+            : MSG_DESPESA.falhaSalvar,
       });
     }
 
@@ -80,12 +81,11 @@ export function useExclusaoDespesas(alvo: AlvoExclusaoDespesa | null) {
       <OpcoesModal
         visivel={etapa === 'confirmar'}
         titulo="Excluir despesa?"
-        mensagem={`“${alvo.titulo}” (- ${formatarBRL(alvo.valorCentavos)} em ${formatarBR(alvo.data)}). ${ALCANCE[escopo]} Esta ação não pode ser desfeita.`}
+        mensagem={`“${alvo.titulo}” — ${formatarBRL(alvo.valorCentavos)} em ${formatarBR(alvo.data)}.\n\n${ALCANCE[escopo]}`}
         opcoes={[
           {
             rotulo: 'Excluir',
-            destrutiva: true,
-            onPress: () => void excluir(),
+            onPress: excluir,
           },
         ]}
         onCancelar={() => setEtapa(null)}

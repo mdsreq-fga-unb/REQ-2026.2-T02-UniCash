@@ -1,5 +1,6 @@
 
 import {
+  FalhaLeitura,
   registrarDespesa,
   listarDespesas,
   buscarDespesa,
@@ -103,6 +104,30 @@ describe('Leitura de despesas', () => {
     expect(resultado?.recorrencia).toBeNull();
   });
 
+  it('busca uma despesa recorrente e sua série', async () => {
+    await registrarDespesa(
+      inputDespesa({
+        recorrencia: {
+          intervalo: 1,
+          unidade: 'mes',
+          termino: '2027-01-16',
+        },
+      }),
+    );
+
+    const despesa = banco.despesas()[0];
+    const resultado = await buscarDespesa(despesa.id);
+
+    expect(resultado).not.toBeNull();
+    expect(resultado?.despesa.id).toBe(despesa.id);
+    expect(resultado?.recorrencia).toMatchObject({
+      id: despesa.recorrencia_id,
+      intervalo: 1,
+      unidade: 'mes',
+      termino: '2027-01-16',
+    });
+  });
+
   it('retorna null quando a despesa não existe', async () => {
     const resultado = await buscarDespesa('id-inexistente');
 
@@ -121,5 +146,13 @@ describe('Leitura de despesas', () => {
     const resultado = await buscarDespesa(id);
 
     expect(resultado).toBeNull();
+  });
+
+  it('lança FalhaLeitura quando ocorre erro ao consultar despesas', async () => {
+    banco.sqlite.exec('DROP TABLE despesas');
+
+    await expect(
+      listarDespesas('2026-10-01', '2026-11-01'),
+    ).rejects.toBeInstanceOf(FalhaLeitura);
   });
 });

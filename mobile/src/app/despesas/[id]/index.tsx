@@ -43,16 +43,18 @@ export default function DetalheDespesa() {
 
   const [carregando, setCarregando] = useState(true);
   const [erroLeitura, setErroLeitura] = useState(false);
+  const [indisponivel, setIndisponivel] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErroLeitura(false);
+    setIndisponivel(false);
 
     try {
       const resultado = await buscarDespesa(id);
 
       if (!resultado) {
-        router.replace('/despesas');
+        setIndisponivel(true);
         return;
       }
 
@@ -87,6 +89,26 @@ export default function DetalheDespesa() {
       <View style={estilos.carregando}>
         <ActivityIndicator color={cores.primaria} />
       </View>
+    );
+  }
+
+  if (indisponivel) {
+    return (
+      <SafeAreaView style={estilos.erroTela}>
+        <Text style={estilos.erroTexto}>
+          {MSG_DESPESA.indisponivel}
+        </Text>
+
+        <Pressable
+          onPress={() => router.replace('/despesas')}
+          style={estilos.tentar}
+          accessibilityRole="button"
+        >
+          <Text style={estilos.primarioTexto}>
+            Voltar para despesas
+          </Text>
+        </Pressable>
+      </SafeAreaView>
     );
   }
 
@@ -149,7 +171,10 @@ export default function DetalheDespesa() {
         <View style={estilos.cartao}>
           <Linha rotulo="Data" valor={formatarBR(despesa.data)} />
           <Linha rotulo="Descrição" valor={despesa.descricao ?? '—'} />
-          <Linha rotulo="Categoria" valor={despesa.categoria_id ?? 'Sem categoria'} />
+          <Linha
+            rotulo="Categoria"
+            valor={despesa.categoria_id ?? 'Sem categoria'}
+          />
 
           <Linha
             rotulo="Classificação"

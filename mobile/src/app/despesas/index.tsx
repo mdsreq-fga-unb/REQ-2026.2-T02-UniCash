@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,6 +16,10 @@ import { FiltroDespesas } from '@/components/despesas/FiltroDespesas';
 import { DespesaItem } from '@/components/despesas/DespesaItem';
 import { formatarBRL } from '@/features/receitas/money';
 import { useDespesas } from '@/features/despesas/useDespesas';
+import {
+  consumirFeedback,
+  type Feedback,
+} from '@/features/receitas/feedback';
 import type { FiltroDespesa } from '@/features/despesas/types';
 
 function filtroMesCorrente(): FiltroDespesa {
@@ -29,6 +34,7 @@ function filtroMesCorrente(): FiltroDespesa {
 
 export default function ListaDespesas() {
   const [filtro, setFiltro] = useState<FiltroDespesa>(filtroMesCorrente);
+  const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const {
     itens,
@@ -38,11 +44,20 @@ export default function ListaDespesas() {
     recarregar,
   } = useDespesas(filtro);
 
-  useFocusEffect(
-    useCallback(() => {
-      void recarregar();
-    }, [recarregar]),
-  );
+  const primeiraFocada = useRef(true);
+
+useFocusEffect(
+  useCallback(() => {
+    setFeedback(consumirFeedback());
+
+    if (primeiraFocada.current) {
+      primeiraFocada.current = false;
+      return;
+    }
+
+    void recarregar();
+  }, [recarregar]),
+);
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
@@ -56,6 +71,29 @@ export default function ListaDespesas() {
         contentContainerStyle={estilos.conteudo}
         ListHeaderComponent={
           <View>
+            {feedback && (
+              <View
+                style={[
+                  estilos.feedback,
+                  feedback.tipo === 'erro'
+                    ? estilos.feedbackErro
+                    : estilos.feedbackSucesso,
+                ]}
+                accessibilityRole="alert"
+              >
+                <Text
+                  style={[
+                    estilos.feedbackTexto,
+                    feedback.tipo === 'erro'
+                      ? estilos.feedbackTextoErro
+                      : estilos.feedbackTextoSucesso,
+                  ]}
+                >
+                  {feedback.texto}
+                </Text>
+              </View>
+            )}
+
             <View style={estilos.chips}>
               <FiltroDespesas filtro={filtro} onChange={setFiltro} />
             </View>
@@ -155,6 +193,27 @@ const estilos = StyleSheet.create({
   conteudo: {
     paddingHorizontal: 20,
     paddingBottom: 110,
+  },
+  feedback: {
+    borderRadius: raio.cartao,
+    padding: 12,
+    marginBottom: 12,
+  },
+  feedbackSucesso: {
+    backgroundColor: '#E8F5E9',
+  },
+  feedbackErro: {
+    backgroundColor: '#FDECEA',
+  },
+  feedbackTexto: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  feedbackTextoSucesso: {
+    color: '#256B36',
+  },
+  feedbackTextoErro: {
+    color: cores.erro,
   },
   chips: {
     flexDirection: 'row',

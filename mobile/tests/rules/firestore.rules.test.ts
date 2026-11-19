@@ -32,8 +32,20 @@ const receita = (extra: Record<string, unknown> = {}) => ({
   atualizado_em: '2026-10-16T12:00:00.000Z',
   ...extra,
 });
+const despesa = (extra: Record<string, unknown> = {}) => ({
+  valor_centavos: 15000,
+  data: '2026-10-16',
+  titulo: 'Aluguel',
+  categoria_id: 'moradia',
+  fixa_ou_variavel: 'fixa',
+  essencial: 1,
+  criado_em: '2026-10-16T12:00:00.000Z',
+  atualizado_em: '2026-10-16T12:00:00.000Z',
+  ...extra,
+});
 
 const serie = (extra: Record<string, unknown> = {}) => ({
+  tipo: 'receita',
   intervalo: 1,
   unidade: 'mes',
   inicio: '2026-10-16',
@@ -72,6 +84,7 @@ beforeEach(async () => {
 const db = (uid: string) => env.authenticatedContext(uid).firestore();
 const anonimo = () => env.unauthenticatedContext().firestore();
 const rec = (d: any, uid = 'u1', id = 'r1') => doc(d, 'usuarios', uid, 'receitas', id);
+const desp = (d: any, uid = 'u1', id = 'd1') => doc(d, 'usuarios', uid, 'despesas', id);
 const ser = (d: any, uid = 'u1', id = 's1') => doc(d, 'usuarios', uid, 'recorrencias', id);
 
 describe('RNF03: acesso só ao próprio uid', () => {
@@ -159,6 +172,75 @@ describe('receitas: campos e limites (RN08 a RN10)', () => {
     await assertSucceeds(setDoc(rec(db('u1')), receita()));
     await assertFails(setDoc(rec(db('u1')), receita({ valor_centavos: 0 })));
     await assertSucceeds(setDoc(rec(db('u1')), receita({ titulo: 'Editada' })));
+  });
+});
+describe('despesas: campos e limites', () => {
+  it('permite criar, consultar e excluir a própria despesa', async () => {
+    await assertSucceeds(setDoc(desp(db('u1')), despesa()));
+    await assertSucceeds(getDoc(desp(db('u1'))));
+    await assertSucceeds(deleteDoc(desp(db('u1'))));
+  });
+
+  it('impede outro usuário de acessar despesas', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(desp(ctx.firestore()), despesa());
+    });
+
+    await assertFails(getDoc(desp(db('u2'))));
+    await assertFails(setDoc(desp(db('u2')), despesa()));
+    await assertFails(deleteDoc(desp(db('u2'))));
+  });
+
+  it('aceita despesas com campos opcionais ausentes', async () => {
+    const {
+      categoria_id: _categoria,
+      fixa_ou_variavel: _classificacao,
+      essencial: _essencial,
+      ...basica
+    } = despesa();
+
+    await assertSucceeds(setDoc(desp(db('u1')), basica));
+  });
+
+  it.each([
+    ['valor_centavos', 0],
+    ['valor_centavos', -1],
+    ['valor_centavos', 1.5],
+    ['valor_centavos', '15000'],
+    ['valor_centavos', 100_000_000_000],
+    ['data', '16/10/2026'],
+    ['titulo', ''],
+    ['titulo', 'a'.repeat(81)],
+    ['categoria_id', 123],
+    ['fixa_ou_variavel', 'eventual'],
+    ['essencial', 2],
+  ])('rejeita campo inválido: %s = %p', async (campo, valor) => {
+    await assertFails(setDoc(desp(db('u1')), despesa({ [campo]: valor })));
+  });
+
+  it('aceita classificações válidas', async () => {
+    await assertSucceeds(
+      setDoc(desp(db('u1'), 'u1', 'fixa'), despesa({ fixa_ou_variavel: 'fixa' })),
+    );
+    await assertSucceeds(
+      setDoc(desp(db('u1'), 'u1', 'variavel'), despesa({ fixa_ou_variavel: 'variavel' })),
+    );
+    await assertSucceeds(
+      setDoc(desp(db('u1'), 'u1', 'essencial'), despesa({ essencial: 1 })),
+    );
+    await assertSucceeds(
+      setDoc(desp(db('u1'), 'u1', 'nao-essencial'), despesa({ essencial: 0 })),
+    );
+  });
+
+  it('rejeita campos desconhecidos', async () => {
+    await assertFails(setDoc(desp(db('u1')), despesa({ campo_desconhecido: true })));
+  });
+
+  it('valida também as atualizações', async () => {
+    await assertSucceeds(setDoc(desp(db('u1')), despesa()));
+    await assertFails(setDoc(desp(db('u1')), despesa({ valor_centavos: 0 })));
+    await assertSucceeds(setDoc(desp(db('u1')), despesa({ titulo: 'Aluguel editado' })));
   });
 });
 
