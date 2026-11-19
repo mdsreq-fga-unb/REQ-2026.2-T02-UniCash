@@ -219,13 +219,18 @@ export function DespesaForm({
 
         <View style={estilos.bloco}>
           <Text style={estilos.rotulo}>Categoria</Text>
-          <View style={estilos.categoria}>
+          <View
+            style={estilos.categoria}
+            accessibilityRole="text"
+            accessibilityLabel="Categoria não selecionada"
+          >
             <Text style={estilos.categoriaTexto}>
               Sem categoria
             </Text>
           </View>
           <Text style={estilos.dica}>
-            A seleção de categorias será integrada ao gerenciamento de categorias.
+            O cadastro e a seleção de categorias serão disponibilizados
+            quando o gerenciamento de categorias for integrado.
           </Text>
         </View>
 

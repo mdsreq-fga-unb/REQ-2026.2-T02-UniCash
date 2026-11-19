@@ -83,7 +83,7 @@ export function FiltroReceitas({ filtro, onChange }: Props) {
         <Text style={estilos.chipSeta}>▾</Text>
       </Pressable>
 
-      <Modal visible={aberto} transparent animationType="slide" onRequestClose={() => setAberto(false)}>
+      <Modal testID="modal-filtro" visible={aberto} transparent animationType="slide" onRequestClose={() => setAberto(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={estilos.fundo}>
           <View style={estilos.folha}>
             <Text style={estilos.titulo}>Filtrar receitas</Text>

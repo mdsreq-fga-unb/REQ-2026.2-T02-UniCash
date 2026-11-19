@@ -15,6 +15,7 @@ import {
   editarDespesa,
   DespesaIndisponivel,
 } from '@/features/despesas/service';
+import { setFeedback } from '@/features/receitas/feedback';
 import { formatarBR } from '@/features/receitas/dates';
 import { centavosParaTexto } from '@/features/receitas/money';
 import { MSG_DESPESA } from '@/features/despesas/validation';
@@ -93,6 +94,12 @@ export default function EditarDespesa() {
 
     try {
       await editarDespesa(id, dados, escopo);
+
+      setFeedback({
+        tipo: 'sucesso',
+        texto: 'Despesa atualizada com sucesso!',
+      });
+
       router.dismissTo('/despesas');
     } catch (e) {
       if (e instanceof DespesaIndisponivel) {

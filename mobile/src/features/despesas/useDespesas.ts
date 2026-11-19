@@ -1,23 +1,41 @@
 
 import { useCallback, useEffect, useState } from 'react';
-import {
-  listarDespesas,
-  FalhaLeitura,
-} from './service';
+import { listarDespesas } from './service';
 import type { Despesa, FiltroDespesa } from './types';
 
-function intervaloDoFiltro(filtro: FiltroDespesa) {
+/**
+ * Acrescenta dias a uma data no formato AAAA-MM-DD.
+ * O uso de UTC evita problemas com mudanças de horário de verão.
+ */
+function adicionarDias(data: string, quantidade: number): string {
+  const resultado = new Date(`${data}T00:00:00.000Z`);
+  resultado.setUTCDate(resultado.getUTCDate() + quantidade);
+  return resultado.toISOString().slice(0, 10);
+}
+
+/**
+ * Calcula o intervalo de datas usado na consulta.
+ * O fim é exclusivo, por isso acrescentamos um dia à data final.
+ */
+export function intervaloDoFiltro(filtro: FiltroDespesa) {
   if (filtro.modo === 'data') {
-    return { inicio: filtro.data, fim: filtro.data };
+    return {
+      inicio: filtro.data,
+      fim: adicionarDias(filtro.data, 1),
+    };
   }
 
   if (filtro.modo === 'periodo') {
-    return { inicio: filtro.de, fim: filtro.ate };
+    return {
+      inicio: filtro.de,
+      fim: adicionarDias(filtro.ate, 1),
+    };
   }
 
   const inicio = `${filtro.ano}-${String(filtro.mes).padStart(2, '0')}-01`;
-  const ultimoDia = new Date(filtro.ano, filtro.mes, 0).getDate();
-  const fim = `${filtro.ano}-${String(filtro.mes).padStart(2, '0')}-${String(ultimoDia).padStart(2, '0')}`;
+
+  const proximoMes = new Date(Date.UTC(filtro.ano, filtro.mes, 1));
+  const fim = proximoMes.toISOString().slice(0, 10);
 
   return { inicio, fim };
 }
@@ -27,39 +45,44 @@ export function useDespesas(filtro: FiltroDespesa) {
   const [total, setTotal] = useState(0);
   const [carregando, setCarregando] = useState(true);
   const [erroLeitura, setErroLeitura] = useState(false);
-
-  const carregar = useCallback(async () => {
-    try {
-      const { inicio, fim } = intervaloDoFiltro(filtro);
-      const resultado = await listarDespesas(inicio, fim);
-
-      setItens(resultado.itens);
-      setTotal(resultado.total);
-      setErroLeitura(false);
-    } catch (erro) {
-      if (erro instanceof FalhaLeitura) {
-        setErroLeitura(true);
-      } else {
-        setErroLeitura(true);
-      }
-    } finally {
-      setCarregando(false);
-    }
-  }, [filtro]);
+  const [versao, setVersao] = useState(0);
 
   useEffect(() => {
-    const temporizador = setTimeout(() => {
-      void carregar();
-    }, 0);
+    let cancelado = false;
 
-    return () => clearTimeout(temporizador);
-  }, [carregar]);
+    const { inicio, fim } = intervaloDoFiltro(filtro);
+
+    listarDespesas(inicio, fim)
+      .then((resultado) => {
+        if (cancelado) return;
+
+        setItens(resultado.itens);
+        setTotal(resultado.total);
+        setErroLeitura(false);
+      })
+      .catch(() => {
+        if (cancelado) return;
+
+        setItens([]);
+        setTotal(0);
+        setErroLeitura(true);
+      })
+      .finally(() => {
+        if (!cancelado) {
+          setCarregando(false);
+        }
+      });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [filtro, versao]);
 
   const recarregar = useCallback(() => {
     setCarregando(true);
     setErroLeitura(false);
-    void carregar();
-  }, [carregar]);
+    setVersao((atual) => atual + 1);
+  }, []);
 
   return {
     itens,

@@ -34,11 +34,10 @@ export function useExclusao(alvo: AlvoExclusao | null) {
     setEtapa(alvo.emSerie ? 'alcance' : 'confirmar');
   }
 
-  async function excluir() {
-    if (!alvo) return;
+  async function excluir(a: AlvoExclusao) {
     setEtapa(null);
     try {
-      await excluirReceita(alvo.id, escopo);
+      await excluirReceita(a.id, escopo);
       sincronizarEmSegundoPlano();
       setFeedback({ tipo: 'sucesso', texto: 'Receita excluída.' });
     } catch (e) {
@@ -48,7 +47,7 @@ export function useExclusao(alvo: AlvoExclusao | null) {
     router.dismissTo('/receitas');
   }
 
-  const dialogos = alvo ? (
+  const montarDialogos = (a: AlvoExclusao) => (
     <>
       <OpcoesModal
         visivel={etapa === 'alcance'}
@@ -65,12 +64,14 @@ export function useExclusao(alvo: AlvoExclusao | null) {
       <OpcoesModal
         visivel={etapa === 'confirmar'}
         titulo="Excluir lançamento?"
-        mensagem={`“${alvo.titulo}” (+ ${formatarBRL(alvo.valorCentavos)} em ${formatarBR(alvo.data)}). ${ALCANCE[escopo]} Esta ação não pode ser desfeita.`}
-        opcoes={[{ rotulo: 'Excluir', destrutiva: true, onPress: () => void excluir() }]}
+        mensagem={`“${a.titulo}” (+ ${formatarBRL(a.valorCentavos)} em ${formatarBR(a.data)}). ${ALCANCE[escopo]} Esta ação não pode ser desfeita.`}
+        opcoes={[{ rotulo: 'Excluir', destrutiva: true, onPress: () => void excluir(a) }]}
         onCancelar={() => setEtapa(null)}
       />
     </>
-  ) : null;
+  );
+
+  const dialogos = alvo ? montarDialogos(alvo) : null;
 
   return { iniciar, dialogos };
 }

@@ -1,6 +1,8 @@
+
 import {
   FalhaPersistencia,
   registrarDespesa,
+  completarRecorrenciasDespesas,
 } from '@/features/despesas/service';
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
@@ -95,4 +97,32 @@ describe('Recorrência de despesas', () => {
     expect(banco.recorrencias()).toHaveLength(0);
     expect(banco.despesas()).toHaveLength(0);
   });
+
+  it('completa ocorrências de uma série sem data final', async () => {
+    await registrarDespesa(
+      inputDespesa({
+        recorrencia: {
+          intervalo: 1,
+          unidade: 'mes',
+          termino: null,
+        },
+      }),
+    );
+
+    const serie = banco.recorrencias()[0];
+
+    // Simula uma série antiga cuja geração inicial ficou incompleta.
+    banco.sqlite.prepare('DELETE FROM despesas').run();
+
+    await completarRecorrenciasDespesas();
+
+    const despesas = banco.despesas();
+
+    expect(despesas.length).toBeGreaterThan(1);
+    expect(despesas[0].data).toBe('2026-10-16');
+    expect(despesas.every((d) => d.recorrencia_id === serie.id)).toBe(true);
+    expect(despesas.every((d) => d.data <= '2027-10-16')).toBe(true);
+  });
+
+
 });

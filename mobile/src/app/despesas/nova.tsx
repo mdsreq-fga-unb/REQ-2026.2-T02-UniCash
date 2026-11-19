@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { DespesaForm } from '@/components/despesas/DespesaForm';
 import { registrarDespesa } from '@/features/despesas/service';
 import { MSG_DESPESA } from '@/features/despesas/validation';
+import { setFeedback } from '@/features/receitas/feedback';
 import type { DespesaInput } from '@/features/despesas/types';
 import { cores } from '@/lib/theme';
 
@@ -18,6 +19,12 @@ export default function NovaDespesa() {
 
     try {
       await registrarDespesa(dados);
+
+      setFeedback({
+        tipo: 'sucesso',
+        texto: 'Despesa cadastrada com sucesso!',
+      });
+
       router.back();
     } catch {
       setErro(MSG_DESPESA.falhaSalvar);

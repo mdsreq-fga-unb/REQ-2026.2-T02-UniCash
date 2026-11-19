@@ -1,6 +1,6 @@
 import { useCallback, useState } from 'react';
 import { adicionarDias, primeiroDiaDoMes, proximoMes } from './dates';
-import { FalhaLeitura, listarReceitas } from './service';
+import { listarReceitas } from './service';
 import type { Filtro, Receita } from './types';
 
 export function intervaloDoFiltro(f: Filtro): { inicio: string; fim: string } {
@@ -26,9 +26,9 @@ export function useReceitas(filtro: Filtro) {
       const r = await listarReceitas(inicio, fim);
       setItens(r.itens);
       setTotal(r.total);
-    } catch (e) {
-      if (e instanceof FalhaLeitura) setErroLeitura(true);
-      else setErroLeitura(true);
+    } catch {
+      // Qualquer falha de leitura local (EX08) mostra a mesma mensagem de erro.
+      setErroLeitura(true);
     } finally {
       setCarregando(false);
     }
