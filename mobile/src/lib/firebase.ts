@@ -1,15 +1,9 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
-import * as firebaseAuth from "firebase/auth";
-import { getAuth, initializeAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getApp, getApps, initializeApp } from 'firebase/app';
+import { connectAuthEmulator, getAuth, getReactNativePersistence, initializeAuth, type Auth } from 'firebase/auth';
+import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 
-// Existe em runtime na build React Native, mas não nos tipos publicados
-const getReactNativePersistence = (firebaseAuth as any)
-  .getReactNativePersistence as (storage: typeof AsyncStorage) => any;
-
-const firebaseConfig = {
+const config = {
   apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
   projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
@@ -18,20 +12,27 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+/** RNF30: desenvolvimento e testes usam o Emulator Suite. No Expo Go em aparelho físico, use o IP da máquina. */
+const usarEmulador = process.env.EXPO_PUBLIC_USE_EMULATOR === 'true';
+const hostEmulador = process.env.EXPO_PUBLIC_EMULATOR_HOST ?? 'localhost';
 
-function createAuth() {
-  if (Platform.OS === "web") {
-    return getAuth(app);
-  }
+const app = getApps().length ? getApp() : initializeApp(config);
+
+function criarAuth(): Auth {
   try {
-    return initializeAuth(app, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    });
+    // Persiste a sessão no aparelho: uma sessão já iniciada continua válida após fechar o app.
+    return initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
   } catch {
-    return getAuth(app);
+    return getAuth(app); // já inicializado (fast refresh)
   }
 }
 
-export const auth = createAuth();
+export const auth = criarAuth();
 export const db = getFirestore(app);
+
+const g = globalThis as { __unicashEmuConectado?: boolean };
+if (usarEmulador && !g.__unicashEmuConectado) {
+  connectAuthEmulator(auth, `http://${hostEmulador}:9099`, { disableWarnings: true });
+  connectFirestoreEmulator(db, hostEmulador, 8080);
+  g.__unicashEmuConectado = true;
+}
