@@ -9,6 +9,9 @@ export default function Home() {
       <Link href="/receitas" style={styles.link}>
         Receitas
       </Link>
+      <Link href="/conta" style={styles.link}>
+        Conta
+      </Link>
     </View>
   );
 }
