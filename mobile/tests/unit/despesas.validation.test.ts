@@ -273,7 +273,7 @@ describe('campos obrigatórios', () => {
           validar({
             ...recorrente,
             unidade: 'dia',
-            intervalo: '7',
+            intervalo: '30', // ~900 ocorrências até 2100 (7 em 7 dias ainda passaria de 3700)
             termino: '31/12/2100',
           }).erros.termino,
         ).toBeUndefined();

@@ -193,16 +193,21 @@ describe('Lista de despesas', () => {
       });
     });
 
-    it('mostra o indicador de pendências no singular e no plural', async () => {
+    it('mostra o indicador de pendências no singular', async () => {
       listar.mockResolvedValue({ itens: [], total: 0 });
       (contarPendentes as jest.Mock).mockResolvedValue(1);
 
-      const { unmount } = await render(<ListaDespesas />);
-      expect(await screen.findByText('↻ 1 pendente')).toBeTruthy();
-      unmount();
-
-      (contarPendentes as jest.Mock).mockResolvedValue(3);
       await render(<ListaDespesas />);
+
+      expect(await screen.findByText('↻ 1 pendente')).toBeTruthy();
+    });
+
+    it('mostra o indicador de pendências no plural', async () => {
+      listar.mockResolvedValue({ itens: [], total: 0 });
+      (contarPendentes as jest.Mock).mockResolvedValue(3);
+
+      await render(<ListaDespesas />);
+
       expect(await screen.findByText('↻ 3 pendentes')).toBeTruthy();
     });
 
