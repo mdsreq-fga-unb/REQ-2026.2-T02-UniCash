@@ -2,38 +2,50 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function dono(uid) {
-      return request.auth != null && request.auth.uid == uid;
+    function logado() { return request.auth != null; }
+    function dono(uid) { return logado() && request.auth.uid == uid; }
+
+    // Espelha a validação de e-mail do cliente (RNF04). A senha nunca chega ao Firestore:
+    // a política de senha é validada no cliente e o Firebase Authentication guarda o hash (RNF01).
+    function emailValido(e) {
+      return e is string && e.size() <= 254 && e.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+    }
+    function nomeValido(d) {
+      return !('nome' in d) || (d.nome is string && d.nome.size() <= 80);
+    }
+    function emailDoToken() {
+      return request.auth.token.email != null ? request.auth.token.email.lower() : '';
     }
 
-    function receitaValida(d) {
-      return d.keys().hasOnly(['valor_centavos', 'data', 'titulo', 'descricao', 'recorrencia_id', 'criado_em', 'atualizado_em'])
-        && d.keys().hasAll(['valor_centavos', 'data', 'titulo', 'criado_em', 'atualizado_em'])
-        && d.valor_centavos is int && d.valor_centavos > 0 && d.valor_centavos <= 99999999999
-        && d.data is string && d.data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
-        && d.titulo is string && d.titulo.size() >= 1 && d.titulo.size() <= 80
-        && (!('descricao' in d) || (d.descricao is string && d.descricao.size() <= 255));
+    // Perfil: cada usuário lê e altera apenas o próprio (RNF02, RNF03). Sem CPF.
+    match /users/{uid} {
+      allow read: if dono(uid);
+
+      allow create: if dono(uid)
+        && request.resource.data.keys().hasOnly(['email', 'nome', 'criadoEm', 'atualizadoEm'])
+        && request.resource.data.keys().hasAll(['email', 'criadoEm'])
+        && emailValido(request.resource.data.email)
+        && request.resource.data.email.lower() == emailDoToken()
+        && request.resource.data.criadoEm == request.time
+        && nomeValido(request.resource.data);
+
+      allow update: if dono(uid)
+        && request.resource.data.keys().hasOnly(['email', 'nome', 'criadoEm', 'atualizadoEm'])
+        && request.resource.data.criadoEm == resource.data.criadoEm
+        && emailValido(request.resource.data.email)
+        && request.resource.data.email.lower() == emailDoToken()
+        && nomeValido(request.resource.data);
+
+      allow delete: if false;
+
+      // Dados sincronizados (RF62): só o dono, e só com e-mail confirmado.
+      match /{dados=**} {
+        allow read, write: if dono(uid) && request.auth.token.email_verified == true;
+      }
     }
 
-    function recorrenciaValida(d) {
-      return d.keys().hasOnly(['intervalo', 'unidade', 'inicio', 'termino', 'ativa', 'valor_centavos', 'titulo', 'descricao', 'atualizado_em'])
-        && d.keys().hasAll(['intervalo', 'unidade', 'inicio', 'ativa', 'valor_centavos', 'titulo', 'atualizado_em'])
-        && d.intervalo is int && d.intervalo > 0
-        && d.unidade in ['dia', 'mes', 'ano']
-        && d.valor_centavos is int && d.valor_centavos > 0 && d.valor_centavos <= 99999999999
-        && d.titulo is string && d.titulo.size() >= 1 && d.titulo.size() <= 80
-        && (!('descricao' in d) || (d.descricao is string && d.descricao.size() <= 255))
-        && (!('termino' in d) || d.termino >= d.inicio);
-    }
-
-    match /usuarios/{uid}/receitas/{id} {
-      allow read, delete: if dono(uid);
-      allow create, update: if dono(uid) && receitaValida(request.resource.data);
-    }
-
-    match /usuarios/{uid}/recorrencias/{id} {
-      allow read, delete: if dono(uid);
-      allow create, update: if dono(uid) && recorrenciaValida(request.resource.data);
+    match /{outro=**} {
+      allow read, write: if false;
     }
   }
 }
