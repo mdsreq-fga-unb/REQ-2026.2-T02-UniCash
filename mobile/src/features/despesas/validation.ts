@@ -1,14 +1,18 @@
 
 import { parseValor } from '../receitas/money';
-import { adicionarIntervalo, parseBR } from '../receitas/dates';
+import { adicionarIntervalo, adicionarMeses, hojeISO, parseBR } from '../receitas/dates';
 import type {
   CampoFormDespesa,
   FormValoresDespesa,
   DespesaInput,
 } from './types';
 
-/** Máximo de ocorrências que uma série com término pode gerar (FA07). */
+/** Máximo de ocorrências por geração de série (FA07). */
 export const MAX_OCORRENCIAS_SERIE = 3700;
+
+export function horizonteRecorrenciasDespesas(): string {
+  return adicionarMeses(hojeISO(), 12);
+}
 
 /** Mensagens previstas no UC02 (EX01 a EX09). */
 export const MSG_DESPESA = {
@@ -127,14 +131,14 @@ export function validarFormularioDespesa(
         erros.termino = MSG_DESPESA.terminoInvalido;
       } else if (data && termino < data) {
         erros.termino = MSG_DESPESA.terminoAnterior;
-      } else if (
-        data &&
-        intervalo > 0 &&
-        excedeLimiteOcorrencias(data, termino, intervalo, v.unidade)
-      ) {
-        // Em vez de truncar a série em silêncio, devolve erro de validação.
-        erros.termino = MSG_DESPESA.recorrenciaLonga;
       }
+    }
+
+    if (
+      data && !erros.intervalo && !erros.termino &&
+      excedeLimiteOcorrencias(data, termino ?? horizonteRecorrenciasDespesas(), intervalo, v.unidade)
+    ) {
+      erros.termino = MSG_DESPESA.recorrenciaLonga;
     }
 
     if (!erros.intervalo && !erros.termino) {

@@ -3,18 +3,15 @@ import { getDb } from '@/db/database';
 import {
   adicionarDias,
   adicionarIntervalo,
-  adicionarMeses,
-  hojeISO,
 } from '../receitas/dates';
 import type {
   Despesa,
   DespesaInput,
   EscopoSerie,
 } from './types';
-import { MAX_OCORRENCIAS_SERIE } from './validation';
+import { horizonteRecorrenciasDespesas, MAX_OCORRENCIAS_SERIE } from './validation';
 
 const MAX_OCORRENCIAS = MAX_OCORRENCIAS_SERIE;
-const HORIZONTE_MESES = 12;
 
 /** Falha ao gravar ou recalcular: a transação é revertida. */
 export class FalhaPersistencia extends Error {}
@@ -138,7 +135,7 @@ export function completarRecorrenciasDespesas() {
          AND tipo = 'despesa'`,
     );
 
-    const limite = adicionarMeses(hojeISO(), HORIZONTE_MESES);
+    const limite = horizonteRecorrenciasDespesas();
 
     for (const serie of series) {
       await gerarOcorrencias(tx, serie, limite);
@@ -250,7 +247,7 @@ async function criarSerie(
   );
 
   const horizonte =
-    rec.termino ?? adicionarMeses(hojeISO(), HORIZONTE_MESES);
+    rec.termino ?? horizonteRecorrenciasDespesas();
 
   await gerarOcorrencias(
     tx,

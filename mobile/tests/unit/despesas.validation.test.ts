@@ -1,8 +1,8 @@
+import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 
 import {
   excedeLimiteOcorrencias,
   validarFormularioDespesa,
-  MSG_DESPESA,
 } from '@/features/despesas/validation';
 import type { FormValoresDespesa } from '@/features/despesas/types';
 
@@ -56,7 +56,7 @@ describe('campos obrigatórios', () => {
 
   it('rejeita data inválida', () => {
     expect(validar({ data: '31/02/2026' }).erros.data).toBe(
-      MSG_DESPESA.dataInvalida,
+      'Informe uma data válida no formato DD/MM/AAAA.',
     );
   });
 
@@ -84,7 +84,7 @@ describe('campos obrigatórios', () => {
     it.each(['0', '0,00', '-10'])(
       'rejeita valor inválido: %s',
       (valor) => {
-        expect(validar({ valor }).erros.valor).toBe(MSG_DESPESA.valorInvalido);
+        expect(validar({ valor }).erros.valor).toBe('O valor deve ser maior que zero, com no máximo duas casas decimais.');
       },
     );
 
@@ -103,13 +103,13 @@ describe('campos obrigatórios', () => {
 
     it('rejeita mais de duas casas decimais', () => {
       expect(validar({ valor: '10,999' }).erros.valor).toBe(
-        MSG_DESPESA.valorInvalido,
+        'O valor deve ser maior que zero, com no máximo duas casas decimais.',
       );
     });
 
     it('rejeita valor acima do limite', () => {
       expect(validar({ valor: '1.000.000.000,00' }).erros.valor).toBe(
-        MSG_DESPESA.valorLimite,
+        'O valor máximo permitido é R$ 999.999.999,99.',
       );
     });
 
@@ -129,7 +129,7 @@ describe('campos obrigatórios', () => {
 
     it('rejeita título com 81 caracteres', () => {
       expect(validar({ titulo: 'a'.repeat(81) }).erros.titulo).toBe(
-        MSG_DESPESA.tituloLongo,
+        'O título deve ter até 80 caracteres.',
       );
     });
 
@@ -145,7 +145,7 @@ describe('campos obrigatórios', () => {
 
     it('rejeita descrição com 256 caracteres', () => {
       expect(validar({ descricao: 'd'.repeat(256) }).erros.descricao).toBe(
-        MSG_DESPESA.descricaoLonga,
+        'A descrição deve ter até 255 caracteres.',
       );
     });
   });
@@ -203,7 +203,7 @@ describe('campos obrigatórios', () => {
       'rejeita intervalo inválido: %s',
       (intervalo) => {
         expect(validar({ ...recorrente, intervalo }).erros.intervalo).toBe(
-          MSG_DESPESA.intervaloInvalido,
+          'O intervalo da recorrência deve ser maior que zero.',
         );
       },
     );
@@ -211,7 +211,7 @@ describe('campos obrigatórios', () => {
     it('rejeita término anterior ao início', () => {
       expect(
         validar({ ...recorrente, termino: '15/10/2026' }).erros.termino,
-      ).toBe(MSG_DESPESA.terminoAnterior);
+      ).toBe('A data de término deve ser igual ou posterior à data de início.');
     });
 
     it('aceita término igual ao início', () => {
@@ -229,7 +229,7 @@ describe('campos obrigatórios', () => {
     it('rejeita término com data inválida', () => {
       expect(
         validar({ ...recorrente, termino: '31/02/2027' }).erros.termino,
-      ).toBe(MSG_DESPESA.terminoInvalido);
+      ).toBe('Informe a data de término no formato DD/MM/AAAA.');
     });
 
     describe('limite de ocorrências (FA07)', () => {
@@ -240,8 +240,23 @@ describe('campos obrigatórios', () => {
           termino: '31/12/2100',
         });
 
-        expect(erros.termino).toBe(MSG_DESPESA.recorrenciaLonga);
+        expect(erros.termino).toBe('A recorrência gera ocorrências demais. Antecipe a data de término ou aumente o intervalo.');
         expect(dados).toBeNull();
+      });
+
+      it('rejeita série diária antiga sem término quando o horizonte excede o limite', () => {
+        fixarHoje('2026-10-16');
+        try {
+          const { erros, dados } = validar({
+            ...recorrente, data: '01/01/2015', unidade: 'dia', termino: '',
+          });
+          expect(dados).toBeNull();
+          expect(erros.termino).toBe(
+            'A recorrência gera ocorrências demais. Antecipe a data de término ou aumente o intervalo.',
+          );
+        } finally {
+          restaurarTempo();
+        }
       });
 
       it('série mensal até 2100 está dentro do limite', () => {

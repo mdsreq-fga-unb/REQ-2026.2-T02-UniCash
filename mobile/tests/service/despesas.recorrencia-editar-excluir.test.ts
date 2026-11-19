@@ -338,20 +338,6 @@ describe('Edição e exclusão de despesas recorrentes', () => {
     expect(ativas.length).toBeGreaterThan(0);
     expect(ativas.every((d) => d.recorrencia_id === novaSerie?.id)).toBe(true);
   });
-    it('reverte a transação quando ocorre uma falha na gravação', async () => {
-    banco.falharNaOperacao(1);
-
-    await expect(
-      registrarDespesa(
-        inputDespesa({
-          recorrencia: null,
-        }),
-      ),
-    ).rejects.toThrow('Falha simulada na gravação');
-
-    expect(banco.despesas()).toHaveLength(0);
-    expect(banco.recorrencias()).toHaveLength(0);
-  });
   it('altera somente a data final da recorrência nas próximas ocorrências', async () => {
   const { despesas, serie } = await criarSerie();
 

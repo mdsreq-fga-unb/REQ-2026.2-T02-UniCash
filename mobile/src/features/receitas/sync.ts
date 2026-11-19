@@ -23,6 +23,14 @@ type RecorrenciaSync = {
   atualizado_em: string;
 };
 
+// Mantém a chave da ocorrência para bloquear sua regeneração. As colunas
+// obrigatórias do SQLite recebem valores neutros após confirmar a exclusão.
+const LIMPAR_DESPESA_EXCLUIDA = `
+  valor_centavos = 1, data = '', titulo = '', descricao = NULL,
+  categoria_id = NULL, fixa_ou_variavel = NULL, essencial = NULL,
+  recorrencia_id = NULL, criado_em = '', sync_status = 'sincronizado'
+`;
+
 let emAndamento = false;
 let acessoNegado = false;
 
@@ -34,7 +42,7 @@ function negadoPelaNuvem(e: unknown): boolean {
 }
 
 /**
- * Informa (uma única vez) se a nuvem negou acesso na última sincronização/restauração (EX07).
+ * Informa (uma única vez) se a nuvem negou acesso na última sincronização/restauração (UC01 EX07 / UC02 EX06).
  * Os dados locais não são afetados: continuam pendentes e salvos no aparelho.
  */
 export function consumirAcessoNegado(): boolean {
@@ -101,7 +109,8 @@ export async function sincronizarPendentes(): Promise<boolean> {
         );
       } catch (e) {
         // Um registro rejeitado não bloqueia os demais; ele segue pendente.
-        if (negadoPelaNuvem(e)) acessoNegado = true;
+        if (!negadoPelaNuvem(e)) throw e;
+        acessoNegado = true;
       }
     }
 
@@ -181,7 +190,8 @@ export async function sincronizarPendentes(): Promise<boolean> {
           [r.id, r.atualizado_em],
         );
       } catch (e) {
-        if (negadoPelaNuvem(e)) acessoNegado = true;
+        if (!negadoPelaNuvem(e)) throw e;
+        acessoNegado = true;
       }
     }
 
@@ -197,13 +207,13 @@ export async function sincronizarPendentes(): Promise<boolean> {
         const remoto = await getDoc(ref);
         const exclusaoRemota = remoto.data()?.excluido_em;
 
-        // EX04: a exclusão prevalece mesmo quando a edição local é mais recente.
+        // UC02 EX04: a exclusão prevalece mesmo quando a edição local é mais recente.
         if (typeof exclusaoRemota === 'string') {
           const resultado = await sqlite.runAsync(
             `UPDATE despesas
-             SET excluido_em = ?, sync_status = 'sincronizado'
+             SET excluido_em = ?, atualizado_em = ?, ${LIMPAR_DESPESA_EXCLUIDA}
              WHERE id = ?`,
-            [exclusaoRemota, d.id],
+            [exclusaoRemota, remoto.data()?.atualizado_em ?? exclusaoRemota, d.id],
           );
           mudouLocal ||= resultado.changes > 0;
           continue;
@@ -244,6 +254,16 @@ export async function sincronizarPendentes(): Promise<boolean> {
           }
         }
 
+        if (d.excluido_em) {
+          await setDoc(ref, { excluido_em: d.excluido_em, atualizado_em: d.atualizado_em });
+          await sqlite.runAsync(
+            `UPDATE despesas SET ${LIMPAR_DESPESA_EXCLUIDA}
+             WHERE id = ? AND atualizado_em = ? AND excluido_em = ?`,
+            [d.id, d.atualizado_em, d.excluido_em],
+          );
+          continue;
+        }
+
         const payload: Record<string, unknown> = {
           valor_centavos: d.valor_centavos,
           data: d.data,
@@ -256,7 +276,6 @@ export async function sincronizarPendentes(): Promise<boolean> {
         if (d.categoria_id != null) payload.categoria_id = d.categoria_id;
         if (d.fixa_ou_variavel != null) payload.fixa_ou_variavel = d.fixa_ou_variavel;
         if (d.essencial != null) payload.essencial = d.essencial;
-        if (d.excluido_em) payload.excluido_em = d.excluido_em;
         if (d.descricao) payload.descricao = d.descricao;
         if (d.recorrencia_id) payload.recorrencia_id = d.recorrencia_id;
 
@@ -269,11 +288,12 @@ export async function sincronizarPendentes(): Promise<boolean> {
           [d.id, d.atualizado_em, d.excluido_em],
         );
       } catch (e) {
-        if (negadoPelaNuvem(e)) acessoNegado = true;
+        if (!negadoPelaNuvem(e)) throw e;
+        acessoNegado = true;
       }
     }
   } catch (e) {
-    // Permanece pendente e é reenviado depois (EX04). Acesso negado (EX07) é sinalizado para a tela.
+    // UC01 EX04 / UC02 EX03: falhas de rede interrompem a fila e mantêm as pendências.
     if (negadoPelaNuvem(e)) acessoNegado = true;
   } finally {
     emAndamento = false;
@@ -365,16 +385,23 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
       // Categoria indisponível no catálogo local → NULL (EX08).
       for (const d of snapDespesas.docs) {
         const x = d.data();
+        if (typeof x.excluido_em === 'string') {
+          const ts = typeof x.atualizado_em === 'string' ? x.atualizado_em : x.excluido_em;
+          await tx.runAsync(
+            `INSERT INTO despesas
+              (id, valor_centavos, data, titulo, sync_status, excluido_em, criado_em, atualizado_em)
+             VALUES (?, 1, '', '', 'sincronizado', ?, '', ?)
+             ON CONFLICT(id) DO UPDATE SET
+               excluido_em = excluded.excluido_em, atualizado_em = excluded.atualizado_em,
+               ${LIMPAR_DESPESA_EXCLUIDA}`,
+            [d.id, x.excluido_em, ts],
+          );
+          continue;
+        }
+
         if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) continue;
         if (typeof x.data !== 'string' || typeof x.titulo !== 'string') continue;
         const ts = typeof x.atualizado_em === 'string' ? x.atualizado_em : new Date().toISOString();
-        const exclusao = typeof x.excluido_em === 'string' ? x.excluido_em : null;
-        if (exclusao) {
-          await tx.runAsync(
-            "UPDATE despesas SET excluido_em = ?, sync_status = 'sincronizado' WHERE id = ?",
-            [exclusao, d.id],
-          );
-        }
         const serie = typeof x.recorrencia_id === 'string' && conhecidas.has(x.recorrencia_id) ? x.recorrencia_id : null;
         const categoria = categoriaRemota(x.categoria_id);
         const fixa = x.fixa_ou_variavel === 'fixa' || x.fixa_ou_variavel === 'variavel' ? x.fixa_ou_variavel : null;
@@ -383,10 +410,10 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
           `INSERT OR IGNORE INTO despesas
             (id, valor_centavos, data, titulo, descricao, categoria_id, fixa_ou_variavel, essencial,
              recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', ?, ?, ?)`,
-          [d.id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, categoria, fixa, essencial, serie, exclusao, x.criado_em ?? ts, ts],
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', NULL, ?, ?)`,
+          [d.id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, categoria, fixa, essencial, serie, x.criado_em ?? ts, ts],
         );
-        if (r.changes > 0 && !exclusao) resultado.despesas++;
+        if (r.changes > 0) resultado.despesas++;
       }
     });
     return resultado;

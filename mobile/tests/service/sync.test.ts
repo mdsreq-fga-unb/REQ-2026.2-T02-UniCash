@@ -28,6 +28,7 @@ import { input } from '../helpers/dados';
 const mockNuvem = new Map<string, any>();
 let mockUsuario: { uid: string } | null = { uid: 'u1' };
 let mockRedeFora = false;
+let mockLeiturasRemotas = 0;
 let mockCodigoErro = 'unavailable';
 /** Caminhos que a nuvem rejeita (permission-denied) mesmo com a rede funcionando. */
 const mockCaminhosRejeitados = new Set<string>();
@@ -59,6 +60,7 @@ jest.mock('firebase/firestore', () => ({
     mockNuvem.set(ref.path, JSON.parse(JSON.stringify(dados)));
   },
   getDoc: async (ref: any) => {
+    mockLeiturasRemotas++;
     if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
     const d = mockNuvem.get(ref.path);
     return { exists: () => d !== undefined, data: () => d };
@@ -79,6 +81,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     mockNuvem.clear();
     mockUsuario = { uid: 'u1' };
     mockRedeFora = false;
+    mockLeiturasRemotas = 0;
     mockCodigoErro = 'unavailable';
     mockCaminhosRejeitados.clear();
     consumirAcessoNegado();
@@ -134,6 +137,17 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(mockNuvem.size).toBe(0);
     });
 
+    it('UC02 EX03: a primeira falha de rede interrompe a fila', async () => {
+      await registrarDespesa(inputDespesa());
+      await registrarDespesa(inputDespesa({ titulo: 'Outra despesa' }));
+      mockRedeFora = true;
+
+      await sincronizarPendentes();
+
+      expect(mockLeiturasRemotas).toBe(1);
+      expect(banco.despesas().every(d => d.sync_status === 'pendente')).toBe(true);
+    });
+
     it('grava na nuvem o marcador de uma despesa excluída', async () => {
       await registrarDespesa(inputDespesa());
       await sincronizarPendentes();
@@ -145,8 +159,13 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       await excluirDespesa(d.id);
       await sincronizarPendentes();
 
-      expect(mockNuvem.get(caminhoDespesa(d.id)).excluido_em).toBeTruthy();
-      expect(banco.despesas()[0].sync_status).toBe('sincronizado');
+      const excluida = banco.despesas()[0];
+      expect(mockNuvem.get(caminhoDespesa(d.id))).toEqual({
+        excluido_em: expect.any(String), atualizado_em: expect.any(String),
+      });
+      expect(excluida).toMatchObject({
+        titulo: '', descricao: null, categoria_id: null, sync_status: 'sincronizado',
+      });
     });
     it('envia recorrência de despesa com tipo e classificações para a nuvem', async () => {
   await registrarDespesa(
@@ -248,7 +267,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(banco.receitas()[0].sync_status).toBe('pendente');
     });
 
-    it('sem conexão (EX04): a operação já está concluída e o registro fica pendente', async () => {
+    it('sem conexão (UC01 EX04): a operação já está concluída e o registro fica pendente', async () => {
       mockRedeFora = true;
       await registrarReceita(input());
       await expect(sincronizarPendentes()).resolves.toBe(false); // não lança
@@ -509,7 +528,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     });
   });
 
-  describe('acesso negado (EX07)', () => {
+  describe('acesso negado (UC01 EX07 / UC02 EX06)', () => {
     it('permission-denied na sincronização: registro segue pendente e o aviso é sinalizado uma vez', async () => {
       await registrarReceita(input());
       mockRedeFora = true;

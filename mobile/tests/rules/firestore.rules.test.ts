@@ -180,9 +180,23 @@ describe('despesas: campos e limites', () => {
     await assertSucceeds(setDoc(ref, despesa()));
     await assertSucceeds(getDoc(ref));
     await assertFails(setDoc(ref, despesa({ excluido_em: null })));
-    await assertSucceeds(setDoc(ref, despesa({ excluido_em: '2026-10-16T12:00:00.000Z' })));
+    const excluido_em = '2026-10-16T12:00:00.000Z';
+    await assertFails(setDoc(ref, despesa({ excluido_em })));
+    await assertSucceeds(setDoc(ref, { excluido_em, atualizado_em: excluido_em }));
     await assertFails(setDoc(ref, despesa()));
     await assertFails(deleteDoc(ref));
+  });
+
+  it('permite criar diretamente o marcador de uma despesa criada e excluída offline', async () => {
+    const ref = desp(db('u1'));
+    const excluido_em = '2026-10-16T12:00:00.000Z';
+    const marcador = { excluido_em, atualizado_em: excluido_em };
+
+    await assertFails(setDoc(desp(db('u2')), marcador));
+    await assertFails(setDoc(ref, { excluido_em }));
+    await assertSucceeds(setDoc(ref, marcador));
+    expect((await assertSucceeds(getDoc(ref))).data()).toEqual(marcador);
+    await assertFails(setDoc(ref, despesa()));
   });
 
   it('impede outro usuário de acessar despesas', async () => {

@@ -88,3 +88,11 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
    As ocorrências antigas recebem marcadores de exclusão, e as novas são geradas pela periodicidade
    escolhida. O teste de serviço verifica as novas datas. O impacto sobre o histórico permanece como
    ponto de validação com o revisor.
+
+6. **EX01:** data e término inválidos recebem instruções de formato para diferenciar ausência de data
+   de data inexistente. A mensagem de excesso de ocorrências explica como ajustar a série antes de
+   gravar. Essas mensagens complementam as previstas no caso de uso e os testes comparam textos literais.
+7. **Marcador de exclusão (RN07):** o documento da despesa no Firestore retém a chave e os campos
+   `excluido_em` e `atualizado_em`. O SQLite mantém a chave e horários associados e preenche as colunas
+   obrigatórias com valores neutros. Despesas excluídas ficam fora das consultas. Marcadores anteriores,
+   que ainda contêm dados completos na nuvem, são reconhecidos na restauração.
