@@ -181,6 +181,12 @@ function EstadoVazio() {
   );
 }
 
+/*
+ * RNF20 (telas adaptadas a diferentes tamanhos de celular): conteúdo em ScrollView; cartões e botões
+ * em linhas com `flexWrap` + `flexBasis: 140`, que viram uma coluna em telas estreitas; o nome do mês
+ * encolhe (`flexShrink`) sem empurrar as setas; setas com área de toque mínima de 44×44.
+ * Verificação manual: tests/MANUAL.md, roteiro do UC03.
+ */
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },

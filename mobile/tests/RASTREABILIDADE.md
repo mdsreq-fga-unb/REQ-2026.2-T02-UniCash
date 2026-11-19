@@ -81,3 +81,60 @@ Métricas: statements, branches, funções e linhas.
 | Data | Workflow | Link da execução | Resultado |
 |---|---|---|---|
 | | `mobile-ci.yml` (lint, typecheck, testes, build, rules) | | |
+
+## UC03 – Consultar resumo financeiro
+
+Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
+
+### Requisitos e regras
+
+| Requisito | Fluxo do UC03 | Código | Teste automatizado | Teste manual |
+|---|---|---|---|---|
+| RF11 – total de receitas do mês e por dia | passos 3 e 4 | `src/features/resumo/service.ts` (`totalReceitasDoMes`, `receitasPorDia`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF11"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…") | 4.1 (passo 2) |
+| RF40 – saldo, receitas, despesas e metas do período | passos 3 e 4 | `service.ts` (`totalDespesasDoMes`, `saldoDoMes`, `progressoMetasDoMes`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF40"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…", "mostra o progresso das metas…") | 4.1 (passo 2) |
+| RF55 – atalho para o tutorial (placeholder) | FA02 | `src/app/index.tsx` (`EstadoVazio`), `src/app/tutorial.tsx` | `tests/screens/Resumo.test.tsx` ("FA02…"), `tests/screens/Tutorial.test.tsx` | 4.1 (passo 1) |
+| RF61 – usar sem conta | FA03 | `service.ts` (só SQLite; não importa o Firebase) | `tests/service/resumo.test.ts` ("FA03…"; o Firebase é mockado para quebrar se for importado) | 4.2 |
+| RN06 – base local | todos | `service.ts`, `src/db/schema.ts` | `tests/service/resumo.test.ts` (SQLite em memória) | 4.2 |
+| RN07 – sem contadores persistidos; exclusão lógica | passos 3 e 6, FA05 | `service.ts` (`excluido_em IS NULL`, cálculo na hora) | `tests/service/resumo.test.ts` ("ignora receitas excluídas", "ignora despesas excluídas", "FA02: lançamentos só excluídos…", "pós-condição…") | 4.1 (passo 5) |
+| RN12 – mês corrente como padrão; datas futuras no mês | passo 2, FA04 | `src/app/index.tsx` (`mesCorrente`), `service.ts` (`intervaloDoMes`) | `tests/screens/Resumo.test.tsx` ("abre no mês corrente…"), `tests/service/resumo.test.ts` ("intervalo do mês…", "FA04…") | 4.1 (passo 3) |
+| RN15 – saldo do mês = receitas − despesas | passos 3 e 4 | `service.ts` (`saldoDoMes`, `calcularResumo`) | `tests/service/resumo.test.ts` ("total de despesas e saldo…", "saldo negativo…"), `tests/screens/Resumo.test.tsx` ("saldo negativo…") | 4.1 (passo 2) |
+| RNF07 – inteiros em centavos, 2 casas na exibição | passos 3 e 4 | `service.ts` (`SUM(valor_centavos)`), `src/features/resumo/format.ts` | `tests/service/resumo.test.ts` ("RNF07…"), `tests/unit/resumo.format.test.ts` | 4.4 |
+| RNF20 – telas adaptadas a tamanhos de celular | passo 4 | `src/app/index.tsx` (estilos com `flexWrap`/`flexBasis`, comentário RNF20) | – (layout não é renderizado no Jest) | 4.3 |
+| RNF03 – Security Rules | – | não se aplica: o resumo não lê nem grava na nuvem | – | – |
+
+### Fluxos e exceções
+
+| Fluxo / exceção | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| Passos 1–4 – abrir e calcular o mês corrente | `src/app/index.tsx`, `src/features/resumo/useResumo.ts`, `service.ts` (`calcularResumo`, numa única transação) | `tests/screens/Resumo.test.tsx` ("abre no mês corrente…"), `tests/service/resumo.test.ts` ("calcularResumo reúne…", "lê todos os totais numa única transação…") | 4.1 (passo 2) |
+| Passos 5–6 – seletor de mês e recálculo | `src/app/index.tsx`, `useResumo.ts` (descarta respostas atrasadas) | `tests/screens/Resumo.test.tsx` ("seletor navega…", "ao trocar de mês, não mostra os valores do mês anterior…"), `tests/unit/useResumo.test.ts` | 4.1 (passo 3) |
+| FA01 – mês sem receitas | `service.ts`, `src/app/index.tsx` | `tests/service/resumo.test.ts` ("FA01…"), `tests/screens/Resumo.test.tsx` ("FA01…") | 4.1 (passo 4) |
+| FA02 – sem nenhum lançamento | `service.ts` (`existeLancamento`), `src/app/index.tsx` (`EstadoVazio`) | `tests/service/resumo.test.ts` ("FA02…", "mês vazio com lançamentos em outros meses…"), `tests/screens/Resumo.test.tsx` ("FA02…") | 4.1 (passo 1) |
+| FA03 – consulta offline | `service.ts` | `tests/service/resumo.test.ts` ("FA03…") | 4.2 |
+| FA04 – mês futuro | `service.ts` (`intervaloDoMes`) | `tests/service/resumo.test.ts` ("FA04…") | 4.1 (passo 3) |
+| FA05 – lançamento alterado ou excluído | `src/app/index.tsx` (`useFocusEffect`), `service.ts` | `tests/service/resumo.test.ts` ("FA05…") | 4.1 (passo 5) |
+| EX01 – falha na leitura ou no cálculo | `service.ts` (`FalhaCalculo`, `MSG_FALHA_CALCULO`), `useResumo.ts`, `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "EX01"), `tests/screens/Resumo.test.tsx` ("EX01…"), `tests/unit/useResumo.test.ts` ("EX01…") | – |
+| Pós-condição – nenhum dado alterado | `service.ts` (somente leitura) | `tests/service/resumo.test.ts` ("pós-condição…") | 4.1 (passo 6) |
+
+**Placeholders:** metas (RF12) e tutorial (RF55) ainda não existem. `progressoMetasDoMes` retorna vazio e
+`/tutorial` mostra "Tutorial em breve"; ligar quando os casos de uso de metas e tutorial forem entregues.
+A visão por dia está em lista, provisória até a escolha entre lista e calendário com a cliente.
+
+### Resultados de validação
+
+#### Automatizados (`npm test -- --ci --coverage`)
+
+| Data | Suítes | Testes | `features/resumo` (statements / branches / funções / linhas) | `src/app/index.tsx` | Responsável |
+|---|---|---|---|---|---|
+| 2026-11-19 | 54 de 54 | 525 de 525 | 100% / 100% / 100% / 100% | 100% / 100% / 100% / 100% | |
+
+Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.tsx`: 90% statements, 70% branches, 85% funções, 90% linhas.
+
+#### Manuais (`tests/MANUAL.md`, seção 4)
+
+| Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
+|---|---|---|---|---|---|
+| 4.1 Fluxo principal e alternativos | | | | | |
+| 4.2 Offline e sem conta | | | | | |
+| 4.3 RNF20 – tamanhos de tela | | | | | |
+| 4.4 RNF07 – precisão | | | | | |
