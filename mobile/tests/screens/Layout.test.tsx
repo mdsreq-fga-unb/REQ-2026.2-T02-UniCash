@@ -4,7 +4,7 @@ import { getDb } from '@/db/database';
 import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { completarRecorrencias } from '@/features/receitas/service';
 import { completarRecorrenciasDespesas } from '@/features/despesas/service';
-import { sincronizarPendentes } from '@/features/receitas/sync';
+import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync';
 
 /** Mesma lista de produção; o teste falha se uma rota com SQLite ficar desprotegida. */
 const ROTAS_COM_BANCO = [
@@ -91,6 +91,7 @@ jest.mock('@/features/despesas/service', () => ({
   completarRecorrenciasDespesas: jest.fn(),
 }));
 jest.mock('@/features/receitas/sync', () => ({
+  restaurarDaNuvem: jest.fn(),
   sincronizarPendentes: jest.fn(),
 }));
 
@@ -99,6 +100,7 @@ const mockSemear = semearCategoriasPadrao as jest.Mock;
 const mockCompletar = completarRecorrencias as jest.Mock;
 const mockCompletarDespesas = completarRecorrenciasDespesas as jest.Mock;
 const mockSincronizar = sincronizarPendentes as jest.Mock;
+const mockRestaurar = restaurarDaNuvem as jest.Mock;
 
 function adiar<T = unknown>() {
   let resolver!: (valor: T) => void;
@@ -130,12 +132,14 @@ describe('Layout raiz: gate de inicialização', () => {
     mockSemear.mockReset();
     mockCompletar.mockReset();
     mockCompletarDespesas.mockReset();
+    mockRestaurar.mockReset();
     mockSincronizar.mockReset();
 
     mockGetDb.mockResolvedValue({});
     mockSemear.mockResolvedValue({ criadas: [], conflitos: [] });
     mockCompletar.mockResolvedValue(undefined);
     mockCompletarDespesas.mockResolvedValue(undefined);
+    mockRestaurar.mockResolvedValue({ receitas: 0, despesas: 0, recorrencias: 0 });
     mockSincronizar.mockResolvedValue(false);
 
     estadoNavegador.rotaAtiva = 'index';
@@ -359,6 +363,7 @@ describe('Layout raiz: gate de inicialização', () => {
 
     expect(mockCompletar).not.toHaveBeenCalled();
     expect(mockCompletarDespesas).not.toHaveBeenCalled();
+    expect(mockRestaurar).not.toHaveBeenCalled();
     expect(mockSincronizar).not.toHaveBeenCalled();
 
     banco.resolver({});
@@ -366,6 +371,7 @@ describe('Layout raiz: gate de inicialização', () => {
     expect(mockCompletar).not.toHaveBeenCalled();
 
     semeadura.resolver({ criadas: [], conflitos: [] });
+    await waitFor(() => expect(mockRestaurar).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mockSincronizar).toHaveBeenCalledTimes(1));
   });
 
@@ -387,8 +393,10 @@ describe('Layout raiz: gate de inicialização', () => {
   it('registra falhas das rotinas e ainda executa as seguintes', async () => {
     const erroReceitas = new Error('falha nas receitas');
     const erroDespesas = new Error('falha nas despesas');
+    const erroRestauracao = new Error('falha na restauração');
     mockCompletar.mockRejectedValue(erroReceitas);
     mockCompletarDespesas.mockRejectedValue(erroDespesas);
+    mockRestaurar.mockRejectedValue(erroRestauracao);
 
     await render(<RootLayout />);
 
@@ -401,6 +409,10 @@ describe('Layout raiz: gate de inicialização', () => {
     expect(aviso).toHaveBeenCalledWith(
       expect.stringContaining('despesas'),
       erroDespesas,
+    );
+    expect(aviso).toHaveBeenCalledWith(
+      expect.stringContaining('restaurar'),
+      erroRestauracao,
     );
     expect(estadoNavegador.stackProps.length).toBeGreaterThan(0);
     expect(todasOcultas()).toBe(false);
@@ -416,6 +428,7 @@ describe('Layout raiz: gate de inicialização', () => {
     expect(mockGetDb).toHaveBeenCalledTimes(1);
     expect(mockSemear).toHaveBeenCalledTimes(1);
     expect(mockCompletar).toHaveBeenCalledTimes(1);
+    expect(mockRestaurar).toHaveBeenCalledTimes(1);
     expect(mockSincronizar).toHaveBeenCalledTimes(1);
   });
 

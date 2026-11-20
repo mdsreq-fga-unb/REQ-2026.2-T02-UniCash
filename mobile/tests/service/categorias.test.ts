@@ -1173,4 +1173,46 @@ describe('Serviço de categorias (UC06)', () => {
       });
     });
   });
+
+  describe('estado local explícito (v6)', () => {
+    const estado = (id: string) =>
+      (banco.sqlite
+        .prepare('SELECT estado_local FROM categorias_estado WHERE categoria_id = ?')
+        .get(id) as { estado_local: string } | undefined)?.estado_local;
+
+    it('padrões recém-semeadas ficam em semeadura', async () => {
+      await semearCategoriasPadrao();
+      const padrões = banco.sqlite
+        .prepare('SELECT id FROM categorias WHERE padrao = 1')
+        .all() as Array<{ id: string }>;
+      expect(padrões).toHaveLength(CATEGORIAS_PADRAO.length);
+      for (const p of padrões) expect(estado(p.id)).toBe('semeadura');
+    });
+
+    it('categoria própria nasce editada e a leitura devolve o estado', async () => {
+      const id = await criarCategoria(semLimite);
+      expect(estado(id)).toBe('editado');
+      expect((await buscarCategoria(id))?.estado_local).toBe('editado');
+      expect((await listarCategorias()).find((c) => c.id === id)?.estado_local).toBe('editado');
+    });
+
+    it('editar padrão ou própria marca editado', async () => {
+      await semearCategoriasPadrao();
+      const padrão = banco.sqlite
+        .prepare("SELECT id FROM categorias WHERE nome_normalizado = 'casa'")
+        .get() as { id: string };
+      await editarCategoria(padrão.id, { nome: 'Casa', limite: { tipo: 'valor', valor: 1000 } });
+      expect(estado(padrão.id)).toBe('editado');
+
+      const própria = await criarCategoria(semLimite);
+      await editarCategoria(própria, { nome: 'Mercado', limite: null });
+      expect(estado(própria)).toBe('editado');
+    });
+
+    it('excluir própria mantém estado editado até a confirmação remota', async () => {
+      const id = await criarCategoria(semLimite);
+      await excluirCategoria(id);
+      expect(estado(id)).toBe('editado');
+    });
+  });
 });

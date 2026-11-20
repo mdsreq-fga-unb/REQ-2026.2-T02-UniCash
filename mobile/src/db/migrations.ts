@@ -10,16 +10,19 @@ import { PERCENTUAL_MAX_CENTESIMOS } from '@/features/categorias/limites';
 import {
   DDL_ESQUEMA,
   DDL_INDICES_DESPESAS,
+  DDL_INDICES_V6,
   DDL_RECORRENCIAS_V5,
+  DDL_TABELA_CATEGORIA_ESTADO,
   DDL_TABELA_DESPESAS,
   DDL_TABELA_CATEGORIAS,
+  DDL_TABELA_RESTAURACAO_PENDENTE,
   DDL_TRIGGER_PERCENTUAL,
   LIMITE_PERCENTUAL_MAX,
   TRIGGERS_PERCENTUAL,
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 5;
+export const VERSAO_ESQUEMA = 6;
 
 export interface RegistroInvalido {
   id: string;
@@ -111,6 +114,9 @@ interface Migracao {
  * 0,01% a 100% (1 a 10.000 centésimos), sem reconstruir a tabela nem alterar
  * dados legados.
  * A 004 integra as estruturas da UC02 (`recorrencias` e `despesas`).
+ * A 005 adiciona o tombstone lógico de recorrências.
+ * A 006 adiciona o estado local explícito das categorias e a fila de
+ * restauração adiada, de forma aditiva e sem alterar dados existentes.
  */
 const MIGRACOES: Migracao[] = [
   { versao: 1, executar: migrar001 },
@@ -118,6 +124,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 3, executar: migrar003 },
   { versao: 4, executar: migrar004 },
   { versao: 5, executar: migrar005 },
+  { versao: 6, executar: migrar006 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -404,7 +411,12 @@ async function prepararInstalacaoNova(tx: SQLiteDatabase): Promise<void> {
   if (objetos.length === 0) return; // banco realmente vazio
 
   const inesperados = objetos.filter(
-    (n) => n !== 'recorrencias' && n !== 'receitas' && n !== 'despesas',
+    (n) =>
+      n !== 'recorrencias' &&
+      n !== 'receitas' &&
+      n !== 'despesas' &&
+      n !== 'categorias_estado' &&
+      n !== 'restauracao_pendente',
   );
   if (inesperados.length > 0) {
     throw new EstruturaLegadaInesperada(
@@ -584,6 +596,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirColunasRecorrencias(tx);
       await garantirTabelaDespesas(tx);
       await garantirColunaExcluidoEmRecorrencias(tx);
+      await garantirTabelasV6(tx);
       await aplicarTriggersPercentual(tx);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
@@ -685,6 +698,47 @@ async function migrar004(db: SQLiteDatabase, versaoDestino: number): Promise<voi
 async function migrar005(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await garantirColunaExcluidoEmRecorrencias(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/**
+ * 006 — estado local explícito das categorias e fila de restauração adiada.
+ *
+ * Aditiva: cria apenas duas tabelas e seus índices. Nenhuma tabela existente é
+ * reconstruída e nenhum dado financeiro é alterado. Categorias já existentes
+ * recebem um estado inicial inferido de forma conservadora:
+ * - padrão ativa, sem limite e com timestamps iguais = `semeadura`;
+ * - qualquer outro caso = `editado`.
+ * Assim, uma padrão intocada não sobrescreve limite remoto, e uma categoria
+ * possivelmente editada nunca é tratada como recém-semeada.
+ */
+async function garantirTabelasV6(tx: SQLiteDatabase): Promise<void> {
+  await tx.execAsync(DDL_TABELA_CATEGORIA_ESTADO);
+  await tx.execAsync(DDL_TABELA_RESTAURACAO_PENDENTE);
+  for (const ddl of DDL_INDICES_V6) await tx.execAsync(ddl);
+}
+
+async function migrar006(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await garantirTabelasV6(tx);
+
+    await tx.runAsync(
+      `INSERT INTO categorias_estado (categoria_id, estado_local)
+       SELECT id,
+         CASE
+           WHEN padrao = 1
+             AND excluido_em IS NULL
+             AND limite_tipo IS NULL
+             AND criado_em = atualizado_em
+           THEN 'semeadura'
+           ELSE 'editado'
+         END
+       FROM categorias
+       WHERE 1
+       ON CONFLICT(categoria_id) DO NOTHING`,
+    );
+
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

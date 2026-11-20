@@ -7,6 +7,9 @@ import { router } from '../helpers/expoRouterMock';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+jest.mock('@/features/receitas/sync', () => ({
+  sincronizarEmSegundoPlano: jest.fn(),
+}));
 jest.mock('@/features/categorias/service', () => ({
   ...jest.requireActual('@/features/categorias/service'),
   criarCategoria: jest.fn(),

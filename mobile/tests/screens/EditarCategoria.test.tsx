@@ -44,6 +44,9 @@ jest.mock('@/features/categorias/service', () => ({
 jest.mock('@/features/categorias/semeaduraPendente', () => ({
   solicitarSemeaduraAposExclusao: jest.fn(),
 }));
+jest.mock('@/features/receitas/sync', () => ({
+  sincronizarEmSegundoPlano: jest.fn(),
+}));
 
 const buscar = buscarCategoria as jest.Mock;
 const editar = editarCategoria as jest.Mock;

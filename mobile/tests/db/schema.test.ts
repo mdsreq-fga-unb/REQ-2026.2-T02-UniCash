@@ -358,8 +358,41 @@ describe('Schema do banco — restrições de categorias', () => {
           'idx_receitas_sync',
           'idx_categorias_nome_unico',
           'idx_categorias_sync',
+          'idx_restauracao_pendente_categoria',
+          'idx_restauracao_pendente_tipo',
         ]),
       );
+    });
+  });
+
+  describe('estado local e restauração adiada (v6)', () => {
+    it('aceita os três estados locais e rejeita valor desconhecido', () => {
+      const inserirEstado = (id: string, estado: string) =>
+        sqlite
+          .prepare('INSERT INTO categorias_estado (categoria_id, estado_local) VALUES (?, ?)')
+          .run(id, estado);
+
+      expect(() => inserirEstado('a', 'semeadura')).not.toThrow();
+      expect(() => inserirEstado('b', 'editado')).not.toThrow();
+      expect(() => inserirEstado('c', 'sincronizado')).not.toThrow();
+      expect(() => inserirEstado('d', 'outro')).toThrow(/estado_local_valido/);
+    });
+
+    it('restauração pendente exige tipo conhecido e chave primária composta', () => {
+      const inserirPendente = (tipo: string, id: string) =>
+        sqlite
+          .prepare(
+            `INSERT INTO restauracao_pendente
+              (tipo, id, categoria_id, motivo, payload, atualizado_em, registrado_em)
+             VALUES (?, ?, 'cat', 'categoria_nao_resolvida', '{}', 't', 't')`,
+          )
+          .run(tipo, id);
+
+      expect(() => inserirPendente('despesa', 'd1')).not.toThrow();
+      expect(() => inserirPendente('recorrencia', 'r1')).not.toThrow();
+      expect(() => inserirPendente('categoria', 'c1')).not.toThrow();
+      expect(() => inserirPendente('receita', 'x1')).toThrow(/tipo_pendente_valido/);
+      expect(() => inserirPendente('despesa', 'd1')).toThrow(/UNIQUE constraint failed/);
     });
   });
 });

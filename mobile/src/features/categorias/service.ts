@@ -4,6 +4,7 @@ import { gerarId } from '@/features/receitas/service';
 import type { Categoria, CategoriaInput } from './types';
 import { CATEGORIAS_PADRAO } from './types';
 import { MSG_CAT, EntradaCategoriaInvalida, normalizarNome, validarDadosCategoria } from './validation';
+import { definirEstadoCategoria } from './estado';
 
 /** Falha ao gravar/recalcular (EX03): nada foi alterado, pois a transação foi revertida. */
 export class FalhaPersistenciaCategoria extends Error {}
@@ -114,13 +115,15 @@ export function semearCategoriasPadrao(): Promise<ResultadoSemeadura> {
       }
       if (ativos.has(normalizado)) continue; // padrão já existe
 
+      const id = gerarId();
       await tx.runAsync(
         `INSERT INTO categorias
           (id, nome, nome_normalizado, padrao, limite_tipo, limite_centavos, limite_percentual_centesimos,
            sync_status, excluido_em, criado_em, atualizado_em)
          VALUES (?, ?, ?, 1, NULL, NULL, NULL, 'pendente', NULL, ?, ?)`,
-        [gerarId(), CATEGORIAS_PADRAO[i], normalizado, ts, ts],
+        [id, CATEGORIAS_PADRAO[i], normalizado, ts, ts],
       );
+      await definirEstadoCategoria(tx, id, 'semeadura');
       criadas.push(CATEGORIAS_PADRAO[i]);
     }
 
@@ -166,8 +169,9 @@ export function semearCategoriasPadrao(): Promise<ResultadoSemeadura> {
 export function listarCategorias() {
   return leitura(async (db) => {
     const itens = await db.getAllAsync<Categoria>(
-      `SELECT c.*
+      `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local
         FROM categorias c
+        LEFT JOIN categorias_estado e ON e.categoria_id = c.id
         WHERE c.excluido_em IS NULL
         ORDER BY c.padrao DESC, c.nome ASC`,
     );
@@ -178,7 +182,10 @@ export function listarCategorias() {
 export function buscarCategoria(id: string) {
   return leitura(async (db) => {
     return db.getFirstAsync<Categoria>(
-      'SELECT * FROM categorias WHERE id = ? AND excluido_em IS NULL',
+      `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local
+         FROM categorias c
+         LEFT JOIN categorias_estado e ON e.categoria_id = c.id
+        WHERE c.id = ? AND c.excluido_em IS NULL`,
       [id],
     );
   });
@@ -216,6 +223,7 @@ export function criarCategoria(input: CategoriaInput) {
         ts,
       ],
     );
+    await definirEstadoCategoria(tx, id, 'editado');
     return id;
   });
 }
@@ -255,6 +263,7 @@ export function editarCategoria(id: string, input: CategoriaInput) {
           id,
         ],
       );
+      await definirEstadoCategoria(tx, id, 'editado');
       return;
     }
 
@@ -283,6 +292,7 @@ export function editarCategoria(id: string, input: CategoriaInput) {
         id,
       ],
     );
+    await definirEstadoCategoria(tx, id, 'editado');
   });
 }
 
@@ -294,6 +304,47 @@ export function editarCategoria(id: string, input: CategoriaInput) {
  * - Na mesma transação: desvincula despesas não excluídas e séries de
  *   despesa, marca a categoria como excluída (tombstone) e remove o limite.
  */
+/**
+ * Aplica a exclusão lógica de uma categoria dentro de uma transação já aberta.
+ * Usado tanto pela exclusão local quanto pela exclusão vinda da nuvem.
+ * Preserva valores/histórico dos lançamentos; apenas remove o vínculo.
+ */
+export async function marcarCategoriaExcluidaNaTransacao(
+  tx: SQLiteDatabase,
+  id: string,
+  excluidoEm: string,
+  atualizadoEm: string,
+  syncStatus: 'pendente' | 'sincronizado' = 'pendente',
+): Promise<void> {
+  await tx.runAsync(
+    `UPDATE despesas SET
+       categoria_id = NULL, sync_status = 'pendente', atualizado_em = ?
+     WHERE categoria_id = ? AND excluido_em IS NULL`,
+    [atualizadoEm, id],
+  );
+
+  await tx.runAsync(
+    `UPDATE recorrencias SET
+       categoria_id = NULL, sync_status = 'pendente', atualizado_em = ?
+     WHERE categoria_id = ? AND tipo = 'despesa'`,
+    [atualizadoEm, id],
+  );
+
+  await tx.runAsync(
+    `UPDATE categorias SET
+       excluido_em = ?, limite_tipo = NULL, limite_centavos = NULL,
+       limite_percentual_centesimos = NULL,
+       sync_status = ?, atualizado_em = ?
+     WHERE id = ?`,
+    [excluidoEm, syncStatus, atualizadoEm, id],
+  );
+  await definirEstadoCategoria(
+    tx,
+    id,
+    syncStatus === 'sincronizado' ? 'sincronizado' : 'editado',
+  );
+}
+
 export function excluirCategoria(id: string) {
   return transacao(async (tx) => {
     const atual = await tx.getFirstAsync<Categoria>(
@@ -304,32 +355,7 @@ export function excluirCategoria(id: string) {
     if (atual.padrao) throw new CategoriaPadraoProtegida();
 
     const ts = agora();
-
-    // Despesas avulsas e ocorrências de séries; tombstones são preservados.
-    await tx.runAsync(
-      `UPDATE despesas SET
-         categoria_id = NULL, sync_status = 'pendente', atualizado_em = ?
-       WHERE categoria_id = ? AND excluido_em IS NULL`,
-      [ts, id],
-    );
-
-    // Séries de despesa ativas e inativas; séries de receita não usam categoria.
-    await tx.runAsync(
-      `UPDATE recorrencias SET
-         categoria_id = NULL, sync_status = 'pendente', atualizado_em = ?
-       WHERE categoria_id = ? AND tipo = 'despesa'`,
-      [ts, id],
-    );
-
-    // Tombstone: a exclusão precisa chegar à nuvem.
-    await tx.runAsync(
-      `UPDATE categorias SET
-         excluido_em = ?, limite_tipo = NULL, limite_centavos = NULL,
-         limite_percentual_centesimos = NULL,
-         sync_status = 'pendente', atualizado_em = ?
-       WHERE id = ?`,
-      [ts, ts, id],
-    );
+    await marcarCategoriaExcluidaNaTransacao(tx, id, ts, ts, 'pendente');
   });
 }
 

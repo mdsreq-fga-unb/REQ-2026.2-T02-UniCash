@@ -11,7 +11,12 @@ import {
   garantirTabelaDespesas,
   migrarSeNecessario,
 } from '@/db/migrations';
-import { DDL_ESQUEMA, DDL_TRIGGER_PERCENTUAL, PRAGMAS_SQL } from '@/db/schema';
+import {
+  DDL_ESQUEMA,
+  DDL_ESQUEMA_V5,
+  DDL_TRIGGER_PERCENTUAL,
+  PRAGMAS_SQL,
+} from '@/db/schema';
 
 /**
  * Testes das migrações versionadas (E2.2, issue #43 / UC06) em SQLite em memória.
@@ -160,7 +165,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
       expect(nomesTriggers(sqlite)).toEqual([
         'trg_categorias_percentual_insert',
@@ -190,7 +195,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
       await migrarSeNecessario(criarAdaptador(sqlite));
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
     });
   });
 
@@ -205,7 +210,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(linhasCategorias(sqlite)).toEqual(antes); // cópia idêntica, inclusive tombstone
       expect(linhasCategorias(sqlite).find((l: any) => l.id === 'a3').excluido_em).toBe('2026-02-01T00:00:00Z');
       const nomes = (sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as any[]).map(
@@ -275,7 +280,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(sqlCategorias(sqlite)).toBe(sqlAntes); // sem reconstrução
       expect(linhasCategorias(sqlite)).toHaveLength(1);
     });
@@ -299,7 +304,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(linhasCategorias(sqlite)).toEqual(antes);
       expect(sqlCategorias(sqlite)).toContain('9007199254740991');
       expect(bancoIntegro(sqlite)).toBe(true);
@@ -343,7 +348,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(sqlCategorias(sqlite)).toBe(sqlAntes);
       expect(linhasCategorias(sqlite)).toEqual(antes);
     });
@@ -371,7 +376,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(linhasCategorias(sqlite)).toEqual(antes);
       expect(nomesTriggers(sqlite)).toEqual([
         'trg_categorias_percentual_insert',
@@ -394,7 +399,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(linhasCategorias(sqlite)).toEqual(antes); // sem apagar, reduzir ou converter
 
       expect(() =>
@@ -828,7 +833,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
     it('banco realmente vazio instala normalmente', async () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
     });
 
@@ -842,7 +847,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente'); // categorias criada
       expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1); // dado preservado
     });
@@ -852,7 +857,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
       expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1); // dado preservado
       expect(
@@ -870,7 +875,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(5);
+      expect(versao(sqlite)).toBe(6);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
       expect(sqlite.prepare('SELECT * FROM recorrencias').all()).toHaveLength(1); // dado preservado
       expect(
@@ -1706,7 +1711,7 @@ describe('garantirTabelaDespesas', () => {
 });
 
 describe('migração 005: tombstone de recorrências', () => {
-  function expectEstruturaV5(sqlite: Database.Database): void {
+  function expectEstruturaV6(sqlite: Database.Database): void {
     const colunas = colunasRecorrencias(sqlite);
     expect(colunas).toHaveLength(16);
     expect(new Set(colunas)).toEqual(
@@ -1756,15 +1761,114 @@ describe('migração 005: tombstone de recorrências', () => {
       'trg_categorias_percentual_insert',
       'trg_categorias_percentual_update',
     ]);
+    for (const tabela of ['categorias_estado', 'restauracao_pendente']) {
+      expect(
+        sqlite
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+          .get(tabela),
+      ).toBeTruthy();
+    }
+    expect(
+      sqlite
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'restauracao_pendente' AND name NOT LIKE 'sqlite_autoindex_%' ORDER BY name",
+        )
+        .all()
+        .map((i: any) => i.name),
+    ).toEqual([
+      'idx_restauracao_pendente_categoria',
+      'idx_restauracao_pendente_tipo',
+    ]);
     expect(sqlite.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     expect(bancoIntegro(sqlite)).toBe(true);
   }
 
-  it('banco vazio termina em v5 com a estrutura completa', async () => {
+  it('banco vazio termina em v6 com a estrutura completa', async () => {
     const sqlite = novoSqlite();
     await migrarSeNecessario(criarAdaptador(sqlite));
+    expect(versao(sqlite)).toBe(6);
+    expectEstruturaV6(sqlite);
+  });
+
+  it('v5 migra para v6 inferindo estado local sem alterar categorias', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(DDL_ESQUEMA_V5);
+    sqlite.exec(DDL_TRIGGER_PERCENTUAL);
+    inserirCategoria(sqlite, { id: 'padrao-intocada', nome: 'Casa', padrao: 1 });
+    inserirCategoria(sqlite, {
+      id: 'padrao-editada',
+      nome: 'Lazer',
+      padrao: 1,
+      limite_tipo: 'valor',
+      limite_centavos: 5000,
+      atualizado_em: '2026-01-02T00:00:00Z',
+    });
+    inserirCategoria(sqlite, { id: 'propria', nome: 'Mercado' });
+    inserirCategoria(sqlite, {
+      id: 'tombstone',
+      nome: 'Antiga',
+      excluido_em: '2026-01-03T00:00:00Z',
+      atualizado_em: '2026-01-03T00:00:00Z',
+    });
+    const antes = linhasCategorias(sqlite);
+    sqlite.exec('PRAGMA user_version = 5');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(6);
+    expect(linhasCategorias(sqlite)).toEqual(antes);
+    expect(
+      sqlite
+        .prepare('SELECT categoria_id, estado_local FROM categorias_estado ORDER BY categoria_id')
+        .all(),
+    ).toEqual([
+      { categoria_id: 'padrao-editada', estado_local: 'editado' },
+      { categoria_id: 'padrao-intocada', estado_local: 'semeadura' },
+      { categoria_id: 'propria', estado_local: 'editado' },
+      { categoria_id: 'tombstone', estado_local: 'editado' },
+    ]);
+    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM restauracao_pendente').get()).toEqual({ n: 0 });
+    expect(bancoIntegro(sqlite)).toBe(true);
+  });
+
+  it('rollback: falha na 006 desfaz as tabelas novas e preserva a v5', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(DDL_ESQUEMA_V5);
+    sqlite.exec(DDL_TRIGGER_PERCENTUAL);
+    inserirCategoria(sqlite, { id: 'casa', nome: 'Casa', padrao: 1 });
+    sqlite.exec('PRAGMA user_version = 5');
+
+    const base = criarAdaptador(sqlite) as any;
+    const adaptador = {
+      ...base,
+      async withExclusiveTransactionAsync(fn: (tx: any) => Promise<void>) {
+        await base.withExclusiveTransactionAsync(async (tx: any) => {
+          const txFalha = {
+            ...tx,
+            async execAsync(sql: string) {
+              if (/user_version\s*=\s*6/.test(sql)) {
+                throw new Error('falha simulada na 006');
+              }
+              return tx.execAsync(sql);
+            },
+          };
+          await fn(txFalha);
+        });
+      },
+    };
+
+    await expect(migrarSeNecessario(adaptador)).rejects.toThrow('falha simulada na 006');
+
     expect(versao(sqlite)).toBe(5);
-    expectEstruturaV5(sqlite);
+    for (const tabela of ['categorias_estado', 'restauracao_pendente']) {
+      expect(
+        sqlite
+          .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+          .get(tabela),
+      ).toBeUndefined();
+    }
+    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get()).toEqual({ n: 1 });
+    expect(bancoIntegro(sqlite)).toBe(true);
   });
 
   it('banco v4 com série migra para v5 preservando os dados financeiros', async () => {
@@ -1779,8 +1883,8 @@ describe('migração 005: tombstone de recorrências', () => {
     sqlite.exec('PRAGMA user_version = 4');
 
     await migrarSeNecessario(criarAdaptador(sqlite));
-    expect(versao(sqlite)).toBe(5);
-    expectEstruturaV5(sqlite);
+    expect(versao(sqlite)).toBe(6);
+    expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-v4'").get()).toMatchObject({
       id: 'rec-v4',
       tipo: 'despesa',
@@ -1791,7 +1895,7 @@ describe('migração 005: tombstone de recorrências', () => {
 
     const antes = sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-v4'").get();
     await migrarSeNecessario(criarAdaptador(sqlite));
-    expect(versao(sqlite)).toBe(5);
+    expect(versao(sqlite)).toBe(6);
     expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-v4'").get()).toEqual(antes);
     expect(bancoIntegro(sqlite)).toBe(true);
   });
@@ -1839,8 +1943,8 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(5);
-    expectEstruturaV5(sqlite);
+    expect(versao(sqlite)).toBe(6);
+    expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toMatchObject({
       id: 'rec-1',
       titulo: 'Aluguel',
@@ -1872,8 +1976,8 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(5);
-    expectEstruturaV5(sqlite);
+    expect(versao(sqlite)).toBe(6);
+    expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toMatchObject({
       id: 'rec-1',
       tipo: 'receita',
@@ -1895,8 +1999,8 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(5);
-    expectEstruturaV5(sqlite);
+    expect(versao(sqlite)).toBe(6);
+    expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT id, titulo FROM recorrencias WHERE id = 'rec-1'").get()).toEqual({
       id: 'rec-1',
       titulo: 'Aluguel',
@@ -1910,8 +2014,8 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(5);
-    expectEstruturaV5(sqlite);
+    expect(versao(sqlite)).toBe(6);
+    expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT id, titulo FROM recorrencias WHERE id = 'rec-1'").get()).toEqual({
       id: 'rec-1',
       titulo: 'Aluguel',
@@ -1929,8 +2033,8 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(5);
-    expectEstruturaV5(sqlite);
+    expect(versao(sqlite)).toBe(6);
+    expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT id, titulo, tipo FROM recorrencias WHERE id = 'rec-1'").get()).toEqual({
       id: 'rec-1',
       titulo: 'Aluguel',

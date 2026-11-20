@@ -12,6 +12,19 @@ import { auth, db as firestore } from '@/lib/firebase';
 import { getDb } from '@/db/database';
 import type { Receita } from './types';
 import { resolverCategoriaRemota } from '@/features/despesas/categorias';
+import {
+  restaurarCategoriasDaNuvem,
+  sincronizarCategoriasPendentes,
+} from '@/features/categorias/sync';
+import {
+  nomeNormalizadoCategoriaPadraoPorSlug,
+  slugCategoriaPadrao,
+} from '@/features/categorias/padroes';
+import {
+  listarPendentes,
+  registrarPendente,
+  removerPendente,
+} from '@/db/restauracaoPendente';
 import type { Categoria } from '@/features/categorias/types';
 import type { Despesa } from '@/features/despesas/types';
 
@@ -74,6 +87,12 @@ export async function sincronizarPendentes(): Promise<boolean> {
     const sqlite = await getDb();
     const uid = user.uid;
 
+    if (auth.currentUser?.uid !== uid) return false;
+
+    // Categorias primeiro: séries/despesas dependem do catálogo reconciliado.
+    const categoriasSync = await sincronizarCategoriasPendentes(sqlite, uid);
+    if (categoriasSync.mudouLocal) mudouLocal = true;
+
     // Catálogo carregado no máximo uma vez por sincronização e compartilhado
     // entre uploads e conflitos. Falha de leitura não vira catálogo vazio.
     let categoriasLocais: Categoria[] | null = null;
@@ -91,20 +110,15 @@ export async function sincronizarPendentes(): Promise<boolean> {
     };
 
     const resolverCategoriaUpload = async (
-      categoriaId: string | null,
+      categoriaId: string,
     ): Promise<{ valida: boolean; id: string | null }> => {
-      if (categoriaId == null) return { valida: true, id: null };
-
-      const resolvida = resolverCategoriaRemota(
-        categoriaId,
-        await obterCategoriasLocais(),
-      );
+      const catalogo = await obterCategoriasLocais();
+      const resolvida = resolverCategoriaRemota(categoriaId, catalogo);
 
       if (resolvida.tipo === 'valida') {
-        return { valida: true, id: resolvida.id };
-      }
-      if (resolvida.tipo === 'sem_categoria') {
-        return { valida: true, id: null };
+        const local = catalogo.find((c) => c.id === resolvida.id)!;
+        // Padrão viaja com slug estável; própria preserva o UUID.
+        return { valida: true, id: slugCategoriaPadrao(local) ?? local.id };
       }
       return { valida: false, id: null };
     };
@@ -130,23 +144,20 @@ export async function sincronizarPendentes(): Promise<boolean> {
     );
 
     for (const s of series) {
+      if (auth.currentUser?.uid !== uid) throw new Error('conta alterada durante a sincronização');
       try {
         let categoriaSerie: string | null = null;
 
-        if (
-          s.excluido_em == null &&
-          s.tipo === 'despesa' &&
-          s.categoria_id != null
-        ) {
+        if (s.tipo === 'despesa' && s.categoria_id != null) {
           const categoriaUpload = await resolverCategoriaUpload(
             s.categoria_id,
           );
-          if (!categoriaUpload.valida) {
+          if (s.excluido_em == null && !categoriaUpload.valida) {
             // Categoria inválida: não executa setDoc nem marca como sincronizada.
             seriesNaoConfirmadas.add(s.id);
             continue;
           }
-          categoriaSerie = categoriaUpload.id;
+          if (categoriaUpload.valida) categoriaSerie = categoriaUpload.id;
         }
 
         const payload: Record<string, unknown> = {
@@ -185,8 +196,8 @@ export async function sincronizarPendentes(): Promise<boolean> {
         if (s.termino) payloadTombstone.termino = s.termino;
         if (s.descricao) payloadTombstone.descricao = s.descricao;
         if (s.tipo === 'despesa') {
-          if (s.categoria_id != null) {
-            payloadTombstone.categoria_id = s.categoria_id;
+          if (categoriaSerie != null) {
+            payloadTombstone.categoria_id = categoriaSerie;
           }
           if (s.fixa_ou_variavel != null) {
             payloadTombstone.fixa_ou_variavel = s.fixa_ou_variavel;
@@ -271,6 +282,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
     );
 
     for (const r of receitas) {
+      if (auth.currentUser?.uid !== uid) throw new Error('conta alterada durante a sincronização');
       try {
         const ref = doc(firestore, 'usuarios', uid, 'receitas', r.id);
 
@@ -434,6 +446,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
     };
 
     for (const d of despesas) {
+      if (auth.currentUser?.uid !== uid) throw new Error('conta alterada durante a sincronização');
       try {
         const ref = doc(firestore, 'usuarios', uid, 'despesas', d.id);
 
@@ -605,86 +618,116 @@ export interface ResultadoRestauracao {
  * Idempotente e transacional. Preserva linhas locais, salvo quando um marcador remoto
  * registra a exclusão da despesa (RN07).
  */
+async function aguardarAuthResolvida(): Promise<void> {
+  const autenticacao = auth as unknown as { authStateReady?: () => Promise<void> };
+  if (typeof autenticacao.authStateReady === 'function') {
+    try {
+      await autenticacao.authStateReady();
+    } catch {
+      // Sem sessão restaurável: currentUser decide o fluxo.
+    }
+  }
+}
+
+/**
+ * Restaura da nuvem (usuarios/{uid}/...) para a base local, ao entrar numa conta.
+ *
+ * Ordem: categorias -> séries -> receitas -> despesas. Documentos cuja categoria
+ * ainda não pôde ser resolvida vão para `restauracao_pendente` com o payload
+ * original; nunca são gravados como "Sem categoria" por falta de vínculo.
+ * Categorias próprias diferentes com o mesmo nome não são fundidas.
+ */
 export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
+  await aguardarAuthResolvida();
   const user = auth.currentUser;
   if (!user) throw new FalhaRestauracao('sem conta');
+  const uid = user.uid;
+
   try {
-    const [snapSeries, snapReceitas, snapDespesas] = await Promise.all([
-      getDocs(collection(firestore, 'usuarios', user.uid, 'recorrencias')),
-      getDocs(collection(firestore, 'usuarios', user.uid, 'receitas')),
-      getDocs(collection(firestore, 'usuarios', user.uid, 'despesas')),
+    const [snapSeries, snapReceitas, snapDespesas, snapCategorias] = await Promise.all([
+      getDocs(collection(firestore, 'usuarios', uid, 'recorrencias')),
+      getDocs(collection(firestore, 'usuarios', uid, 'receitas')),
+      getDocs(collection(firestore, 'usuarios', uid, 'despesas')),
+      getDocs(collection(firestore, 'usuarios', uid, 'categorias')),
     ]);
     const sqlite = await getDb();
     const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0 };
 
     await sqlite.withExclusiveTransactionAsync(async (tx) => {
+      if (auth.currentUser?.uid !== uid) {
+        throw new FalhaRestauracao('conta alterada durante a restauração');
+      }
+
+      const mapaCategorias = await restaurarCategoriasDaNuvem(tx, snapCategorias.docs);
+      const categoriasLocais = await tx.getAllAsync<Categoria>(
+        `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local
+           FROM categorias c
+           LEFT JOIN categorias_estado e ON e.categoria_id = c.id`,
+      );
       const conhecidas = new Set(
         (await tx.getAllAsync<{ id: string }>('SELECT id FROM recorrencias')).map((r) => r.id),
       );
 
-      // Catálogo local lido uma única vez por restauração. Inclui tombstones;
-      // o resolvedor os trata como referência inválida.
-      const categoriasLocais = await tx.getAllAsync<Categoria>(
-        'SELECT * FROM categorias',
-      );
+      type CategoriaResolvida =
+        | { status: 'ok'; id: string | null }
+        | { status: 'pendente' };
 
-      // Proteção apenas contra ausência de categorias ativas. IDs de outros
-      // dispositivos que não existam localmente continuam virando NULL: a
-      // sincronização de categorias cross-device ainda não existe.
-      const temCategoriaAtiva = categoriasLocais.some(
-        (c) => c.excluido_em === null,
-      );
-
-      if (!temCategoriaAtiva) {
-        // Espelha exatamente as condições de elegibilidade dos laços abaixo:
-        // - séries já conhecidas ou com campos inválidos são ignoradas;
-        // - séries só contam quando o tipo é 'despesa', inclusive inativas;
-        // - lápides de despesas usam o caminho especial e não consomem categoria;
-        // - despesas com valor <= 0, data/título inválidos são ignoradas.
-        const serieComCategoria = snapSeries.docs.some((d) => {
-          if (conhecidas.has(d.id)) return false;
-          const x = d.data();
-          if (typeof x.excluido_em === 'string') return false;
-          if (
-            typeof x.intervalo !== 'number' ||
-            typeof x.unidade !== 'string' ||
-            typeof x.inicio !== 'string'
-          ) {
-            return false;
-          }
-          if (
-            typeof x.valor_centavos !== 'number' ||
-            typeof x.titulo !== 'string'
-          ) {
-            return false;
-          }
-          return x.tipo === 'despesa' && x.categoria_id != null;
-        });
-
-        const despesaComCategoria = snapDespesas.docs.some((d) => {
-          const x = d.data();
-          if (typeof x.excluido_em === 'string') return false;
-          if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) {
-            return false;
-          }
-          if (typeof x.data !== 'string' || typeof x.titulo !== 'string') {
-            return false;
-          }
-          return x.categoria_id != null;
-        });
-
-        if (serieComCategoria || despesaComCategoria) {
-          throw new FalhaRestauracao(MENSAGEM_RESTAURACAO_SEM_CATALOGO);
+      const resolverCategoria = (valor: unknown): CategoriaResolvida => {
+        if (valor == null) return { status: 'ok', id: null };
+        if (typeof valor !== 'string') return { status: 'pendente' };
+        if (mapaCategorias.has(valor)) {
+          return { status: 'ok', id: mapaCategorias.get(valor) ?? null };
         }
-      }
-
-      const idCategoriaRemota = (valor: unknown): string | null => {
-        const resultado = resolverCategoriaRemota(valor, categoriasLocais);
-        return resultado.tipo === 'valida' ? resultado.id : null;
+        const local = categoriasLocais.find((c) => c.id === valor);
+        if (local) return { status: 'ok', id: local.excluido_em ? null : local.id };
+        const nomePadrao = nomeNormalizadoCategoriaPadraoPorSlug(valor);
+        if (nomePadrao) {
+          const localPadrao = categoriasLocais.find(
+            (c) => c.padrao === 1 && c.nome_normalizado === nomePadrao,
+          );
+          if (localPadrao) {
+            return { status: 'ok', id: localPadrao.excluido_em ? null : localPadrao.id };
+          }
+        }
+        const resolvida = resolverCategoriaRemota(valor, categoriasLocais);
+        if (resolvida.tipo === 'valida') return { status: 'ok', id: resolvida.id };
+        return { status: 'pendente' };
       };
 
-      // Exclusão remota da série também exclui logicamente as ocorrências locais:
-      // preserva valores/histórico e deixa as lápides pendentes para o próximo envio.
+      const categoriaIdTexto = (valor: unknown): string | null =>
+        typeof valor === 'string' ? valor : null;
+
+      const timestampRemoto = (x: any, fallback = new Date().toISOString()) =>
+        typeof x.atualizado_em === 'string' ? x.atualizado_em : fallback;
+
+      const registrarDespesaPendente = async (
+        id: string,
+        x: any,
+      ) => {
+        await registrarPendente(tx, {
+          tipo: 'despesa',
+          id,
+          categoriaId: categoriaIdTexto(x.categoria_id),
+          motivo: 'categoria_nao_resolvida',
+          payload: x,
+          atualizadoEm: timestampRemoto(x),
+        });
+      };
+
+      const registrarSeriePendente = async (
+        id: string,
+        x: any,
+      ) => {
+        await registrarPendente(tx, {
+          tipo: 'recorrencia',
+          id,
+          categoriaId: categoriaIdTexto(x.categoria_id),
+          motivo: 'categoria_nao_resolvida',
+          payload: x,
+          atualizadoEm: timestampRemoto(x),
+        });
+      };
+
       const marcarOcorrenciasLocaisDaSerie = async (
         tipo: 'receita' | 'despesa',
         serieId: string,
@@ -700,36 +743,36 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
         );
       };
 
-      for (const d of snapSeries.docs) {
-        const x = d.data();
+      const aplicarSerie = async (
+        id: string,
+        x: any,
+        categoria: string | null,
+      ): Promise<void> => {
         const tombstones = typeof x.excluido_em === 'string';
 
-        if (conhecidas.has(d.id)) {
+        if (conhecidas.has(id)) {
           if (tombstones) {
-            const ts =
-              typeof x.atualizado_em === 'string'
-                ? x.atualizado_em
-                : x.excluido_em;
+            const ts = timestampRemoto(x, x.excluido_em as string);
             await tx.runAsync(
               `UPDATE recorrencias
                   SET excluido_em = ?, ativa = 0,
                       sync_status = 'sincronizado', atualizado_em = ?
                 WHERE id = ?`,
-              [x.excluido_em, ts, d.id],
+              [x.excluido_em, ts, id],
             );
             await marcarOcorrenciasLocaisDaSerie(
               x.tipo === 'despesa' ? 'despesa' : 'receita',
-              d.id,
-              x.excluido_em,
+              id,
+              x.excluido_em as string,
               ts,
             );
           }
-          continue;
+          return;
         }
 
-        if (typeof x.intervalo !== 'number' || typeof x.unidade !== 'string' || typeof x.inicio !== 'string') continue;
-        if (typeof x.valor_centavos !== 'number' || typeof x.titulo !== 'string') continue;
-        // Preserva o tipo: sem ele, uma série de despesa viraria série de receita (DEFAULT 'receita').
+        if (typeof x.intervalo !== 'number' || typeof x.unidade !== 'string' || typeof x.inicio !== 'string') return;
+        if (typeof x.valor_centavos !== 'number' || typeof x.titulo !== 'string') return;
+
         const tipo = x.tipo === 'despesa' ? 'despesa' : 'receita';
         const classificacao = tipo === 'despesa';
         await tx.runAsync(
@@ -738,26 +781,122 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
              categoria_id, fixa_ou_variavel, essencial, sync_status, atualizado_em, excluido_em)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', ?, ?)`,
           [
-            d.id, tipo, x.intervalo, x.unidade, x.inicio, x.termino ?? null,
+            id, tipo, x.intervalo, x.unidade, x.inicio, x.termino ?? null,
             tombstones ? 0 : x.ativa === false ? 0 : 1,
             x.valor_centavos, x.titulo, x.descricao ?? null,
-            classificacao ? idCategoriaRemota(x.categoria_id) : null,
+            tombstones || !classificacao ? null : categoria,
             classificacao && (x.fixa_ou_variavel === 'fixa' || x.fixa_ou_variavel === 'variavel') ? x.fixa_ou_variavel : null,
             classificacao && typeof x.essencial === 'number' && (x.essencial === 0 || x.essencial === 1) ? x.essencial
               : classificacao && typeof x.essencial === 'boolean' ? (x.essencial ? 1 : 0) : null,
-            x.atualizado_em ?? new Date().toISOString(),
+            timestampRemoto(x),
             tombstones ? x.excluido_em : null,
           ],
         );
-        conhecidas.add(d.id);
+        conhecidas.add(id);
         resultado.recorrencias++;
+      };
+
+      const aplicarDespesa = async (
+        id: string,
+        x: any,
+        categoria: string | null,
+      ): Promise<void> => {
+        if (typeof x.excluido_em === 'string') {
+          const ts = timestampRemoto(x, x.excluido_em);
+          await tx.runAsync(
+            `INSERT INTO despesas
+              (id, valor_centavos, data, titulo, sync_status, excluido_em, criado_em, atualizado_em)
+             VALUES (?, 1, '', '', 'sincronizado', ?, '', ?)
+             ON CONFLICT(id) DO UPDATE SET
+               excluido_em = excluded.excluido_em,
+               atualizado_em = excluded.atualizado_em,
+               sync_status = 'sincronizado'`,
+            [id, x.excluido_em, ts],
+          );
+          await removerPendente(tx, 'despesa', id);
+          return;
+        }
+
+        if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) return;
+        if (typeof x.data !== 'string' || typeof x.titulo !== 'string') return;
+        const ts = timestampRemoto(x);
+        const serie = typeof x.recorrencia_id === 'string' && conhecidas.has(x.recorrencia_id)
+          ? x.recorrencia_id
+          : null;
+        const fixa = x.fixa_ou_variavel === 'fixa' || x.fixa_ou_variavel === 'variavel' ? x.fixa_ou_variavel : null;
+        const essencial = typeof x.essencial === 'boolean' ? (x.essencial ? 1 : 0) : x.essencial === 0 || x.essencial === 1 ? x.essencial : null;
+        const r = await tx.runAsync(
+          `INSERT OR IGNORE INTO despesas
+            (id, valor_centavos, data, titulo, descricao, categoria_id, fixa_ou_variavel, essencial,
+             recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', NULL, ?, ?)`,
+          [id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, categoria, fixa, essencial, serie, x.criado_em ?? ts, ts],
+        );
+        if (r.changes > 0) resultado.despesas++;
+        await removerPendente(tx, 'despesa', id);
+      };
+
+      const idsNoSnapshot = new Set([
+        ...snapSeries.docs.map((d) => `recorrencia:${d.id}`),
+        ...snapDespesas.docs.map((d) => `despesa:${d.id}`),
+      ]);
+
+      // Retoma registros que ficaram aguardando categoria, quando o vínculo já
+      // existe. Registros presentes no snapshot são tratados pelo fluxo normal.
+      const pendentes = await listarPendentes(tx, ['recorrencia', 'despesa']);
+      for (const pendente of pendentes) {
+        if (idsNoSnapshot.has(`${pendente.tipo}:${pendente.id}`)) continue;
+        let dados: any;
+        try {
+          dados = JSON.parse(pendente.payload) as any;
+        } catch {
+          continue;
+        }
+
+        if (pendente.tipo === 'recorrencia') {
+          const cat = resolverCategoria(dados.categoria_id);
+          if (cat.status === 'pendente') continue;
+          await aplicarSerie(pendente.id, dados, cat.id);
+          if (conhecidas.has(pendente.id)) {
+            await removerPendente(tx, 'recorrencia', pendente.id);
+          }
+        } else {
+          const cat = resolverCategoria(dados.categoria_id);
+          if (cat.status === 'pendente') continue;
+          await aplicarDespesa(pendente.id, dados, cat.id);
+        }
+      }
+
+      for (const d of snapSeries.docs) {
+        const x = d.data() as any;
+        const tombstones = typeof x.excluido_em === 'string';
+
+        if (conhecidas.has(d.id)) {
+          if (tombstones) await aplicarSerie(d.id, x, null);
+          continue;
+        }
+
+        if (typeof x.intervalo !== 'number' || typeof x.unidade !== 'string' || typeof x.inicio !== 'string') continue;
+        if (typeof x.valor_centavos !== 'number' || typeof x.titulo !== 'string') continue;
+
+        const classificacao = x.tipo === 'despesa';
+        if (!tombstones && classificacao && x.categoria_id != null) {
+          const cat = resolverCategoria(x.categoria_id);
+          if (cat.status === 'pendente') {
+            await registrarSeriePendente(d.id, x);
+            continue;
+          }
+          await aplicarSerie(d.id, x, cat.id);
+        } else {
+          await aplicarSerie(d.id, x, null);
+        }
       }
 
       for (const d of snapReceitas.docs) {
-        const x = d.data();
+        const x = d.data() as any;
         if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) continue;
         if (typeof x.data !== 'string' || typeof x.titulo !== 'string') continue;
-        const ts = typeof x.atualizado_em === 'string' ? x.atualizado_em : new Date().toISOString();
+        const ts = timestampRemoto(x);
         const serie = typeof x.recorrencia_id === 'string' && conhecidas.has(x.recorrencia_id) ? x.recorrencia_id : null;
         const r = await tx.runAsync(
           `INSERT OR IGNORE INTO receitas
@@ -768,44 +907,29 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
         if (r.changes > 0) resultado.receitas++;
       }
 
-      // Despesas: INSERT OR IGNORE preserva lápides e edições locais (despesa excluída não reaparece).
-      // Categoria indisponível no catálogo local → NULL (EX08).
       for (const d of snapDespesas.docs) {
-        const x = d.data();
+        const x = d.data() as any;
+
         if (typeof x.excluido_em === 'string') {
-          const ts = typeof x.atualizado_em === 'string' ? x.atualizado_em : x.excluido_em;
-          await tx.runAsync(
-            `INSERT INTO despesas
-              (id, valor_centavos, data, titulo, sync_status, excluido_em, criado_em, atualizado_em)
-             VALUES (?, 1, '', '', 'sincronizado', ?, '', ?)
-             ON CONFLICT(id) DO UPDATE SET
-               excluido_em = excluded.excluido_em,
-               atualizado_em = excluded.atualizado_em,
-               sync_status = 'sincronizado'`,
-            [d.id, x.excluido_em, ts],
-          );
+          await aplicarDespesa(d.id, x, null);
           continue;
         }
 
         if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) continue;
         if (typeof x.data !== 'string' || typeof x.titulo !== 'string') continue;
-        const ts = typeof x.atualizado_em === 'string' ? x.atualizado_em : new Date().toISOString();
-        const serie = typeof x.recorrencia_id === 'string' && conhecidas.has(x.recorrencia_id) ? x.recorrencia_id : null;
-        const categoria = idCategoriaRemota(x.categoria_id);
-        const fixa = x.fixa_ou_variavel === 'fixa' || x.fixa_ou_variavel === 'variavel' ? x.fixa_ou_variavel : null;
-        const essencial = typeof x.essencial === 'boolean' ? (x.essencial ? 1 : 0) : x.essencial === 0 || x.essencial === 1 ? x.essencial : null;
-        const r = await tx.runAsync(
-          `INSERT OR IGNORE INTO despesas
-            (id, valor_centavos, data, titulo, descricao, categoria_id, fixa_ou_variavel, essencial,
-             recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', NULL, ?, ?)`,
-          [d.id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, categoria, fixa, essencial, serie, x.criado_em ?? ts, ts],
-        );
-        if (r.changes > 0) resultado.despesas++;
+
+        const cat = resolverCategoria(x.categoria_id);
+        if (cat.status === 'pendente') {
+          await registrarDespesaPendente(d.id, x);
+          continue;
+        }
+        await aplicarDespesa(d.id, x, cat.id);
       }
     });
+
     return resultado;
   } catch (e) {
+    if (e instanceof FalhaRestauracao) throw e;
     if (negadoPelaNuvem(e)) acessoNegado = true;
     throw new FalhaRestauracao(String(e));
   }

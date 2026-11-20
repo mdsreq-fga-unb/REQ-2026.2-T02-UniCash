@@ -128,6 +128,149 @@ service cloud.firestore {
         && d.ativa == false;
     }
 
+    function chavePadraoValida(chave) {
+      return chave in [
+        'casa', 'alimentacao', 'mobilidade', 'estudos',
+        'saude', 'lazer', 'reserva_financeira'
+      ];
+    }
+
+    function nomePadrao(chave) {
+      return chave == 'casa' ? 'Casa'
+        : chave == 'alimentacao' ? 'Alimentação'
+        : chave == 'mobilidade' ? 'Mobilidade'
+        : chave == 'estudos' ? 'Estudos'
+        : chave == 'saude' ? 'Saúde'
+        : chave == 'lazer' ? 'Lazer'
+        : chave == 'reserva_financeira' ? 'Reserva financeira'
+        : '';
+    }
+
+    function nomeNormalizadoPadrao(chave) {
+      return chave == 'casa' ? 'casa'
+        : chave == 'alimentacao' ? 'alimentação'
+        : chave == 'mobilidade' ? 'mobilidade'
+        : chave == 'estudos' ? 'estudos'
+        : chave == 'saude' ? 'saúde'
+        : chave == 'lazer' ? 'lazer'
+        : chave == 'reserva_financeira' ? 'reserva financeira'
+        : '';
+    }
+
+    function limiteCategoriaValido(d) {
+      return (d.limite_tipo == null
+          && d.limite_centavos == null
+          && d.limite_percentual_centesimos == null)
+        || (d.limite_tipo == 'valor'
+          && d.limite_centavos is int
+          && d.limite_centavos > 0
+          && d.limite_centavos <= 99999999999
+          && d.limite_percentual_centesimos == null)
+        || (d.limite_tipo == 'percentual_renda'
+          && d.limite_centavos == null
+          && d.limite_percentual_centesimos is int
+          && d.limite_percentual_centesimos > 0
+          && d.limite_percentual_centesimos <= 9007199254740991);
+    }
+
+    function categoriaBaseValida(d) {
+      return d.keys().hasOnly([
+          'padrao', 'chave', 'nome', 'nome_normalizado',
+          'limite_tipo', 'limite_centavos', 'limite_percentual_centesimos',
+          'excluido_em', 'criado_em', 'atualizado_em', 'aliases'
+        ])
+        && d.keys().hasAll([
+          'padrao', 'chave', 'nome', 'nome_normalizado',
+          'limite_tipo', 'limite_centavos', 'limite_percentual_centesimos',
+          'excluido_em', 'criado_em', 'atualizado_em', 'aliases'
+        ])
+        && d.padrao is bool
+        && (d.chave == null || d.chave is string)
+        && d.nome is string
+        && d.nome.size() >= 1
+        && d.nome.size() <= 30
+        && d.nome_normalizado is string
+        && d.nome_normalizado.size() >= 1
+        && d.nome_normalizado.size() <= 30
+        && limiteCategoriaValido(d)
+        && (d.excluido_em == null
+          || (d.excluido_em is string && d.excluido_em.size() > 0))
+        && d.criado_em is string && d.criado_em.size() > 0
+        && d.atualizado_em is string && d.atualizado_em.size() > 0
+        && d.aliases is list
+        && d.aliases.size() <= 64;
+    }
+
+    function categoriaAtivaValida(d) {
+      return categoriaBaseValida(d) && d.excluido_em == null;
+    }
+
+    function categoriaPropriaAtivaValida(d, id) {
+      return categoriaAtivaValida(d)
+        && d.padrao == false
+        && d.chave == null
+        && d.aliases.size() == 0
+        && !id.matches('^padrao_.*');
+    }
+
+    function categoriaPropriaTombstoneValida(d, id) {
+      return categoriaBaseValida(d)
+        && d.padrao == false
+        && d.chave == null
+        && d.aliases.size() == 0
+        && !id.matches('^padrao_.*')
+        && d.excluido_em is string
+        && d.excluido_em.size() > 0
+        && d.limite_tipo == null
+        && d.limite_centavos == null
+        && d.limite_percentual_centesimos == null;
+    }
+
+    function categoriaPadraoValida(d, id) {
+      return categoriaAtivaValida(d)
+        && d.padrao == true
+        && chavePadraoValida(d.chave)
+        && id == 'padrao_' + d.chave
+        && d.nome == nomePadrao(d.chave)
+        && d.nome_normalizado == nomeNormalizadoPadrao(d.chave);
+    }
+
+    match /usuarios/{uid}/categorias/{categoriaId} {
+      allow read: if dono(uid);
+      allow create: if dono(uid)
+        && (
+          categoriaPadraoValida(request.resource.data, categoriaId)
+          || categoriaPropriaAtivaValida(request.resource.data, categoriaId)
+          || categoriaPropriaTombstoneValida(request.resource.data, categoriaId)
+        );
+      allow update: if dono(uid)
+        && resource.data.excluido_em == null
+        && (
+          (
+            resource.data.padrao == true
+            && categoriaPadraoValida(request.resource.data, categoriaId)
+            && request.resource.data.nome == resource.data.nome
+            && request.resource.data.nome_normalizado == resource.data.nome_normalizado
+            && request.resource.data.chave == resource.data.chave
+            && request.resource.data.padrao == true
+            && request.resource.data.criado_em == resource.data.criado_em
+            && request.resource.data.aliases.toSet().hasAll(resource.data.aliases.toSet())
+          )
+          || (
+            resource.data.padrao == false
+            && (
+              categoriaPropriaAtivaValida(request.resource.data, categoriaId)
+              || categoriaPropriaTombstoneValida(request.resource.data, categoriaId)
+            )
+            && request.resource.data.padrao == false
+            && request.resource.data.chave == null
+            && request.resource.data.aliases.size() == 0
+            && request.resource.data.criado_em == resource.data.criado_em
+          )
+        );
+      allow delete: if false;
+    }
+
     match /usuarios/{uid}/receitas/{id} {
       allow read, delete: if dono(uid);
       allow create, update: if dono(uid)

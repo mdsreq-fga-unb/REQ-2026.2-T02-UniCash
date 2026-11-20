@@ -2,6 +2,14 @@ import type { SyncStatus } from '@/features/receitas/types';
 
 export type LimiteTipo = 'valor' | 'percentual_renda';
 
+/**
+ * Estado local explícito da categoria:
+ * - `semeadura`: padrão recém-criada, nunca editada;
+ * - `editado`: alteração local ainda não confirmada pela nuvem;
+ * - `sincronizado`: conteúdo local igual ao último estado remoto confirmado.
+ */
+export type EstadoLocalCategoria = 'semeadura' | 'editado' | 'sincronizado';
+
 export interface Categoria {
   id: string;
   nome: string;
@@ -14,6 +22,8 @@ export interface Categoria {
   excluido_em: string | null;
   criado_em: string;
   atualizado_em: string;
+  /** Presente nas leituras que fazem join com `categorias_estado`. */
+  estado_local?: EstadoLocalCategoria;
 }
 
 /** Dados já validados e normalizados, prontos para gravar. */
