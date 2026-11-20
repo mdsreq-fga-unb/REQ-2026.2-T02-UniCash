@@ -119,6 +119,16 @@ describe('Formulário de despesa', () => {
     mockCategorias.mockReturnValue(retornoCategorias());
   });
 
+  it('mascara o valor como moeda ao digitar um zero à direita', async () => {
+    await montar();
+
+    await digitar('Valor', '100,00');
+    expect(screen.getByLabelText('Valor').props.value).toBe('100,00');
+
+    await digitar('Valor', '100,000');
+    expect(screen.getByLabelText('Valor').props.value).toBe('1.000,00');
+  });
+
   it('mostra os campos principais do formulário', async () => {
     await montar();
 
@@ -438,7 +448,7 @@ describe('Formulário de despesa', () => {
     await salvar();
 
     expect(screen.getByLabelText('Título').props.value).toBe('Aluguel');
-    expect(screen.getByLabelText('Valor').props.value).toBe('0');
+    expect(screen.getByLabelText('Valor').props.value).toBe('0,00');
     expect(onSalvar).not.toHaveBeenCalled();
   });
 

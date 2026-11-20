@@ -28,6 +28,20 @@ function agrupar(inteiro: string): string {
   return inteiro.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 }
 
+/**
+ * Máscara de digitação monetária: cada dígito representa um centavo.
+ * Ex.: "100,000" (usuário acrescentou um zero à direita) vira "1.000,00".
+ * A conversão é feita por string, sem float e sem perder zeros à esquerda.
+ */
+export function mascararValor(texto: string): string {
+  const digitos = texto.replace(/\D/g, '');
+  if (!digitos) return '';
+
+  const semZeros = digitos.replace(/^0+(?=\d)/, '');
+  const centavos = semZeros.padStart(3, '0');
+  return `${agrupar(centavos.slice(0, -2))},${centavos.slice(-2)}`;
+}
+
 export function formatarBRL(centavos: number): string {
   const inteiro = Math.floor(centavos / 100).toString();
   const frac = (centavos % 100).toString().padStart(2, '0');
