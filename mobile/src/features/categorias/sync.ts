@@ -570,9 +570,95 @@ export async function aplicarCategoriaRemota(
   };
 }
 
-interface DocumentoCategoriaRemota {
+export interface DocumentoCategoriaRemota {
   id: string;
   data: () => unknown;
+}
+
+export interface ResultadoNormalizacaoRemota {
+  normalizadas: number;
+  ignoradas: number;
+  falhas: number;
+  acessoNegado: boolean;
+}
+
+/**
+ * Campos que precisam ser corrigidos em um documento remoto para a faixa
+ * percentual definitiva. Retorna null quando não há correção segura possível.
+ * - Tombstone de própria: remove qualquer limite residual.
+ * - Categoria ativa: corrige somente o percentual ajustado.
+ */
+function camposNormalizacaoRemota(
+  docId: string,
+  dados: unknown,
+): Record<string, unknown> | null {
+  if (!dados || typeof dados !== 'object') return null;
+  const d = dados as Record<string, unknown>;
+  const tombstone = typeof d.excluido_em === 'string' && d.excluido_em.length > 0;
+
+  if (tombstone) {
+    // Padrão nunca pode ser tombstone; não há correção segura de identidade.
+    if (d.padrao === true) return null;
+    const temLimite =
+      d.limite_tipo != null ||
+      d.limite_centavos != null ||
+      d.limite_percentual_centesimos != null;
+    return temLimite
+      ? { limite_tipo: null, limite_centavos: null, limite_percentual_centesimos: null }
+      : null;
+  }
+
+  const remota = normalizarCategoriaRemota(docId, dados);
+  if (!remota || !remota.percentualNormalizado) return null;
+  return { limite_percentual_centesimos: remota.limite_percentual_centesimos };
+}
+
+/**
+ * Varre TODOS os documentos de categorias do usuário e normaliza os percentuais
+ * legados, inclusive categorias que não estão em uso, conflitos de nome e
+ * tombstones. É idempotente e usa uma transação por documento, relendo antes de
+ * escrever para não sobrescrever alterações concorrentes. Atualiza apenas campos
+ * de limite; nome, identidade, aliases, timestamps e referências financeiras não
+ * são alterados. Documentos inválidos em outros campos são ignorados para não
+ * aplicar correções inseguras.
+ */
+export async function normalizarCategoriasRemotas(
+  uid: string,
+  docs: readonly DocumentoCategoriaRemota[],
+): Promise<ResultadoNormalizacaoRemota> {
+  let normalizadas = 0;
+  let ignoradas = 0;
+  let falhas = 0;
+  let acessoNegado = false;
+
+  for (const documento of docs) {
+    const campos = camposNormalizacaoRemota(documento.id, documento.data());
+    if (!campos) {
+      ignoradas++;
+      continue;
+    }
+
+    const ref = doc(firestore, 'usuarios', uid, 'categorias', documento.id);
+    try {
+      const aplicou = await runTransaction(firestore, async (tx) => {
+        const atual = await tx.get(ref);
+        if (!atual.exists()) return false;
+        const camposAtuais = camposNormalizacaoRemota(documento.id, atual.data());
+        if (!camposAtuais) return false;
+        tx.update(ref, camposAtuais);
+        return true;
+      });
+      if (aplicou) normalizadas++;
+      else ignoradas++;
+    } catch (erro) {
+      if ((erro as { code?: string } | null)?.code === 'permission-denied') {
+        acessoNegado = true;
+      }
+      falhas++;
+    }
+  }
+
+  return { normalizadas, ignoradas, falhas, acessoNegado };
 }
 
 function timestampDoDocumento(dados: unknown): string {

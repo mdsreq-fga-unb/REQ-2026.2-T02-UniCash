@@ -226,6 +226,29 @@ service cloud.firestore {
         && d.limite_percentual_centesimos == null;
     }
 
+    /**
+     * Normalização one-way de tombstone legado: permite apenas limpar os
+     * campos de limite. Identidade, aliases, excluido_em e timestamps devem
+     * permanecer exatamente iguais, impedindo ressurreição ou reescrita.
+     */
+    function categoriaPropriaTombstoneNormalizavel(novo, atual, id) {
+      return categoriaBaseValida(novo)
+        && novo.padrao == false
+        && novo.chave == null
+        && novo.aliases.size() == 0
+        && !id.matches('^padrao_.*')
+        && atual.excluido_em is string
+        && atual.excluido_em.size() > 0
+        && novo.excluido_em == atual.excluido_em
+        && novo.nome == atual.nome
+        && novo.nome_normalizado == atual.nome_normalizado
+        && novo.criado_em == atual.criado_em
+        && novo.atualizado_em == atual.atualizado_em
+        && novo.limite_tipo == null
+        && novo.limite_centavos == null
+        && novo.limite_percentual_centesimos == null;
+    }
+
     function categoriaPadraoValida(d, id) {
       return categoriaAtivaValida(d)
         && d.padrao == true
@@ -267,6 +290,13 @@ service cloud.firestore {
             && request.resource.data.aliases.size() == 0
             && request.resource.data.criado_em == resource.data.criado_em
           )
+        );
+      // Exceção restrita para normalizar tombstone legado (issue #71).
+      allow update: if dono(uid)
+        && categoriaPropriaTombstoneNormalizavel(
+          request.resource.data,
+          resource.data,
+          categoriaId
         );
       allow delete: if false;
     }

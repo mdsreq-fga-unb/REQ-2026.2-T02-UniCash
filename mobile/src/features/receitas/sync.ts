@@ -13,6 +13,7 @@ import { getDb } from '@/db/database';
 import type { Receita } from './types';
 import { resolverCategoriaRemota } from '@/features/despesas/categorias';
 import {
+  normalizarCategoriasRemotas,
   restaurarCategoriasDaNuvem,
   sincronizarCategoriasPendentes,
 } from '@/features/categorias/sync';
@@ -926,6 +927,12 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
         await aplicarDespesa(d.id, x, cat.id);
       }
     });
+
+    // A restauração local pode ter deixado documentos remotos fora do fluxo
+    // (conflito de nome, tombstone ou categoria sem uso). A varredura seguinte
+    // alcança toda a coleção e é idempotente; não altera dados financeiros.
+    const normalizacao = await normalizarCategoriasRemotas(uid, snapCategorias.docs);
+    if (normalizacao.acessoNegado) acessoNegado = true;
 
     return resultado;
   } catch (e) {

@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 /**
  * Security Rules no Firebase Emulator Suite.
@@ -496,6 +496,67 @@ describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
     );
     await assertFails(
       setDoc(ref, categoriaPadrao({ nome: 'Casa nova', nome_normalizado: 'casa nova' })),
+    );
+  });
+
+  it('atualização parcial apenas do limite passa nas Rules (varredura da issue #71)', async () => {
+    const ref = cat(db('u1'), 'u1', 'padrao_casa');
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        cat(ctx.firestore(), 'u1', 'padrao_casa'),
+        categoriaPadrao({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 50,
+        }),
+      );
+    });
+
+    await assertSucceeds(
+      updateDoc(ref, { limite_percentual_centesimos: 100 }),
+    );
+  });
+
+  it('atualização parcial de própria ativa normaliza percentual legado', async () => {
+    const ref = cat(db('u1'), 'u1', 'uuid-propria');
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        cat(ctx.firestore(), 'u1', 'uuid-propria'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 50,
+        }),
+      );
+    });
+
+    await assertSucceeds(
+      updateDoc(ref, { limite_percentual_centesimos: 100 }),
+    );
+  });
+
+  it('atualização parcial de tombstone limpa limites legados sem ressuscitar', async () => {
+    const ref = cat(db('u1'), 'u1', 'uuid-tombstone');
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        cat(ctx.firestore(), 'u1', 'uuid-tombstone'),
+        categoria({
+          excluido_em: '2026-10-16T12:00:00.000Z',
+          limite_tipo: 'valor',
+          limite_centavos: 5000,
+        }),
+      );
+    });
+
+    await assertSucceeds(
+      updateDoc(ref, {
+        limite_tipo: null,
+        limite_centavos: null,
+        limite_percentual_centesimos: null,
+      }),
+    );
+    await assertFails(
+      updateDoc(ref, { excluido_em: null }),
     );
   });
 

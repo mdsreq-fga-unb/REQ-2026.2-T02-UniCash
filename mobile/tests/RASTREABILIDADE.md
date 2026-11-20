@@ -147,8 +147,8 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 | Data | Comando | Suítes | Testes | Resultado |
 |---|---|---|---|---|
 | 18/11/2026 | `npm test -- --ci --coverage` | 44 | 619 | **619 aprovados** |
-| 20/11/2026 | `npm test -- --ci --coverage --runInBand` | 67 | 1.235 | **1.235 aprovados**; cobertura 94,7% statements, 88,93% branches, 97,44% functions, 96,28% lines |
-| 20/11/2026 | `npm run test:rules` | 1 | 67 | **67 aprovados** no Firestore Emulator |
+| 20/11/2026 | `npm test -- --ci --coverage --runInBand` | 67 | 1.241 | **1.241 aprovados**; cobertura 95,23% statements, 89,73% branches, 98% functions, 96,93% lines |
+| 20/11/2026 | `npm run test:rules` | 1 | 70 | **70 aprovados** no Firestore Emulator |
 | 20/11/2026 | `npx expo export --platform android` | — | — | **Export Android concluído** (bundle Hermes) |
 
 - **CI — execução 31:** PR #58, `feat(uc06): gerenciar categorias (listagem, cadastro, edição e exclusão)`, commit `2445ee8` (código) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44390887769
@@ -158,7 +158,7 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 
 ### 4.5. Pendências de integração
 
-- **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 deixa o estado consistente no SQLite (`categorias`, limites, tombstones) e a UC02 mantém as `despesas`; a interface prevista é a leitura dessas tabelas por período após cada operação. Não há evento de domínio nem chamada direta implementada nesta etapa; o cálculo continua sob responsabilidade dessas UCs.
+- **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 deixa o estado consistente no SQLite (`categorias`, limites, tombstones) e a UC02 mantém as `despesas`; a interface prevista é a leitura dessas tabelas por período após cada operação (contrato em 4.10). Não há evento de domínio nem chamada direta implementada nesta etapa; o cálculo continua sob responsabilidade dessas UCs.
 - **UC10:** a restauração no startup aguarda `authStateReady` e usa `auth.currentUser`, mas o app ainda não possui tela de login própria. Sem sessão, a operação permanece offline-first.
 - **Validação nativa:** a migração 007 e a desvinculação transacional foram validadas em SQLite/better-sqlite3 e no emulador, mas não há `adb`, Android SDK, emulador ou dispositivo para um smoke nativo nesta máquina.
 - **Semeadura:** conflitos são reportados uma vez por instância e a semeadura não é repetida a cada foco. Após excluir uma categoria própria com nome reservado, um sinal único faz a lista tentar a semeadura no próximo foco; não há conversão automática da categoria própria. Se a tentativa posterior falhar, a exclusão já confirmada permanece e o erro é exibido como falha de preparação das padrão, não como falha da exclusão.
@@ -169,11 +169,11 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 
 **Normalização de dados antigos (migração 007):** percentuais locais abaixo de 1% viram 100 centésimos e acima de 100% viram 10.000 centésimos; casas excedentes são arredondadas ao centésimo mais próximo. A migração é transacional e idempotente, marca apenas as categorias corrigidas como `sync_status='pendente'`/`estado_local='editado'` e não altera despesas, receitas, séries ou referências financeiras. Os triggers provisórios são substituídos pelos definitivos.
 
-**Firestore:** ao ler um documento remoto, o percentual legado é normalizado e a categoria local é marcada como pendente; a próxima sincronização grava o valor corrigido no documento canônico. As Security Rules exigem inteiro entre 100 e 10.000 centésimos, impedindo novas escritas fora da faixa e a ressurreição de tombstones.
+**Firestore:** a restauração normaliza os documentos que consegue aplicar e, em seguida, `normalizarCategoriasRemotas` varre toda a coleção `usuarios/{uid}/categorias`, inclusive padrões, próprias, tombstones e categorias sem uso. Para cada documento, a função relê em transação e atualiza somente os campos de limite necessários; documentos inválidos em outros campos são ignorados para não aplicar correções inseguras. As Security Rules exigem inteiro entre 100 e 10.000 centésimos e permitem a limpeza one-way dos limites de um tombstone legado, sem alterar `excluido_em`, identidade ou timestamps, impedindo ressurreição.
 
 **Limite técnico preservado:** o CHECK da migração 002 continua exigindo inteiro seguro em centésimos até `Number.MAX_SAFE_INTEGER`; a faixa de negócio é aplicada por triggers e pelo domínio.
 
-**Testes:** `tests/unit/validation-categorias.test.ts` cobre 0%/0,99%/1%/50%/99,99%/100%/100,01%/101%/200000% e a mensagem literal; `tests/db/schema.test.ts` cobre INSERT/UPDATE dos triggers definitivos (99, 100, 9.999, 10.000, 10.001 e `MAX_SAFE_INTEGER`); `tests/service/categorias.test.ts` confirma a rejeição de 99/10.001 e a persistência de 100/10.000; `tests/unit/categorias.sync.test.ts` cobre arredondamento e normalização remota; `tests/service/sync.test.ts` cobre restauração e reenvio ao Firestore; `tests/db/migrations.test.ts` cobre v1→v7, v2→v7, v6→v7, normalização, idempotência e preservação financeira; `tests/rules/firestore.rules.test.ts` cobre a faixa nas Rules.
+**Testes:** `tests/unit/validation-categorias.test.ts` cobre 0%/0,99%/1%/50%/99,99%/100%/100,01%/101%/200000% e a mensagem literal; `tests/db/schema.test.ts` cobre INSERT/UPDATE dos triggers definitivos (99, 100, 9.999, 10.000, 10.001 e `MAX_SAFE_INTEGER`); `tests/service/categorias.test.ts` confirma a rejeição de 99/10.001 e a persistência de 100/10.000; `tests/unit/categorias.sync.test.ts` cobre arredondamento e normalização remota; `tests/service/sync.test.ts` cobre restauração, reenvio e a varredura remota em massa (padrão, própria, tombstone, categoria sem uso, idempotência e falhas de rede/permissão); `tests/db/migrations.test.ts` cobre v1→v7, v2→v7, v6→v7, normalização, idempotência e preservação financeira; `tests/rules/firestore.rules.test.ts` cobre a faixa e a limpeza one-way de limite de tombstone nas Rules.
 
 ### 4.7. Contagem de caracteres (RN13)
 
@@ -195,3 +195,23 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 A UC02 já está integrada nas migrações 004/005 (`despesas` e tombstone de `recorrencias`). A UC06 usa a migração 006 para estado local/fila de restauração e a 007 para a faixa percentual definitiva; a versão atual do banco é **7**.
 
 A exclusão de categoria própria desvincula, na mesma transação, despesas não excluídas e séries de despesa, preservando os lançamentos e tombstones. A restauração de despesa/série com categoria ausente usa a fila `restauracao_pendente` e não converte o vínculo em `NULL` silenciosamente. Permanecem fora do escopo da UC06 o recálculo de indicadores/alertas (UC05/UC09) e a tela de login (UC10).
+
+### 4.10. Contrato de integração com UC05/UC09
+
+A UC06 **não calcula** indicadores de consumo nem alertas de limite. O contrato mínimo para as UCs responsáveis é a leitura consistente do estado após o commit da operação:
+
+- **Pré-condição:** a operação da UC06 só retorna depois do commit local; em falha, categoria, despesas, séries e limites permanecem como antes.
+- **Estado publicado:** `categorias` (id, `padrao`, `limite_tipo`, `limite_centavos`, `limite_percentual_centesimos`, `excluido_em`, `atualizado_em`), `despesas` (`categoria_id`, `data`, `valor_centavos`, `excluido_em`) e `recorrencias` (`tipo`, `categoria_id`, estado/tombstone).
+- **Leitura esperada:** UC05/UC09 recalculam o período afetado a partir dessas tabelas após criar, editar ou excluir categoria. Não há evento de domínio nem callback implementado nesta etapa.
+- **Pós-condição relevante:** exclusão de própria mantém as despesas e séries, grava `categoria_id = NULL` e preserva os tombstones; edição de limite atualiza `atualizado_em`; categoria padrão não muda de nome nem é excluída.
+- **Fora do escopo:** fórmulas de consumo, limite efetivo, faixas de alerta e persistência de indicadores continuam sob responsabilidade de UC05/UC09.
+
+### 4.11. B3 — foreign keys e impacto na UC06
+
+O problema B3 conhecido é que `PRAGMA foreign_keys = ON` não é herdado pela conexão separada usada por `withExclusiveTransactionAsync`. A UC06 **não é afetada** por ele:
+
+- as únicas foreign keys do schema são `despesas.recorrencia_id` e `receitas.recorrencia_id`, ambas referenciando `recorrencias(id)`;
+- `categoria_id` em `despesas` e `recorrencias` não possui foreign key;
+- a UC06 cria/edita/ tombstoneia apenas `categorias` e atualiza `categoria_id` para `NULL` em despesas/séries; não insere nem exclui `recorrencias` e não altera `recorrencia_id`.
+
+Portanto, não há impacto demonstrado na funcionalidade da UC06 e nenhuma correção de arquitetura foi feita nesta etapa.

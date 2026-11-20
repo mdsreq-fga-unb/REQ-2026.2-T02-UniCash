@@ -3660,6 +3660,170 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(banco.despesas()).toHaveLength(0);
     });
 
+    describe('normalização remota em massa (issue #71)', () => {
+      it('normaliza padrão, própria, tombstone e categoria sem uso', async () => {
+        mockNuvem.set(
+          catPath('padrao_casa'),
+          docCategoriaRemota({
+            padrao: true,
+            chave: 'casa',
+            nome: 'Casa',
+            nome_normalizado: 'casa',
+            limite_tipo: 'percentual_renda',
+            limite_percentual_centesimos: 50,
+          }),
+        );
+        mockNuvem.set(
+          catPath('propria'),
+          docCategoriaRemota({
+            nome: 'Própria',
+            nome_normalizado: 'própria',
+            limite_tipo: 'percentual_renda',
+            limite_percentual_centesimos: 20_000,
+          }),
+        );
+        mockNuvem.set(
+          catPath('tombstone'),
+          docCategoriaRemota({
+            nome: 'Tombstone',
+            nome_normalizado: 'tombstone',
+            excluido_em: '2026-01-01T00:00:00.000Z',
+            limite_tipo: 'valor',
+            limite_centavos: 5000,
+          }),
+        );
+        mockNuvem.set(
+          catPath('sem-uso'),
+          docCategoriaRemota({
+            nome: 'Sem uso',
+            nome_normalizado: 'sem uso',
+            limite_tipo: 'percentual_renda',
+            limite_percentual_centesimos: 0,
+          }),
+        );
+        const despesaRemota = {
+          valor_centavos: 1000,
+          data: '2026-10-16',
+          titulo: 'Mercado',
+          categoria_id: 'propria',
+          criado_em: '2026-10-16T00:00:00Z',
+          atualizado_em: '2026-10-16T00:00:00Z',
+        };
+        mockNuvem.set(despPath('despesa'), despesaRemota);
+
+        await restaurarDaNuvem();
+
+        expect(mockNuvem.get(catPath('padrao_casa')).limite_percentual_centesimos).toBe(100);
+        expect(mockNuvem.get(catPath('propria')).limite_percentual_centesimos).toBe(10_000);
+        expect(mockNuvem.get(catPath('tombstone'))).toMatchObject({
+          limite_tipo: null,
+          limite_centavos: null,
+          limite_percentual_centesimos: null,
+        });
+        expect(mockNuvem.get(catPath('sem-uso')).limite_percentual_centesimos).toBe(100);
+        expect(mockNuvem.get(despPath('despesa'))).toEqual(despesaRemota);
+      });
+
+      it('normaliza documento remoto mesmo quando a restauração local fica pendente por conflito de nome', async () => {
+        const propria = await criarCategoria({ nome: 'Casa', limite: null });
+        mockNuvem.set(
+          catPath('padrao_casa'),
+          docCategoriaRemota({
+            padrao: true,
+            chave: 'casa',
+            nome: 'Casa',
+            nome_normalizado: 'casa',
+            limite_tipo: 'percentual_renda',
+            limite_percentual_centesimos: 50,
+          }),
+        );
+
+        await restaurarDaNuvem();
+
+        expect(mockNuvem.get(catPath('padrao_casa')).limite_percentual_centesimos).toBe(100);
+        expect(catLocal(propria)).toMatchObject({ padrao: 0 });
+      });
+
+      it('é idempotente e não reescreve documentos já normalizados', async () => {
+        mockNuvem.set(
+          catPath('padrao_casa'),
+          docCategoriaRemota({
+            padrao: true,
+            chave: 'casa',
+            nome: 'Casa',
+            nome_normalizado: 'casa',
+            limite_tipo: 'percentual_renda',
+            limite_percentual_centesimos: 50,
+          }),
+        );
+
+        await restaurarDaNuvem();
+        const escritas = mockOrdemEscritas.length;
+
+        await restaurarDaNuvem();
+
+        expect(mockOrdemEscritas.length).toBe(escritas);
+        expect(mockNuvem.get(catPath('padrao_casa')).limite_percentual_centesimos).toBe(100);
+      });
+
+      it('não altera documentos inválidos que não podem ser normalizados com segurança', async () => {
+        const invalida = docCategoriaRemota({
+          nome: 'x'.repeat(31),
+          nome_normalizado: 'x'.repeat(31),
+          limite_tipo: 'percentual_renda',
+          limite_percentual_centesimos: 50,
+        });
+        mockNuvem.set(catPath('invalida'), invalida);
+
+        await restaurarDaNuvem();
+
+        expect(mockNuvem.get(catPath('invalida'))).toEqual(invalida);
+      });
+
+      it('falha de rede na varredura não interrompe a restauração e permite nova tentativa', async () => {
+        mockNuvem.set(
+          catPath('padrao_casa'),
+          docCategoriaRemota({
+            padrao: true,
+            chave: 'casa',
+            nome: 'Casa',
+            nome_normalizado: 'casa',
+            limite_tipo: 'percentual_renda',
+            limite_percentual_centesimos: 50,
+          }),
+        );
+        mockErroTransacao = Object.assign(new Error('unavailable'), {
+          code: 'unavailable',
+        });
+
+        await expect(restaurarDaNuvem()).resolves.toBeDefined();
+        expect(mockNuvem.get(catPath('padrao_casa')).limite_percentual_centesimos).toBe(50);
+
+        await restaurarDaNuvem();
+        expect(mockNuvem.get(catPath('padrao_casa')).limite_percentual_centesimos).toBe(100);
+      });
+
+      it('falha de permissão não interrompe a restauração e sinaliza acesso negado', async () => {
+        mockNuvem.set(
+          catPath('padrao_casa'),
+          docCategoriaRemota({
+            padrao: true,
+            chave: 'casa',
+            nome: 'Casa',
+            nome_normalizado: 'casa',
+            limite_tipo: 'percentual_renda',
+            limite_percentual_centesimos: 50,
+          }),
+        );
+        mockCaminhosRejeitados.add(catPath('padrao_casa'));
+
+        await expect(restaurarDaNuvem()).resolves.toBeDefined();
+
+        expect(mockNuvem.get(catPath('padrao_casa')).limite_percentual_centesimos).toBe(50);
+        expect(consumirAcessoNegado()).toBe(true);
+      });
+    });
+
     it('permission-denied mantém categoria pendente e sinaliza acesso negado', async () => {
       const id = await criarCategoria({ nome: 'Mercado', limite: null });
       mockCaminhosRejeitados.add(catPath(id));
