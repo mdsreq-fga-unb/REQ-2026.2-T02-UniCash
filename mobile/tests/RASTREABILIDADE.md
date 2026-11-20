@@ -109,8 +109,8 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 | RNF05 — evitar estado parcial | B, C, D | `service.ts` (`transacao`) | `tests/service/categorias.test.ts` (falha em criar/editar/excluir) | Testado no escopo local |
 | RNF07 — precisão monetária | B, C | `money.ts`, `validation.ts`, `schema.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/db/schema.test.ts` | Testado com centavos/centésimos inteiros |
 | RNF14 — mensagens de rejeição | B, C, EX01–EX07 | `validation.ts` (`MSG_CAT`), `CategoriaForm.tsx` | `tests/screens/CategoriaForm.test.tsx`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx` | Testado nos fluxos implementados |
-| RNF35 — Persistir localmente com durabilidade | todos | `schema.ts`, `service.ts` | `tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts` | SQLite testado; smoke anterior antes de `2445ee8`; diagnóstico manual v3 relatado pelo usuário (capturas pendentes); persistência após encerramento completo pendente |
-| RNF36 — convergência da sincronização | sincronização | `categorias/sync.ts`, `receitas/sync.ts`, `db/restauracaoPendente.ts`, `firestore.rules` | `tests/service/sync.test.ts`, `tests/service/categorias.sync.test.ts`, `tests/unit/categorias.sync.test.ts`, `tests/rules/firestore.rules.test.ts` | Sincronização, aliases, conflitos, pendências e tombstones testados |
+| RNF35 — Persistir localmente com durabilidade | todos | `schema.ts`, `service.ts` | `tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts` | SQLite testado; persistência após encerramento e reabertura **aprovada no Expo Go/Android em 20/11/2026** |
+| RNF36 — convergência da sincronização | sincronização | `categorias/sync.ts`, `receitas/sync.ts`, `db/restauracaoPendente.ts`, `firestore.rules` | `tests/service/sync.test.ts`, `tests/service/categorias.sync.test.ts`, `tests/unit/categorias.sync.test.ts`, `tests/rules/firestore.rules.test.ts` | Sincronização, aliases, conflitos, pendências e tombstones testados no emulador; sincronização real pendente de UC10 |
 
 ### 4.2. Fluxos e exceções
 
@@ -150,17 +150,33 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 | 20/11/2026 | `npm test -- --ci --coverage --runInBand` | 68 | 1.242 | **1.242 aprovados**; cobertura 95,23% statements, 89,73% branches, 98% functions, 96,93% lines |
 | 20/11/2026 | `npm run test:rules` | 1 | 70 | **70 aprovados** no Firestore Emulator |
 | 20/11/2026 | `npx expo export --platform android` | — | — | **Export Android concluído** (bundle Hermes) |
+| 20/11/2026 | Expo Go em dispositivo Android (modo local) | — | — | **RF19, RF65, RF66, RF67 e persistência aprovados**; sincronização real não executada |
 
 - **CI — execução 31:** PR #58, `feat(uc06): gerenciar categorias (listagem, cadastro, edição e exclusão)`, commit `2445ee8` (código) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44390887769
 - **CI — execução 32:** PR #58, commit `aa84979` (documentação) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44418286085
-- **Manual:** o smoke anterior foi executado antes do commit `2445ee8`. O diagnóstico manual da migração 003 no Android foi **relatado pelo usuário como bem-sucedido**: `unicash.db`, `user_version = 3`, os dois triggers e as três categorias preservadas (`Normal` 5000, `Legado` 20000000, `Excluir` 10000, ativas). As capturas serão anexadas posteriormente e ainda não foram revisadas; o instante exato da migração não foi observado. O full reload carregou o bundle v3, mas o encerramento completo do Expo Go, os testes funcionais posteriores (editar `Normal` 50→80, excluir `Excluir`, rejeitar 100,01%, corrigir/renomear o legado) e a persistência final após reabrir **seguem pendentes**.
-- **Security Rules:** não aplicável à UC06 nesta entrega; `npm run test:rules` cobre a UC01.
+- **Manual histórico:** antes do commit `2445ee8`, o diagnóstico da migração 003 no Android foi relatado como bem-sucedido (`user_version = 3`, triggers e categorias preservadas). Esse registro não cobre as migrações 006/007 nem a versão atual.
+- **Manual atual — Expo Go/Android (20/11/2026):** execução local, sem autenticação Firebase; resultados detalhados em 4.4.1.
+- **Firestore Emulator:** `npm run test:rules` cobre as Rules de categorias; não houve publicação em projeto Firebase real nem teste de sincronização real.
+
+### 4.4.1. Testes manuais — Expo Go em dispositivo Android
+
+Executados em **20/11/2026**, em dispositivo Android via **Expo Go**, no modo offline/local, sem autenticação Firebase.
+
+| Item | Resultado |
+|---|---|
+| RF19 — criação de categoria | **Aprovado** |
+| RF65 — consulta, contagem e navegação para despesas filtradas | **Aprovado** |
+| RF66 — edição de categoria própria e limite de padrão | **Aprovado** |
+| RF67 — exclusão de categoria com preservação das despesas | **Aprovado** |
+| Persistência após encerrar e reabrir o aplicativo | **Aprovado** |
+
+**Escopo e limitações:** este smoke foi funcional, em Expo Go, e não uma build nativa/APK. Não houve inspeção de `user_version` nem repetição do upgrade nativo a partir de banco antigo; as migrações 006/007 permanecem cobertas pelos testes automatizados. A sincronização e a restauração Firebase reais não foram executadas por ausência de autenticação/UC10.
 
 ### 4.5. Pendências de integração
 
 - **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 deixa o estado consistente no SQLite (`categorias`, limites, tombstones) e a UC02 mantém as `despesas`; a interface prevista é a leitura dessas tabelas por período após cada operação (contrato em 4.10). Não há evento de domínio nem chamada direta implementada nesta etapa; o cálculo continua sob responsabilidade dessas UCs.
 - **UC10:** a restauração no startup aguarda `authStateReady` e usa `auth.currentUser`, mas o app ainda não possui tela de login própria. Sem sessão, a operação permanece offline-first.
-- **Validação nativa:** a migração 007 e a desvinculação transacional foram validadas em SQLite/better-sqlite3 e no emulador, mas não há `adb`, Android SDK, emulador ou dispositivo para um smoke nativo nesta máquina.
+- **Validação nativa:** o smoke funcional da UC06 foi concluído via **Expo Go em dispositivo Android** em 20/11/2026, cobrindo RF19/RF65/RF66/RF67 e persistência. Não houve build nativa/APK, inspeção de `user_version` ou repetição do upgrade nativo a partir de banco antigo; as migrações 006/007 seguem cobertas por testes automatizados.
 - **Firebase não configurado:** `src/lib/firebase.ts` abre em modo offline quando as variáveis `EXPO_PUBLIC_FIREBASE_*` estão ausentes; `auth.currentUser` fica nulo e sincronização/restauração não executam. Teste: `tests/unit/firebase.offline.test.ts`.
 - **Semeadura:** conflitos são reportados uma vez por instância e a semeadura não é repetida a cada foco. Após excluir uma categoria própria com nome reservado, um sinal único faz a lista tentar a semeadura no próximo foco; não há conversão automática da categoria própria. Se a tentativa posterior falhar, a exclusão já confirmada permanece e o erro é exibido como falha de preparação das padrão, não como falha da exclusão.
 
