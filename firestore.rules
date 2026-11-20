@@ -81,12 +81,12 @@ service cloud.firestore {
         && d.atualizado_em is string && d.atualizado_em.size() > 0;
     }
 
-    function recorrenciaValida(d) {
+    function recorrenciaBaseValida(d) {
       return d.keys().hasOnly([
           'tipo', 'intervalo', 'unidade', 'inicio', 'termino',
           'ativa', 'valor_centavos', 'titulo', 'descricao',
           'categoria_id', 'fixa_ou_variavel', 'essencial',
-          'atualizado_em'
+          'atualizado_em', 'excluido_em'
         ])
         && d.keys().hasAll([
           'tipo', 'intervalo', 'unidade', 'inicio',
@@ -116,6 +116,18 @@ service cloud.firestore {
           || d.essencial in [0, 1]);
     }
 
+    function recorrenciaAtivaValida(d) {
+      return recorrenciaBaseValida(d)
+        && (!('excluido_em' in d) || d.excluido_em == null);
+    }
+
+    function recorrenciaTombstoneValida(d) {
+      return recorrenciaBaseValida(d)
+        && d.excluido_em is string
+        && d.excluido_em.size() > 0
+        && d.ativa == false;
+    }
+
     match /usuarios/{uid}/receitas/{id} {
       allow read, delete: if dono(uid);
       allow create, update: if dono(uid)
@@ -129,12 +141,17 @@ service cloud.firestore {
       allow update: if dono(uid)
         && !('excluido_em' in resource.data)
         && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
+      allow delete: if false;
     }
 
     match /usuarios/{uid}/recorrencias/{id} {
-      allow read, delete: if dono(uid);
-      allow create, update: if dono(uid)
-        && recorrenciaValida(request.resource.data);
+      allow read: if dono(uid);
+      allow create: if dono(uid)
+        && (recorrenciaAtivaValida(request.resource.data) || recorrenciaTombstoneValida(request.resource.data));
+      allow update: if dono(uid)
+        && !('excluido_em' in resource.data)
+        && (recorrenciaAtivaValida(request.resource.data) || recorrenciaTombstoneValida(request.resource.data));
+      allow delete: if false;
     }
   }
 }

@@ -23,6 +23,9 @@ import {
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
 import { input } from '../helpers/dados';
+import { categoriaLinha } from '../helpers/categorias';
+import { excluirCategoria } from '@/features/categorias/service';
+import type { Categoria } from '@/features/categorias/types';
 
 // Firestore em memória: o que está em mockNuvem é o que "está na nuvem".
 const mockNuvem = new Map<string, any>();
@@ -32,6 +35,13 @@ let mockLeiturasRemotas = 0;
 let mockCodigoErro = 'unavailable';
 /** Caminhos que a nuvem rejeita (permission-denied) mesmo com a rede funcionando. */
 const mockCaminhosRejeitados = new Set<string>();
+/** Ordem dos caminhos efetivamente enviados por setDoc. */
+const mockOrdemEscritas: string[] = [];
+/** Sentinela usada pelo mock de deleteField. */
+const mockCampoRemovido = { __deleteField: true };
+let mockAntesDaTransacao: (() => void) | null = null;
+let mockErroTransacao: unknown = null;
+let mockTransacoes = 0;
 
 jest.mock('@/lib/firebase', () => ({
   auth: {
@@ -57,7 +67,71 @@ jest.mock('firebase/firestore', () => ({
     if (mockCaminhosRejeitados.has(ref.path)) {
       throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
     }
+    mockOrdemEscritas.push(ref.path);
     mockNuvem.set(ref.path, JSON.parse(JSON.stringify(dados)));
+  },
+  deleteField: () => mockCampoRemovido,
+  runTransaction: async (_db: unknown, fn: (tx: any) => Promise<any>) => {
+    mockTransacoes++;
+
+    if (mockAntesDaTransacao) {
+      const hook = mockAntesDaTransacao;
+      mockAntesDaTransacao = null;
+      hook();
+    }
+
+    if (mockErroTransacao) {
+      const erro = mockErroTransacao;
+      mockErroTransacao = null;
+      throw erro;
+    }
+
+    const tx = {
+      get: async (ref: any) => {
+        mockLeiturasRemotas++;
+        if (mockRedeFora) {
+          throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
+        }
+        const d = mockNuvem.get(ref.path);
+        return { exists: () => d !== undefined, data: () => d };
+      },
+      set: (ref: any, dados: any) => {
+        if (mockRedeFora) {
+          throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
+        }
+        if (mockCaminhosRejeitados.has(ref.path)) {
+          throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+        }
+        mockOrdemEscritas.push(ref.path);
+        mockNuvem.set(ref.path, JSON.parse(JSON.stringify(dados)));
+      },
+      update: (ref: any, dados: any) => {
+        if (mockRedeFora) {
+          throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
+        }
+        if (mockCaminhosRejeitados.has(ref.path)) {
+          throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+        }
+        const atual = mockNuvem.get(ref.path);
+        if (atual === undefined) {
+          throw Object.assign(new Error('not-found'), { code: 'not-found' });
+        }
+
+        const proximo = { ...atual };
+        for (const [campo, valor] of Object.entries(dados)) {
+          if (valor === mockCampoRemovido) {
+            delete proximo[campo];
+          } else {
+            proximo[campo] = JSON.parse(JSON.stringify(valor));
+          }
+        }
+
+        mockOrdemEscritas.push(ref.path);
+        mockNuvem.set(ref.path, proximo);
+      },
+    };
+
+    return fn(tx);
   },
   getDoc: async (ref: any) => {
     mockLeiturasRemotas++;
@@ -75,6 +149,42 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
   let banco: BancoFalso;
   const caminho = (id: string) => `usuarios/u1/receitas/${id}`;
 
+  function inserirCategoria(
+    extra: Partial<Categoria> = {},
+  ): Categoria {
+    const categoria = categoriaLinha({
+      id: 'uuid-casa',
+      nome: 'Casa',
+      nome_normalizado: 'casa',
+      padrao: 1,
+      ...extra,
+    });
+
+    banco.sqlite
+      .prepare(
+        `INSERT INTO categorias
+          (id, nome, nome_normalizado, padrao, limite_tipo, limite_centavos,
+           limite_percentual_centesimos, sync_status, excluido_em, criado_em,
+           atualizado_em)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        categoria.id,
+        categoria.nome,
+        categoria.nome_normalizado,
+        categoria.padrao,
+        categoria.limite_tipo,
+        categoria.limite_centavos,
+        categoria.limite_percentual_centesimos,
+        categoria.sync_status,
+        categoria.excluido_em,
+        categoria.criado_em,
+        categoria.atualizado_em,
+      );
+
+    return categoria;
+  }
+
   beforeEach(() => {
     banco = instalarBanco();
     fixarHoje('2026-10-16');
@@ -84,6 +194,10 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     mockLeiturasRemotas = 0;
     mockCodigoErro = 'unavailable';
     mockCaminhosRejeitados.clear();
+    mockOrdemEscritas.length = 0;
+    mockAntesDaTransacao = null;
+    mockErroTransacao = null;
+    mockTransacoes = 0;
     consumirAcessoNegado();
   });
   afterEach(restaurarTempo);
@@ -108,6 +222,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     }
 
     it('envia despesa com categoria e classificações para a nuvem', async () => {
+      inserirCategoria();
       await registrarDespesa(inputDespesa());
       await sincronizarPendentes();
 
@@ -118,7 +233,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         data: '2026-10-16',
         titulo: 'Aluguel',
         descricao: 'Aluguel do apartamento',
-        categoria_id: 'casa',
+        categoria_id: 'uuid-casa',
         fixa_ou_variavel: 'fixa',
         essencial: 1,
       });
@@ -138,6 +253,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     });
 
     it('UC02 EX03: a primeira falha de rede interrompe a fila', async () => {
+      inserirCategoria();
       await registrarDespesa(inputDespesa());
       await registrarDespesa(inputDespesa({ titulo: 'Outra despesa' }));
       mockRedeFora = true;
@@ -149,6 +265,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     });
 
     it('grava na nuvem o marcador de uma despesa excluída', async () => {
+      inserirCategoria();
       await registrarDespesa(inputDespesa());
       await sincronizarPendentes();
 
@@ -164,10 +281,16 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         excluido_em: expect.any(String), atualizado_em: expect.any(String),
       });
       expect(excluida).toMatchObject({
-        titulo: '', descricao: null, categoria_id: null, sync_status: 'sincronizado',
+        valor_centavos: 150000,
+        data: '2026-10-16',
+        titulo: 'Aluguel',
+        descricao: 'Aluguel do apartamento',
+        categoria_id: 'casa',
+        sync_status: 'sincronizado',
       });
     });
     it('envia recorrência de despesa com tipo e classificações para a nuvem', async () => {
+  inserirCategoria();
   await registrarDespesa(
     inputDespesa({
       recorrencia: {
@@ -190,7 +313,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       inicio: '2026-10-16',
       termino: '2026-12-16',
       ativa: true,
-      categoria_id: 'casa',
+      categoria_id: 'uuid-casa',
       fixa_ou_variavel: 'fixa',
       essencial: 1,
     });
@@ -240,6 +363,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     });
 
     it('um registro rejeitado pela nuvem não bloqueia os demais (fica pendente)', async () => {
+      inserirCategoria();
       await registrarDespesa(inputDespesa({ titulo: 'Rejeitada' }));
       await registrarDespesa(inputDespesa({ titulo: 'Aceita', data: '2026-10-17' }));
 
@@ -255,6 +379,1313 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(mockNuvem.has(caminhoDespesa(aceita.id))).toBe(true);
       expect(mockNuvem.has(caminhoDespesa(rejeitada.id))).toBe(false);
       expect(consumirAcessoNegado()).toBe(true);
+    });
+  });
+
+  describe('proteção de upload de despesas e recorrências (UC06)', () => {
+    const caminhoDespesa = (id: string) => `usuarios/u1/despesas/${id}`;
+    const caminhoSerie = (id: string) => `usuarios/u1/recorrencias/${id}`;
+
+    function inputDespesa(extra: Partial<DespesaInput> = {}): DespesaInput {
+      return {
+        data: '2026-10-16',
+        titulo: 'Aluguel',
+        valorCentavos: 150000,
+        descricao: null,
+        categoriaId: 'uuid-casa',
+        fixaOuVariavel: 'fixa',
+        essencial: 1,
+        recorrencia: null,
+        ...extra,
+      };
+    }
+
+    async function criarSerie(categoriaId: string | null) {
+      await registrarDespesa(
+        inputDespesa({
+          categoriaId,
+          recorrencia: {
+            intervalo: 1,
+            unidade: 'mes',
+            termino: '2026-12-16',
+          },
+        }),
+      );
+
+      const serie = banco.recorrencias()[0];
+      const ocorrencias = banco
+        .despesas()
+        .filter((d) => d.recorrencia_id === serie.id);
+
+      return { serie, ocorrencias };
+    }
+
+    it('envia o ID real de uma categoria padrão ativa', async () => {
+      inserirCategoria();
+      await registrarDespesa(inputDespesa({ categoriaId: 'uuid-casa' }));
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+      expect(mockNuvem.get(caminhoDespesa(d.id))).toMatchObject({
+        categoria_id: 'uuid-casa',
+      });
+      expect(d.sync_status).toBe('sincronizado');
+    });
+
+    it('envia o ID real de uma categoria própria ativa', async () => {
+      inserirCategoria({
+        id: 'uuid-mercado',
+        nome: 'Mercado',
+        nome_normalizado: 'mercado',
+        padrao: 0,
+      });
+      await registrarDespesa(inputDespesa({ categoriaId: 'uuid-mercado' }));
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+      expect(mockNuvem.get(caminhoDespesa(d.id))).toMatchObject({
+        categoria_id: 'uuid-mercado',
+      });
+      expect(d.sync_status).toBe('sincronizado');
+    });
+
+    it('converte slug histórico em ID real no upload', async () => {
+      inserirCategoria();
+      await registrarDespesa(inputDespesa({ categoriaId: 'casa' }));
+      await sincronizarPendentes();
+
+      const enviado = mockNuvem.get(caminhoDespesa(banco.despesas()[0].id));
+      expect(enviado.categoria_id).toBe('uuid-casa');
+      expect(enviado.categoria_id).not.toBe('casa');
+    });
+
+    it('slug sem padrão local não é enviado e mantém a despesa pendente', async () => {
+      inserirCategoria();
+      await registrarDespesa(inputDespesa({ categoriaId: 'alimentacao' }));
+
+      const antes = banco.despesas()[0];
+      await sincronizarPendentes();
+      const depois = banco.despesas()[0];
+
+      expect(mockNuvem.has(caminhoDespesa(depois.id))).toBe(false);
+      expect(depois.sync_status).toBe('pendente');
+      expect(depois.atualizado_em).toBe(antes.atualizado_em);
+    });
+
+    it('ID de categoria desconhecido não é enviado', async () => {
+      inserirCategoria();
+      await registrarDespesa(
+        inputDespesa({ categoriaId: 'uuid-desconhecido' }),
+      );
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+      expect(mockNuvem.has(caminhoDespesa(d.id))).toBe(false);
+      expect(d.sync_status).toBe('pendente');
+    });
+
+    it('categoria excluída não é enviada', async () => {
+      inserirCategoria();
+      inserirCategoria({
+        id: 'uuid-antiga',
+        nome: 'Antiga',
+        nome_normalizado: 'antiga',
+        padrao: 0,
+        excluido_em: '2026-02-01T00:00:00Z',
+      });
+      await registrarDespesa(inputDespesa({ categoriaId: 'uuid-antiga' }));
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+      expect(mockNuvem.has(caminhoDespesa(d.id))).toBe(false);
+      expect(d.sync_status).toBe('pendente');
+    });
+
+    it('categoria_id NULL é omitido do payload', async () => {
+      inserirCategoria();
+      await registrarDespesa(inputDespesa({ categoriaId: null }));
+      await sincronizarPendentes();
+
+      const d = banco.despesas()[0];
+      const enviado = mockNuvem.get(caminhoDespesa(d.id));
+
+      expect(enviado).toBeDefined();
+      expect(enviado).not.toHaveProperty('categoria_id');
+      expect(d.sync_status).toBe('sincronizado');
+    });
+
+    it('categoria inválida local não sobrescreve categoria remota válida', async () => {
+      inserirCategoria();
+      await registrarDespesa(inputDespesa({ categoriaId: 'uuid-casa' }));
+      await sincronizarPendentes();
+
+      const id = banco.despesas()[0].id;
+      mockNuvem.set(caminhoDespesa(id), {
+        ...mockNuvem.get(caminhoDespesa(id)),
+        atualizado_em: '2000-01-01T00:00:00.000Z',
+      });
+      const remotoAntes = mockNuvem.get(caminhoDespesa(id));
+
+      await editarDespesa(
+        id,
+        inputDespesa({
+          categoriaId: 'categoria-removida',
+          titulo: 'Inválida',
+        }),
+      );
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(caminhoDespesa(id))).toEqual(remotoAntes);
+      expect(banco.despesas()[0].sync_status).toBe('pendente');
+    });
+
+    it('despesa inválida não impede o upload de outra despesa independente', async () => {
+      inserirCategoria();
+      await registrarDespesa(
+        inputDespesa({ titulo: 'Inválida', categoriaId: 'alimentacao' }),
+      );
+      await registrarDespesa(
+        inputDespesa({
+          titulo: 'Válida',
+          categoriaId: 'uuid-casa',
+          data: '2026-10-17',
+        }),
+      );
+      await sincronizarPendentes();
+
+      const invalida = banco.despesas().find((d) => d.titulo === 'Inválida')!;
+      const valida = banco.despesas().find((d) => d.titulo === 'Válida')!;
+
+      expect(invalida.sync_status).toBe('pendente');
+      expect(mockNuvem.has(caminhoDespesa(invalida.id))).toBe(false);
+      expect(valida.sync_status).toBe('sincronizado');
+      expect(mockNuvem.has(caminhoDespesa(valida.id))).toBe(true);
+    });
+
+    it('série de despesa envia o ID real da categoria', async () => {
+      inserirCategoria();
+      const { serie } = await criarSerie('uuid-casa');
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(caminhoSerie(serie.id))).toMatchObject({
+        tipo: 'despesa',
+        categoria_id: 'uuid-casa',
+      });
+      expect(banco.recorrencias()[0].sync_status).toBe('sincronizado');
+    });
+
+    it('série de despesa converte slug histórico em ID real', async () => {
+      inserirCategoria();
+      const { serie } = await criarSerie('casa');
+      await sincronizarPendentes();
+
+      const remoto = mockNuvem.get(caminhoSerie(serie.id));
+      expect(remoto.categoria_id).toBe('uuid-casa');
+      expect(remoto.categoria_id).not.toBe('casa');
+    });
+
+    it('série com categoria inválida não é enviada e permanece pendente', async () => {
+      inserirCategoria();
+      const { serie } = await criarSerie('alimentacao');
+      const atualizadoAntes = serie.atualizado_em;
+
+      await sincronizarPendentes();
+      const depois = banco.recorrencias()[0];
+
+      expect(mockNuvem.has(caminhoSerie(serie.id))).toBe(false);
+      expect(depois.sync_status).toBe('pendente');
+      expect(depois.atualizado_em).toBe(atualizadoAntes);
+    });
+
+    it('ocorrência de série bloqueada não é enviada e permanece pendente', async () => {
+      inserirCategoria();
+      const { ocorrencias } = await criarSerie('alimentacao');
+
+      await sincronizarPendentes();
+
+      for (const ocorrencia of ocorrencias) {
+        expect(mockNuvem.has(caminhoDespesa(ocorrencia.id))).toBe(false);
+        expect(
+          banco.despesas().find((d) => d.id === ocorrencia.id)?.sync_status,
+        ).toBe('pendente');
+      }
+    });
+
+    it('ocorrência com categoria válida continua bloqueada quando a série é ignorada', async () => {
+      inserirCategoria();
+      const { serie, ocorrencias } = await criarSerie('alimentacao');
+      const alvo = ocorrencias[0];
+
+      await editarDespesa(
+        alvo.id,
+        inputDespesa({
+          categoriaId: 'uuid-casa',
+          data: alvo.data,
+          titulo: alvo.titulo,
+          valorCentavos: alvo.valor_centavos,
+          descricao: alvo.descricao,
+          fixaOuVariavel: alvo.fixa_ou_variavel,
+          essencial: alvo.essencial,
+        }),
+        'esta',
+      );
+
+      expect(
+        banco.despesas().find((d) => d.id === alvo.id)?.categoria_id,
+      ).toBe('uuid-casa');
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.has(caminhoSerie(serie.id))).toBe(false);
+      expect(mockNuvem.has(caminhoDespesa(alvo.id))).toBe(false);
+      expect(
+        banco.despesas().find((d) => d.id === alvo.id)?.sync_status,
+      ).toBe('pendente');
+    });
+
+    it('ocorrência com categoria inválida não é enviada quando a série é válida', async () => {
+      inserirCategoria();
+      const { serie, ocorrencias } = await criarSerie('uuid-casa');
+      const alvo = ocorrencias[0];
+
+      await editarDespesa(
+        alvo.id,
+        inputDespesa({
+          categoriaId: 'alimentacao',
+          data: alvo.data,
+          titulo: alvo.titulo,
+          valorCentavos: alvo.valor_centavos,
+          descricao: alvo.descricao,
+          fixaOuVariavel: alvo.fixa_ou_variavel,
+          essencial: alvo.essencial,
+        }),
+        'esta',
+      );
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.has(caminhoSerie(serie.id))).toBe(true);
+      expect(banco.recorrencias()[0].sync_status).toBe('sincronizado');
+      expect(mockNuvem.has(caminhoDespesa(alvo.id))).toBe(false);
+      expect(
+        banco.despesas().find((d) => d.id === alvo.id)?.sync_status,
+      ).toBe('pendente');
+    });
+
+    it('permission-denied na série bloqueia ocorrências e não impede despesa independente', async () => {
+      inserirCategoria();
+      const { serie, ocorrencias } = await criarSerie('uuid-casa');
+      await registrarDespesa(
+        inputDespesa({
+          titulo: 'Independente',
+          categoriaId: 'uuid-casa',
+          data: '2026-10-17',
+        }),
+      );
+
+      mockCaminhosRejeitados.add(caminhoSerie(serie.id));
+      await sincronizarPendentes();
+
+      const independente = banco
+        .despesas()
+        .find((d) => d.titulo === 'Independente')!;
+
+      expect(mockNuvem.has(caminhoSerie(serie.id))).toBe(false);
+      for (const ocorrencia of ocorrencias) {
+        expect(mockNuvem.has(caminhoDespesa(ocorrencia.id))).toBe(false);
+      }
+      expect(mockNuvem.has(caminhoDespesa(independente.id))).toBe(true);
+      expect(independente.sync_status).toBe('sincronizado');
+      expect(consumirAcessoNegado()).toBe(true);
+    });
+
+    it('lápide de ocorrência de série bloqueada continua sendo enviada', async () => {
+      inserirCategoria();
+      const { serie, ocorrencias } = await criarSerie('alimentacao');
+      const alvo = ocorrencias[0];
+
+      await excluirDespesa(alvo.id, 'esta');
+      await sincronizarPendentes();
+
+      expect(mockNuvem.has(caminhoSerie(serie.id))).toBe(false);
+      expect(mockNuvem.get(caminhoDespesa(alvo.id))).toEqual({
+        excluido_em: expect.any(String),
+        atualizado_em: expect.any(String),
+      });
+      expect(banco.despesas().find((d) => d.id === alvo.id)).toMatchObject({
+        sync_status: 'sincronizado',
+        excluido_em: expect.any(String),
+      });
+    });
+
+    it('série de receita não envia categoria_id e ignora a validação', async () => {
+      await registrarReceita(
+        input({
+          recorrencia: {
+            intervalo: 1,
+            unidade: 'mes',
+            termino: '2026-12-16',
+          },
+        }),
+      );
+
+      const serie = banco.recorrencias()[0];
+      banco.sqlite
+        .prepare(
+          "UPDATE recorrencias SET categoria_id = 'categoria-invalida', sync_status = 'pendente' WHERE id = ?",
+        )
+        .run(serie.id);
+
+      await sincronizarPendentes();
+
+      const remoto = mockNuvem.get(caminhoSerie(serie.id));
+      expect(remoto).toBeDefined();
+      expect(remoto).not.toHaveProperty('categoria_id');
+      expect(banco.recorrencias()[0].sync_status).toBe('sincronizado');
+    });
+
+    it('registro ignorado mantém status e atualizado_em', async () => {
+      inserirCategoria();
+      const { serie, ocorrencias } = await criarSerie('alimentacao');
+      const serieAntes = {
+        sync_status: serie.sync_status,
+        atualizado_em: serie.atualizado_em,
+      };
+      const ocorrenciasAntes = ocorrencias.map((o) => ({
+        id: o.id,
+        sync_status: o.sync_status,
+        atualizado_em: o.atualizado_em,
+      }));
+
+      await sincronizarPendentes();
+
+      expect(banco.recorrencias()[0]).toMatchObject({
+        sync_status: 'pendente',
+        atualizado_em: serieAntes.atualizado_em,
+      });
+      for (const antes of ocorrenciasAntes) {
+        expect(
+          banco.despesas().find((d) => d.id === antes.id),
+        ).toMatchObject({
+          sync_status: 'pendente',
+          atualizado_em: antes.atualizado_em,
+        });
+      }
+    });
+
+    it('repetir a sincronização mantém o documento remoto intacto', async () => {
+      inserirCategoria();
+      await registrarDespesa(inputDespesa({ categoriaId: 'uuid-casa' }));
+      await sincronizarPendentes();
+
+      const id = banco.despesas()[0].id;
+      mockNuvem.set(caminhoDespesa(id), {
+        ...mockNuvem.get(caminhoDespesa(id)),
+        atualizado_em: '2000-01-01T00:00:00.000Z',
+      });
+      await editarDespesa(
+        id,
+        inputDespesa({ categoriaId: 'categoria-removida' }),
+      );
+
+      const remoto = mockNuvem.get(caminhoDespesa(id));
+
+      await sincronizarPendentes();
+      expect(mockNuvem.get(caminhoDespesa(id))).toEqual(remoto);
+
+      await sincronizarPendentes();
+      expect(mockNuvem.get(caminhoDespesa(id))).toEqual(remoto);
+      expect(banco.despesas()[0].sync_status).toBe('pendente');
+    });
+
+    it('pendência é sincronizada após a categoria ficar disponível', async () => {
+      await registrarDespesa(inputDespesa({ categoriaId: 'casa' }));
+      await sincronizarPendentes();
+
+      const id = banco.despesas()[0].id;
+      expect(mockNuvem.has(caminhoDespesa(id))).toBe(false);
+      expect(banco.despesas()[0].sync_status).toBe('pendente');
+
+      inserirCategoria();
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(caminhoDespesa(id))).toMatchObject({
+        categoria_id: 'uuid-casa',
+      });
+      expect(banco.despesas()[0].sync_status).toBe('sincronizado');
+    });
+
+    it('catálogo é consultado uma única vez entre upload e conflito', async () => {
+      inserirCategoria();
+      inserirCategoria({
+        id: 'uuid-remota',
+        nome: 'Remota',
+        nome_normalizado: 'remota',
+        padrao: 0,
+      });
+
+      await registrarDespesa(
+        inputDespesa({ titulo: 'Conflito', categoriaId: 'uuid-casa' }),
+      );
+      await sincronizarPendentes();
+
+      const conflito = banco.despesas()[0];
+      await editarDespesa(
+        conflito.id,
+        inputDespesa({ titulo: 'Conflito local', categoriaId: 'uuid-casa' }),
+      );
+      mockNuvem.set(caminhoDespesa(conflito.id), {
+        ...mockNuvem.get(caminhoDespesa(conflito.id)),
+        categoria_id: 'uuid-remota',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+
+      await registrarDespesa(
+        inputDespesa({
+          titulo: 'Upload',
+          categoriaId: 'uuid-casa',
+          data: '2026-10-17',
+        }),
+      );
+      const upload = banco.despesas().find((d) => d.titulo === 'Upload')!;
+
+      const prepareOriginal = banco.sqlite.prepare.bind(banco.sqlite);
+      let consultasCategorias = 0;
+      const spy = jest
+        .spyOn(banco.sqlite, 'prepare')
+        .mockImplementation((sql: string) => {
+          if (sql.includes('FROM categorias')) consultasCategorias++;
+          return prepareOriginal(sql);
+        });
+
+      try {
+        await sincronizarPendentes();
+        expect(consultasCategorias).toBe(1);
+      } finally {
+        spy.mockRestore();
+      }
+
+      expect(
+        banco.despesas().find((d) => d.id === conflito.id)?.categoria_id,
+      ).toBe('uuid-remota');
+      expect(mockNuvem.has(caminhoDespesa(upload.id))).toBe(true);
+    });
+
+    it('série é processada antes das ocorrências', async () => {
+      inserirCategoria();
+      const { serie, ocorrencias } = await criarSerie('uuid-casa');
+
+      await sincronizarPendentes();
+
+      const indiceSerie = mockOrdemEscritas.indexOf(caminhoSerie(serie.id));
+      expect(indiceSerie).toBeGreaterThanOrEqual(0);
+
+      for (const ocorrencia of ocorrencias) {
+        const indiceOcorrencia = mockOrdemEscritas.indexOf(
+          caminhoDespesa(ocorrencia.id),
+        );
+        expect(indiceOcorrencia).toBeGreaterThan(indiceSerie);
+      }
+    });
+
+    describe('reparo remoto de categoria excluída', () => {
+      async function prepararDespesaComCategoriaExcluida() {
+        inserirCategoria({
+          id: 'uuid-antiga',
+          nome: 'Antiga',
+          nome_normalizado: 'antiga',
+          padrao: 0,
+        });
+        await registrarDespesa(
+          inputDespesa({
+            categoriaId: 'uuid-antiga',
+            titulo: 'Despesa local',
+          }),
+        );
+        await sincronizarPendentes();
+        mockTransacoes = 0;
+
+        const despesa = banco.despesas()[0];
+        const path = caminhoDespesa(despesa.id);
+        const remotoOriginal = mockNuvem.get(path);
+
+        await excluirCategoria('uuid-antiga');
+
+        return { despesa, path, remotoOriginal };
+      }
+
+      function remotoMaisNovo(remoto: any, extra: Record<string, any> = {}) {
+        return {
+          ...remoto,
+          titulo: 'Remoto mais novo',
+          valor_centavos: 98_765,
+          data: '2026-11-01',
+          descricao: 'Descricao remota',
+          categoria_id: 'uuid-antiga',
+          atualizado_em: '2999-01-01T00:00:00.000Z',
+          ...extra,
+        };
+      }
+
+      it('remove somente categoria_id do remoto mais novo com tombstone local', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        const remoto = remotoMaisNovo(remotoOriginal);
+        mockNuvem.set(path, remoto);
+
+        await sincronizarPendentes();
+
+        const remotoDepois = mockNuvem.get(path);
+        const { categoria_id: _categoria, ...camposRemotos } = remoto;
+
+        expect(mockTransacoes).toBe(1);
+        expect(remotoDepois).not.toHaveProperty('categoria_id');
+        expect(remotoDepois).toEqual(camposRemotos);
+        expect(banco.despesas()[0]).toMatchObject({
+          categoria_id: null,
+          sync_status: 'sincronizado',
+          titulo: remoto.titulo,
+          valor_centavos: remoto.valor_centavos,
+          data: remoto.data,
+          descricao: remoto.descricao,
+        });
+      });
+
+      it('preserva a política remota quando a categoria remota é própria e ativa', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        inserirCategoria({
+          id: 'uuid-c2',
+          nome: 'C2',
+          nome_normalizado: 'c2',
+          padrao: 0,
+        });
+        const remoto = remotoMaisNovo(remotoOriginal, {
+          categoria_id: 'uuid-c2',
+        });
+        mockNuvem.set(path, remoto);
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(banco.despesas()[0].categoria_id).toBe('uuid-c2');
+        expect(mockNuvem.get(path)).toEqual(remoto);
+      });
+
+      it('preserva a política remota quando a categoria remota é padrão e ativa', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        inserirCategoria();
+        const remoto = remotoMaisNovo(remotoOriginal, {
+          categoria_id: 'uuid-casa',
+        });
+        mockNuvem.set(path, remoto);
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(banco.despesas()[0].categoria_id).toBe('uuid-casa');
+        expect(mockNuvem.get(path)).toEqual(remoto);
+      });
+
+      it('preserva o comportamento anterior para ID desconhecido sem tombstone', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        const remoto = remotoMaisNovo(remotoOriginal, {
+          categoria_id: 'uuid-desconhecido',
+        });
+        mockNuvem.set(path, remoto);
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(banco.despesas()[0].categoria_id).toBeNull();
+        expect(mockNuvem.get(path)).toEqual(remoto);
+      });
+
+      it.each([undefined, null])(
+        'não repara quando a categoria remota é %p',
+        async (categoriaRemota) => {
+          const { path, remotoOriginal } =
+            await prepararDespesaComCategoriaExcluida();
+          const remoto = remotoMaisNovo(remotoOriginal);
+          if (categoriaRemota === undefined) {
+            delete remoto.categoria_id;
+          } else {
+            remoto.categoria_id = categoriaRemota;
+          }
+          mockNuvem.set(path, remoto);
+
+          await sincronizarPendentes();
+
+          expect(mockTransacoes).toBe(1);
+          expect(banco.despesas()[0].categoria_id).toBeNull();
+          expect(mockNuvem.get(path)).toEqual(remoto);
+        },
+      );
+
+      it('aplica a lápide remota quando o documento vira tombstone durante a disputa', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        mockNuvem.set(path, remotoMaisNovo(remotoOriginal));
+
+        mockAntesDaTransacao = () => {
+          const atual = mockNuvem.get(path);
+          mockNuvem.set(path, {
+            ...atual,
+            excluido_em: '2026-12-01T00:00:00Z',
+            atualizado_em: '2999-01-01T00:00:00.000Z',
+          });
+        };
+
+        await sincronizarPendentes();
+
+        const local = banco.despesas()[0];
+        expect(mockTransacoes).toBe(1);
+        expect(local.excluido_em).toBeTruthy();
+        expect(local.sync_status).toBe('sincronizado');
+        expect(mockNuvem.get(path).excluido_em).toBe(
+          '2026-12-01T00:00:00Z',
+        );
+      });
+
+      it('não apaga uma categoria C2 alterada concorrentemente', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        inserirCategoria({
+          id: 'uuid-c2',
+          nome: 'C2',
+          nome_normalizado: 'c2',
+          padrao: 0,
+        });
+        mockNuvem.set(path, remotoMaisNovo(remotoOriginal));
+
+        mockAntesDaTransacao = () => {
+          const atual = mockNuvem.get(path);
+          mockNuvem.set(path, { ...atual, categoria_id: 'uuid-c2' });
+        };
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(banco.despesas()[0].categoria_id).toBe('uuid-c2');
+        expect(mockNuvem.get(path).categoria_id).toBe('uuid-c2');
+      });
+
+      it('reavalia o documento quando o timestamp muda durante a transação', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        mockNuvem.set(path, remotoMaisNovo(remotoOriginal));
+
+        mockAntesDaTransacao = () => {
+          const atual = mockNuvem.get(path);
+          mockNuvem.set(path, {
+            ...atual,
+            titulo: 'Remoto reavaliado',
+            atualizado_em: '2998-01-01T00:00:00.000Z',
+          });
+        };
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(mockNuvem.get(path)).not.toHaveProperty('categoria_id');
+        expect(banco.despesas()[0]).toMatchObject({
+          categoria_id: null,
+          titulo: 'Remoto reavaliado',
+          atualizado_em: '2998-01-01T00:00:00.000Z',
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('mantém pendente quando a transação falha por rede', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        const remoto = remotoMaisNovo(remotoOriginal);
+        mockNuvem.set(path, remoto);
+        mockErroTransacao = Object.assign(new Error('unavailable'), {
+          code: 'unavailable',
+        });
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(banco.despesas()[0]).toMatchObject({
+          categoria_id: null,
+          sync_status: 'pendente',
+        });
+        expect(mockNuvem.get(path)).toEqual(remoto);
+      });
+
+      it('mantém pendente e sinaliza acesso negado em permission-denied', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        const remoto = remotoMaisNovo(remotoOriginal);
+        mockNuvem.set(path, remoto);
+        mockErroTransacao = Object.assign(new Error('permission-denied'), {
+          code: 'permission-denied',
+        });
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(banco.despesas()[0]).toMatchObject({
+          categoria_id: null,
+          sync_status: 'pendente',
+        });
+        expect(consumirAcessoNegado()).toBe(true);
+        expect(mockNuvem.get(path)).toEqual(remoto);
+      });
+
+      it('reconcilia na próxima sincronização após falha local pós-reparo', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        mockNuvem.set(path, remotoMaisNovo(remotoOriginal));
+        banco.falharNaOperacao(1);
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(mockNuvem.get(path)).not.toHaveProperty('categoria_id');
+        expect(banco.despesas()[0]).toMatchObject({
+          categoria_id: null,
+          sync_status: 'pendente',
+        });
+
+        mockTransacoes = 0;
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(banco.despesas()[0]).toMatchObject({
+          categoria_id: null,
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('repetir a sincronização após o reparo não faz novas alterações', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        mockNuvem.set(path, remotoMaisNovo(remotoOriginal));
+
+        await sincronizarPendentes();
+        const remoto = mockNuvem.get(path);
+        const leituras = mockLeiturasRemotas;
+        const transacoes = mockTransacoes;
+
+        await sincronizarPendentes();
+
+        expect(mockNuvem.get(path)).toEqual(remoto);
+        expect(mockLeiturasRemotas).toBe(leituras);
+        expect(mockTransacoes).toBe(transacoes);
+      });
+
+      it('timestamp igual preserva o comportamento atual de upload completo', async () => {
+        const { despesa, path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        const local = banco.despesas().find((d) => d.id === despesa.id)!;
+        const remoto = remotoMaisNovo(remotoOriginal, {
+          titulo: 'Remoto com timestamp igual',
+          atualizado_em: local.atualizado_em,
+        });
+        mockNuvem.set(path, remoto);
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(mockNuvem.get(path)).not.toHaveProperty('categoria_id');
+        expect(mockNuvem.get(path).titulo).toBe(local.titulo);
+        expect(banco.despesas()[0].sync_status).toBe('sincronizado');
+      });
+
+      it('preserva recorrencia_id em ocorrência reparada de série', async () => {
+        inserirCategoria({
+          id: 'uuid-antiga',
+          nome: 'Antiga',
+          nome_normalizado: 'antiga',
+          padrao: 0,
+        });
+        const { serie, ocorrencias } = await criarSerie('uuid-antiga');
+        await sincronizarPendentes();
+
+        const alvo = ocorrencias[0];
+        const path = caminhoDespesa(alvo.id);
+        const remotoOriginal = mockNuvem.get(path);
+
+        await excluirCategoria('uuid-antiga');
+        mockNuvem.set(
+          path,
+          remotoMaisNovo(remotoOriginal, {
+            recorrencia_id: serie.id,
+          }),
+        );
+
+        await sincronizarPendentes();
+
+        const remoto = mockNuvem.get(path);
+        expect(remoto).not.toHaveProperty('categoria_id');
+        expect(remoto.recorrencia_id).toBe(serie.id);
+        expect(mockNuvem.get(caminhoSerie(serie.id))).not.toHaveProperty(
+          'categoria_id',
+        );
+        expect(banco.despesas().find((d) => d.id === alvo.id)).toMatchObject({
+          categoria_id: null,
+          recorrencia_id: serie.id,
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('tombstones de despesas continuam sendo enviados sem reparo de categoria', async () => {
+        const { path, remotoOriginal } =
+          await prepararDespesaComCategoriaExcluida();
+        const despesa = banco.despesas()[0];
+        await excluirDespesa(despesa.id);
+        mockNuvem.set(path, remotoMaisNovo(remotoOriginal));
+
+        await sincronizarPendentes();
+
+        expect(mockTransacoes).toBe(1);
+        expect(mockNuvem.get(path)).toEqual({
+          excluido_em: expect.any(String),
+          atualizado_em: expect.any(String),
+        });
+        expect(banco.despesas()[0]).toMatchObject({
+          sync_status: 'sincronizado',
+          excluido_em: expect.any(String),
+          categoria_id: null,
+        });
+      });
+    });
+  });
+
+  describe('tombstones persistentes de despesas e séries (UC06)', () => {
+    const caminhoDespesa = (id: string) => `usuarios/u1/despesas/${id}`;
+    const caminhoSerie = (id: string) => `usuarios/u1/recorrencias/${id}`;
+
+    function dadosDespesa(extra: Partial<DespesaInput> = {}): DespesaInput {
+      return {
+        data: '2026-10-16',
+        titulo: 'Aluguel',
+        valorCentavos: 150000,
+        descricao: 'Aluguel do apartamento',
+        categoriaId: 'uuid-casa',
+        fixaOuVariavel: 'fixa',
+        essencial: 1,
+        recorrencia: null,
+        ...extra,
+      };
+    }
+
+    async function criarSerieDespesa() {
+      inserirCategoria();
+      await registrarDespesa(
+        dadosDespesa({
+          recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+        }),
+      );
+      const serie = banco.recorrencias()[0];
+      const ocorrencias = banco
+        .despesas()
+        .filter((d) => d.recorrencia_id === serie.id);
+      return { serie, ocorrencias };
+    }
+
+    async function criarSerieReceita() {
+      await registrarReceita(
+        input({
+          recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+        }),
+      );
+      const serie = banco.recorrencias()[0];
+      const ocorrencias = banco
+        .receitas()
+        .filter((r) => r.recorrencia_id === serie.id);
+      return { serie, ocorrencias };
+    }
+
+    // Formato atual do marcador de despesa: o tombstone remoto é terminal.
+    const lapideDespesa = (excluido_em = '2026-10-20T12:00:00.000Z') => ({
+      excluido_em,
+      atualizado_em: excluido_em,
+    });
+
+    const lapideSerie = (
+      remoto: Record<string, any>,
+      excluido_em = '2026-10-20T12:00:00.000Z',
+    ) => ({ ...remoto, ativa: false, excluido_em, atualizado_em: excluido_em });
+
+    describe('despesas', () => {
+      it('documento remoto ausente: despesa realmente nova é criada normalmente', async () => {
+        inserirCategoria();
+        await registrarDespesa(dadosDespesa());
+        expect(mockNuvem.size).toBe(0);
+
+        await sincronizarPendentes();
+
+        const d = banco.despesas()[0];
+        expect(mockTransacoes).toBe(1);
+        expect(mockNuvem.get(caminhoDespesa(d.id))).toMatchObject({
+          valor_centavos: 150000,
+          data: '2026-10-16',
+          titulo: 'Aluguel',
+          categoria_id: 'uuid-casa',
+        });
+        expect(d.sync_status).toBe('sincronizado');
+      });
+
+      it('despesa ativa local com tombstone remoto é excluída sem perder os dados', async () => {
+        inserirCategoria();
+        await registrarDespesa(dadosDespesa());
+        await sincronizarPendentes();
+
+        const d = banco.despesas()[0];
+        await editarDespesa(
+          d.id,
+          dadosDespesa({ titulo: 'Editada offline' }),
+          'esta',
+        );
+
+        const remoto = lapideDespesa();
+        mockNuvem.set(caminhoDespesa(d.id), remoto);
+
+        await sincronizarPendentes();
+
+        expect(mockNuvem.get(caminhoDespesa(d.id))).toEqual(remoto);
+        expect(banco.despesas()[0]).toMatchObject({
+          id: d.id,
+          valor_centavos: 150000,
+          data: '2026-10-16',
+          titulo: 'Editada offline',
+          descricao: 'Aluguel do apartamento',
+          categoria_id: 'uuid-casa',
+          excluido_em: remoto.excluido_em,
+          atualizado_em: remoto.atualizado_em,
+          sync_status: 'sincronizado',
+        });
+
+        // Repetir não ressuscita o documento.
+        await sincronizarPendentes();
+        expect(mockNuvem.get(caminhoDespesa(d.id))).toEqual(remoto);
+        expect(banco.despesas()[0].excluido_em).toBe(remoto.excluido_em);
+      });
+
+      it('local pendente e exclusão remota concorrente: a exclusão prevalece', async () => {
+        inserirCategoria();
+        await registrarDespesa(dadosDespesa());
+        await sincronizarPendentes();
+
+        const d = banco.despesas()[0];
+        await editarDespesa(
+          d.id,
+          dadosDespesa({ titulo: 'Edição concorrente' }),
+          'esta',
+        );
+
+        const remoto = lapideDespesa();
+        mockAntesDaTransacao = () =>
+          mockNuvem.set(caminhoDespesa(d.id), remoto);
+
+        await sincronizarPendentes();
+
+        expect(mockNuvem.get(caminhoDespesa(d.id))).toEqual(remoto);
+        expect(banco.despesas()[0]).toMatchObject({
+          titulo: 'Edição concorrente',
+          valor_centavos: 150000,
+          excluido_em: remoto.excluido_em,
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('tombstone local substitui documento remoto ativo e não permite ressurreição', async () => {
+        inserirCategoria();
+        await registrarDespesa(dadosDespesa());
+        await sincronizarPendentes();
+
+        const d = banco.despesas()[0];
+        await excluirDespesa(d.id);
+        mockNuvem.set(caminhoDespesa(d.id), {
+          ...mockNuvem.get(caminhoDespesa(d.id)),
+          titulo: 'Ativo em outro aparelho',
+          atualizado_em: '2999-01-01T00:00:00.000Z',
+        });
+
+        await sincronizarPendentes();
+
+        const remoto = mockNuvem.get(caminhoDespesa(d.id));
+        expect(remoto).toEqual({
+          excluido_em: expect.any(String),
+          atualizado_em: expect.any(String),
+        });
+        expect(banco.despesas()[0]).toMatchObject({
+          valor_centavos: 150000,
+          titulo: 'Aluguel',
+          excluido_em: remoto.excluido_em,
+          sync_status: 'sincronizado',
+        });
+
+        await sincronizarPendentes();
+        expect(mockNuvem.get(caminhoDespesa(d.id))).toEqual(remoto);
+      });
+
+      it('ambos tombstone: adota o remoto e não reescreve', async () => {
+        inserirCategoria();
+        await registrarDespesa(dadosDespesa());
+        await sincronizarPendentes();
+
+        const d = banco.despesas()[0];
+        await excluirDespesa(d.id);
+
+        const remoto = lapideDespesa('2026-10-25T09:00:00.000Z');
+        mockNuvem.set(caminhoDespesa(d.id), remoto);
+        mockOrdemEscritas.length = 0;
+
+        await sincronizarPendentes();
+
+        expect(mockOrdemEscritas).not.toContain(caminhoDespesa(d.id));
+        expect(banco.despesas()[0]).toMatchObject({
+          excluido_em: remoto.excluido_em,
+          atualizado_em: remoto.atualizado_em,
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('falha após a confirmação remota mantém a pendência e reconcilia na nova tentativa', async () => {
+        inserirCategoria();
+        await registrarDespesa(dadosDespesa());
+        await sincronizarPendentes();
+
+        const d = banco.despesas()[0];
+        await excluirDespesa(d.id);
+
+        banco.falharNaOperacao(1);
+        await sincronizarPendentes();
+
+        expect(mockNuvem.get(caminhoDespesa(d.id))).toEqual({
+          excluido_em: expect.any(String),
+          atualizado_em: expect.any(String),
+        });
+        expect(banco.despesas()[0]).toMatchObject({
+          excluido_em: expect.any(String),
+          sync_status: 'pendente',
+        });
+
+        await sincronizarPendentes();
+
+        expect(mockNuvem.get(caminhoDespesa(d.id))).toEqual({
+          excluido_em: banco.despesas()[0].excluido_em,
+          atualizado_em: banco.despesas()[0].atualizado_em,
+        });
+        expect(banco.despesas()[0].sync_status).toBe('sincronizado');
+      });
+    });
+
+    describe('séries', () => {
+      it('série nova é criada ativamente e confirmada na nuvem', async () => {
+        const { serie } = await criarSerieDespesa();
+
+        await sincronizarPendentes();
+
+        const remoto = mockNuvem.get(caminhoSerie(serie.id));
+        expect(remoto).toMatchObject({
+          tipo: 'despesa',
+          ativa: true,
+          valor_centavos: 150000,
+          categoria_id: 'uuid-casa',
+        });
+        expect(remoto).not.toHaveProperty('excluido_em');
+        expect(banco.recorrencias()[0]).toMatchObject({
+          excluido_em: null,
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('pausar ou encerrar a série não gera tombstone', async () => {
+        const { serie, ocorrencias } = await criarSerieDespesa();
+        await sincronizarPendentes();
+
+        await excluirDespesa(ocorrencias[0].id, 'proximas');
+        await sincronizarPendentes();
+
+        const remoto = mockNuvem.get(caminhoSerie(serie.id));
+        expect(remoto.ativa).toBe(false);
+        expect(remoto).not.toHaveProperty('excluido_em');
+        expect(banco.recorrencias()[0]).toMatchObject({
+          ativa: 0,
+          excluido_em: null,
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('série ativa local com tombstone remoto é excluída e preserva as ocorrências', async () => {
+        const { serie, ocorrencias } = await criarSerieDespesa();
+        await sincronizarPendentes();
+
+        await editarDespesa(
+          ocorrencias[0].id,
+          dadosDespesa({
+            data: ocorrencias[0].data,
+            titulo: 'Aluguel editado',
+            recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+          }),
+          'todas',
+        );
+
+        const remoto = lapideSerie(mockNuvem.get(caminhoSerie(serie.id)));
+        mockNuvem.set(caminhoSerie(serie.id), remoto);
+
+        await sincronizarPendentes();
+
+        expect(banco.recorrencias()[0]).toMatchObject({
+          tipo: 'despesa',
+          ativa: 0,
+          excluido_em: remoto.excluido_em,
+          valor_centavos: 150000,
+          titulo: 'Aluguel editado',
+          sync_status: 'sincronizado',
+        });
+
+        const locais = banco.despesas();
+        expect(locais).toHaveLength(ocorrencias.length);
+        for (const original of ocorrencias) {
+          const atual = locais.find((d) => d.id === original.id)!;
+          expect(atual).toMatchObject({
+            valor_centavos: original.valor_centavos,
+            data: original.data,
+            titulo: 'Aluguel editado',
+            descricao: original.descricao,
+            categoria_id: original.categoria_id,
+            recorrencia_id: serie.id,
+            excluido_em: remoto.excluido_em,
+            sync_status: 'sincronizado',
+          });
+          expect(mockNuvem.get(caminhoDespesa(original.id))).toEqual({
+            excluido_em: expect.any(String),
+            atualizado_em: expect.any(String),
+          });
+        }
+      });
+
+      it('série de receita com tombstone remoto é excluída e preserva as ocorrências locais', async () => {
+        const { serie, ocorrencias } = await criarSerieReceita();
+        await sincronizarPendentes();
+
+        await editarReceita(
+          ocorrencias[0].id,
+          input({
+            data: ocorrencias[0].data,
+            titulo: 'Mesada editada',
+            recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+          }),
+          'todas',
+        );
+
+        const remoto = lapideSerie(mockNuvem.get(caminhoSerie(serie.id)));
+        mockNuvem.set(caminhoSerie(serie.id), remoto);
+
+        await sincronizarPendentes();
+
+        expect(banco.recorrencias()[0]).toMatchObject({
+          tipo: 'receita',
+          ativa: 0,
+          excluido_em: remoto.excluido_em,
+          valor_centavos: 15000,
+          titulo: 'Mesada editada',
+          sync_status: 'sincronizado',
+        });
+
+        const locais = banco.receitas();
+        expect(locais).toHaveLength(ocorrencias.length);
+        for (const original of ocorrencias) {
+          expect(locais.find((r) => r.id === original.id)).toMatchObject({
+            valor_centavos: original.valor_centavos,
+            data: original.data,
+            titulo: 'Mesada editada',
+            recorrencia_id: serie.id,
+            excluido_em: expect.any(String),
+          });
+        }
+      });
+
+      it('tombstone local de série substitui documento remoto ativo', async () => {
+        const { serie, ocorrencias } = await criarSerieDespesa();
+        await sincronizarPendentes();
+
+        const ativoRemoto = {
+          ...mockNuvem.get(caminhoSerie(serie.id)),
+          titulo: 'Série reativada em outro aparelho',
+          atualizado_em: '2999-01-01T00:00:00.000Z',
+        };
+
+        await excluirDespesa(ocorrencias[0].id, 'todas');
+        mockNuvem.set(caminhoSerie(serie.id), ativoRemoto);
+
+        await sincronizarPendentes();
+
+        const remoto = mockNuvem.get(caminhoSerie(serie.id));
+        expect(remoto).toMatchObject({
+          tipo: 'despesa',
+          ativa: false,
+          excluido_em: expect.any(String),
+          valor_centavos: 150000,
+          titulo: 'Aluguel',
+          categoria_id: 'uuid-casa',
+        });
+        expect(remoto.atualizado_em).not.toBe(ativoRemoto.atualizado_em);
+
+        await sincronizarPendentes();
+        expect(mockNuvem.get(caminhoSerie(serie.id))).toEqual(remoto);
+      });
+
+      it('ambos tombstone: mantém o remoto e não reescreve a série', async () => {
+        const { serie, ocorrencias } = await criarSerieDespesa();
+        await sincronizarPendentes();
+
+        await excluirDespesa(ocorrencias[0].id, 'todas');
+        const remoto = lapideSerie(
+          mockNuvem.get(caminhoSerie(serie.id)),
+          '2026-10-30T10:00:00.000Z',
+        );
+        mockNuvem.set(caminhoSerie(serie.id), remoto);
+        mockOrdemEscritas.length = 0;
+
+        await sincronizarPendentes();
+
+        expect(mockOrdemEscritas).not.toContain(caminhoSerie(serie.id));
+        expect(banco.recorrencias()[0]).toMatchObject({
+          excluido_em: remoto.excluido_em,
+          atualizado_em: remoto.atualizado_em,
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('falha após confirmar o tombstone da série reconcilia na nova tentativa', async () => {
+        const { serie, ocorrencias } = await criarSerieDespesa();
+        await sincronizarPendentes();
+
+        await excluirDespesa(ocorrencias[0].id, 'todas');
+
+        banco.falharNaOperacao(1);
+        await sincronizarPendentes();
+
+        expect(mockNuvem.get(caminhoSerie(serie.id))).toMatchObject({
+          ativa: false,
+          excluido_em: expect.any(String),
+        });
+        expect(banco.recorrencias()[0].sync_status).toBe('pendente');
+
+        await sincronizarPendentes();
+
+        expect(banco.recorrencias()[0]).toMatchObject({
+          ativa: 0,
+          excluido_em: expect.any(String),
+          sync_status: 'sincronizado',
+        });
+        for (const ocorrencia of banco.despesas()) {
+          expect(mockNuvem.get(caminhoDespesa(ocorrencia.id))).toEqual({
+            excluido_em: expect.any(String),
+            atualizado_em: expect.any(String),
+          });
+        }
+      });
     });
   });
 
@@ -452,14 +1883,26 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     });
     const caminhoD = (id: string) => `usuarios/u1/despesas/${id}`;
 
-    it('EX08: edição mais recente na nuvem é aplicada com a categoria indisponível removida', async () => {
-      await registrarDespesa(dados());
+    async function prepararConflito(categoriaLocal: string | null = 'casa') {
+      await registrarDespesa(dados({ categoriaId: categoriaLocal }));
       await sincronizarPendentes();
-      const id = banco.despesas()[0].id;
-      await editarDespesa(id, dados({ titulo: 'Local' }));
 
-      mockNuvem.set(caminhoD(id), {
-        ...mockNuvem.get(caminhoD(id)),
+      const id = banco.despesas()[0].id;
+      await editarDespesa(
+        id,
+        dados({ titulo: 'Local', categoriaId: categoriaLocal }),
+      );
+
+      const path = caminhoD(id);
+      return { id, path, remoto: mockNuvem.get(path) };
+    }
+
+    it('EX08: referência remota inválida preserva a categoria local', async () => {
+      inserirCategoria();
+      const { path, remoto } = await prepararConflito('casa');
+
+      mockNuvem.set(path, {
+        ...remoto,
         titulo: 'Da nuvem',
         categoria_id: 'categoria-removida',
         atualizado_em: '2999-01-01T00:00:00.000Z',
@@ -469,12 +1912,255 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(mudou).toBe(true);
       expect(banco.despesas()[0]).toMatchObject({
         titulo: 'Da nuvem',
-        categoria_id: null,
+        categoria_id: 'casa',
         sync_status: 'sincronizado',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
       });
     });
 
+    it('conflito com ID real de categoria padrão ativa grava o ID remoto', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      inserirCategoria({
+        id: 'uuid-remota',
+        nome: 'Remota',
+        nome_normalizado: 'remota',
+      });
+
+      const { path, remoto } = await prepararConflito('uuid-casa');
+
+      mockNuvem.set(path, {
+        ...remoto,
+        categoria_id: 'uuid-remota',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      await sincronizarPendentes();
+
+      expect(banco.despesas()[0].categoria_id).toBe('uuid-remota');
+    });
+
+    it('conflito com ID real de categoria própria ativa grava o ID remoto', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      inserirCategoria({
+        id: 'uuid-mercado',
+        nome: 'Mercado',
+        nome_normalizado: 'mercado',
+        padrao: 0,
+      });
+
+      const { path, remoto } = await prepararConflito('uuid-casa');
+
+      mockNuvem.set(path, {
+        ...remoto,
+        categoria_id: 'uuid-mercado',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      await sincronizarPendentes();
+
+      expect(banco.despesas()[0].categoria_id).toBe('uuid-mercado');
+    });
+
+    it('conflito com slug histórico remoto converte para o ID real da padrão', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      inserirCategoria({
+        id: 'uuid-alimentacao',
+        nome: 'Alimentação',
+        nome_normalizado: 'alimentação',
+      });
+
+      const { path, remoto } = await prepararConflito('uuid-casa');
+
+      mockNuvem.set(path, {
+        ...remoto,
+        categoria_id: 'alimentacao',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      await sincronizarPendentes();
+
+      expect(banco.despesas()[0].categoria_id).toBe('uuid-alimentacao');
+      expect(banco.despesas()[0].categoria_id).not.toBe('alimentacao');
+    });
+
+    it('conflito com ID remoto desconhecido preserva a categoria local', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      const { path, remoto } = await prepararConflito('uuid-casa');
+
+      mockNuvem.set(path, {
+        ...remoto,
+        categoria_id: 'uuid-desconhecido',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      await sincronizarPendentes();
+
+      expect(banco.despesas()[0].categoria_id).toBe('uuid-casa');
+    });
+
+    it('conflito com categoria remota excluída preserva a categoria local', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      inserirCategoria({
+        id: 'uuid-antiga',
+        nome: 'Antiga',
+        nome_normalizado: 'antiga',
+        excluido_em: '2026-02-01T00:00:00Z',
+      });
+      const { path, remoto } = await prepararConflito('uuid-casa');
+
+      mockNuvem.set(path, {
+        ...remoto,
+        categoria_id: 'uuid-antiga',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      await sincronizarPendentes();
+
+      expect(banco.despesas()[0].categoria_id).toBe('uuid-casa');
+    });
+
+    it('conflito com slug sem padrão local preserva a categoria local', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      const { path, remoto } = await prepararConflito('uuid-casa');
+
+      mockNuvem.set(path, {
+        ...remoto,
+        categoria_id: 'alimentacao',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      await sincronizarPendentes();
+
+      expect(banco.despesas()[0].categoria_id).toBe('uuid-casa');
+    });
+
+    it('conflito com categoria_id remoto ausente limpa para NULL', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      const { path, remoto } = await prepararConflito('uuid-casa');
+      const semCategoria = { ...remoto };
+      delete semCategoria.categoria_id;
+
+      mockNuvem.set(path, {
+        ...semCategoria,
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      await sincronizarPendentes();
+
+      expect(banco.despesas()[0].categoria_id).toBeNull();
+    });
+
+    it('conflito com categoria_id remoto null limpa para NULL', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      const { path, remoto } = await prepararConflito('uuid-casa');
+
+      mockNuvem.set(path, {
+        ...remoto,
+        categoria_id: null,
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      await sincronizarPendentes();
+
+      expect(banco.despesas()[0].categoria_id).toBeNull();
+    });
+
+    it('conflito inválido atualiza demais campos, mantém timestamp/status e não reenvia', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      const { path, remoto } = await prepararConflito('uuid-casa');
+      const remotoNovo = {
+        ...remoto,
+        titulo: 'Da nuvem',
+        valor_centavos: 777,
+        data: '2027-01-01',
+        descricao: 'Descrição remota',
+        categoria_id: 'uuid-desconhecido',
+        fixa_ou_variavel: 'variavel',
+        essencial: 0,
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      };
+      mockNuvem.set(path, remotoNovo);
+
+      await sincronizarPendentes();
+
+      expect(banco.despesas()[0]).toMatchObject({
+        titulo: 'Da nuvem',
+        valor_centavos: 777,
+        data: '2027-01-01',
+        descricao: 'Descrição remota',
+        categoria_id: 'uuid-casa',
+        fixa_ou_variavel: 'variavel',
+        essencial: 0,
+        sync_status: 'sincronizado',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+
+      const leiturasAntes = mockLeiturasRemotas;
+      expect(await sincronizarPendentes()).toBe(false);
+      expect(mockNuvem.get(path)).toEqual(remotoNovo);
+      expect(mockLeiturasRemotas).toBe(leiturasAntes);
+    });
+
+    it('consulta categorias no máximo uma vez nos conflitos e nunca sem conflito', async () => {
+      inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+      inserirCategoria({
+        id: 'uuid-remota-1',
+        nome: 'Remota 1',
+        nome_normalizado: 'remota 1',
+      });
+      inserirCategoria({
+        id: 'uuid-remota-2',
+        nome: 'Remota 2',
+        nome_normalizado: 'remota 2',
+      });
+
+      await registrarDespesa(
+        dados({ titulo: 'A', data: '2026-10-16', categoriaId: 'uuid-casa' }),
+      );
+      await registrarDespesa(
+        dados({ titulo: 'B', data: '2026-10-17', categoriaId: 'uuid-casa' }),
+      );
+      await sincronizarPendentes();
+
+      const a = banco.despesas().find((d) => d.titulo === 'A')!;
+      const b = banco.despesas().find((d) => d.titulo === 'B')!;
+      await editarDespesa(a.id, dados({
+        titulo: 'Local A',
+        data: '2026-10-16',
+        categoriaId: 'uuid-casa',
+      }));
+      await editarDespesa(b.id, dados({
+        titulo: 'Local B',
+        data: '2026-10-17',
+        categoriaId: 'uuid-casa',
+      }));
+
+      mockNuvem.set(caminhoD(a.id), {
+        ...mockNuvem.get(caminhoD(a.id)),
+        categoria_id: 'uuid-remota-1',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+      mockNuvem.set(caminhoD(b.id), {
+        ...mockNuvem.get(caminhoD(b.id)),
+        categoria_id: 'uuid-remota-2',
+        atualizado_em: '2999-01-01T00:00:00.000Z',
+      });
+
+      const prepareOriginal = banco.sqlite.prepare.bind(banco.sqlite);
+      let consultasCategorias = 0;
+      const spy = jest
+        .spyOn(banco.sqlite, 'prepare')
+        .mockImplementation((sql: string) => {
+          if (sql.includes('FROM categorias')) consultasCategorias++;
+          return prepareOriginal(sql);
+        });
+
+      try {
+        await sincronizarPendentes();
+        expect(consultasCategorias).toBe(1);
+
+        consultasCategorias = 0;
+        expect(await sincronizarPendentes()).toBe(false);
+        expect(consultasCategorias).toBe(0);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
     it('registro local mais recente sobrescreve a nuvem', async () => {
+      inserirCategoria();
       await registrarDespesa(dados());
       await sincronizarPendentes();
       const id = banco.despesas()[0].id;
@@ -491,6 +2177,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     });
 
     it('EX04: marcador remoto vence uma edição pendente', async () => {
+      inserirCategoria();
       await registrarDespesa(dados());
       const { id } = banco.despesas()[0];
       await sincronizarPendentes();
@@ -611,11 +2298,13 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       });
 
       it('recupera despesa avulsa num aparelho limpo, já como sincronizada', async () => {
+        inserirCategoria();
         await registrarDespesa(dadosDespesa());
         await sincronizarPendentes();
         const antes = banco.despesas()[0];
 
         banco = instalarBanco(); // aparelho novo
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
         const resultado = await restaurarDaNuvem();
 
         expect(resultado.despesas).toBe(1);
@@ -624,7 +2313,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
           id: antes.id,
           valor_centavos: 150000,
           titulo: 'Aluguel',
-          categoria_id: 'casa',
+          categoria_id: 'uuid-casa',
           fixa_ou_variavel: 'fixa',
           essencial: 1,
           sync_status: 'sincronizado',
@@ -648,6 +2337,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       });
 
       it('série de despesa preserva o tipo e as classificações e não gera receitas', async () => {
+        inserirCategoria();
         await registrarDespesa(
           dadosDespesa({
             recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
@@ -656,12 +2346,13 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         await sincronizarPendentes();
 
         banco = instalarBanco();
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
         const resultado = await restaurarDaNuvem();
 
         expect(resultado.recorrencias).toBe(1);
         expect(banco.recorrencias()[0]).toMatchObject({
           tipo: 'despesa',
-          categoria_id: 'casa',
+          categoria_id: 'uuid-casa',
           fixa_ou_variavel: 'fixa',
           essencial: 1,
           sync_status: 'sincronizado',
@@ -673,7 +2364,404 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         expect(banco.receitas()).toHaveLength(0);
       });
 
+      const caminhoD = (id: string) => `usuarios/u1/despesas/${id}`;
+
+      it('restaura despesa com ID real de categoria ativa local', async () => {
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await registrarDespesa(dadosDespesa({ categoriaId: 'uuid-casa' }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await restaurarDaNuvem();
+
+        expect(banco.despesas()[0].categoria_id).toBe('uuid-casa');
+      });
+
+      it('restaura despesa com categoria própria ativa', async () => {
+        inserirCategoria({
+          id: 'uuid-mercado',
+          nome: 'Mercado',
+          nome_normalizado: 'mercado',
+          padrao: 0,
+        });
+        await registrarDespesa(dadosDespesa({ categoriaId: 'uuid-mercado' }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        inserirCategoria({
+          id: 'uuid-mercado',
+          nome: 'Mercado',
+          nome_normalizado: 'mercado',
+          padrao: 0,
+        });
+        await restaurarDaNuvem();
+
+        expect(banco.despesas()[0].categoria_id).toBe('uuid-mercado');
+      });
+
+      it('converte slug histórico em ID real da categoria padrão', async () => {
+        inserirCategoria({
+          id: 'uuid-alimentacao',
+          nome: 'Alimentação',
+          nome_normalizado: 'alimentação',
+        });
+        await registrarDespesa(
+          dadosDespesa({ categoriaId: 'alimentacao' }),
+        );
+        await sincronizarPendentes();
+
+        const id = banco.despesas()[0].id;
+        mockNuvem.set(caminhoD(id), {
+          ...mockNuvem.get(caminhoD(id)),
+          categoria_id: 'alimentacao',
+        });
+
+        banco = instalarBanco();
+        inserirCategoria({
+          id: 'uuid-alimentacao',
+          nome: 'Alimentação',
+          nome_normalizado: 'alimentação',
+        });
+        await restaurarDaNuvem();
+
+        expect(banco.despesas()[0].categoria_id).toBe('uuid-alimentacao');
+        expect(banco.despesas()[0].categoria_id).not.toBe('alimentacao');
+      });
+
+      it('restaura recorrência de despesa com ID real local', async () => {
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await registrarDespesa(
+          dadosDespesa({
+            categoriaId: 'uuid-casa',
+            recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
+          }),
+        );
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await restaurarDaNuvem();
+
+        expect(banco.recorrencias()[0].categoria_id).toBe('uuid-casa');
+      });
+
+      it('converte slug histórico em recorrência de despesa', async () => {
+        inserirCategoria({
+          id: 'uuid-alimentacao',
+          nome: 'Alimentação',
+          nome_normalizado: 'alimentação',
+        });
+        await registrarDespesa(
+          dadosDespesa({
+            categoriaId: 'alimentacao',
+            recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
+          }),
+        );
+        await sincronizarPendentes();
+
+        const rec = banco.recorrencias()[0];
+        mockNuvem.set(`usuarios/u1/recorrencias/${rec.id}`, {
+          ...mockNuvem.get(`usuarios/u1/recorrencias/${rec.id}`),
+          categoria_id: 'alimentacao',
+        });
+
+        banco = instalarBanco();
+        inserirCategoria({
+          id: 'uuid-alimentacao',
+          nome: 'Alimentação',
+          nome_normalizado: 'alimentação',
+        });
+        await restaurarDaNuvem();
+
+        expect(banco.recorrencias()[0].categoria_id).toBe('uuid-alimentacao');
+        expect(banco.recorrencias()[0].categoria_id).not.toBe('alimentacao');
+      });
+
+      it('ID desconhecido é restaurado como NULL', async () => {
+        inserirCategoria({
+          id: 'uuid-desconhecido',
+          nome: 'Desconhecida',
+          nome_normalizado: 'desconhecida',
+          padrao: 0,
+        });
+        await registrarDespesa(
+          dadosDespesa({ categoriaId: 'uuid-desconhecido' }),
+        );
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await restaurarDaNuvem();
+
+        expect(banco.despesas()[0].categoria_id).toBeNull();
+      });
+
+      it('categoria excluída é restaurada como NULL', async () => {
+        inserirCategoria({
+          id: 'uuid-antiga',
+          nome: 'Antiga',
+          nome_normalizado: 'antiga',
+          padrao: 0,
+        });
+        await registrarDespesa(
+          dadosDespesa({ categoriaId: 'uuid-antiga' }),
+        );
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        inserirCategoria({
+          id: 'uuid-antiga',
+          nome: 'Antiga',
+          nome_normalizado: 'antiga',
+          excluido_em: '2026-02-01T00:00:00Z',
+        });
+        await restaurarDaNuvem();
+
+        expect(banco.despesas()[0].categoria_id).toBeNull();
+      });
+
+      it('campo remoto explícito null é restaurado como NULL', async () => {
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await registrarDespesa(dadosDespesa({ categoriaId: 'uuid-casa' }));
+        await sincronizarPendentes();
+
+        const id = banco.despesas()[0].id;
+        mockNuvem.set(caminhoD(id), {
+          ...mockNuvem.get(caminhoD(id)),
+          categoria_id: null,
+          atualizado_em: '2999-01-01T00:00:00.000Z',
+        });
+
+        banco = instalarBanco();
+        await restaurarDaNuvem();
+
+        expect(banco.despesas()[0].categoria_id).toBeNull();
+      });
+
+      it('campo remoto ausente é restaurado como NULL', async () => {
+        await registrarDespesa(dadosDespesa({ categoriaId: null }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        await restaurarDaNuvem();
+
+        expect(banco.despesas()[0].categoria_id).toBeNull();
+      });
+
+      it('recorrência de receita continua sem categoria', async () => {
+        await registrarReceita(
+          input({
+            recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+          }),
+        );
+        await sincronizarPendentes();
+
+        const rec = banco.recorrencias()[0];
+        mockNuvem.set(`usuarios/u1/recorrencias/${rec.id}`, {
+          ...mockNuvem.get(`usuarios/u1/recorrencias/${rec.id}`),
+          categoria_id: 'uuid-casa',
+        });
+
+        banco = instalarBanco();
+        await restaurarDaNuvem();
+
+        expect(banco.recorrencias()[0].tipo).toBe('receita');
+        expect(banco.recorrencias()[0].categoria_id).toBeNull();
+      });
+
+      it('é idempotente com ID real de categoria', async () => {
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await registrarDespesa(dadosDespesa({ categoriaId: 'uuid-casa' }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await restaurarDaNuvem();
+        expect(banco.despesas()).toHaveLength(1);
+
+        expect((await restaurarDaNuvem()).despesas).toBe(0);
+        expect(banco.despesas()[0].categoria_id).toBe('uuid-casa');
+      });
+
+      it('catálogo vazio bloqueia restauração categorizada e preserva a base', async () => {
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await registrarDespesa(dadosDespesa({ categoriaId: 'uuid-casa' }));
+        await registrarDespesa(
+          dadosDespesa({
+            categoriaId: null,
+            titulo: 'Sem categoria',
+            data: '2026-10-17',
+          }),
+        );
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        let erro: unknown;
+        try {
+          await restaurarDaNuvem();
+        } catch (e) {
+          erro = e;
+        }
+
+        expect(erro).toBeInstanceOf(FalhaRestauracao);
+        expect(String(erro)).toContain('RESTAURACAO_SEM_CATALOGO');
+        expect(banco.despesas()).toHaveLength(0);
+        expect(banco.recorrencias()).toHaveLength(0);
+        expect(banco.receitas()).toHaveLength(0);
+
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.despesas).toBe(2);
+        expect(
+          banco.despesas().find((d) => d.titulo === 'Aluguel')?.categoria_id,
+        ).toBe('uuid-casa');
+        expect(
+          banco.despesas().find((d) => d.titulo === 'Sem categoria')
+            ?.categoria_id,
+        ).toBeNull();
+      });
+
+      it.each([true, false])(
+        'catálogo vazio bloqueia série de despesa categorizada (ativa=%s)',
+        async (ativa) => {
+          inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+          await registrarDespesa(
+            dadosDespesa({
+              categoriaId: 'uuid-casa',
+              recorrencia: {
+                intervalo: 1,
+                unidade: 'mes',
+                termino: '2026-12-16',
+              },
+            }),
+          );
+          await sincronizarPendentes();
+
+          if (!ativa) {
+            const rec = banco.recorrencias()[0];
+            mockNuvem.set(`usuarios/u1/recorrencias/${rec.id}`, {
+              ...mockNuvem.get(`usuarios/u1/recorrencias/${rec.id}`),
+              ativa: false,
+            });
+          }
+
+          banco = instalarBanco();
+          await expect(restaurarDaNuvem()).rejects.toThrow(
+            /RESTAURACAO_SEM_CATALOGO/,
+          );
+          expect(banco.despesas()).toHaveLength(0);
+          expect(banco.recorrencias()).toHaveLength(0);
+        },
+      );
+
+      it('catálogo vazio permite restaurar somente receitas', async () => {
+        await registrarReceita(input());
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.receitas).toBe(1);
+        expect(banco.receitas()).toHaveLength(1);
+      });
+
+      it('catálogo vazio permite restaurar despesas sem categoria', async () => {
+        await registrarDespesa(dadosDespesa({ categoriaId: null }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.despesas).toBe(1);
+        expect(banco.despesas()[0].categoria_id).toBeNull();
+      });
+
+      it('lápide remota com categoria_id não bloqueia a restauração', async () => {
+        mockNuvem.set('usuarios/u1/despesas/lapide', {
+          excluido_em: '2026-03-01T00:00:00Z',
+          atualizado_em: '2026-03-01T00:00:00Z',
+          categoria_id: 'uuid-casa',
+        });
+
+        banco = instalarBanco();
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.despesas).toBe(0);
+        expect(banco.despesas()).toHaveLength(1);
+        expect(banco.despesas()[0]).toMatchObject({
+          id: 'lapide',
+          categoria_id: null,
+          excluido_em: '2026-03-01T00:00:00Z',
+        });
+      });
+
+      it('bloqueio não altera registros locais preexistentes', async () => {
+        await registrarDespesa(
+          dadosDespesa({ categoriaId: null, titulo: 'Local' }),
+        );
+        const antes = banco.instantaneo();
+
+        mockNuvem.set('usuarios/u1/despesas/remota', {
+          valor_centavos: 100,
+          data: '2026-10-16',
+          titulo: 'Remota',
+          categoria_id: 'uuid-casa',
+          criado_em: '2026-10-16T00:00:00Z',
+          atualizado_em: '2026-10-16T00:00:00Z',
+        });
+
+        await expect(restaurarDaNuvem()).rejects.toThrow(
+          /RESTAURACAO_SEM_CATALOGO/,
+        );
+        expect(banco.instantaneo()).toEqual(antes);
+      });
+
+      // Caso de borda A: o catálogo existe, mas só contém tombstones.
+      // Esperado: bloquear, pois nenhuma categoria ativa pode resolver o vínculo.
+      it('catálogo com apenas categorias excluídas bloqueia despesa categorizada', async () => {
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await registrarDespesa(dadosDespesa({ categoriaId: 'uuid-casa' }));
+        await sincronizarPendentes();
+
+        banco = instalarBanco();
+        inserirCategoria({
+          id: 'uuid-casa',
+          nome: 'Casa',
+          excluido_em: '2026-02-01T00:00:00Z',
+        });
+
+        await expect(restaurarDaNuvem()).rejects.toThrow(
+          /RESTAURACAO_SEM_CATALOGO/,
+        );
+      });
+
+      // Caso de borda B: documento inválido seria ignorado pelo laço.
+      // Esperado: restaurar sem bloquear e não inserir o documento inválido.
+      it('documento remoto inválido com categoria não bloqueia', async () => {
+        mockNuvem.set('usuarios/u1/despesas/invalida', {
+          valor_centavos: -5,
+          data: '2026-10-16',
+          titulo: 'Inválida',
+          categoria_id: 'uuid-casa',
+        });
+
+        banco = instalarBanco();
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.despesas).toBe(0);
+        expect(banco.despesas()).toHaveLength(0);
+      });
+
       it('EX08: restaura uma série e suas ocorrências sem a categoria indisponível', async () => {
+        inserirCategoria({
+          id: 'categoria-removida',
+          nome: 'Removida',
+          nome_normalizado: 'removida',
+          padrao: 0,
+        });
         await registrarDespesa(dadosDespesa({
           categoriaId: 'categoria-removida',
           recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' },
@@ -681,6 +2769,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         await sincronizarPendentes();
 
         banco = instalarBanco();
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
         expect((await restaurarDaNuvem()).despesas).toBe(3);
         expect(banco.recorrencias()[0].categoria_id).toBeNull();
         expect(banco.despesas().map(d => d.categoria_id)).toEqual([null, null, null]);
@@ -695,6 +2784,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         await sincronizarPendentes();
 
         banco = instalarBanco();
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
         await restaurarDaNuvem();
         await completarRecorrenciasDespesas();
 
@@ -707,6 +2797,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         await sincronizarPendentes();
 
         banco = instalarBanco();
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
         await restaurarDaNuvem();
         const n = banco.despesas().length;
 
@@ -723,6 +2814,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         await excluirDespesa(a.id);
         await editarDespesa(b.id, dadosDespesa({ titulo: 'B editada', data: '2026-10-17' }), 'esta');
 
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
         const resultado = await restaurarDaNuvem(); // nuvem ainda tem as versões antigas
 
         expect(resultado.despesas).toBe(0);
@@ -738,6 +2830,140 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
 
         expect(resultado.despesas).toBe(0);
         expect(banco.despesas()).toHaveLength(0);
+      });
+
+      it('tombstone remoto de despesa preserva os dados locais existentes', async () => {
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await registrarDespesa(dadosDespesa());
+        await sincronizarPendentes();
+
+        const d = banco.despesas()[0];
+        const remoto = {
+          excluido_em: '2026-10-20T12:00:00.000Z',
+          atualizado_em: '2026-10-20T12:00:00.000Z',
+        };
+        mockNuvem.set(caminhoD(d.id), remoto);
+
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.despesas).toBe(0);
+        expect(banco.despesas()[0]).toMatchObject({
+          id: d.id,
+          valor_centavos: 150000,
+          data: '2026-10-16',
+          titulo: 'Aluguel',
+          categoria_id: d.categoria_id,
+          excluido_em: remoto.excluido_em,
+          sync_status: 'sincronizado',
+        });
+
+        await restaurarDaNuvem();
+        expect(banco.despesas()[0].excluido_em).toBe(remoto.excluido_em);
+      });
+
+      it('tombstone remoto de série exclui as ocorrências locais preservando o histórico', async () => {
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await registrarDespesa(
+          dadosDespesa({
+            recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+          }),
+        );
+        await sincronizarPendentes();
+
+        const serie = banco.recorrencias()[0];
+        const ocorrencias = banco.despesas();
+        const remoto = {
+          ...mockNuvem.get(`usuarios/u1/recorrencias/${serie.id}`),
+          ativa: false,
+          excluido_em: '2026-10-20T12:00:00.000Z',
+          atualizado_em: '2026-10-20T12:00:00.000Z',
+        };
+        mockNuvem.set(`usuarios/u1/recorrencias/${serie.id}`, remoto);
+
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.recorrencias).toBe(0);
+        expect(banco.recorrencias()[0]).toMatchObject({
+          tipo: 'despesa',
+          ativa: 0,
+          excluido_em: remoto.excluido_em,
+          valor_centavos: 150000,
+          titulo: 'Aluguel',
+          sync_status: 'sincronizado',
+        });
+        expect(banco.despesas()).toHaveLength(ocorrencias.length);
+        for (const original of ocorrencias) {
+          expect(banco.despesas().find((d) => d.id === original.id)).toMatchObject({
+            valor_centavos: original.valor_centavos,
+            data: original.data,
+            titulo: original.titulo,
+            recorrencia_id: serie.id,
+            excluido_em: remoto.excluido_em,
+            sync_status: 'pendente',
+          });
+        }
+
+        const total = banco.despesas().length;
+        fixarHoje('2027-06-01');
+        await completarRecorrenciasDespesas();
+        expect(banco.despesas()).toHaveLength(total);
+      });
+
+      it('tombstone remoto de série desconhecida restaura o snapshot financeiro', async () => {
+        mockNuvem.set('usuarios/u1/recorrencias/serie-lapide', {
+          tipo: 'despesa',
+          intervalo: 1,
+          unidade: 'mes',
+          inicio: '2026-01-10',
+          ativa: false,
+          valor_centavos: 70000,
+          titulo: 'Academia',
+          categoria_id: 'uuid-casa',
+          fixa_ou_variavel: 'fixa',
+          essencial: 1,
+          atualizado_em: '2026-03-01T00:00:00.000Z',
+          excluido_em: '2026-03-01T00:00:00.000Z',
+        });
+
+        banco = instalarBanco();
+        const resultado = await restaurarDaNuvem();
+
+        expect(resultado.recorrencias).toBe(1);
+        expect(banco.recorrencias()[0]).toMatchObject({
+          id: 'serie-lapide',
+          tipo: 'despesa',
+          ativa: 0,
+          valor_centavos: 70000,
+          titulo: 'Academia',
+          categoria_id: null,
+          excluido_em: '2026-03-01T00:00:00.000Z',
+          sync_status: 'sincronizado',
+        });
+      });
+
+      it('tombstone local de série prevalece sobre série remota ativa', async () => {
+        inserirCategoria({ id: 'uuid-casa', nome: 'Casa' });
+        await registrarDespesa(
+          dadosDespesa({
+            recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+          }),
+        );
+        await sincronizarPendentes();
+
+        const serie = banco.recorrencias()[0];
+        await excluirDespesa(banco.despesas()[0].id, 'todas');
+        const excluidoLocal = banco.recorrencias()[0].excluido_em;
+
+        await restaurarDaNuvem();
+
+        expect(banco.recorrencias()[0]).toMatchObject({
+          id: serie.id,
+          ativa: 0,
+          excluido_em: excluidoLocal,
+        });
+        expect(mockNuvem.get(`usuarios/u1/recorrencias/${serie.id}`)).toMatchObject({
+          ativa: true,
+        });
       });
     });
 

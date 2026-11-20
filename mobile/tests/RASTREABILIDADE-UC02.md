@@ -13,7 +13,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | Principal – mês corrente, mais recente primeiro | `src/app/despesas/index.tsx`, `src/features/despesas/service.ts` (`listarDespesas`) | `tests/screens/TelaListaDespesas.test.tsx`, `tests/service/despesas.leitura.test.ts` | ✅ |
 | A – Registrar | `src/app/despesas/nova.tsx`, `src/components/despesas/DespesaForm.tsx`, `service.ts` (`registrarDespesa`) | `tests/screens/NovaDespesa.test.tsx`, `tests/screens/DespesaForm.test.tsx`, `tests/service/despesas.registrar.test.ts` | ✅ |
 | A7 – Sincronização após registrar | `src/app/despesas/nova.tsx` | `tests/screens/NovaDespesa.test.tsx` (dispara após gravar; não dispara se a gravação falha) | ✅ |
-| B – Filtrar por dia, mês, período e categoria; detalhar | `src/components/despesas/FiltroDespesas.tsx`, `src/app/despesas/index.tsx` (filtro por categoria), `src/features/despesas/useDespesas.ts`, `service.ts` (`listarDespesas`), `src/app/despesas/[id]/index.tsx` | `tests/screens/FiltroDespesas.test.tsx`, `tests/unit/despesas.intervalo-filtro.test.ts`, `tests/features/despesas/useDespesas.test.tsx`, `tests/service/despesas.leitura.test.ts` (filtro por categoria), `tests/screens/TelaListaDespesas.test.tsx`, `tests/screens/DetalheDespesa.test.tsx` | ✅ categorias provisórias (limitação 2) |
+| B – Filtrar por dia, mês, período e categoria; detalhar | `src/components/despesas/FiltroDespesas.tsx`, `src/app/despesas/index.tsx` (filtro por categoria), `src/features/despesas/useDespesas.ts`, `service.ts` (`listarDespesas`), `src/app/despesas/[id]/index.tsx` | `tests/screens/FiltroDespesas.test.tsx`, `tests/unit/despesas.intervalo-filtro.test.ts`, `tests/features/despesas/useDespesas.test.tsx`, `tests/service/despesas.leitura.test.ts` (filtro por categoria), `tests/screens/TelaListaDespesas.test.tsx`, `tests/screens/DetalheDespesa.test.tsx` | ✅ catálogo UC06 (sete padrão + próprias) |
 | C – Editar | `src/app/despesas/[id]/editar.tsx`, `service.ts` (`editarDespesa`) | `tests/screens/EditarDespesa.test.tsx`, `tests/service/despesas.editar-excluir.test.ts`, `tests/service/despesas.recorrencia-editar-excluir.test.ts` | ✅ |
 | C4 – Sincronização após editar | `src/app/despesas/[id]/editar.tsx` | `tests/screens/EditarDespesa.test.tsx` | ✅ |
 | D – Excluir | `src/components/despesas/useExclusaoDespesas.tsx` | `tests/components/useExclusaoDespesas.test.tsx`, `tests/service/despesas.editar-excluir.test.ts` | ✅ |
@@ -33,7 +33,7 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | EX05 – Despesa indisponível | `editar.tsx`, `[id]/index.tsx`, `useExclusaoDespesas.tsx`, `service.ts` | `tests/screens/EditarDespesa.test.tsx` (mensagem ao abrir e ao salvar), `tests/screens/DetalheDespesa.test.tsx`, `tests/components/useExclusaoDespesas.test.tsx`, `tests/service/despesas.editar-excluir.test.ts` | ✅ |
 | EX06 – Acesso a dados de outro usuário | `src/app/despesas/index.tsx` (`consumirAcessoNegado`) | `tests/screens/TelaListaDespesas.test.tsx` (mensagem e dados locais intactos), `tests/rules/firestore.rules.test.ts` (nega na nuvem) | ✅ |
 | EX07 – Período inválido | `FiltroDespesas.tsx` | `tests/screens/FiltroDespesas.test.tsx` | ✅ |
-| EX08 – Categoria excluída na sincronização | `sync.ts` (`categoriaRemota`); o catálogo padrão determina a categoria disponível | `tests/service/sync.test.ts` (EX08 em edição remota e restauração), `tests/unit/despesas.categorias.test.ts` | ⚠️ categorias próprias dependem de UC06 |
+| EX08 – Categoria excluída na sincronização | `sync.ts` (`resolverCategoriaRemota`); o catálogo local do UC06 determina a categoria disponível | `tests/service/sync.test.ts` (EX08 em edição remota e restauração), `tests/unit/despesas.categorias.test.ts` | ✅ categorias próprias e exclusão integradas ao UC06 |
 | EX09 – Falha na leitura local | `service.ts`, `useDespesas.ts`, telas | `tests/service/despesas.leitura.test.ts`, `tests/features/despesas/useDespesas.test.tsx`, `tests/screens/TelaListaDespesas.test.tsx` | ✅ |
 
 ## 2. Regras de negócio
@@ -47,32 +47,49 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 | RN10 – Título e descrição | `validation.ts` | `tests/unit/despesas.validation.test.ts` (80/81 e 255/256 caracteres) | ✅ |
 | RN11 – Transação única | `service.ts` (`transacao`) | `tests/service/despesas.registrar.test.ts`, `tests/service/despesas.editar-excluir.test.ts`, `tests/service/despesas.recorrencia-editar-excluir.test.ts` (falha induzida na exclusão por alcance) | ✅ |
 | RN12 – Ordem e período | `service.ts` (`listarDespesas`) | `tests/service/despesas.leitura.test.ts` (ordem, data futura no mês da própria data), `tests/unit/despesas.intervalo-filtro.test.ts` | ✅ |
-| RN13 – Categorias padrão | `src/features/despesas/categorias.ts`, `DespesaForm.tsx` (seletor), `DespesaItem.tsx` e `[id]/index.tsx` (rótulo) | `tests/unit/despesas.categorias.test.ts`, `tests/screens/DespesaForm.test.tsx` (as 7 categorias), `tests/service/despesas.registrar.test.ts`, `tests/components/DespesaItem.test.tsx` | ⚠️ cadastro de categorias próprias é do UC06 |
+| RN13 – Categorias padrão e próprias | `src/features/despesas/categorias.ts`, `useCategoriasAtivas.ts`, `DespesaForm.tsx` (seletor), `DespesaItem.tsx` e `[id]/index.tsx` (rótulo) | `tests/unit/despesas.categorias.test.ts`, `tests/unit/useCategoriasAtivas.test.ts`, `tests/screens/DespesaForm.test.tsx`, `tests/service/despesas.registrar.test.ts`, `tests/components/DespesaItem.test.tsx` | ✅ catálogo do UC06 integrado (sete padrão + próprias) |
 | RN19 – Recorrência | `validation.ts`, `service.ts` | `tests/unit/despesas.validation.test.ts`, `tests/service/despesas.recorrencia.test.ts` | ✅ |
 | RN20 – Editar qualquer campo | `service.ts` (`editarDespesa`) | `tests/service/despesas.editar-excluir.test.ts` | ✅ |
 | RNF27 – Registro simples em três etapas | `src/app/index.tsx` → `src/app/despesas/index.tsx` → `src/app/despesas/nova.tsx` | `tests/screens/HomeDespesas.test.tsx`, `tests/screens/TelaListaDespesas.test.tsx`, `tests/screens/NovaDespesa.test.tsx` | ✅ |
 | RNF03 – Security Rules | `firestore.rules` | `tests/rules/firestore.rules.test.ts` (`npm run test:rules`), incluindo série de despesa | ✅ |
 
-## 3. Sincronização e restauração
+## 3. Sincronização, restauração e tombstones
 
 | Comportamento | Código | Teste |
 |---|---|---|
 | Envio de despesas e séries (tipo e classificações) | `sync.ts` (`sincronizarPendentes`) | `tests/service/sync.test.ts` |
 | Restauração de despesas, séries com tipo preservado, idempotência e exclusões | `sync.ts` (`restaurarDaNuvem`) | `tests/service/sync.test.ts` ("restauração da nuvem › despesas") |
+| Exclusão remota de despesa prevalece sobre edição local atrasada | `sync.ts` (`runTransaction`, `aplicarLapideRemota`) | `tests/service/sync.test.ts` (tombstones persistentes) |
+| Tombstone local é publicado e nunca substituído por documento ativo | `sync.ts` (`payloadTombstone`, `tx.set`) | `tests/service/sync.test.ts` (tombstones persistentes) |
+| Série excluída bloqueia ocorrências ativas e não gera novas | `service.ts` (`excluirSerie`, filtros `excluido_em IS NULL`), `sync.ts` (`seriesExcluidas`) | `tests/service/serie.test.ts`, `tests/service/despesas.recorrencia-editar-excluir.test.ts`, `tests/service/sync.test.ts` |
+| Falha entre confirmação remota e SQLite reconcilia no retry | `sync.ts` | `tests/service/sync.test.ts` (falha após confirmação remota) |
 | Indicador de pendências e disparo no foco da lista | `pendencias.ts`, `src/app/despesas/index.tsx` | `tests/screens/TelaListaDespesas.test.tsx` |
 
-## 4. Limitações e dependências declaradas
+## 4. Migrations e integração UC06
+
+| Item | Implementação | Evidência |
+|---|---|---|
+| Migrations versionadas | `src/db/migrations.ts`, `PRAGMA user_version`, migrations 001–005 | `tests/db/migrations.test.ts` (90 testes) |
+| Migration 005 | `excluido_em TEXT NULL` em `recorrencias`, instalação nova em v5 e rollback | `tests/db/migrations.test.ts` (v4→v5, rollback, idempotência) |
+| Categorias próprias | `useCategoriasAtivas.ts`, `listarCategorias`, seletor e rótulos | `tests/unit/useCategoriasAtivas.test.ts`, telas de despesas |
+| Slugs históricos da UC02 | `semearCategoriasPadrao` migra `casa`, `alimentacao` etc. para IDs reais | `tests/service/categorias.test.ts`, `tests/service/sync.test.ts` |
+| Exclusão de categoria | desvincula despesas e séries de despesa na mesma transação, sem excluir lançamentos | `tests/service/categorias.test.ts` |
+| Firestore Rules | tombstone não reativa, delete físico negado para despesas/recorrências | `tests/rules/firestore.rules.test.ts` (`npm run test:rules`, 57 testes) |
+
+
+## 5. Limitações e dependências declaradas
 
 1. **Autenticação:** o app não tem fluxo de login, então `sincronizarPendentes` retorna sem enviar e
    `restaurarDaNuvem` não é chamada por nenhuma tela. A sincronização é validada só por testes
    automatizados (SQLite em memória e Firebase mockado); a prova manual fica pendente do caso de uso de
    autenticação.
-2. **Categorias (UC06):** o UC02 usa as 7 categorias padrão como constantes provisórias
-   (`src/features/despesas/categorias.ts`) para seletor, rótulo e filtro. Os ids dessas constantes
-   (`casa`, `saude`…) **não** correspondem às linhas da tabela `categorias` do UC06, que usa ids
-   gerados; ao integrar o UC06, esse módulo é o único ponto a trocar e as despesas existentes
-   precisam de migração de `categoria_id`. A restauração e a aplicação de edições remotas usam
-   o catálogo padrão para identificar categorias indisponíveis (EX08).
+2. **Categorias (UC06):** a integração está implementada. `useCategoriasAtivas` lê o catálogo
+   ativo (sete categorias padrão e categorias próprias) para seletor, rótulos e filtros.
+   `semearCategoriasPadrao` converte os slugs históricos da UC02 (`casa`, `saude`…) para os IDs
+   reais das categorias padrão. A sincronização cross-device de categorias não faz parte desta
+   entrega: IDs de outro dispositivo sem correspondência local são tratados como indisponíveis
+   (EX08). A exclusão de categoria desvincula despesas e séries de despesa na mesma transação,
+   preservando os lançamentos.
 3. **Recálculo (A6, C3, D3, FA06):** o UC02 calcula o total a partir das despesas retornadas na mesma
    consulta e testa edição com mudança de mês e categoria. Ao integrar UC04, UC05 e UC09, as leituras
    devem usar `despesas` com `excluido_em IS NULL` e somar `valor_centavos` por intervalo de `data`.
@@ -91,7 +108,12 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 6. **EX01:** data e término inválidos recebem instruções de formato para diferenciar ausência de data
    de data inexistente. A mensagem de excesso de ocorrências explica como ajustar a série antes de
    gravar. Essas mensagens complementam as previstas no caso de uso e os testes comparam textos literais.
-7. **Marcador de exclusão (RN07):** o documento da despesa no Firestore retém a chave e os campos
-   `excluido_em` e `atualizado_em`. O SQLite mantém a chave e horários associados e preenche as colunas
-   obrigatórias com valores neutros. Despesas excluídas ficam fora das consultas. Marcadores anteriores,
-   que ainda contêm dados completos na nuvem, são reconhecidos na restauração.
+7. **Marcador de exclusão (RN07):** o documento da despesa no Firestore mantém `excluido_em` e
+   `atualizado_em`. No SQLite, a linha local preserva valores, título, data, descrição,
+   classificação, categoria e vínculo histórico; a exclusão lógica altera apenas `excluido_em`,
+   `sync_status` e `atualizado_em`. Despesas excluídas ficam fora das consultas. Marcadores
+   anteriores, que ainda contêm dados completos na nuvem, são reconhecidos na restauração.
+
+8. **Validação em Android:** a migration 005 e os fluxos integrados foram validados em SQLite real,
+   suíte automatizada e Firestore Emulator, mas **não** foram executados em dispositivo físico ou
+   emulador Android nesta entrega. A validação manual permanece pendente.

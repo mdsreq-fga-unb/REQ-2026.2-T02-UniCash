@@ -1,10 +1,10 @@
-
 import * as SQLite from 'expo-sqlite';
-import { ESQUEMA_SQL } from './schema';
+import { PRAGMAS_SQL } from './schema';
+import { migrarSeNecessario } from './migrations';
 
 let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
-/** Base local principal (RN06, RNF34). Abre uma única vez. */
+/** Base local principal (RN06, RNF34). Abre uma única vez e aplica migrações versionadas. */
 export function getDb(): Promise<SQLite.SQLiteDatabase> {
   if (!dbPromise) {
     dbPromise = abrir().catch((e) => {
@@ -19,51 +19,12 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
 /** Cria o esquema e atualiza bancos de versões anteriores. */
 async function abrir() {
   const db = await SQLite.openDatabaseAsync('unicash.db');
-
-  await db.execAsync(ESQUEMA_SQL);
-  await migrarRecorrencias(db);
-
+  // PRAGMAs fora de transação: journal_mode não pode ser alterado dentro dela.
+  await db.execAsync(PRAGMAS_SQL);
+  // Migrações versionadas: instalação nova e bancos legados terminam consistentes
+  // em VERSAO_ESQUEMA, ou a abertura falha de forma controlada (rollback total,
+  // sem perda de dados). Em caso de falha, getDb() limpa o cache e a próxima
+  // chamada tenta novamente — o erro deve ser tratado pela camada de interface.
+  await migrarSeNecessario(db);
   return db;
-}
-
-/** Atualiza a estrutura da tabela de recorrências sem perder dados. */
-async function migrarRecorrencias(db: SQLite.SQLiteDatabase) {
-  const colunas = await db.getAllAsync<{ name: string }>(
-    'PRAGMA table_info(recorrencias)',
-  );
-
-  const existentes = new Set(colunas.map((coluna) => coluna.name));
-
-  if (!existentes.has('tipo')) {
-    await db.execAsync(`
-      ALTER TABLE recorrencias
-      ADD COLUMN tipo TEXT NOT NULL DEFAULT 'receita'
-      CHECK (tipo IN ('receita', 'despesa'))
-    `);
-  }
-
-  if (!existentes.has('categoria_id')) {
-    await db.execAsync(
-      'ALTER TABLE recorrencias ADD COLUMN categoria_id TEXT',
-    );
-  }
-
-  if (!existentes.has('fixa_ou_variavel')) {
-    await db.execAsync(`
-      ALTER TABLE recorrencias
-      ADD COLUMN fixa_ou_variavel TEXT CHECK (
-        fixa_ou_variavel IS NULL OR
-        fixa_ou_variavel IN ('fixa', 'variavel')
-      )
-    `);
-  }
-
-  if (!existentes.has('essencial')) {
-    await db.execAsync(`
-      ALTER TABLE recorrencias
-      ADD COLUMN essencial INTEGER CHECK (
-        essencial IS NULL OR essencial IN (0, 1)
-      )
-    `);
-  }
 }

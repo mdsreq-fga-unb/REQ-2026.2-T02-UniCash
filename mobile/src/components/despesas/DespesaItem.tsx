@@ -2,14 +2,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { cores, raio } from '@/lib/theme';
 import { formatarBR } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
-import { rotuloCategoria } from '@/features/despesas/categorias';
 import type { Despesa } from '@/features/despesas/types';
 
 export function DespesaItem({
   despesa,
+  categoriaNome,
   onPress,
 }: {
   despesa: Despesa;
+  categoriaNome: string;
   onPress: () => void;
 }) {
   const tipo = despesa.fixa_ou_variavel && (despesa.fixa_ou_variavel === 'fixa' ? 'Fixa' : 'Variável');
@@ -37,7 +38,7 @@ export function DespesaItem({
         </Text>
 
         <Text style={estilos.sub} testID="categoria-despesa">
-          {rotuloCategoria(despesa.categoria_id)}
+          {categoriaNome}
         </Text>
 
         {classificacao ? (

@@ -16,11 +16,16 @@ import { cores, raio } from '@/lib/theme';
 import { FiltroDespesas } from '@/components/despesas/FiltroDespesas';
 import { DespesaItem } from '@/components/despesas/DespesaItem';
 import { formatarBRL } from '@/features/receitas/money';
-import { CATEGORIAS_PADRAO_DESPESA } from '@/features/despesas/categorias';
+import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
+import { nomeCategoriaPorId } from '@/features/despesas/categorias';
 import { useDespesas } from '@/features/despesas/useDespesas';
 import { MSG_DESPESA } from '@/features/despesas/validation';
 import { contarPendentes } from '@/features/receitas/pendencias';
-import { consumirAcessoNegado, sincronizarPendentes } from '@/features/receitas/sync';
+import {
+  consumirAcessoNegado,
+  FalhaLeituraCatalogoSincronizacao,
+  sincronizarPendentes,
+} from '@/features/receitas/sync';
 import {
   consumirFeedback,
   type Feedback,
@@ -43,12 +48,25 @@ export default function ListaDespesas() {
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const {
+    itens: categorias,
+    carregando: carregandoCategorias,
+    erro: erroCategorias,
+    recarregar: recarregarCategorias,
+  } = useCategoriasAtivas();
+
+  // Categoria derivada: se a lista bem-sucedida mais recente não contém o ID
+  // selecionado, a tela volta a "Todas" sem sincronizar estado dentro de efeito.
+  // O hook preserva a última lista válida durante recarga e falha de leitura.
+  const categoriaSelecionada =
+    categoria && categorias.some((c) => c.id === categoria) ? categoria : null;
+
+  const {
     itens,
     total,
     carregando,
     erroLeitura,
     recarregar,
-  } = useDespesas(filtro, categoria);
+  } = useDespesas(filtro, categoriaSelecionada);
 
   const [pendentes, setPendentes] = useState(0);
   const primeiraFocada = useRef(true);
@@ -64,6 +82,8 @@ export default function ListaDespesas() {
   // Ao focar: mostra mensagem pendente, recarrega e tenta sincronizar (EX03).
   useFocusEffect(
     useCallback(() => {
+      let ativo = true;
+
       setFeedback(consumirFeedback());
       void atualizarPendentes();
 
@@ -71,17 +91,47 @@ export default function ListaDespesas() {
         primeiraFocada.current = false;
       } else {
         void recarregar();
+        void recarregarCategorias();
       }
 
-      void sincronizarPendentes().then((mudou) => {
-        if (mudou) void recarregar();
-        // EX06: a nuvem negou o acesso; os dados locais seguem intactos.
-        if (consumirAcessoNegado()) {
-          setFeedback({ tipo: 'erro', texto: MSG_DESPESA.semAcesso });
-        }
-        void atualizarPendentes();
-      });
-    }, [recarregar, atualizarPendentes]),
+      void sincronizarPendentes()
+        .then((mudou) => {
+          if (!ativo) return;
+
+          if (mudou) void recarregar();
+          // EX06: a nuvem negou o acesso; os dados locais seguem intactos.
+          if (consumirAcessoNegado()) {
+            setFeedback({ tipo: 'erro', texto: MSG_DESPESA.semAcesso });
+          }
+        })
+        .catch((erro) => {
+          if (erro instanceof FalhaLeituraCatalogoSincronizacao) {
+            console.warn(
+              'Sincronização em segundo plano: falha ao ler o catálogo local na lista de despesas.',
+              erro,
+            );
+          } else {
+            console.error(
+              'Falha inesperada ao sincronizar pendências na lista de despesas.',
+              erro,
+            );
+          }
+
+          if (!ativo) return;
+
+          // Consome apenas uma negação real anterior; não marca novo acesso negado.
+          if (consumirAcessoNegado()) {
+            setFeedback({ tipo: 'erro', texto: MSG_DESPESA.semAcesso });
+          }
+        })
+        .finally(() => {
+          if (ativo) void atualizarPendentes();
+        });
+
+      return () => {
+        ativo = false;
+      };
+    }, [recarregar, recarregarCategorias, atualizarPendentes]),
   );
 
   return (
@@ -130,14 +180,36 @@ export default function ListaDespesas() {
               <FiltroDespesas filtro={filtro} onChange={setFiltro} />
             </View>
 
+            {carregandoCategorias ? (
+              <ActivityIndicator
+                color={cores.primaria}
+                style={estilos.carregandoCategorias}
+              />
+            ) : null}
+
+            {erroCategorias ? (
+              <View style={estilos.avisoCategorias}>
+                <Text style={estilos.erroCategorias} accessibilityRole="alert">
+                  Não foi possível carregar as categorias.
+                </Text>
+                <Pressable
+                  onPress={recarregarCategorias}
+                  style={estilos.tentarCategorias}
+                  accessibilityRole="button"
+                >
+                  <Text style={estilos.tentarTexto}>Tentar novamente</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               style={estilos.categorias}
               accessibilityLabel="Filtrar por categoria"
             >
-              {[{ id: null, nome: 'Todas' }, ...CATEGORIAS_PADRAO_DESPESA].map((c) => {
-                const ativa = categoria === c.id;
+              {[{ id: null, nome: 'Todas' }, ...categorias].map((c) => {
+                const ativa = categoriaSelecionada === c.id;
 
                 return (
                   <Pressable
@@ -171,6 +243,7 @@ export default function ListaDespesas() {
         renderItem={({ item }) => (
           <DespesaItem
             despesa={item}
+            categoriaNome={nomeCategoriaPorId(item.categoria_id, categorias)}
             onPress={() =>
               router.push({
                 pathname: '/despesas/[id]',
@@ -211,13 +284,13 @@ export default function ListaDespesas() {
           ) : (
             <View style={estilos.vazio}>
               <Text style={estilos.vazioTitulo}>
-                {categoria
+                {categoriaSelecionada
                   ? 'Nenhum registro'
                   : 'Nenhuma despesa neste período'}
               </Text>
 
               <Text style={estilos.vazioTexto}>
-                {categoria
+                {categoriaSelecionada
                   ? 'Altere o filtro de categoria ou o período para ver outras despesas.'
                   : 'Toque em + para registrar uma despesa.'}
               </Text>
@@ -295,6 +368,21 @@ const estilos = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     marginBottom: 12,
+  },
+  carregandoCategorias: {
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  avisoCategorias: {
+    marginBottom: 8,
+  },
+  erroCategorias: {
+    color: cores.erro,
+    fontSize: 12,
+  },
+  tentarCategorias: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
   },
   categorias: {
     marginBottom: 12,

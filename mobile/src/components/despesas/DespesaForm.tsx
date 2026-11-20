@@ -30,10 +30,8 @@ import type {
   UnidadeRecorrencia,
 } from '@/features/despesas/types';
 
-import {
-  CATEGORIAS_PADRAO_DESPESA,
-  ROTULO_SEM_CATEGORIA,
-} from '@/features/despesas/categorias';
+import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
+import { ROTULO_SEM_CATEGORIA } from '@/features/despesas/categorias';
 
 const FORM_DESPESA_VAZIO: FormValoresDespesa = {
   valor: '',
@@ -98,6 +96,29 @@ export function DespesaForm({
   );
   const [erros, setErros] = useState<ErrosFormDespesa>({});
   const [repeticaoAberta, setRepeticaoAberta] = useState(false);
+
+  const {
+    itens: categorias,
+    carregando: carregandoCategorias,
+    erro: erroCategorias,
+    recarregar: recarregarCategorias,
+  } = useCategoriasAtivas();
+
+  const categoriaInicial = inicial?.categoriaId ?? '';
+  const categoriaInicialForaDaLista =
+    !!categoriaInicial &&
+    !categorias.some((c) => c.id === categoriaInicial) &&
+    (!carregandoCategorias || categorias.length > 0);
+  const categoriaAtualPreservada =
+    categoriaInicialForaDaLista && v.categoriaId === categoriaInicial;
+
+  const opcoesCategoria = [
+    { id: '', nome: ROTULO_SEM_CATEGORIA },
+    ...(categoriaAtualPreservada
+      ? [{ id: categoriaInicial, nome: 'Categoria atual (indisponível)' }]
+      : []),
+    ...categorias.map(({ id, nome }) => ({ id, nome })),
+  ];
 
   function set<K extends keyof FormValoresDespesa>(
     campo: K,
@@ -224,11 +245,31 @@ export function DespesaForm({
 
         <View style={estilos.bloco}>
           <Text style={estilos.rotulo}>Categoria</Text>
+
+          {carregandoCategorias ? (
+            <ActivityIndicator
+              color={cores.primaria}
+              style={estilos.carregandoCategorias}
+            />
+          ) : null}
+
+          {erroCategorias ? (
+            <View style={estilos.avisoCategorias}>
+              <Text style={estilos.erro} accessibilityRole="alert">
+                Não foi possível carregar as categorias.
+              </Text>
+              <Pressable
+                onPress={recarregarCategorias}
+                accessibilityRole="button"
+                style={estilos.tentarCategorias}
+              >
+                <Text style={estilos.dica}>Tentar novamente</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
           <View style={estilos.categoriaOpcoes} accessibilityRole="radiogroup">
-            {[
-              { id: '', nome: ROTULO_SEM_CATEGORIA },
-              ...CATEGORIAS_PADRAO_DESPESA,
-            ].map((c) => {
+            {opcoesCategoria.map((c) => {
               const ativa = v.categoriaId === c.id;
 
               return (
@@ -448,6 +489,17 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+  },
+  carregandoCategorias: {
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  avisoCategorias: {
+    marginBottom: 8,
+  },
+  tentarCategorias: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
   },
   categoriaChip: {
     borderWidth: 1,

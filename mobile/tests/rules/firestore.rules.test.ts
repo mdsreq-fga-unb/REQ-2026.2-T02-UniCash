@@ -328,4 +328,71 @@ describe('recorrências (RN19)', () => {
     await assertFails(setDoc(ser(db('u1')), serie({ titulo: '' })));
     await assertFails(setDoc(ser(db('u1')), serie({ titulo: 'a'.repeat(81) })));
   });
+
+  it('aceita criar tombstone de série válido e atualizar série ativa', async () => {
+    const ref = ser(db('u1'));
+    await assertSucceeds(setDoc(ref, serie()));
+    await assertSucceeds(setDoc(ref, serie({ titulo: 'Mesada editada' })));
+
+    const excluido_em = '2026-10-16T12:00:00.000Z';
+    await assertSucceeds(
+      setDoc(
+        ser(db('u1'), 'u1', 'tombstone'),
+        serie({ ativa: false, excluido_em }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(ref, serie({ ativa: false, excluido_em })),
+    );
+  });
+
+  it('impede reativar tombstone de série', async () => {
+    const ref = ser(db('u1'));
+    const excluido_em = '2026-10-16T12:00:00.000Z';
+
+    await assertSucceeds(setDoc(ref, serie({ ativa: false, excluido_em })));
+    await assertFails(setDoc(ref, serie()));
+    await assertFails(setDoc(ref, serie({ ativa: true, excluido_em })));
+    await assertFails(setDoc(ref, serie({ ativa: false, excluido_em: null })));
+  });
+
+  it('tombstone exige os campos financeiros e não pode ser vazio', async () => {
+    const excluido_em = '2026-10-16T12:00:00.000Z';
+
+    await assertFails(
+      setDoc(ser(db('u1'), 'u1', 'sem-valor'), serie({ ativa: false, excluido_em, valor_centavos: 0 })),
+    );
+    await assertFails(
+      setDoc(ser(db('u1'), 'u1', 'sem-titulo'), serie({ ativa: false, excluido_em, titulo: '' })),
+    );
+    await assertFails(
+      setDoc(ser(db('u1'), 'u1', 'vazio'), serie({ ativa: false, excluido_em: '' })),
+    );
+    await assertFails(
+      setDoc(ser(db('u1'), 'u1', 'ativa'), serie({ ativa: true, excluido_em })),
+    );
+  });
+
+  it('exclusão física de recorrência é negada', async () => {
+    const ref = ser(db('u1'));
+    await assertSucceeds(setDoc(ref, serie()));
+    await assertFails(deleteDoc(ref));
+
+    const tomb = ser(db('u1'), 'u1', 'tombstone');
+    await assertSucceeds(
+      setDoc(tomb, serie({ ativa: false, excluido_em: '2026-10-16T12:00:00.000Z' })),
+    );
+    await assertFails(deleteDoc(tomb));
+  });
+
+  it('outro usuário não cria tombstone nem exclui a série', async () => {
+    const excluido_em = '2026-10-16T12:00:00.000Z';
+    await assertFails(
+      setDoc(ser(db('u2'), 'u1', 'tombstone'), serie({ ativa: false, excluido_em })),
+    );
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(ser(ctx.firestore()), serie());
+    });
+    await assertFails(deleteDoc(ser(db('u2'))));
+  });
 });

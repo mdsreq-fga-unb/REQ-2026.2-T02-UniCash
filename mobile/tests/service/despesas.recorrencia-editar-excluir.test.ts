@@ -1,4 +1,5 @@
 import {
+  completarRecorrenciasDespesas,
   editarDespesa,
   excluirDespesa,
   FalhaPersistencia,
@@ -133,15 +134,58 @@ describe('Edição e exclusão de despesas recorrentes', () => {
       .toBe('2026-11-15');
   });
 
-  it('exclui todas as ocorrências e desativa a série', async () => {
+  it('exclui todas as ocorrências e marca a série como excluída sem apagar o histórico', async () => {
     const { despesas, serie } = await criarSerie();
+    const antes = banco.despesas();
 
     await excluirDespesa(despesas[1].id, 'todas');
 
     expect(banco.despesas().filter((d) => !d.excluido_em)).toHaveLength(0);
 
-    expect(banco.recorrencias().find((r) => r.id === serie.id)?.ativa)
-      .toBe(0);
+    expect(banco.recorrencias().find((r) => r.id === serie.id)).toMatchObject({
+      ativa: 0,
+      excluido_em: expect.any(String),
+    });
+
+    for (const original of antes) {
+      expect(banco.despesas().find((d) => d.id === original.id)).toMatchObject({
+        valor_centavos: original.valor_centavos,
+        data: original.data,
+        titulo: original.titulo,
+        descricao: original.descricao,
+        recorrencia_id: original.recorrencia_id,
+        excluido_em: expect.any(String),
+      });
+    }
+  });
+
+  it('encerrar a série não gera tombstone', async () => {
+    const { despesas, serie } = await criarSerie();
+
+    await excluirDespesa(despesas[1].id, 'proximas');
+
+    expect(banco.recorrencias().find((r) => r.id === serie.id)).toMatchObject({
+      termino: '2026-11-15',
+      excluido_em: null,
+    });
+  });
+
+  it('série excluída não gera novas ocorrências ao abrir o app', async () => {
+    await registrarDespesa(
+      inputDespesa({
+        recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+      }),
+    );
+    const primeira = banco.despesas()[0];
+
+    await excluirDespesa(primeira.id, 'todas');
+    const total = banco.despesas().length;
+
+    fixarHoje('2027-06-01');
+    await completarRecorrenciasDespesas();
+
+    expect(banco.despesas()).toHaveLength(total);
+    expect(banco.despesas().every((d) => d.excluido_em !== null)).toBe(true);
   });
 
   it.each(['proximas', 'todas'] as const)(

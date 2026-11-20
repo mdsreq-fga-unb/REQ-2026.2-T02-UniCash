@@ -46,5 +46,6 @@ module.exports = {
     },
   },
 
+  // Os testes de tela com coverage no CI passam dos 5 s padrão por teste.
   testTimeout: 30000,
 };

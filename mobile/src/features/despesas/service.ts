@@ -132,6 +132,7 @@ export function completarRecorrenciasDespesas() {
       `SELECT * FROM recorrencias
        WHERE ativa = 1
          AND termino IS NULL
+         AND excluido_em IS NULL
          AND tipo = 'despesa'`,
     );
 
@@ -222,6 +223,7 @@ async function criarSerie(
     essencial: d.essencial,
     sync_status: 'pendente',
     atualizado_em: ts,
+    excluido_em: null,
   };
 
   await tx.runAsync(
@@ -307,6 +309,7 @@ type RecorrenciaDespesa = {
   categoria_id: string | null;
   fixa_ou_variavel: 'fixa' | 'variavel' | null;
   essencial: 0 | 1 | null;
+  excluido_em: string | null;
 };
 
 async function encerrarSerieAntes(
@@ -344,6 +347,20 @@ async function desativarSerie(
      SET ativa = 0, sync_status = 'pendente', atualizado_em = ?
      WHERE id = ?`,
     [ts, recId],
+  );
+}
+
+async function excluirSerie(
+  tx: SQLiteDatabase,
+  recId: string,
+  ts: string,
+) {
+  await tx.runAsync(
+    `UPDATE recorrencias
+     SET excluido_em = ?, ativa = 0, sync_status = 'pendente',
+         atualizado_em = ?
+     WHERE id = ?`,
+    [ts, ts, recId],
   );
 }
 
@@ -565,7 +582,7 @@ export function excluirDespesa(
         [ts, ts, atual.recorrencia_id],
       );
 
-      await desativarSerie(tx, atual.recorrencia_id, ts);
+      await excluirSerie(tx, atual.recorrencia_id, ts);
       return;
     }
 
