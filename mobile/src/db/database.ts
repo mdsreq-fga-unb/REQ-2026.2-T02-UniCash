@@ -12,9 +12,11 @@ export function getDb(): Promise<SQLite.SQLiteDatabase> {
       throw e;
     });
   }
+
   return dbPromise;
 }
 
+/** Cria o esquema e atualiza bancos de versões anteriores. */
 async function abrir() {
   const db = await SQLite.openDatabaseAsync('unicash.db');
   // PRAGMAs fora de transação: journal_mode não pode ser alterado dentro dela.

@@ -39,6 +39,17 @@ export interface ResultadoSemeadura {
 
 const agora = () => new Date().toISOString();
 
+/** Slugs provisórios da UC02 e os nomes das categorias padrão correspondentes. */
+const SLUGS_UC02 = [
+  { slug: 'casa', nome: 'Casa' },
+  { slug: 'alimentacao', nome: 'Alimentação' },
+  { slug: 'mobilidade', nome: 'Mobilidade' },
+  { slug: 'estudos', nome: 'Estudos' },
+  { slug: 'saude', nome: 'Saúde' },
+  { slug: 'lazer', nome: 'Lazer' },
+  { slug: 'reserva_financeira', nome: 'Reserva financeira' },
+] as const;
+
 /** Operação composta numa única transação; só resolve após o commit (RN11, RNF05, RNF35). */
 async function transacao<T>(fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> {
   try {
@@ -111,6 +122,35 @@ export function semearCategoriasPadrao(): Promise<ResultadoSemeadura> {
         [gerarId(), CATEGORIAS_PADRAO[i], normalizado, ts, ts],
       );
       criadas.push(CATEGORIAS_PADRAO[i]);
+    }
+
+    // Mapeia os slugs provisórios da UC02 somente quando a padrão ativa existe.
+    const normaisSlugs = SLUGS_UC02.map(({ nome }) => normalizarNome(nome));
+    const placeholdersSlugs = normaisSlugs.map(() => '?').join(', ');
+    const padroes = await tx.getAllAsync<{ id: string; nome_normalizado: string }>(
+      `SELECT id, nome_normalizado FROM categorias
+        WHERE padrao = 1 AND excluido_em IS NULL
+          AND nome_normalizado IN (${placeholdersSlugs})`,
+      normaisSlugs,
+    );
+    const idPorNome = new Map(padroes.map((p) => [p.nome_normalizado, p.id]));
+
+    for (const { slug, nome } of SLUGS_UC02) {
+      const id = idPorNome.get(normalizarNome(nome));
+      if (!id) continue;
+
+      await tx.runAsync(
+        `UPDATE despesas
+            SET categoria_id = ?, sync_status = 'pendente', atualizado_em = ?
+          WHERE categoria_id = ? AND excluido_em IS NULL`,
+        [id, ts, slug],
+      );
+      await tx.runAsync(
+        `UPDATE recorrencias
+            SET categoria_id = ?, sync_status = 'pendente', atualizado_em = ?
+          WHERE categoria_id = ?`,
+        [id, ts, slug],
+      );
     }
 
     return { criadas, conflitos };
@@ -251,9 +291,8 @@ export function editarCategoria(id: string, input: CategoriaInput) {
 /**
  * Exclui uma categoria (tombstone).
  * - Categoria padrão: proibido (EX02).
- * - Na mesma transação: marca a categoria como excluída (tombstone),
- *   define categoria_id = NULL nas despesas dela (quando a tabela existir),
- *   e remove limite (RN13).
+ * - Na mesma transação: desvincula despesas não excluídas e séries de
+ *   despesa, marca a categoria como excluída (tombstone) e remove o limite.
  */
 export function excluirCategoria(id: string) {
   return transacao(async (tx) => {
@@ -266,6 +305,22 @@ export function excluirCategoria(id: string) {
 
     const ts = agora();
 
+    // Despesas avulsas e ocorrências de séries; tombstones são preservados.
+    await tx.runAsync(
+      `UPDATE despesas SET
+         categoria_id = NULL, sync_status = 'pendente', atualizado_em = ?
+       WHERE categoria_id = ? AND excluido_em IS NULL`,
+      [ts, id],
+    );
+
+    // Séries de despesa ativas e inativas; séries de receita não usam categoria.
+    await tx.runAsync(
+      `UPDATE recorrencias SET
+         categoria_id = NULL, sync_status = 'pendente', atualizado_em = ?
+       WHERE categoria_id = ? AND tipo = 'despesa'`,
+      [ts, id],
+    );
+
     // Tombstone: a exclusão precisa chegar à nuvem.
     await tx.runAsync(
       `UPDATE categorias SET
@@ -275,10 +330,6 @@ export function excluirCategoria(id: string) {
        WHERE id = ?`,
       [ts, ts, id],
     );
-
-    // TODO (UC02): quando a tabela de despesas existir, executar:
-    // UPDATE despesas SET categoria_id = NULL, sync_status = 'pendente', atualizado_em = ?
-    //   WHERE categoria_id = ? AND excluido_em IS NULL
   });
 }
 

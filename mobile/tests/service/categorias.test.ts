@@ -1,6 +1,7 @@
 import { getDb } from '@/db/database';
 import {
   CategoriaIndisponivel,
+  CategoriaPadraoProtegida,
   FalhaLeituraCategoria,
   FalhaPersistenciaCategoria,
   NomeDuplicado,
@@ -424,6 +425,482 @@ describe('Serviço de categorias (UC06)', () => {
     });
   });
 
+  describe('excluirCategoria: desvinculação e rollback', () => {
+    const TS = '2026-01-01T00:00:00Z';
+
+    function inserirDespesa(
+      id: string,
+      categoriaId: string | null,
+      extra: Partial<{
+        excluidoEm: string | null;
+        syncStatus: 'pendente' | 'sincronizado';
+        atualizadoEm: string;
+        valorCentavos: number;
+        titulo: string;
+        data: string;
+        descricao: string | null;
+        fixaOuVariavel: 'fixa' | 'variavel' | null;
+        essencial: 0 | 1 | null;
+        recorrenciaId: string | null;
+      }> = {},
+    ): void {
+      const {
+        excluidoEm = null,
+        syncStatus = 'sincronizado',
+        atualizadoEm = TS,
+        valorCentavos = 10_000,
+        titulo = `Despesa ${id}`,
+        data = '2026-01-10',
+        descricao = 'Descricao',
+        fixaOuVariavel = 'fixa',
+        essencial = 1,
+        recorrenciaId = null,
+      } = extra;
+
+      banco.sqlite
+        .prepare(
+          `INSERT INTO despesas
+            (id, valor_centavos, data, titulo, descricao, categoria_id,
+             fixa_ou_variavel, essencial, recorrencia_id, sync_status,
+             excluido_em, criado_em, atualizado_em)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          valorCentavos,
+          data,
+          titulo,
+          descricao,
+          categoriaId,
+          fixaOuVariavel,
+          essencial,
+          recorrenciaId,
+          syncStatus,
+          excluidoEm,
+          TS,
+          atualizadoEm,
+        );
+    }
+
+    function inserirSerie(
+      id: string,
+      categoriaId: string | null,
+      extra: Partial<{
+        tipo: 'receita' | 'despesa';
+        ativa: 0 | 1;
+        syncStatus: 'pendente' | 'sincronizado';
+        atualizadoEm: string;
+        valorCentavos: number;
+        titulo: string;
+        inicio: string;
+        termino: string | null;
+        intervalo: number;
+        unidade: 'dia' | 'mes' | 'ano';
+        descricao: string | null;
+        fixaOuVariavel: 'fixa' | 'variavel' | null;
+        essencial: 0 | 1 | null;
+      }> = {},
+    ): void {
+      const {
+        tipo = 'despesa',
+        ativa = 1,
+        syncStatus = 'sincronizado',
+        atualizadoEm = TS,
+        valorCentavos = 50_000,
+        titulo = `Serie ${id}`,
+        inicio = '2026-01-10',
+        termino = '2026-12-10',
+        intervalo = 1,
+        unidade = 'mes',
+        descricao = 'Serie',
+        fixaOuVariavel = 'fixa',
+        essencial = 1,
+      } = extra;
+
+      banco.sqlite
+        .prepare(
+          `INSERT INTO recorrencias
+            (id, tipo, intervalo, unidade, inicio, termino, ativa,
+             valor_centavos, titulo, descricao, categoria_id,
+             fixa_ou_variavel, essencial, sync_status, atualizado_em)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          id,
+          tipo,
+          intervalo,
+          unidade,
+          inicio,
+          termino,
+          ativa,
+          valorCentavos,
+          titulo,
+          descricao,
+          categoriaId,
+          fixaOuVariavel,
+          essencial,
+          syncStatus,
+          atualizadoEm,
+        );
+    }
+
+    const lerDespesa = (id: string): any =>
+      banco.sqlite.prepare('SELECT * FROM despesas WHERE id = ?').get(id);
+
+    const lerSerie = (id: string): any =>
+      banco.sqlite.prepare('SELECT * FROM recorrencias WHERE id = ?').get(id);
+
+    const lerCategoria = (id: string): any =>
+      banco.sqlite.prepare('SELECT * FROM categorias WHERE id = ?').get(id);
+
+    it('desvincula despesa avulsa ativa e preserva os demais campos', async () => {
+      const id = await criarCategoria(comValor);
+      inserirDespesa('avulsa', id, {
+        valorCentavos: 12_345,
+        titulo: 'Aluguel',
+        data: '2026-02-10',
+        descricao: 'Contrato',
+        fixaOuVariavel: 'variavel',
+        essencial: 0,
+      });
+      const antes = lerDespesa('avulsa');
+
+      await excluirCategoria(id);
+
+      const depois = lerDespesa('avulsa');
+      expect(depois).toMatchObject({
+        categoria_id: null,
+        sync_status: 'pendente',
+        valor_centavos: antes.valor_centavos,
+        titulo: antes.titulo,
+        data: antes.data,
+        descricao: antes.descricao,
+        fixa_ou_variavel: antes.fixa_ou_variavel,
+        essencial: antes.essencial,
+        recorrencia_id: antes.recorrencia_id,
+        criado_em: antes.criado_em,
+      });
+      expect(depois.atualizado_em).not.toBe(antes.atualizado_em);
+    });
+
+    it('desvincula série ativa e ocorrências não excluídas', async () => {
+      const id = await criarCategoria(comValor);
+      inserirSerie('serie-ativa', id, {
+        valorCentavos: 77_777,
+        titulo: 'Aluguel',
+        inicio: '2026-01-15',
+        termino: '2026-06-15',
+        descricao: 'Serie ativa',
+        fixaOuVariavel: 'variavel',
+        essencial: 0,
+      });
+      inserirDespesa('oc-1', id, {
+        recorrenciaId: 'serie-ativa',
+        valorCentavos: 77_777,
+        titulo: 'Aluguel',
+        data: '2026-01-15',
+      });
+      inserirDespesa('oc-2', id, {
+        recorrenciaId: 'serie-ativa',
+        valorCentavos: 77_777,
+        titulo: 'Aluguel',
+        data: '2026-02-15',
+      });
+
+      await excluirCategoria(id);
+
+      const serie = lerSerie('serie-ativa');
+      expect(serie).toMatchObject({
+        categoria_id: null,
+        sync_status: 'pendente',
+        ativa: 1,
+        valor_centavos: 77_777,
+        titulo: 'Aluguel',
+        intervalo: 1,
+        unidade: 'mes',
+        inicio: '2026-01-15',
+        termino: '2026-06-15',
+        descricao: 'Serie ativa',
+        fixa_ou_variavel: 'variavel',
+        essencial: 0,
+      });
+      expect(serie.atualizado_em).not.toBe(TS);
+
+      for (const [idOcorrencia, data] of [
+        ['oc-1', '2026-01-15'],
+        ['oc-2', '2026-02-15'],
+      ] as const) {
+        const ocorrencia = lerDespesa(idOcorrencia);
+        expect(ocorrencia).toMatchObject({
+          categoria_id: null,
+          sync_status: 'pendente',
+          recorrencia_id: 'serie-ativa',
+          valor_centavos: 77_777,
+          titulo: 'Aluguel',
+          data,
+        });
+        expect(ocorrencia.atualizado_em).not.toBe(TS);
+      }
+    });
+
+    it('desvincula série inativa e preserva ativa=0', async () => {
+      const id = await criarCategoria(comValor);
+      inserirSerie('serie-inativa', id, {
+        ativa: 0,
+        valorCentavos: 44_444,
+        titulo: 'Serie encerrada',
+      });
+      const antes = lerSerie('serie-inativa');
+
+      await excluirCategoria(id);
+
+      const depois = lerSerie('serie-inativa');
+      expect(depois).toMatchObject({
+        categoria_id: null,
+        sync_status: 'pendente',
+        ativa: 0,
+        valor_centavos: antes.valor_centavos,
+        titulo: antes.titulo,
+        intervalo: antes.intervalo,
+        unidade: antes.unidade,
+        inicio: antes.inicio,
+        termino: antes.termino,
+        descricao: antes.descricao,
+        fixa_ou_variavel: antes.fixa_ou_variavel,
+        essencial: antes.essencial,
+      });
+      expect(depois.atualizado_em).not.toBe(antes.atualizado_em);
+    });
+
+    it('preserva despesa tombstone sem alterar categoria, status ou timestamps', async () => {
+      const id = await criarCategoria(comValor);
+      inserirDespesa('tombstone', id, {
+        excluidoEm: '2026-02-01T00:00:00Z',
+        atualizadoEm: '2026-02-02T00:00:00Z',
+        syncStatus: 'pendente',
+      });
+      const antes = lerDespesa('tombstone');
+
+      await excluirCategoria(id);
+
+      expect(lerDespesa('tombstone')).toEqual(antes);
+    });
+
+    it('não altera série de receita mesmo com categoria_id', async () => {
+      const id = await criarCategoria(comValor);
+      inserirSerie('serie-receita', id, {
+        tipo: 'receita',
+        valorCentavos: 20_000,
+        titulo: 'Receita',
+        fixaOuVariavel: null,
+        essencial: null,
+      });
+      const antes = lerSerie('serie-receita');
+
+      await excluirCategoria(id);
+
+      expect(lerSerie('serie-receita')).toEqual(antes);
+    });
+
+    it('não altera registros de outras categorias', async () => {
+      const id = await criarCategoria(comValor);
+      const outra = await criarCategoria({ nome: 'Outra', limite: null });
+      inserirDespesa('outra-despesa', outra);
+      inserirSerie('outra-serie', outra);
+      const antesDespesa = lerDespesa('outra-despesa');
+      const antesSerie = lerSerie('outra-serie');
+
+      await excluirCategoria(id);
+
+      expect(lerDespesa('outra-despesa')).toEqual(antesDespesa);
+      expect(lerSerie('outra-serie')).toEqual(antesSerie);
+    });
+
+    it('categoria padrão rejeita e não altera referências', async () => {
+      await semearCategoriasPadrao();
+      const padrao = banco.sqlite
+        .prepare('SELECT * FROM categorias WHERE padrao = 1 LIMIT 1')
+        .get() as any;
+      inserirDespesa('padrao-despesa', padrao.id);
+      inserirSerie('padrao-serie', padrao.id);
+      const antesDespesa = lerDespesa('padrao-despesa');
+      const antesSerie = lerSerie('padrao-serie');
+
+      await expect(excluirCategoria(padrao.id)).rejects.toThrow(
+        CategoriaPadraoProtegida,
+      );
+
+      expect(lerCategoria(padrao.id).excluido_em).toBeNull();
+      expect(lerDespesa('padrao-despesa')).toEqual(antesDespesa);
+      expect(lerSerie('padrao-serie')).toEqual(antesSerie);
+    });
+
+    it('categoria inexistente rejeita e não altera referências', async () => {
+      inserirDespesa('orfa-despesa', 'categoria-inexistente');
+      inserirSerie('orfa-serie', 'categoria-inexistente');
+      const antesDespesa = lerDespesa('orfa-despesa');
+      const antesSerie = lerSerie('orfa-serie');
+
+      await expect(excluirCategoria('categoria-inexistente')).rejects.toThrow(
+        CategoriaIndisponivel,
+      );
+
+      expect(lerDespesa('orfa-despesa')).toEqual(antesDespesa);
+      expect(lerSerie('orfa-serie')).toEqual(antesSerie);
+    });
+
+    it('segunda exclusão mantém CategoriaIndisponivel e não altera nada', async () => {
+      const id = await criarCategoria(comValor);
+      inserirDespesa('segunda-despesa', id);
+      inserirSerie('segunda-serie', id);
+
+      await excluirCategoria(id);
+
+      const categoria = lerCategoria(id);
+      const despesa = lerDespesa('segunda-despesa');
+      const serie = lerSerie('segunda-serie');
+
+      await expect(excluirCategoria(id)).rejects.toThrow(
+        CategoriaIndisponivel,
+      );
+
+      expect(lerCategoria(id)).toEqual(categoria);
+      expect(lerDespesa('segunda-despesa')).toEqual(despesa);
+      expect(lerSerie('segunda-serie')).toEqual(serie);
+    });
+
+    it('falha na primeira escrita mantém categoria e referências', async () => {
+      const id = await criarCategoria(comValor);
+      inserirDespesa('falha-1-despesa', id);
+      inserirSerie('falha-1-serie', id);
+      const categoria = lerCategoria(id);
+      const despesa = lerDespesa('falha-1-despesa');
+      const serie = lerSerie('falha-1-serie');
+
+      banco.chamadas = 0;
+      banco.falharNaOperacao(1);
+
+      await expect(excluirCategoria(id)).rejects.toThrow(
+        FalhaPersistenciaCategoria,
+      );
+
+      expect(banco.chamadas).toBe(1);
+      expect(lerCategoria(id)).toEqual(categoria);
+      expect(lerDespesa('falha-1-despesa')).toEqual(despesa);
+      expect(lerSerie('falha-1-serie')).toEqual(serie);
+    });
+
+    it('falha na segunda escrita reverte despesas e mantém séries', async () => {
+      const id = await criarCategoria(comValor);
+      inserirDespesa('falha-2-despesa', id);
+      inserirSerie('falha-2-serie', id);
+      const categoria = lerCategoria(id);
+      const despesa = lerDespesa('falha-2-despesa');
+      const serie = lerSerie('falha-2-serie');
+
+      banco.chamadas = 0;
+      banco.falharNaOperacao(2);
+
+      await expect(excluirCategoria(id)).rejects.toThrow(
+        FalhaPersistenciaCategoria,
+      );
+
+      expect(banco.chamadas).toBe(2);
+      expect(lerCategoria(id)).toEqual(categoria);
+      expect(lerDespesa('falha-2-despesa')).toEqual(despesa);
+      expect(lerSerie('falha-2-serie')).toEqual(serie);
+    });
+
+    it('falha na terceira escrita reverte todas as referências', async () => {
+      const id = await criarCategoria(comValor);
+      inserirDespesa('falha-3-despesa', id);
+      inserirSerie('falha-3-serie', id);
+      const categoria = lerCategoria(id);
+      const despesa = lerDespesa('falha-3-despesa');
+      const serie = lerSerie('falha-3-serie');
+
+      banco.chamadas = 0;
+      banco.falharNaOperacao(3);
+
+      await expect(excluirCategoria(id)).rejects.toThrow(
+        FalhaPersistenciaCategoria,
+      );
+
+      expect(banco.chamadas).toBe(3);
+      expect(lerCategoria(id)).toEqual(categoria);
+      expect(lerDespesa('falha-3-despesa')).toEqual(despesa);
+      expect(lerSerie('falha-3-serie')).toEqual(serie);
+    });
+
+    it('nova tentativa após falha conclui a exclusão', async () => {
+      const id = await criarCategoria(comValor);
+      inserirDespesa('retry-despesa', id);
+      inserirSerie('retry-serie', id);
+
+      banco.chamadas = 0;
+      banco.falharNaOperacao(2);
+      await expect(excluirCategoria(id)).rejects.toThrow(
+        FalhaPersistenciaCategoria,
+      );
+
+      await excluirCategoria(id);
+
+      expect(lerCategoria(id).excluido_em).toBeTruthy();
+      expect(lerDespesa('retry-despesa')).toMatchObject({
+        categoria_id: null,
+        sync_status: 'pendente',
+      });
+      expect(lerSerie('retry-serie')).toMatchObject({
+        categoria_id: null,
+        sync_status: 'pendente',
+      });
+    });
+
+    it('categoria, despesas e séries afetadas recebem o mesmo atualizado_em', async () => {
+      const id = await criarCategoria(comValor);
+      inserirDespesa('mesmo-ts-despesa', id);
+      inserirSerie('mesmo-ts-serie-ativa', id, { ativa: 1 });
+      inserirSerie('mesmo-ts-serie-inativa', id, { ativa: 0 });
+
+      await excluirCategoria(id);
+
+      const categoria = lerCategoria(id);
+      expect(categoria.atualizado_em).not.toBe(TS);
+      expect(lerDespesa('mesmo-ts-despesa').atualizado_em).toBe(
+        categoria.atualizado_em,
+      );
+      expect(lerSerie('mesmo-ts-serie-ativa').atualizado_em).toBe(
+        categoria.atualizado_em,
+      );
+      expect(lerSerie('mesmo-ts-serie-inativa').atualizado_em).toBe(
+        categoria.atualizado_em,
+      );
+    });
+
+    it('registros não afetados mantêm seus timestamps originais', async () => {
+      const id = await criarCategoria(comValor);
+      const outra = await criarCategoria({ nome: 'Outra', limite: null });
+      const TS_OUTRA = '2025-12-01T00:00:00Z';
+      inserirDespesa('afetada-despesa', id);
+      inserirSerie('afetada-serie', id);
+      inserirDespesa('nao-afetada-despesa', outra, {
+        atualizadoEm: TS_OUTRA,
+      });
+      inserirSerie('nao-afetada-serie', outra, {
+        atualizadoEm: TS_OUTRA,
+      });
+      const antesDespesa = lerDespesa('nao-afetada-despesa');
+      const antesSerie = lerSerie('nao-afetada-serie');
+
+      await excluirCategoria(id);
+
+      expect(lerDespesa('nao-afetada-despesa')).toEqual(antesDespesa);
+      expect(lerSerie('nao-afetada-serie')).toEqual(antesSerie);
+      expect(lerDespesa('nao-afetada-despesa').atualizado_em).toBe(TS_OUTRA);
+      expect(lerSerie('nao-afetada-serie').atualizado_em).toBe(TS_OUTRA);
+    });
+  });
+
   // ---------------------------------------------------------------- consultas
 
   describe('listarCategorias e contadores', () => {
@@ -508,5 +985,192 @@ describe('Serviço de categorias (UC06)', () => {
          VALUES ('x', 'Nome Válido', 'nome válido', 2, 'pendente', 't', 't')`,
       ),
     ).rejects.toThrow(/padrao_valido/);
+  });
+
+  describe('mapeamento de categorias históricas da UC02', () => {
+    const SLUGS = [
+      ['casa', 'Casa'],
+      ['alimentacao', 'Alimentação'],
+      ['mobilidade', 'Mobilidade'],
+      ['estudos', 'Estudos'],
+      ['saude', 'Saúde'],
+      ['lazer', 'Lazer'],
+      ['reserva_financeira', 'Reserva financeira'],
+    ] as const;
+    const TS = '2026-01-01T00:00:00Z';
+
+    function inserirDespesa(
+      id: string,
+      categoriaId: string,
+      excluidoEm: string | null = null,
+    ): void {
+      banco.sqlite
+        .prepare(
+          `INSERT INTO despesas
+            (id, valor_centavos, data, titulo, descricao, categoria_id, sync_status,
+             excluido_em, criado_em, atualizado_em)
+           VALUES (?, 1000, '2026-01-10', ?, 'Descricao', ?, 'sincronizado', ?, ?, ?)`,
+        )
+        .run(id, `Despesa ${id}`, categoriaId, excluidoEm, TS, TS);
+    }
+
+    function inserirRecorrencia(id: string, categoriaId: string, ativa = 1): void {
+      banco.sqlite
+        .prepare(
+          `INSERT INTO recorrencias
+            (id, intervalo, unidade, inicio, ativa, valor_centavos, titulo, descricao,
+             categoria_id, sync_status, atualizado_em)
+           VALUES (?, 1, 'mes', '2026-01-10', ?, 50000, ?, 'Serie', ?, 'sincronizado', ?)`,
+        )
+        .run(id, ativa, `Recorrencia ${id}`, categoriaId, TS);
+    }
+
+    function idPadrao(nome: string): string {
+      const linha = banco.sqlite
+        .prepare(
+          'SELECT id FROM categorias WHERE nome = ? AND padrao = 1 AND excluido_em IS NULL',
+        )
+        .get(nome) as { id: string } | undefined;
+      if (!linha) throw new Error(`Categoria padrão ausente: ${nome}`);
+      return linha.id;
+    }
+
+    function despesa(id: string): any {
+      return banco.sqlite.prepare('SELECT * FROM despesas WHERE id = ?').get(id);
+    }
+
+    function recorrencia(id: string): any {
+      return banco.sqlite.prepare('SELECT * FROM recorrencias WHERE id = ?').get(id);
+    }
+
+    it('mapeia os sete slugs em despesas e recorrencias para os IDs reais', async () => {
+      await semearCategoriasPadrao();
+      for (const [slug] of SLUGS) {
+        inserirDespesa(`d-${slug}`, slug);
+        inserirRecorrencia(`r-${slug}`, slug);
+      }
+
+      await semearCategoriasPadrao();
+
+      for (const [slug, nome] of SLUGS) {
+        const id = idPadrao(nome);
+        expect(despesa(`d-${slug}`)).toMatchObject({
+          id: `d-${slug}`,
+          valor_centavos: 1000,
+          data: '2026-01-10',
+          titulo: `Despesa d-${slug}`,
+          descricao: 'Descricao',
+          categoria_id: id,
+          sync_status: 'pendente',
+        });
+        expect(recorrencia(`r-${slug}`)).toMatchObject({
+          id: `r-${slug}`,
+          valor_centavos: 50000,
+          titulo: `Recorrencia r-${slug}`,
+          descricao: 'Serie',
+          categoria_id: id,
+          sync_status: 'pendente',
+        });
+        expect(despesa(`d-${slug}`).atualizado_em).not.toBe(TS);
+        expect(recorrencia(`r-${slug}`).atualizado_em).not.toBe(TS);
+      }
+    });
+
+    it('segunda execução é idempotente e não altera timestamps nem sync_status', async () => {
+      await semearCategoriasPadrao();
+      inserirDespesa('d-casa', 'casa');
+      inserirRecorrencia('r-casa', 'casa');
+      await semearCategoriasPadrao();
+
+      const antesDespesa = despesa('d-casa');
+      const antesRecorrencia = recorrencia('r-casa');
+      await semearCategoriasPadrao();
+
+      expect(despesa('d-casa')).toEqual(antesDespesa);
+      expect(recorrencia('r-casa')).toEqual(antesRecorrencia);
+    });
+
+    it('preserva IDs reais e valores desconhecidos', async () => {
+      await semearCategoriasPadrao();
+      const casa = idPadrao('Casa');
+      inserirDespesa('d-real', casa);
+      inserirDespesa('d-desconhecida', 'id-desconhecido');
+      inserirRecorrencia('r-real', casa);
+      inserirRecorrencia('r-desconhecida', 'id-desconhecido');
+
+      const antesDespesaReal = despesa('d-real');
+      const antesDespesaDesconhecida = despesa('d-desconhecida');
+      const antesRecorrenciaReal = recorrencia('r-real');
+      const antesRecorrenciaDesconhecida = recorrencia('r-desconhecida');
+
+      await semearCategoriasPadrao();
+
+      expect(despesa('d-real')).toEqual(antesDespesaReal);
+      expect(despesa('d-desconhecida')).toEqual(antesDespesaDesconhecida);
+      expect(recorrencia('r-real')).toEqual(antesRecorrenciaReal);
+      expect(recorrencia('r-desconhecida')).toEqual(antesRecorrenciaDesconhecida);
+    });
+
+    it('mantém slug em quarentena enquanto houver conflito com categoria própria', async () => {
+      const propria = await criarCategoria({ nome: 'Casa', limite: null });
+      inserirDespesa('d-conflito', 'casa');
+      inserirRecorrencia('r-conflito', 'casa');
+
+      const resultado = await semearCategoriasPadrao();
+
+      expect(resultado.conflitos).toContain('Casa');
+      expect(despesa('d-conflito').categoria_id).toBe('casa');
+      expect(recorrencia('r-conflito').categoria_id).toBe('casa');
+
+      await excluirCategoria(propria);
+      await semearCategoriasPadrao();
+
+      const casa = idPadrao('Casa');
+      expect(despesa('d-conflito').categoria_id).toBe(casa);
+      expect(recorrencia('r-conflito').categoria_id).toBe(casa);
+    });
+
+    it('falha no UPDATE de recorrencias reverted semeadura e mapeamento de despesas', async () => {
+      await semearCategoriasPadrao();
+      inserirDespesa('d-falha', 'casa');
+      inserirRecorrencia('r-falha', 'casa');
+      const categoriasAntes = banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get();
+
+      banco.falharNaOperacao(2); // UPDATE despesas OK; UPDATE recorrencias falha
+      await expect(semearCategoriasPadrao()).rejects.toThrow(FalhaPersistenciaCategoria);
+
+      expect(despesa('d-falha').categoria_id).toBe('casa');
+      expect(despesa('d-falha').sync_status).toBe('sincronizado');
+      expect(despesa('d-falha').atualizado_em).toBe(TS);
+      expect(recorrencia('r-falha').categoria_id).toBe('casa');
+      expect(recorrencia('r-falha').sync_status).toBe('sincronizado');
+      expect(banco.sqlite.prepare('SELECT COUNT(*) AS n FROM categorias').get()).toEqual(
+        categoriasAntes,
+      );
+      expect(banco.sqlite.prepare('PRAGMA integrity_check').get()).toEqual({
+        integrity_check: 'ok',
+      });
+    });
+
+    it('preserva tombstones de despesas e mapeia recorrências inativas', async () => {
+      await semearCategoriasPadrao();
+      inserirDespesa('d-excluida', 'casa', '2026-02-01T00:00:00Z');
+      inserirRecorrencia('r-inativa', 'casa', 0);
+
+      await semearCategoriasPadrao();
+
+      const casa = idPadrao('Casa');
+      expect(despesa('d-excluida')).toMatchObject({
+        categoria_id: 'casa',
+        sync_status: 'sincronizado',
+        atualizado_em: TS,
+        excluido_em: '2026-02-01T00:00:00Z',
+      });
+      expect(recorrencia('r-inativa')).toMatchObject({
+        categoria_id: casa,
+        sync_status: 'pendente',
+        ativa: 0,
+      });
+    });
   });
 });

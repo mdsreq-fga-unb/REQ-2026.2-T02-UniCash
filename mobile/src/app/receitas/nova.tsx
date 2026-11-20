@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ReceitaForm } from '@/components/receitas/ReceitaForm';
 import { registrarReceita } from '@/features/receitas/service';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
 import type { ReceitaInput } from '@/features/receitas/types';

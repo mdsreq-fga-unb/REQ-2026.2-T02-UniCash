@@ -9,6 +9,9 @@ import type { SQLiteDatabase } from 'expo-sqlite';
 import { PERCENTUAL_MAX_CENTESIMOS } from '@/features/categorias/limites';
 import {
   DDL_ESQUEMA,
+  DDL_INDICES_DESPESAS,
+  DDL_RECORRENCIAS_V5,
+  DDL_TABELA_DESPESAS,
   DDL_TABELA_CATEGORIAS,
   DDL_TRIGGER_PERCENTUAL,
   LIMITE_PERCENTUAL_MAX,
@@ -16,7 +19,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 3;
+export const VERSAO_ESQUEMA = 5;
 
 export interface RegistroInvalido {
   id: string;
@@ -64,8 +67,10 @@ export class DependenciaInesperada extends Error {
 
 /** Estrutura legada divergente do esperado (colunas extras ou ausentes). A migração aborta. */
 export class EstruturaLegadaInesperada extends Error {
-  constructor(detalhe: string) {
-    super(`Migração abortada: estrutura inesperada da tabela categorias (${detalhe}). Nada foi alterado.`);
+  constructor(detalhe: string, readonly tabela = 'categorias') {
+    super(
+      `Migração abortada: estrutura inesperada da tabela ${tabela} (${detalhe}). Nada foi alterado.`,
+    );
     this.name = 'EstruturaLegadaInesperada';
   }
 }
@@ -104,12 +109,15 @@ interface Migracao {
  * sem impor máximo de negócio.
  * A 003 aplica, por triggers aditivos, a faixa percentual provisória de
  * 0,01% a 100% (1 a 10.000 centésimos), sem reconstruir a tabela nem alterar
- * dados legados. A futura integração da UC02 fica reservada para a 004.
+ * dados legados.
+ * A 004 integra as estruturas da UC02 (`recorrencias` e `despesas`).
  */
 const MIGRACOES: Migracao[] = [
   { versao: 1, executar: migrar001 },
   { versao: 2, executar: migrar002 },
   { versao: 3, executar: migrar003 },
+  { versao: 4, executar: migrar004 },
+  { versao: 5, executar: migrar005 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -179,6 +187,141 @@ export const ESTRUTURAS_ESPERADAS: Record<string, ColunaEsperada[]> = {
     { name: 'atualizado_em', type: 'TEXT', notnull: 1, pk: 0 },
   ],
 };
+
+interface ColunaTabela {
+  nome: string;
+  tipo: 'TEXT' | 'INTEGER';
+  notnull: 0 | 1;
+  defaultValue: string | null;
+  pk: 0 | 1;
+}
+
+interface ColunaRecorrencia extends ColunaTabela {
+  nome: 'tipo' | 'categoria_id' | 'fixa_ou_variavel' | 'essencial';
+  ddl: string;
+}
+
+interface ColunaRecorrenciaAtual {
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: string | null;
+  pk: number;
+}
+
+/** Estruturas canônicas de recorrencias: base UC01/UC06 v3 e forma da UC02. */
+const RECORRENCIAS_BASE_UC01 = `CREATE TABLE IF NOT EXISTS recorrencias (
+      id TEXT PRIMARY KEY NOT NULL,
+      intervalo INTEGER NOT NULL CHECK (intervalo > 0),
+      unidade TEXT NOT NULL CHECK (unidade IN ('dia','mes','ano')),
+      inicio TEXT NOT NULL,
+      termino TEXT,
+      ativa INTEGER NOT NULL DEFAULT 1,
+      valor_centavos INTEGER NOT NULL,
+      titulo TEXT NOT NULL,
+      descricao TEXT,
+      sync_status TEXT NOT NULL DEFAULT 'pendente',
+      atualizado_em TEXT NOT NULL
+    )`;
+
+const RECORRENCIAS_UC02 = `CREATE TABLE IF NOT EXISTS recorrencias (
+      id TEXT PRIMARY KEY NOT NULL,
+      tipo TEXT NOT NULL DEFAULT 'receita'
+        CHECK (tipo IN ('receita', 'despesa')),
+      intervalo INTEGER NOT NULL CHECK (intervalo > 0),
+      unidade TEXT NOT NULL CHECK (unidade IN ('dia','mes','ano')),
+      inicio TEXT NOT NULL,
+      termino TEXT,
+      ativa INTEGER NOT NULL DEFAULT 1,
+      valor_centavos INTEGER NOT NULL,
+      titulo TEXT NOT NULL,
+      descricao TEXT,
+      categoria_id TEXT,
+      fixa_ou_variavel TEXT CHECK (
+        fixa_ou_variavel IS NULL OR
+        fixa_ou_variavel IN ('fixa', 'variavel')
+      ),
+      essencial INTEGER CHECK (
+        essencial IS NULL OR essencial IN (0, 1)
+      ),
+      sync_status TEXT NOT NULL DEFAULT 'pendente',
+      atualizado_em TEXT NOT NULL
+    )`;
+
+const COLUNAS_NOVAS_RECORRENCIAS: ColunaRecorrencia[] = [
+  {
+    nome: 'tipo',
+    ddl: `ALTER TABLE recorrencias ADD COLUMN tipo TEXT NOT NULL DEFAULT 'receita' CHECK (tipo IN ('receita', 'despesa'))`,
+    tipo: 'TEXT',
+    notnull: 1,
+    defaultValue: "'receita'",
+    pk: 0,
+  },
+  {
+    nome: 'categoria_id',
+    ddl: 'ALTER TABLE recorrencias ADD COLUMN categoria_id TEXT',
+    tipo: 'TEXT',
+    notnull: 0,
+    defaultValue: null,
+    pk: 0,
+  },
+  {
+    nome: 'fixa_ou_variavel',
+    ddl: `ALTER TABLE recorrencias ADD COLUMN fixa_ou_variavel TEXT CHECK (fixa_ou_variavel IS NULL OR fixa_ou_variavel IN ('fixa', 'variavel'))`,
+    tipo: 'TEXT',
+    notnull: 0,
+    defaultValue: null,
+    pk: 0,
+  },
+  {
+    nome: 'essencial',
+    ddl: `ALTER TABLE recorrencias ADD COLUMN essencial INTEGER CHECK (essencial IS NULL OR essencial IN (0, 1))`,
+    tipo: 'INTEGER',
+    notnull: 0,
+    defaultValue: null,
+    pk: 0,
+  },
+];
+
+/** Normaliza a forma de origem para a forma armazenada por sqlite_master. */
+function normalizarAssinatura(sql: string): string {
+  return sql
+    .replace(/^\s*CREATE (TABLE|INDEX) IF NOT EXISTS\s+/, 'CREATE $1 ')
+    .replace(/\s+/g, ' ')
+    .replace(/\s*([(),])\s*/g, '$1')
+    .trim()
+    .replace(/;\s*$/, '');
+}
+
+const ASSINATURA_BASE_RECORRENCIAS = normalizarAssinatura(RECORRENCIAS_BASE_UC01);
+const COLUNAS_ALTER_NORMALIZADAS = COLUNAS_NOVAS_RECORRENCIAS.map((coluna) =>
+  normalizarAssinatura(coluna.ddl.replace(/^ALTER TABLE recorrencias ADD COLUMN /, '')),
+);
+
+function assinaturaComColunasAnexadas(quantidade: number): string {
+  if (quantidade === 0) return ASSINATURA_BASE_RECORRENCIAS;
+  const corpo = ASSINATURA_BASE_RECORRENCIAS.slice(0, -1);
+  return `${corpo},${COLUNAS_ALTER_NORMALIZADAS.slice(0, quantidade).join(',')})`;
+}
+
+const ASSINATURAS_RECORRENCIAS: string[] = [
+  assinaturaComColunasAnexadas(0),
+  assinaturaComColunasAnexadas(1),
+  assinaturaComColunasAnexadas(2),
+  assinaturaComColunasAnexadas(3),
+  assinaturaComColunasAnexadas(4),
+  normalizarAssinatura(RECORRENCIAS_UC02),
+];
+
+/** Formas v5: UC02 canônica e a variante histórica com colunas anexadas. */
+const ASSINATURA_RECORRENCIAS_V5 = normalizarAssinatura(DDL_RECORRENCIAS_V5);
+const ASSINATURA_RECORRENCIAS_V5_ANEXADA = `${
+  assinaturaComColunasAnexadas(4).slice(0, -1)
+},excluido_em TEXT)`;
+const ASSINATURAS_RECORRENCIAS_V5 = [
+  ASSINATURA_RECORRENCIAS_V5,
+  ASSINATURA_RECORRENCIAS_V5_ANEXADA,
+];
 
 /** Constraints nomeadas que o DDL da forma nova deve conter. */
 const CONSTRAINTS_ESPERADAS: string[] = [
@@ -260,7 +403,9 @@ async function prepararInstalacaoNova(tx: SQLiteDatabase): Promise<void> {
 
   if (objetos.length === 0) return; // banco realmente vazio
 
-  const inesperados = objetos.filter((n) => n !== 'recorrencias' && n !== 'receitas');
+  const inesperados = objetos.filter(
+    (n) => n !== 'recorrencias' && n !== 'receitas' && n !== 'despesas',
+  );
   if (inesperados.length > 0) {
     throw new EstruturaLegadaInesperada(
       `instalação parcial com objetos não esperados: [${inesperados.join(', ')}]`,
@@ -270,25 +415,38 @@ async function prepararInstalacaoNova(tx: SQLiteDatabase): Promise<void> {
   for (const nome of ['recorrencias', 'receitas'] as const) {
     if (!objetos.includes(nome)) continue;
 
-    const atual = await tx.getAllAsync<ColunaEsperada>(`PRAGMA table_info("${nome}")`);
-    const esperada = ESTRUTURAS_ESPERADAS[nome];
-    if (atual.length !== esperada.length) {
-      throw new EstruturaLegadaInesperada(
-        `"${nome}" tem ${atual.length} colunas; o esquema canônico tem ${esperada.length}`,
+    if (nome === 'recorrencias') {
+      const { indice, quantidadeExistente } = await validarAssinaturaRecorrencias(
+        tx,
+        (detalhe) => new EstruturaLegadaInesperada(detalhe, 'recorrencias'),
       );
-    }
-    for (let i = 0; i < esperada.length; i++) {
-      const a = atual[i];
-      const e = esperada[i];
-      if (
-        a.name !== e.name ||
-        a.type.toUpperCase() !== e.type.toUpperCase() ||
-        a.notnull !== e.notnull ||
-        a.pk !== e.pk
-      ) {
+      if (indice !== 0 && indice !== 5) {
         throw new EstruturaLegadaInesperada(
-          `estrutura de "${nome}" diverge do esquema canônico na coluna ${i + 1} (${a.name} ≠ ${e.name})`,
+          `"recorrencias" tem ${11 + quantidadeExistente} colunas, mas não corresponde à assinatura histórica UC01 (11) ou UC02 (15)`,
+          'recorrencias',
         );
+      }
+    } else {
+      const atual = await tx.getAllAsync<ColunaEsperada>(`PRAGMA table_info("${nome}")`);
+      const esperada = ESTRUTURAS_ESPERADAS[nome];
+      if (atual.length !== esperada.length) {
+        throw new EstruturaLegadaInesperada(
+          `"${nome}" tem ${atual.length} colunas; o esquema canônico tem ${esperada.length}`,
+        );
+      }
+      for (let i = 0; i < esperada.length; i++) {
+        const a = atual[i];
+        const e = esperada[i];
+        if (
+          a.name !== e.name ||
+          a.type.toUpperCase() !== e.type.toUpperCase() ||
+          a.notnull !== e.notnull ||
+          a.pk !== e.pk
+        ) {
+          throw new EstruturaLegadaInesperada(
+            `estrutura de "${nome}" diverge do esquema canônico na coluna ${i + 1} (${a.name} ≠ ${e.name})`,
+          );
+        }
       }
     }
 
@@ -298,6 +456,18 @@ async function prepararInstalacaoNova(tx: SQLiteDatabase): Promise<void> {
       throw new EstruturaLegadaInesperada(
         `índice(s) inesperado(s) em "${nome}": [${indicesInesperados.join(', ')}]`,
       );
+    }
+  }
+
+  if (objetos.includes('despesas')) {
+    try {
+      await validarTabelaDespesas(tx);
+      await validarIndicesDespesas(tx, false);
+    } catch (erro) {
+      if (erro instanceof FalhaMigracao) {
+        throw new EstruturaLegadaInesperada(erro.message, 'despesas');
+      }
+      throw erro;
     }
   }
 }
@@ -411,6 +581,9 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
     await db.withExclusiveTransactionAsync(async (tx) => {
       await prepararInstalacaoNova(tx);
       await tx.execAsync(DDL_ESQUEMA);
+      await garantirColunasRecorrencias(tx);
+      await garantirTabelaDespesas(tx);
+      await garantirColunaExcluidoEmRecorrencias(tx);
       await aplicarTriggersPercentual(tx);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
@@ -491,6 +664,346 @@ async function migrar003(db: SQLiteDatabase, versaoDestino: number): Promise<voi
     await aplicarTriggersPercentual(tx);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
+}
+
+/**
+ * 004 — integra recorrencias e despesas da UC02 à cadeia versionada.
+ * A versão só é gravada depois que os dois helpers concluem com sucesso.
+ */
+async function migrar004(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await garantirColunasRecorrencias(tx);
+    await garantirTabelaDespesas(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/**
+ * 005 — tombstone lógico de recorrências.
+ * Aditiva e transacional: preserva os dados e só grava a versão após validar.
+ */
+async function migrar005(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await garantirColunaExcluidoEmRecorrencias(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+function validarColunaTabela(
+  tabela: string,
+  coluna: ColunaTabela,
+  atual: ColunaRecorrenciaAtual,
+): void {
+  if (atual.type.toUpperCase() !== coluna.tipo) {
+    throw new FalhaMigracao(
+      `coluna "${coluna.nome}" de ${tabela}: tipo ${atual.type}, esperado ${coluna.tipo}`,
+    );
+  }
+  if (atual.notnull !== coluna.notnull) {
+    throw new FalhaMigracao(
+      `coluna "${coluna.nome}" de ${tabela}: notnull ${atual.notnull}, esperado ${coluna.notnull}`,
+    );
+  }
+  if ((atual.dflt_value ?? null) !== coluna.defaultValue) {
+    throw new FalhaMigracao(
+      `coluna "${coluna.nome}" de ${tabela}: default ${atual.dflt_value ?? 'NULL'}, esperado ${coluna.defaultValue ?? 'NULL'}`,
+    );
+  }
+  if (atual.pk !== coluna.pk) {
+    throw new FalhaMigracao(
+      `coluna "${coluna.nome}" de ${tabela}: pk ${atual.pk}, esperado ${coluna.pk}`,
+    );
+  }
+}
+
+function validarColunaRecorrencia(
+  coluna: ColunaRecorrencia,
+  atual: ColunaRecorrenciaAtual,
+): void {
+  validarColunaTabela('recorrencias', coluna, atual);
+}
+
+/** Validação somente leitura das assinaturas UC01/UC02 de recorrencias. */
+async function validarAssinaturaRecorrencias(
+  tx: SQLiteDatabase,
+  criarErro: (detalhe: string) => Error = (detalhe) => new FalhaMigracao(detalhe),
+): Promise<{ indice: number; quantidadeExistente: number }> {
+  const info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(recorrencias)');
+  if (info.length === 0) {
+    throw criarErro('tabela "recorrencias" ausente');
+  }
+
+  const sql = (
+    await tx.getFirstAsync<{ sql: string | null }>(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'recorrencias'",
+    )
+  )?.sql ?? '';
+  const assinatura = normalizarAssinatura(sql);
+  const indice = ASSINATURAS_RECORRENCIAS.indexOf(assinatura);
+  if (indice < 0) {
+    throw criarErro('estrutura de "recorrencias" desconhecida');
+  }
+
+  const quantidadeExistente = indice === ASSINATURAS_RECORRENCIAS.length - 1 ? 4 : indice;
+  const porNome = new Map(info.map((coluna) => [coluna.name, coluna]));
+
+  for (const coluna of COLUNAS_NOVAS_RECORRENCIAS.slice(0, quantidadeExistente)) {
+    const atual = porNome.get(coluna.nome);
+    if (!atual) {
+      throw criarErro(
+        `assinatura de "recorrencias" indica a coluna "${coluna.nome}", mas ela está ausente`,
+      );
+    }
+    try {
+      validarColunaRecorrencia(coluna, atual);
+    } catch (erro) {
+      if (erro instanceof FalhaMigracao) {
+        throw criarErro(erro.message);
+      }
+      throw erro;
+    }
+  }
+
+  for (const coluna of COLUNAS_NOVAS_RECORRENCIAS.slice(quantidadeExistente)) {
+    if (porNome.has(coluna.nome)) {
+      throw criarErro(`coluna "${coluna.nome}" de recorrencias existe fora da assinatura canônica`);
+    }
+  }
+
+  return { indice, quantidadeExistente };
+}
+
+/**
+ * Garante as quatro colunas da UC02 em recorrencias, sem reconstruir a tabela.
+ * Usa a transação recebida e não altera user_version.
+ */
+/** @internal Exportada para testes; não faz parte da API de produção. */
+export async function garantirColunasRecorrencias(tx: SQLiteDatabase): Promise<void> {
+  const { quantidadeExistente } = await validarAssinaturaRecorrencias(tx);
+
+  for (const coluna of COLUNAS_NOVAS_RECORRENCIAS.slice(quantidadeExistente)) {
+    await tx.execAsync(coluna.ddl);
+  }
+
+  const depois = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(recorrencias)');
+  const mapaDepois = new Map(depois.map((coluna) => [coluna.name, coluna]));
+  for (const coluna of COLUNAS_NOVAS_RECORRENCIAS) {
+    const atual = mapaDepois.get(coluna.nome);
+    if (!atual) {
+      throw new FalhaMigracao(`coluna "${coluna.nome}" ausente após ALTER TABLE`);
+    }
+    validarColunaRecorrencia(coluna, atual);
+  }
+
+  const sqlDepois = (
+    await tx.getFirstAsync<{ sql: string | null }>(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'recorrencias'",
+    )
+  )?.sql ?? '';
+  const indiceDepois = ASSINATURAS_RECORRENCIAS.indexOf(normalizarAssinatura(sqlDepois));
+  if (indiceDepois !== 4 && indiceDepois !== ASSINATURAS_RECORRENCIAS.length - 1) {
+    throw new FalhaMigracao('estrutura de "recorrencias" divergente após ALTER TABLE');
+  }
+}
+
+async function validarTabelaRecorrenciasV5(tx: SQLiteDatabase): Promise<void> {
+  const sql = (
+    await tx.getFirstAsync<{ sql: string | null }>(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'recorrencias'",
+    )
+  )?.sql ?? '';
+
+  if (!ASSINATURAS_RECORRENCIAS_V5.includes(normalizarAssinatura(sql))) {
+    throw new FalhaMigracao('estrutura v5 de "recorrencias" divergente');
+  }
+
+  const colunas = await tx.getAllAsync<ColunaRecorrenciaAtual>(
+    'PRAGMA table_info(recorrencias)',
+  );
+  const excluido = colunas[colunas.length - 1];
+
+  if (
+    colunas.length !== 16 ||
+    excluido?.name !== 'excluido_em' ||
+    excluido.type.toUpperCase() !== 'TEXT' ||
+    excluido.notnull !== 0 ||
+    excluido.pk !== 0
+  ) {
+    throw new FalhaMigracao('coluna "excluido_em" ausente ou inválida em "recorrencias"');
+  }
+}
+
+/** Acrescenta a coluna v5 sem alterar a migration 004 nem suas assinaturas históricas. */
+/** @internal Exportada para testes; não faz parte da API de produção. */
+export async function garantirColunaExcluidoEmRecorrencias(
+  tx: SQLiteDatabase,
+): Promise<void> {
+  const sql = (
+    await tx.getFirstAsync<{ sql: string | null }>(
+      "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'recorrencias'",
+    )
+  )?.sql ?? '';
+  const assinatura = normalizarAssinatura(sql);
+
+  if (ASSINATURAS_RECORRENCIAS_V5.includes(assinatura)) {
+    await validarTabelaRecorrenciasV5(tx);
+    return;
+  }
+
+  // Antes do ALTER, a tabela precisa estar em uma forma v4 conhecida.
+  await validarAssinaturaRecorrencias(tx);
+
+  await tx.execAsync('ALTER TABLE recorrencias ADD COLUMN excluido_em TEXT');
+  await validarTabelaRecorrenciasV5(tx);
+}
+
+const COLUNAS_DESPESAS: ColunaTabela[] = [
+  { nome: 'id', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 1 },
+  { nome: 'valor_centavos', tipo: 'INTEGER', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'data', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'titulo', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'descricao', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'categoria_id', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'fixa_ou_variavel', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'essencial', tipo: 'INTEGER', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'recorrencia_id', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'sync_status', tipo: 'TEXT', notnull: 1, defaultValue: "'pendente'", pk: 0 },
+  { nome: 'excluido_em', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'criado_em', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'atualizado_em', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+];
+
+const ASSINATURA_TABELA_DESPESAS = normalizarAssinatura(DDL_TABELA_DESPESAS);
+
+const INDICES_DESPESAS_ESPERADOS = [
+  { nome: 'idx_despesas_data', colunas: ['data'], unico: false, ddl: DDL_INDICES_DESPESAS[0] },
+  {
+    nome: 'idx_despesas_categoria_data',
+    colunas: ['categoria_id', 'data'],
+    unico: false,
+    ddl: DDL_INDICES_DESPESAS[1],
+  },
+  {
+    nome: 'idx_despesas_recorrencia',
+    colunas: ['recorrencia_id'],
+    unico: false,
+    ddl: DDL_INDICES_DESPESAS[2],
+  },
+  { nome: 'idx_despesas_sync', colunas: ['sync_status'], unico: false, ddl: DDL_INDICES_DESPESAS[3] },
+] as const;
+
+async function validarTabelaDespesas(tx: SQLiteDatabase): Promise<void> {
+  const tabela = await tx.getFirstAsync<{ sql: string | null }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'despesas'",
+  );
+  if (!tabela?.sql || normalizarAssinatura(tabela.sql) !== ASSINATURA_TABELA_DESPESAS) {
+    throw new FalhaMigracao('estrutura de "despesas" desconhecida');
+  }
+
+  const info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(despesas)');
+  if (info.length !== COLUNAS_DESPESAS.length) {
+    throw new FalhaMigracao(
+      `"despesas" tem ${info.length} colunas; esperado ${COLUNAS_DESPESAS.length}`,
+    );
+  }
+
+  const porNome = new Map(info.map((coluna) => [coluna.name, coluna]));
+  for (const coluna of COLUNAS_DESPESAS) {
+    const atual = porNome.get(coluna.nome);
+    if (!atual) {
+      throw new FalhaMigracao(`coluna "${coluna.nome}" ausente em "despesas"`);
+    }
+    validarColunaTabela('despesas', coluna, atual);
+  }
+
+  const extras = info.filter((coluna) => !COLUNAS_DESPESAS.some((c) => c.nome === coluna.name));
+  if (extras.length > 0) {
+    throw new FalhaMigracao(
+      `coluna(s) inesperada(s) em "despesas": [${extras.map((c) => c.name).join(', ')}]`,
+    );
+  }
+
+  const fks = await tx.getAllAsync<{ table: string; from: string; to: string }>(
+    'PRAGMA foreign_key_list(despesas)',
+  );
+  const fk = fks.find((f) => f.from === 'recorrencia_id');
+  if (fks.length !== 1 || !fk || fk.table !== 'recorrencias' || fk.to !== 'id') {
+    throw new FalhaMigracao('FK de despesas.recorrencia_id inválida');
+  }
+}
+
+async function validarIndicesDespesas(
+  tx: SQLiteDatabase,
+  exigirTodos: boolean,
+): Promise<string[]> {
+  const nomes = await indicesDeUsuario(tx, 'despesas');
+  const esperados: string[] = INDICES_DESPESAS_ESPERADOS.map((indice) => indice.nome);
+  const extras = nomes.filter((nome) => !esperados.includes(nome));
+  if (extras.length > 0) {
+    throw new FalhaMigracao(`índice(s) inesperado(s) em "despesas": [${extras.join(', ')}]`);
+  }
+
+  const lista = await tx.getAllAsync<{
+    name: string;
+    unique: number;
+    partial: number;
+    origin: string;
+  }>('PRAGMA index_list(despesas)');
+  const faltantes: string[] = [];
+
+  for (const indice of INDICES_DESPESAS_ESPERADOS) {
+    const atual = lista.find((item) => item.name === indice.nome);
+    if (!atual) {
+      faltantes.push(indice.nome);
+      continue;
+    }
+
+    if (atual.unique !== (indice.unico ? 1 : 0) || atual.partial !== 0 || atual.origin !== 'c') {
+      throw new FalhaMigracao(`índice "${indice.nome}" com definição incompatível`);
+    }
+
+    const sql = await tx.getFirstAsync<{ sql: string | null }>(
+      "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+      [indice.nome],
+    );
+    if (!sql?.sql || normalizarAssinatura(sql.sql) !== normalizarAssinatura(indice.ddl)) {
+      throw new FalhaMigracao(`DDL do índice "${indice.nome}" divergente`);
+    }
+
+    const colunas = await tx.getAllAsync<{ name: string }>(
+      `PRAGMA index_info("${indice.nome}")`,
+    );
+    if (colunas.map((coluna) => coluna.name).join(',') !== indice.colunas.join(',')) {
+      throw new FalhaMigracao(`colunas do índice "${indice.nome}" divergentes`);
+    }
+  }
+
+  if (exigirTodos && faltantes.length > 0) {
+    throw new FalhaMigracao(`índice(s) ausente(s) em "despesas": [${faltantes.join(', ')}]`);
+  }
+  return faltantes;
+}
+
+/**
+ * Garante a tabela despesas e seus índices, sem reconstruir nem apagar dados.
+ * Usa a transação recebida e não altera user_version.
+ */
+/** @internal Exportada para testes; não faz parte da API de produção. */
+export async function garantirTabelaDespesas(tx: SQLiteDatabase): Promise<void> {
+  if (!(await existeTabela(tx, 'despesas'))) {
+    await tx.execAsync(DDL_TABELA_DESPESAS);
+  }
+
+  await validarTabelaDespesas(tx);
+
+  const faltantes = await validarIndicesDespesas(tx, false);
+  for (const nome of faltantes) {
+    const indice = INDICES_DESPESAS_ESPERADOS.find((item) => item.nome === nome);
+    if (!indice) throw new FalhaMigracao(`índice esperado "${nome}" não encontrado`);
+    await tx.execAsync(indice.ddl);
+  }
+
+  await validarIndicesDespesas(tx, true);
 }
 
 async function reconstruirCategorias(tx: SQLiteDatabase, versaoDestino: number): Promise<void> {

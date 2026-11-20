@@ -56,6 +56,27 @@ export function serieLinha(extra: Partial<Recorrencia> = {}): Recorrencia {
     descricao: null,
     sync_status: 'sincronizado',
     atualizado_em: '2026-10-16T12:00:00.000Z',
+    excluido_em: null,
+    ...extra,
+  };
+}
+import type { Despesa } from '@/features/despesas/types';
+
+export function despesaLinha(extra: Partial<Despesa> = {}): Despesa {
+  return {
+    id: 'despesa-abc',
+    valor_centavos: 150000,
+    data: '2026-10-16',
+    titulo: 'Aluguel',
+    descricao: 'Aluguel do apartamento',
+    categoria_id: null,
+    fixa_ou_variavel: 'fixa',
+    essencial: 1,
+    recorrencia_id: null,
+    sync_status: 'sincronizado',
+    excluido_em: null,
+    criado_em: '2026-10-16T12:00:00.000Z',
+    atualizado_em: '2026-10-16T12:00:00.000Z',
     ...extra,
   };
 }

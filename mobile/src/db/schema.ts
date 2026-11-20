@@ -1,3 +1,4 @@
+
 /** Esquema da base local (RN06). Compartilhado pelo app e pelos testes. */
 import { PERCENTUAL_MAX_CENTESIMOS } from '@/features/categorias/limites';
 
@@ -72,10 +73,49 @@ export const DDL_TABELA_CATEGORIAS = (tabela: string) => `
     );
   `;
 
-/** DDL completo do esquema (somente definições; os PRAGMAs ficam em PRAGMAS_SQL). */
-export const DDL_ESQUEMA = `
-    CREATE TABLE IF NOT EXISTS recorrencias (
+/**
+ * DDL da tabela despesas (UC02), reutilizável na migração 004.
+ * Mantém as mesmas colunas, constraints e FK do DDL_ESQUEMA.
+ */
+export const DDL_TABELA_DESPESAS = `CREATE TABLE IF NOT EXISTS despesas (
       id TEXT PRIMARY KEY NOT NULL,
+      valor_centavos INTEGER NOT NULL CHECK (valor_centavos > 0),
+      data TEXT NOT NULL,
+      titulo TEXT NOT NULL,
+      descricao TEXT,
+      categoria_id TEXT,
+      fixa_ou_variavel TEXT CHECK (
+        fixa_ou_variavel IS NULL OR
+        fixa_ou_variavel IN ('fixa', 'variavel')
+      ),
+      essencial INTEGER CHECK (
+        essencial IS NULL OR essencial IN (0, 1)
+      ),
+      recorrencia_id TEXT REFERENCES recorrencias(id),
+      sync_status TEXT NOT NULL DEFAULT 'pendente',
+      excluido_em TEXT,
+      criado_em TEXT NOT NULL,
+      atualizado_em TEXT NOT NULL
+    );`;
+
+/**
+ * Índices da tabela despesas (UC02), reutilizáveis na migração 004.
+ * Cada item é uma instrução completa.
+ */
+export const DDL_INDICES_DESPESAS = [
+  'CREATE INDEX IF NOT EXISTS idx_despesas_data ON despesas(data);',
+  `CREATE INDEX IF NOT EXISTS idx_despesas_categoria_data
+      ON despesas(categoria_id, data);`,
+  `CREATE INDEX IF NOT EXISTS idx_despesas_recorrencia
+      ON despesas(recorrencia_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_despesas_sync
+      ON despesas(sync_status);`,
+] as const;
+
+const RECORRENCIAS_V4 = `CREATE TABLE IF NOT EXISTS recorrencias (
+      id TEXT PRIMARY KEY NOT NULL,
+      tipo TEXT NOT NULL DEFAULT 'receita'
+        CHECK (tipo IN ('receita', 'despesa')),
       intervalo INTEGER NOT NULL CHECK (intervalo > 0),
       unidade TEXT NOT NULL CHECK (unidade IN ('dia','mes','ano')),
       inicio TEXT NOT NULL,
@@ -84,9 +124,46 @@ export const DDL_ESQUEMA = `
       valor_centavos INTEGER NOT NULL,
       titulo TEXT NOT NULL,
       descricao TEXT,
+      categoria_id TEXT,
+      fixa_ou_variavel TEXT CHECK (
+        fixa_ou_variavel IS NULL OR
+        fixa_ou_variavel IN ('fixa', 'variavel')
+      ),
+      essencial INTEGER CHECK (
+        essencial IS NULL OR essencial IN (0, 1)
+      ),
       sync_status TEXT NOT NULL DEFAULT 'pendente',
       atualizado_em TEXT NOT NULL
-    );
+    );`;
+
+/** Forma v5: a coluna de tombstone é acrescentada ao final, como no ALTER TABLE. */
+export const DDL_RECORRENCIAS_V5 = `CREATE TABLE IF NOT EXISTS recorrencias (
+      id TEXT PRIMARY KEY NOT NULL,
+      tipo TEXT NOT NULL DEFAULT 'receita'
+        CHECK (tipo IN ('receita', 'despesa')),
+      intervalo INTEGER NOT NULL CHECK (intervalo > 0),
+      unidade TEXT NOT NULL CHECK (unidade IN ('dia','mes','ano')),
+      inicio TEXT NOT NULL,
+      termino TEXT,
+      ativa INTEGER NOT NULL DEFAULT 1,
+      valor_centavos INTEGER NOT NULL,
+      titulo TEXT NOT NULL,
+      descricao TEXT,
+      categoria_id TEXT,
+      fixa_ou_variavel TEXT CHECK (
+        fixa_ou_variavel IS NULL OR
+        fixa_ou_variavel IN ('fixa', 'variavel')
+      ),
+      essencial INTEGER CHECK (
+        essencial IS NULL OR essencial IN (0, 1)
+      ),
+      sync_status TEXT NOT NULL DEFAULT 'pendente',
+      atualizado_em TEXT NOT NULL,
+      excluido_em TEXT
+    );`;
+
+const DDL_ESQUEMA_BASE = (recorrencias: string) => `
+    ${recorrencias}
 
     CREATE TABLE IF NOT EXISTS receitas (
       id TEXT PRIMARY KEY NOT NULL,
@@ -101,6 +178,8 @@ export const DDL_ESQUEMA = `
       atualizado_em TEXT NOT NULL
     );
 
+    ${DDL_TABELA_DESPESAS}
+
     CREATE INDEX IF NOT EXISTS idx_receitas_data ON receitas(data);
     CREATE INDEX IF NOT EXISTS idx_receitas_recorrencia ON receitas(recorrencia_id);
     CREATE INDEX IF NOT EXISTS idx_receitas_sync ON receitas(sync_status);
@@ -110,7 +189,15 @@ export const DDL_ESQUEMA = `
     CREATE UNIQUE INDEX IF NOT EXISTS idx_categorias_nome_unico
       ON categorias(nome_normalizado) WHERE excluido_em IS NULL;
     CREATE INDEX IF NOT EXISTS idx_categorias_sync ON categorias(sync_status);
+
+    ${DDL_INDICES_DESPESAS.join('\n    ')}
   `;
+
+/** Forma histórica v4, preservada para as migrations 001–004. */
+export const DDL_ESQUEMA = DDL_ESQUEMA_BASE(RECORRENCIAS_V4);
+
+/** Forma atual v5, usada por instalações novas e pela migration 005. */
+export const DDL_ESQUEMA_V5 = DDL_ESQUEMA_BASE(DDL_RECORRENCIAS_V5);
 
 /** Triggers de faixa percentual (provisória 0,01%–100%). */
 export const TRIGGERS_PERCENTUAL = [
@@ -142,7 +229,7 @@ export const DDL_TRIGGER_PERCENTUAL = `
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
 
-    ${DDL_ESQUEMA}
+    ${DDL_ESQUEMA_V5}
 
     ${DDL_TRIGGER_PERCENTUAL}
   `;

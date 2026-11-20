@@ -7,9 +7,11 @@ import {
   ESTRUTURAS_ESPERADAS,
   FalhaMigracao,
   VersaoBancoDesconhecida,
+  garantirColunasRecorrencias,
+  garantirTabelaDespesas,
   migrarSeNecessario,
 } from '@/db/migrations';
-import { DDL_ESQUEMA, PRAGMAS_SQL } from '@/db/schema';
+import { DDL_ESQUEMA, DDL_TRIGGER_PERCENTUAL, PRAGMAS_SQL } from '@/db/schema';
 
 /**
  * Testes das migrações versionadas (E2.2, issue #43 / UC06) em SQLite em memória.
@@ -158,7 +160,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
       expect(nomesTriggers(sqlite)).toEqual([
         'trg_categorias_percentual_insert',
@@ -188,7 +190,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
       await migrarSeNecessario(criarAdaptador(sqlite));
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
     });
   });
 
@@ -203,7 +205,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(linhasCategorias(sqlite)).toEqual(antes); // cópia idêntica, inclusive tombstone
       expect(linhasCategorias(sqlite).find((l: any) => l.id === 'a3').excluido_em).toBe('2026-02-01T00:00:00Z');
       const nomes = (sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as any[]).map(
@@ -252,7 +254,10 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
       await migrarSeNecessario(criarAdaptador(sqlite));
 
       expect(sqlite.prepare('SELECT * FROM receitas ORDER BY id').all()).toEqual(receitasAntes);
-      expect(sqlite.prepare('SELECT * FROM recorrencias ORDER BY id').all()).toEqual(recorrenciasAntes);
+      // A migration 005 apenas acrescenta excluido_em (NULL); todo o resto é preservado.
+      expect(sqlite.prepare('SELECT * FROM recorrencias ORDER BY id').all()).toEqual(
+        (recorrenciasAntes as any[]).map((r) => ({ ...r, excluido_em: null })),
+      );
       expect(sqlite.prepare("SELECT recorrencia_id FROM receitas WHERE id = 'rec-ex-1'").get()).toEqual({
         recorrencia_id: 'rec-1',
       });
@@ -270,7 +275,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(sqlCategorias(sqlite)).toBe(sqlAntes); // sem reconstrução
       expect(linhasCategorias(sqlite)).toHaveLength(1);
     });
@@ -294,7 +299,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(linhasCategorias(sqlite)).toEqual(antes);
       expect(sqlCategorias(sqlite)).toContain('9007199254740991');
       expect(bancoIntegro(sqlite)).toBe(true);
@@ -338,7 +343,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(sqlCategorias(sqlite)).toBe(sqlAntes);
       expect(linhasCategorias(sqlite)).toEqual(antes);
     });
@@ -366,7 +371,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(linhasCategorias(sqlite)).toEqual(antes);
       expect(nomesTriggers(sqlite)).toEqual([
         'trg_categorias_percentual_insert',
@@ -389,7 +394,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(linhasCategorias(sqlite)).toEqual(antes); // sem apagar, reduzir ou converter
 
       expect(() =>
@@ -823,7 +828,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
     it('banco realmente vazio instala normalmente', async () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
     });
 
@@ -837,7 +842,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente'); // categorias criada
       expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1); // dado preservado
     });
@@ -847,7 +852,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
       expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1); // dado preservado
       expect(
@@ -865,7 +870,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(3);
+      expect(versao(sqlite)).toBe(5);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
       expect(sqlite.prepare('SELECT * FROM recorrencias').all()).toHaveLength(1); // dado preservado
       expect(
@@ -956,15 +961,1010 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
     it('guarda contra desvio: assinaturas canônicas batem com um banco recém-criado', async () => {
       const sqlite = novoSqlite();
       sqlite.exec(DDL_ESQUEMA);
-      for (const nome of ['recorrencias', 'receitas'] as const) {
-        const atual = (sqlite.prepare(`PRAGMA table_info(${nome})`).all() as any[]).map((c) => ({
-          name: c.name,
-          type: c.type,
-          notnull: c.notnull,
-          pk: c.pk,
-        }));
-        expect(atual).toEqual(ESTRUTURAS_ESPERADAS[nome]);
-      }
+      const recorrencias = (sqlite.prepare('PRAGMA table_info(recorrencias)').all() as any[]).map((c) => ({
+        name: c.name,
+        type: c.type,
+        notnull: c.notnull,
+        pk: c.pk,
+      }));
+      expect(recorrencias).toEqual([
+        { name: 'id', type: 'TEXT', notnull: 1, pk: 1 },
+        { name: 'tipo', type: 'TEXT', notnull: 1, pk: 0 },
+        { name: 'intervalo', type: 'INTEGER', notnull: 1, pk: 0 },
+        { name: 'unidade', type: 'TEXT', notnull: 1, pk: 0 },
+        { name: 'inicio', type: 'TEXT', notnull: 1, pk: 0 },
+        { name: 'termino', type: 'TEXT', notnull: 0, pk: 0 },
+        { name: 'ativa', type: 'INTEGER', notnull: 1, pk: 0 },
+        { name: 'valor_centavos', type: 'INTEGER', notnull: 1, pk: 0 },
+        { name: 'titulo', type: 'TEXT', notnull: 1, pk: 0 },
+        { name: 'descricao', type: 'TEXT', notnull: 0, pk: 0 },
+        { name: 'categoria_id', type: 'TEXT', notnull: 0, pk: 0 },
+        { name: 'fixa_ou_variavel', type: 'TEXT', notnull: 0, pk: 0 },
+        { name: 'essencial', type: 'INTEGER', notnull: 0, pk: 0 },
+        { name: 'sync_status', type: 'TEXT', notnull: 1, pk: 0 },
+        { name: 'atualizado_em', type: 'TEXT', notnull: 1, pk: 0 },
+      ]);
+      const receitas = (sqlite.prepare('PRAGMA table_info(receitas)').all() as any[]).map((c) => ({
+        name: c.name,
+        type: c.type,
+        notnull: c.notnull,
+        pk: c.pk,
+      }));
+      expect(receitas).toEqual(ESTRUTURAS_ESPERADAS.receitas);
     });
+  });
+});
+
+/** Fixtures históricas independentes do DDL_ESQUEMA atual. */
+const DDL_RECORRENCIAS_UC01 = `
+  CREATE TABLE IF NOT EXISTS recorrencias (
+    id TEXT PRIMARY KEY NOT NULL,
+    intervalo INTEGER NOT NULL CHECK (intervalo > 0),
+    unidade TEXT NOT NULL CHECK (unidade IN ('dia','mes','ano')),
+    inicio TEXT NOT NULL,
+    termino TEXT,
+    ativa INTEGER NOT NULL DEFAULT 1,
+    valor_centavos INTEGER NOT NULL,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pendente',
+    atualizado_em TEXT NOT NULL
+  );
+`;
+
+const DDL_RECORRENCIAS_UC02 = `
+  CREATE TABLE IF NOT EXISTS recorrencias (
+    id TEXT PRIMARY KEY NOT NULL,
+    tipo TEXT NOT NULL DEFAULT 'receita'
+      CHECK (tipo IN ('receita', 'despesa')),
+    intervalo INTEGER NOT NULL CHECK (intervalo > 0),
+    unidade TEXT NOT NULL CHECK (unidade IN ('dia','mes','ano')),
+    inicio TEXT NOT NULL,
+    termino TEXT,
+    ativa INTEGER NOT NULL DEFAULT 1,
+    valor_centavos INTEGER NOT NULL,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    categoria_id TEXT,
+    fixa_ou_variavel TEXT CHECK (
+      fixa_ou_variavel IS NULL OR
+      fixa_ou_variavel IN ('fixa', 'variavel')
+    ),
+    essencial INTEGER CHECK (
+      essencial IS NULL OR essencial IN (0, 1)
+    ),
+    sync_status TEXT NOT NULL DEFAULT 'pendente',
+    atualizado_em TEXT NOT NULL
+  );
+`;
+
+const ALTERS_UC02 = [
+  `ALTER TABLE recorrencias ADD COLUMN tipo TEXT NOT NULL DEFAULT 'receita' CHECK (tipo IN ('receita', 'despesa'))`,
+  'ALTER TABLE recorrencias ADD COLUMN categoria_id TEXT',
+  `ALTER TABLE recorrencias ADD COLUMN fixa_ou_variavel TEXT CHECK (fixa_ou_variavel IS NULL OR fixa_ou_variavel IN ('fixa', 'variavel'))`,
+  `ALTER TABLE recorrencias ADD COLUMN essencial INTEGER CHECK (essencial IS NULL OR essencial IN (0, 1))`,
+];
+
+const COLUNAS_NOVAS = ['tipo', 'categoria_id', 'fixa_ou_variavel', 'essencial'] as const;
+
+function bancoRecorrenciasBase(): Database.Database {
+  const sqlite = novoSqlite();
+  sqlite.exec(DDL_RECORRENCIAS_UC01);
+  return sqlite;
+}
+
+function inserirRecorrenciaBase(sqlite: Database.Database): void {
+  sqlite
+    .prepare(
+      "INSERT INTO recorrencias (id, intervalo, unidade, inicio, ativa, valor_centavos, titulo, descricao, sync_status, atualizado_em) VALUES ('rec-1', 1, 'mes', '2026-01-10', 1, 50000, 'Aluguel', 'Contrato', 'pendente', '2026-01-10T08:00:00Z')",
+    )
+    .run();
+}
+
+const colunasRecorrencias = (sqlite: Database.Database): string[] =>
+  (sqlite.prepare('PRAGMA table_info(recorrencias)').all() as any[]).map((c) => c.name);
+
+async function executarGarantia(sqlite: Database.Database): Promise<void> {
+  await garantirColunasRecorrencias(criarAdaptador(sqlite));
+}
+
+describe('garantirColunasRecorrencias', () => {
+  it('UC01 antiga: adiciona as quatro colunas, preserva dados e usa tipo=receita', async () => {
+    const sqlite = bancoRecorrenciasBase();
+    inserirRecorrenciaBase(sqlite);
+    sqlite.exec('PRAGMA user_version = 0');
+
+    await executarGarantia(sqlite);
+
+    expect(colunasRecorrencias(sqlite)).toEqual([
+      'id',
+      'intervalo',
+      'unidade',
+      'inicio',
+      'termino',
+      'ativa',
+      'valor_centavos',
+      'titulo',
+      'descricao',
+      'sync_status',
+      'atualizado_em',
+      ...COLUNAS_NOVAS,
+    ]);
+
+    const linha = sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get() as any;
+    expect(linha).toMatchObject({
+      id: 'rec-1',
+      intervalo: 1,
+      unidade: 'mes',
+      inicio: '2026-01-10',
+      termino: null,
+      ativa: 1,
+      valor_centavos: 50000,
+      titulo: 'Aluguel',
+      descricao: 'Contrato',
+      sync_status: 'pendente',
+      atualizado_em: '2026-01-10T08:00:00Z',
+      tipo: 'receita',
+      categoria_id: null,
+      fixa_ou_variavel: null,
+      essencial: null,
+    });
+    expect(versao(sqlite)).toBe(0);
+  });
+
+  it('UC02 nova: não altera estrutura nem dados', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(DDL_RECORRENCIAS_UC02);
+    sqlite
+      .prepare(
+        "INSERT INTO recorrencias (id, tipo, intervalo, unidade, inicio, ativa, valor_centavos, titulo, categoria_id, sync_status, atualizado_em) VALUES ('rec-2', 'despesa', 1, 'mes', '2026-02-10', 1, 25000, 'Internet', 'casa', 'pendente', '2026-02-10T08:00:00Z')",
+      )
+      .run();
+    sqlite.exec('PRAGMA user_version = 3');
+
+    const sqlAntes = (
+      sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'recorrencias'").get() as any
+    ).sql;
+    const linhaAntes = sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-2'").get();
+
+    await executarGarantia(sqlite);
+
+    const sqlDepois = (
+      sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'recorrencias'").get() as any
+    ).sql;
+    expect(sqlDepois).toBe(sqlAntes);
+    expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-2'").get()).toEqual(linhaAntes);
+    expect(versao(sqlite)).toBe(3);
+  });
+
+  it('não altera user_version', async () => {
+    const sqlite = bancoRecorrenciasBase();
+    sqlite.exec('PRAGMA user_version = 3');
+
+    await executarGarantia(sqlite);
+
+    expect(versao(sqlite)).toBe(3);
+  });
+
+  it.each([1, 2, 3])(
+    'base histórica com %i coluna(s) nova(s): acrescenta as restantes',
+    async (quantidade) => {
+      const sqlite = bancoRecorrenciasBase();
+      inserirRecorrenciaBase(sqlite);
+      for (let i = 0; i < quantidade; i++) sqlite.exec(ALTERS_UC02[i]);
+      sqlite.exec('PRAGMA user_version = 3');
+
+      await executarGarantia(sqlite);
+
+      expect(colunasRecorrencias(sqlite)).toEqual([
+        'id',
+        'intervalo',
+        'unidade',
+        'inicio',
+        'termino',
+        'ativa',
+        'valor_centavos',
+        'titulo',
+        'descricao',
+        'sync_status',
+        'atualizado_em',
+        ...COLUNAS_NOVAS,
+      ]);
+
+      const linha = sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get() as any;
+      expect(linha.tipo).toBe('receita');
+      expect(linha.categoria_id).toBeNull();
+      expect(linha.fixa_ou_variavel).toBeNull();
+      expect(linha.essencial).toBeNull();
+      expect(versao(sqlite)).toBe(3);
+    },
+  );
+
+  function bancoComAlters(alters: string[]): Database.Database {
+    const sqlite = bancoRecorrenciasBase();
+    inserirRecorrenciaBase(sqlite);
+    for (const alter of alters) sqlite.exec(alter);
+    sqlite.exec('PRAGMA user_version = 3');
+    return sqlite;
+  }
+
+  async function esperarEstruturaInvalida(alters: string[], totalColunas = 15): Promise<void> {
+    const sqlite = bancoComAlters(alters);
+
+    await expect(executarGarantia(sqlite)).rejects.toThrow(FalhaMigracao);
+
+    expect(colunasRecorrencias(sqlite)).toHaveLength(totalColunas);
+    expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toBeTruthy();
+    expect(versao(sqlite)).toBe(3);
+  }
+
+  const ALTER_TIPO_SEM_CHECK =
+    `ALTER TABLE recorrencias ADD COLUMN tipo TEXT NOT NULL DEFAULT 'receita'`;
+  const ALTER_TIPO_CHECK_DIVERGENTE =
+    `ALTER TABLE recorrencias ADD COLUMN tipo TEXT NOT NULL DEFAULT 'receita' CHECK (tipo IN ('receita'))`;
+  const ALTER_TIPO_CHECK_ENFRAQUECIDO =
+    `ALTER TABLE recorrencias ADD COLUMN tipo TEXT NOT NULL DEFAULT 'receita' CHECK (tipo IN ('receita', 'despesa') OR 1)`;
+  const ALTER_CATEGORIA_COM_CHECK =
+    `ALTER TABLE recorrencias ADD COLUMN categoria_id TEXT CHECK (tipo IN ('receita', 'despesa'))`;
+  const ALTER_FIXA_SEM_CHECK = 'ALTER TABLE recorrencias ADD COLUMN fixa_ou_variavel TEXT';
+  const ALTER_ESSENCIAL_SEM_NULL =
+    'ALTER TABLE recorrencias ADD COLUMN essencial INTEGER CHECK (essencial IN (0, 1))';
+  const ALTER_TIPO_INTEGER =
+    `ALTER TABLE recorrencias ADD COLUMN tipo INTEGER NOT NULL DEFAULT 'receita' CHECK (tipo IN ('receita', 'despesa'))`;
+  const ALTER_TIPO_NULLABLE =
+    `ALTER TABLE recorrencias ADD COLUMN tipo TEXT DEFAULT 'receita' CHECK (tipo IN ('receita', 'despesa'))`;
+  const ALTER_TIPO_DEFAULT_DIVERGENTE =
+    `ALTER TABLE recorrencias ADD COLUMN tipo TEXT NOT NULL DEFAULT 'despesa' CHECK (tipo IN ('receita', 'despesa'))`;
+
+  it('rejeita CHECK ausente em tipo', async () => {
+    await esperarEstruturaInvalida([
+      ALTER_TIPO_SEM_CHECK,
+      ALTERS_UC02[1],
+      ALTERS_UC02[2],
+      ALTERS_UC02[3],
+    ]);
+  });
+
+  it('rejeita CHECK divergente em tipo', async () => {
+    await esperarEstruturaInvalida([
+      ALTER_TIPO_CHECK_DIVERGENTE,
+      ALTERS_UC02[1],
+      ALTERS_UC02[2],
+      ALTERS_UC02[3],
+    ]);
+  });
+
+  it('rejeita CHECK enfraquecido em tipo', async () => {
+    await esperarEstruturaInvalida([
+      ALTER_TIPO_CHECK_ENFRAQUECIDO,
+      ALTERS_UC02[1],
+      ALTERS_UC02[2],
+      ALTERS_UC02[3],
+    ]);
+  });
+
+  it('rejeita CHECK de tipo associado a categoria_id', async () => {
+    await esperarEstruturaInvalida([
+      ALTER_TIPO_SEM_CHECK,
+      ALTER_CATEGORIA_COM_CHECK,
+      ALTERS_UC02[2],
+      ALTERS_UC02[3],
+    ]);
+  });
+
+  it('rejeita CHECK ausente em fixa_ou_variavel', async () => {
+    await esperarEstruturaInvalida([
+      ALTERS_UC02[0],
+      ALTERS_UC02[1],
+      ALTER_FIXA_SEM_CHECK,
+      ALTERS_UC02[3],
+    ]);
+  });
+
+  it('rejeita CHECK enfraquecido em essencial', async () => {
+    await esperarEstruturaInvalida([
+      ALTERS_UC02[0],
+      ALTERS_UC02[1],
+      ALTERS_UC02[2],
+      ALTER_ESSENCIAL_SEM_NULL,
+    ]);
+  });
+
+  it('rejeita estrutura desconhecida com coluna extra', async () => {
+    await esperarEstruturaInvalida([
+      ...ALTERS_UC02,
+      'ALTER TABLE recorrencias ADD COLUMN obs TEXT',
+    ], 16);
+  });
+
+  it('rejeita ordem de colunas incompatível com as assinaturas', async () => {
+    await esperarEstruturaInvalida([
+      ALTERS_UC02[1],
+      ALTERS_UC02[0],
+      ALTERS_UC02[2],
+      ALTERS_UC02[3],
+    ]);
+  });
+
+  it('rejeita tipo incompatível em tipo', async () => {
+    await esperarEstruturaInvalida([
+      ALTER_TIPO_INTEGER,
+      ALTERS_UC02[1],
+      ALTERS_UC02[2],
+      ALTERS_UC02[3],
+    ]);
+  });
+
+  it('rejeita NOT NULL incompatível em tipo', async () => {
+    await esperarEstruturaInvalida([
+      ALTER_TIPO_NULLABLE,
+      ALTERS_UC02[1],
+      ALTERS_UC02[2],
+      ALTERS_UC02[3],
+    ]);
+  });
+
+  it('rejeita default incompatível em tipo', async () => {
+    await esperarEstruturaInvalida([
+      ALTER_TIPO_DEFAULT_DIVERGENTE,
+      ALTERS_UC02[1],
+      ALTERS_UC02[2],
+      ALTERS_UC02[3],
+    ]);
+  });
+
+  it.each([
+    ['terceiro', 'fixa_ou_variavel'],
+    ['quarto', 'essencial'],
+  ])('faz rollback integral quando o %s ALTER falha', async (_nome, coluna) => {
+    const sqlite = bancoRecorrenciasBase();
+    inserirRecorrenciaBase(sqlite);
+    sqlite.exec('PRAGMA user_version = 3');
+    const api = criarAdaptador(sqlite);
+
+    await expect(
+      api.withExclusiveTransactionAsync(async (tx: any) => {
+        const original = tx.execAsync.bind(tx);
+        jest.spyOn(tx, 'execAsync').mockImplementation(async (...args: unknown[]) => {
+          if (String(args[0]).includes(`ADD COLUMN ${coluna}`)) {
+            throw new Error('falha simulada no ALTER');
+          }
+          return original(...args);
+        });
+
+        await garantirColunasRecorrencias(tx);
+      }),
+    ).rejects.toThrow('falha simulada no ALTER');
+
+    expect(colunasRecorrencias(sqlite)).toHaveLength(11);
+    expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toMatchObject({
+      id: 'rec-1',
+      valor_centavos: 50000,
+      titulo: 'Aluguel',
+    });
+    expect(versao(sqlite)).toBe(3);
+    expect(bancoIntegro(sqlite)).toBe(true);
+  });
+});
+
+const DDL_RECEITAS_UC01 = `
+  CREATE TABLE IF NOT EXISTS receitas (
+    id TEXT PRIMARY KEY NOT NULL,
+    valor_centavos INTEGER NOT NULL CHECK (valor_centavos > 0),
+    data TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    recorrencia_id TEXT REFERENCES recorrencias(id),
+    sync_status TEXT NOT NULL DEFAULT 'pendente',
+    excluido_em TEXT,
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL
+  );
+`;
+
+const DDL_DESPESAS_UC02 = `
+  CREATE TABLE IF NOT EXISTS despesas (
+    id TEXT PRIMARY KEY NOT NULL,
+    valor_centavos INTEGER NOT NULL CHECK (valor_centavos > 0),
+    data TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    descricao TEXT,
+    categoria_id TEXT,
+    fixa_ou_variavel TEXT CHECK (
+      fixa_ou_variavel IS NULL OR
+      fixa_ou_variavel IN ('fixa', 'variavel')
+    ),
+    essencial INTEGER CHECK (
+      essencial IS NULL OR essencial IN (0, 1)
+    ),
+    recorrencia_id TEXT REFERENCES recorrencias(id),
+    sync_status TEXT NOT NULL DEFAULT 'pendente',
+    excluido_em TEXT,
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL
+  );
+`;
+
+const DDL_INDICES_DESPESAS_UC02 = [
+  'CREATE INDEX IF NOT EXISTS idx_despesas_data ON despesas(data);',
+  'CREATE INDEX IF NOT EXISTS idx_despesas_categoria_data ON despesas(categoria_id, data);',
+  'CREATE INDEX IF NOT EXISTS idx_despesas_recorrencia ON despesas(recorrencia_id);',
+  'CREATE INDEX IF NOT EXISTS idx_despesas_sync ON despesas(sync_status);',
+];
+
+function bancoUc01SemDespesas(): Database.Database {
+  const sqlite = novoSqlite();
+  sqlite.exec(DDL_RECORRENCIAS_UC01);
+  sqlite.exec(DDL_RECEITAS_UC01);
+  inserirRecorrenciaBase(sqlite);
+  sqlite.exec('PRAGMA user_version = 3');
+  return sqlite;
+}
+
+function bancoUc02ComDespesas(): Database.Database {
+  const sqlite = bancoUc01SemDespesas();
+  sqlite.exec(DDL_DESPESAS_UC02);
+  for (const ddl of DDL_INDICES_DESPESAS_UC02) sqlite.exec(ddl);
+  return sqlite;
+}
+
+function inserirDespesasUc02(sqlite: Database.Database): void {
+  sqlite
+    .prepare(
+      "INSERT INTO despesas (id, valor_centavos, data, titulo, categoria_id, recorrencia_id, sync_status, criado_em, atualizado_em) VALUES ('desp-1', 1000, '2026-01-10', 'Mercado', 'casa', 'rec-1', 'pendente', '2026-01-10T08:00:00Z', '2026-01-10T08:00:00Z')",
+    )
+    .run();
+  sqlite
+    .prepare(
+      "INSERT INTO despesas (id, valor_centavos, data, titulo, categoria_id, recorrencia_id, sync_status, criado_em, atualizado_em) VALUES ('desp-2', 2000, '2026-01-11', 'Farmacia', null, null, 'pendente', '2026-01-11T08:00:00Z', '2026-01-11T08:00:00Z')",
+    )
+    .run();
+}
+
+const colunasDespesas = (sqlite: Database.Database): string[] =>
+  (sqlite.prepare('PRAGMA table_info(despesas)').all() as any[]).map((c) => c.name);
+
+const indicesDespesas = (sqlite: Database.Database) =>
+  sqlite
+    .prepare(
+      "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = 'despesas' AND name NOT LIKE 'sqlite_autoindex_%' ORDER BY name",
+    )
+    .all() as { name: string; sql: string }[];
+
+async function executarGarantiaDespesas(sqlite: Database.Database): Promise<void> {
+  await garantirTabelaDespesas(criarAdaptador(sqlite));
+}
+
+describe('garantirTabelaDespesas', () => {
+  it('UC01 sem despesas: cria a tabela, a FK e os quatro índices', async () => {
+    const sqlite = bancoUc01SemDespesas();
+
+    await executarGarantiaDespesas(sqlite);
+
+    expect(colunasDespesas(sqlite)).toEqual([
+      'id',
+      'valor_centavos',
+      'data',
+      'titulo',
+      'descricao',
+      'categoria_id',
+      'fixa_ou_variavel',
+      'essencial',
+      'recorrencia_id',
+      'sync_status',
+      'excluido_em',
+      'criado_em',
+      'atualizado_em',
+    ]);
+    expect(indicesDespesas(sqlite).map((i) => i.name)).toEqual([
+      'idx_despesas_categoria_data',
+      'idx_despesas_data',
+      'idx_despesas_recorrencia',
+      'idx_despesas_sync',
+    ]);
+
+    const fks = sqlite.prepare('PRAGMA foreign_key_list(despesas)').all() as any[];
+    expect(fks).toHaveLength(1);
+    expect(fks[0]).toMatchObject({
+      table: 'recorrencias',
+      from: 'recorrencia_id',
+      to: 'id',
+    });
+    expect(versao(sqlite)).toBe(3);
+  });
+
+  it('UC01: FK impede recorrencia_id inexistente', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    await executarGarantiaDespesas(sqlite);
+    sqlite.exec('PRAGMA foreign_keys = ON');
+
+    expect(() =>
+      sqlite
+        .prepare(
+          "INSERT INTO despesas (id, valor_centavos, data, titulo, recorrencia_id, criado_em, atualizado_em) VALUES ('invalida', 100, '2026-01-10', 'X', 'nao-existe', '2026-01-10T08:00:00Z', '2026-01-10T08:00:00Z')",
+        )
+        .run(),
+    ).toThrow(/FOREIGN KEY constraint failed/);
+    expect(sqlite.prepare("SELECT COUNT(*) AS n FROM despesas").get()).toEqual({ n: 0 });
+  });
+
+  it('UC02 com despesas existentes: preserva registros e estrutura', async () => {
+    const sqlite = bancoUc02ComDespesas();
+    inserirDespesasUc02(sqlite);
+    const tabelaAntes = (
+      sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'despesas'").get() as any
+    ).sql;
+    const indicesAntes = indicesDespesas(sqlite);
+    const linhasAntes = sqlite.prepare('SELECT * FROM despesas ORDER BY id').all();
+
+    await executarGarantiaDespesas(sqlite);
+
+    expect(
+      (sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'despesas'").get() as any).sql,
+    ).toBe(tabelaAntes);
+    expect(indicesDespesas(sqlite)).toEqual(indicesAntes);
+    expect(sqlite.prepare('SELECT * FROM despesas ORDER BY id').all()).toEqual(linhasAntes);
+    expect(versao(sqlite)).toBe(3);
+  });
+
+  it('tabela canônica com um índice ausente: cria somente o faltante', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    sqlite.exec(DDL_DESPESAS_UC02);
+    for (const ddl of DDL_INDICES_DESPESAS_UC02.slice(0, 3)) sqlite.exec(ddl);
+    inserirDespesasUc02(sqlite);
+    const indicesAntes = indicesDespesas(sqlite);
+    const linhasAntes = sqlite.prepare('SELECT * FROM despesas ORDER BY id').all();
+
+    await executarGarantiaDespesas(sqlite);
+
+    const indicesDepois = indicesDespesas(sqlite);
+    expect(indicesDepois.map((i) => i.name)).toEqual([
+      'idx_despesas_categoria_data',
+      'idx_despesas_data',
+      'idx_despesas_recorrencia',
+      'idx_despesas_sync',
+    ]);
+    for (const antes of indicesAntes) {
+      expect(indicesDepois.find((i) => i.name === antes.name)?.sql).toBe(antes.sql);
+    }
+    expect(sqlite.prepare('SELECT * FROM despesas ORDER BY id').all()).toEqual(linhasAntes);
+    expect(versao(sqlite)).toBe(3);
+  });
+
+  it('execução repetida é idempotente', async () => {
+    const sqlite = bancoUc02ComDespesas();
+    inserirDespesasUc02(sqlite);
+    const tabelaAntes = (
+      sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'despesas'").get() as any
+    ).sql;
+    const indicesAntes = indicesDespesas(sqlite);
+    const linhasAntes = sqlite.prepare('SELECT * FROM despesas ORDER BY id').all();
+
+    await executarGarantiaDespesas(sqlite);
+    await executarGarantiaDespesas(sqlite);
+
+    expect(
+      (sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'despesas'").get() as any).sql,
+    ).toBe(tabelaAntes);
+    expect(indicesDespesas(sqlite)).toEqual(indicesAntes);
+    expect(sqlite.prepare('SELECT * FROM despesas ORDER BY id').all()).toEqual(linhasAntes);
+    expect(versao(sqlite)).toBe(3);
+  });
+
+  it('não altera user_version', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    sqlite.exec('PRAGMA user_version = 0');
+
+    await executarGarantiaDespesas(sqlite);
+
+    expect(versao(sqlite)).toBe(0);
+  });
+
+  const COLUNAS_DESPESAS_BASE: Record<string, string> = {
+    id: 'id TEXT PRIMARY KEY NOT NULL',
+    valor_centavos: 'valor_centavos INTEGER NOT NULL CHECK (valor_centavos > 0)',
+    data: 'data TEXT NOT NULL',
+    titulo: 'titulo TEXT NOT NULL',
+    descricao: 'descricao TEXT',
+    categoria_id: 'categoria_id TEXT',
+    fixa_ou_variavel:
+      "fixa_ou_variavel TEXT CHECK (fixa_ou_variavel IS NULL OR fixa_ou_variavel IN ('fixa', 'variavel'))",
+    essencial: 'essencial INTEGER CHECK (essencial IS NULL OR essencial IN (0, 1))',
+    recorrencia_id: 'recorrencia_id TEXT REFERENCES recorrencias(id)',
+    sync_status: "sync_status TEXT NOT NULL DEFAULT 'pendente'",
+    excluido_em: 'excluido_em TEXT',
+    criado_em: 'criado_em TEXT NOT NULL',
+    atualizado_em: 'atualizado_em TEXT NOT NULL',
+  };
+
+  function criarDespesasCustom(
+    sqlite: Database.Database,
+    opcoes: { omitir?: string[]; extras?: string; alterar?: Record<string, string> } = {},
+  ): void {
+    const omitir = new Set(opcoes.omitir ?? []);
+    const colunas = Object.entries(COLUNAS_DESPESAS_BASE)
+      .filter(([nome]) => !omitir.has(nome))
+      .map(([nome, ddl]) => opcoes.alterar?.[nome] ?? ddl);
+    if (opcoes.extras) colunas.push(opcoes.extras);
+    sqlite.exec(`CREATE TABLE IF NOT EXISTS despesas (${colunas.join(',')})`);
+    sqlite.exec('PRAGMA user_version = 3');
+  }
+
+  const tabelaDespesasSql = (sqlite: Database.Database): string =>
+    (sqlite.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'despesas'").get() as any)?.sql ?? '';
+
+  async function esperarRejeicaoDespesas(sqlite: Database.Database): Promise<void> {
+    const tabelaAntes = tabelaDespesasSql(sqlite);
+    const indicesAntes = indicesDespesas(sqlite);
+    const linhasAntes = sqlite.prepare('SELECT * FROM despesas ORDER BY id').all();
+
+    await expect(executarGarantiaDespesas(sqlite)).rejects.toThrow(FalhaMigracao);
+
+    expect(tabelaDespesasSql(sqlite)).toBe(tabelaAntes);
+    expect(indicesDespesas(sqlite)).toEqual(indicesAntes);
+    expect(sqlite.prepare('SELECT * FROM despesas ORDER BY id').all()).toEqual(linhasAntes);
+    expect(versao(sqlite)).toBe(3);
+  }
+
+  it('rejeita coluna ausente em despesas', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    criarDespesasCustom(sqlite, { omitir: ['excluido_em'] });
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('rejeita coluna extra em despesas', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    criarDespesasCustom(sqlite, { extras: 'obs TEXT' });
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('rejeita tipo incompatível em despesas', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    criarDespesasCustom(sqlite, {
+      alterar: { valor_centavos: 'valor_centavos TEXT NOT NULL CHECK (valor_centavos > 0)' },
+    });
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('rejeita NOT NULL incompatível em despesas', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    criarDespesasCustom(sqlite, { alterar: { titulo: 'titulo TEXT' } });
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('rejeita default incompatível em despesas', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    criarDespesasCustom(sqlite, { alterar: { sync_status: "sync_status TEXT NOT NULL DEFAULT 'errado'" } });
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('rejeita CHECK incompatível em despesas', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    criarDespesasCustom(sqlite, { alterar: { valor_centavos: 'valor_centavos INTEGER NOT NULL' } });
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('rejeita FK ausente em despesas', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    criarDespesasCustom(sqlite, { alterar: { recorrencia_id: 'recorrencia_id TEXT' } });
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('rejeita FK apontando para tabela/coluna incorreta', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    criarDespesasCustom(sqlite, {
+      alterar: { recorrencia_id: 'recorrencia_id TEXT REFERENCES outra_tabela(id)' },
+    });
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('rejeita índice preexistente com colunas divergentes', async () => {
+    const sqlite = bancoUc02ComDespesas();
+    inserirDespesasUc02(sqlite);
+    sqlite.exec('DROP INDEX idx_despesas_data');
+    sqlite.exec('CREATE INDEX idx_despesas_data ON despesas(titulo)');
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('rejeita índice extra inesperado', async () => {
+    const sqlite = bancoUc02ComDespesas();
+    inserirDespesasUc02(sqlite);
+    sqlite.exec('CREATE INDEX idx_despesas_extra ON despesas(data)');
+    await esperarRejeicaoDespesas(sqlite);
+  });
+
+  it('faz rollback integral quando a criação de um índice falha', async () => {
+    const sqlite = bancoUc01SemDespesas();
+    sqlite.exec('PRAGMA user_version = 3');
+    const api = criarAdaptador(sqlite);
+
+    await expect(
+      api.withExclusiveTransactionAsync(async (tx: any) => {
+        const original = tx.execAsync.bind(tx);
+        jest.spyOn(tx, 'execAsync').mockImplementation(async (...args: unknown[]) => {
+          if (String(args[0]).includes('idx_despesas_sync')) {
+            throw new Error('falha simulada no índice');
+          }
+          return original(...args);
+        });
+
+        await garantirTabelaDespesas(tx);
+      }),
+    ).rejects.toThrow('falha simulada no índice');
+
+    expect(
+      sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'despesas'").get(),
+    ).toBeUndefined();
+    expect(indicesDespesas(sqlite)).toHaveLength(0);
+    expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toMatchObject({
+      id: 'rec-1',
+      valor_centavos: 50000,
+    });
+    expect(versao(sqlite)).toBe(3);
+    expect(bancoIntegro(sqlite)).toBe(true);
+  });
+});
+
+describe('migração 005: tombstone de recorrências', () => {
+  function expectEstruturaV5(sqlite: Database.Database): void {
+    const colunas = colunasRecorrencias(sqlite);
+    expect(colunas).toHaveLength(16);
+    expect(new Set(colunas)).toEqual(
+      new Set([
+        'id',
+        'tipo',
+        'intervalo',
+        'unidade',
+        'inicio',
+        'termino',
+        'ativa',
+        'valor_centavos',
+        'titulo',
+        'descricao',
+        'categoria_id',
+        'fixa_ou_variavel',
+        'essencial',
+        'sync_status',
+        'atualizado_em',
+        'excluido_em',
+      ]),
+    );
+    expect(
+      sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'despesas'").get(),
+    ).toBeTruthy();
+    expect(
+      sqlite
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'despesas' AND name NOT LIKE 'sqlite_autoindex_%' ORDER BY name",
+        )
+        .all()
+        .map((i: any) => i.name),
+    ).toEqual([
+      'idx_despesas_categoria_data',
+      'idx_despesas_data',
+      'idx_despesas_recorrencia',
+      'idx_despesas_sync',
+    ]);
+    const fks = sqlite.prepare('PRAGMA foreign_key_list(despesas)').all() as any[];
+    expect(fks).toHaveLength(1);
+    expect(fks[0]).toMatchObject({
+      table: 'recorrencias',
+      from: 'recorrencia_id',
+      to: 'id',
+    });
+    expect(nomesTriggers(sqlite)).toEqual([
+      'trg_categorias_percentual_insert',
+      'trg_categorias_percentual_update',
+    ]);
+    expect(sqlite.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    expect(bancoIntegro(sqlite)).toBe(true);
+  }
+
+  it('banco vazio termina em v5 com a estrutura completa', async () => {
+    const sqlite = novoSqlite();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    expect(versao(sqlite)).toBe(5);
+    expectEstruturaV5(sqlite);
+  });
+
+  it('banco v4 com série migra para v5 preservando os dados financeiros', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(DDL_ESQUEMA);
+    sqlite.exec(DDL_TRIGGER_PERCENTUAL);
+    sqlite
+      .prepare(
+        "INSERT INTO recorrencias (id, tipo, intervalo, unidade, inicio, ativa, valor_centavos, titulo, sync_status, atualizado_em) VALUES ('rec-v4', 'despesa', 1, 'mes', '2026-01-10', 1, 50000, 'Aluguel', 'sincronizado', '2026-01-10T08:00:00Z')",
+      )
+      .run();
+    sqlite.exec('PRAGMA user_version = 4');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    expect(versao(sqlite)).toBe(5);
+    expectEstruturaV5(sqlite);
+    expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-v4'").get()).toMatchObject({
+      id: 'rec-v4',
+      tipo: 'despesa',
+      valor_centavos: 50000,
+      titulo: 'Aluguel',
+      excluido_em: null,
+    });
+
+    const antes = sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-v4'").get();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    expect(versao(sqlite)).toBe(5);
+    expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-v4'").get()).toEqual(antes);
+    expect(bancoIntegro(sqlite)).toBe(true);
+  });
+
+  it('rollback: falha ao gravar a versão desfaz o ALTER e preserva a v4', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(DDL_ESQUEMA);
+    sqlite.exec(DDL_TRIGGER_PERCENTUAL);
+    sqlite.exec('PRAGMA user_version = 4');
+
+    const base = criarAdaptador(sqlite) as any;
+    const adaptador = {
+      ...base,
+      async withExclusiveTransactionAsync(fn: (tx: any) => Promise<void>) {
+        await base.withExclusiveTransactionAsync(async (tx: any) => {
+          const txFalha = {
+            ...tx,
+            async execAsync(sql: string) {
+              if (/user_version\s*=\s*5/.test(sql)) {
+                throw new Error('falha simulada ao gravar a versão');
+              }
+              return tx.execAsync(sql);
+            },
+          };
+          await fn(txFalha);
+        });
+      },
+    };
+
+    await expect(migrarSeNecessario(adaptador)).rejects.toThrow(
+      /falha simulada ao gravar a versão/,
+    );
+
+    expect(versao(sqlite)).toBe(4);
+    expect(colunasRecorrencias(sqlite)).not.toContain('excluido_em');
+    expect(bancoIntegro(sqlite)).toBe(true);
+  });
+
+  it('v0 UC01 antiga migra para v5 preservando dados', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(DDL_RECORRENCIAS_UC01);
+    sqlite.exec(DDL_RECEITAS_UC01);
+    inserirRecorrenciaBase(sqlite);
+    sqlite.exec('PRAGMA user_version = 0');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(5);
+    expectEstruturaV5(sqlite);
+    expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toMatchObject({
+      id: 'rec-1',
+      titulo: 'Aluguel',
+      valor_centavos: 50000,
+      tipo: 'receita',
+      categoria_id: null,
+      fixa_ou_variavel: null,
+      essencial: null,
+    });
+  });
+
+  it('v0 UC02 migra para v5 preservando despesas e recorrências', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(DDL_RECORRENCIAS_UC02);
+    sqlite.exec(DDL_RECEITAS_UC01);
+    sqlite.exec(DDL_DESPESAS_UC02);
+    for (const ddl of DDL_INDICES_DESPESAS_UC02) sqlite.exec(ddl);
+    sqlite
+      .prepare(
+        "INSERT INTO recorrencias (id, tipo, intervalo, unidade, inicio, ativa, valor_centavos, titulo, sync_status, atualizado_em) VALUES ('rec-1', 'receita', 1, 'mes', '2026-01-10', 1, 50000, 'Aluguel', 'pendente', '2026-01-10T08:00:00Z')",
+      )
+      .run();
+    sqlite
+      .prepare(
+        "INSERT INTO despesas (id, valor_centavos, data, titulo, categoria_id, recorrencia_id, sync_status, criado_em, atualizado_em) VALUES ('desp-1', 1000, '2026-01-10', 'Mercado', 'casa', 'rec-1', 'pendente', '2026-01-10T08:00:00Z', '2026-01-10T08:00:00Z')",
+      )
+      .run();
+    sqlite.exec('PRAGMA user_version = 0');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(5);
+    expectEstruturaV5(sqlite);
+    expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toMatchObject({
+      id: 'rec-1',
+      tipo: 'receita',
+      titulo: 'Aluguel',
+      valor_centavos: 50000,
+    });
+    expect(sqlite.prepare("SELECT * FROM despesas WHERE id = 'desp-1'").get()).toMatchObject({
+      id: 'desp-1',
+      titulo: 'Mercado',
+      categoria_id: 'casa',
+      recorrencia_id: 'rec-1',
+    });
+  });
+
+  it('v1 migra para v5', async () => {
+    const sqlite = novoSqlite();
+    bancoLegado(sqlite);
+    sqlite.exec('PRAGMA user_version = 1');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(5);
+    expectEstruturaV5(sqlite);
+    expect(sqlite.prepare("SELECT id, titulo FROM recorrencias WHERE id = 'rec-1'").get()).toEqual({
+      id: 'rec-1',
+      titulo: 'Aluguel',
+    });
+  });
+
+  it('v2 migra para v5', async () => {
+    const sqlite = novoSqlite();
+    bancoLegado(sqlite);
+    sqlite.exec('PRAGMA user_version = 2');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(5);
+    expectEstruturaV5(sqlite);
+    expect(sqlite.prepare("SELECT id, titulo FROM recorrencias WHERE id = 'rec-1'").get()).toEqual({
+      id: 'rec-1',
+      titulo: 'Aluguel',
+    });
+  });
+
+  it('v3 antigo migra para v5', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(DDL_RECORRENCIAS_UC01);
+    sqlite.exec(DDL_RECEITAS_UC01);
+    sqlite.exec(DDL_LEGADO_CATEGORIAS);
+    sqlite.exec(DDL_TRIGGER_PERCENTUAL);
+    inserirRecorrenciaBase(sqlite);
+    sqlite.exec('PRAGMA user_version = 3');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(5);
+    expectEstruturaV5(sqlite);
+    expect(sqlite.prepare("SELECT id, titulo, tipo FROM recorrencias WHERE id = 'rec-1'").get()).toEqual({
+      id: 'rec-1',
+      titulo: 'Aluguel',
+      tipo: 'receita',
+    });
+  });
+
+  it('falha na 004 faz rollback e preserva a versão anterior', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(DDL_RECORRENCIAS_UC01);
+    sqlite.exec(DDL_RECEITAS_UC01);
+    inserirRecorrenciaBase(sqlite);
+    sqlite.exec('PRAGMA user_version = 3');
+    const api = criarAdaptador(sqlite);
+    const original = (api as any).execAsync.bind(api);
+    (api as any).execAsync = async (...args: unknown[]) => {
+      if (String(args[0]).includes('ADD COLUMN essencial')) {
+        throw new Error('falha simulada na 004');
+      }
+      return original(...args);
+    };
+
+    await expect(migrarSeNecessario(api)).rejects.toThrow('falha simulada na 004');
+
+    expect(versao(sqlite)).toBe(3);
+    expect(colunasRecorrencias(sqlite)).toHaveLength(11);
+    expect(
+      sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'despesas'").get(),
+    ).toBeUndefined();
+    expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toMatchObject({
+      id: 'rec-1',
+      titulo: 'Aluguel',
+      valor_centavos: 50000,
+    });
+    expect(bancoIntegro(sqlite)).toBe(true);
   });
 });
