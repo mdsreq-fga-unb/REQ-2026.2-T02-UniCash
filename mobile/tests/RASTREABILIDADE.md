@@ -147,7 +147,7 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 | Data | Comando | Suítes | Testes | Resultado |
 |---|---|---|---|---|
 | 18/11/2026 | `npm test -- --ci --coverage` | 44 | 619 | **619 aprovados** |
-| 20/11/2026 | `npm test -- --ci --coverage --runInBand` | 67 | 1.241 | **1.241 aprovados**; cobertura 95,23% statements, 89,73% branches, 98% functions, 96,93% lines |
+| 20/11/2026 | `npm test -- --ci --coverage --runInBand` | 68 | 1.242 | **1.242 aprovados**; cobertura 95,23% statements, 89,73% branches, 98% functions, 96,93% lines |
 | 20/11/2026 | `npm run test:rules` | 1 | 70 | **70 aprovados** no Firestore Emulator |
 | 20/11/2026 | `npx expo export --platform android` | — | — | **Export Android concluído** (bundle Hermes) |
 
@@ -161,6 +161,7 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 - **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 deixa o estado consistente no SQLite (`categorias`, limites, tombstones) e a UC02 mantém as `despesas`; a interface prevista é a leitura dessas tabelas por período após cada operação (contrato em 4.10). Não há evento de domínio nem chamada direta implementada nesta etapa; o cálculo continua sob responsabilidade dessas UCs.
 - **UC10:** a restauração no startup aguarda `authStateReady` e usa `auth.currentUser`, mas o app ainda não possui tela de login própria. Sem sessão, a operação permanece offline-first.
 - **Validação nativa:** a migração 007 e a desvinculação transacional foram validadas em SQLite/better-sqlite3 e no emulador, mas não há `adb`, Android SDK, emulador ou dispositivo para um smoke nativo nesta máquina.
+- **Firebase não configurado:** `src/lib/firebase.ts` abre em modo offline quando as variáveis `EXPO_PUBLIC_FIREBASE_*` estão ausentes; `auth.currentUser` fica nulo e sincronização/restauração não executam. Teste: `tests/unit/firebase.offline.test.ts`.
 - **Semeadura:** conflitos são reportados uma vez por instância e a semeadura não é repetida a cada foco. Após excluir uma categoria própria com nome reservado, um sinal único faz a lista tentar a semeadura no próximo foco; não há conversão automática da categoria própria. Se a tentativa posterior falhar, a exclusão já confirmada permanece e o erro é exibido como falha de preparação das padrão, não como falha da exclusão.
 
 ### 4.6. Limite percentual — faixa definitiva 1%–100%
