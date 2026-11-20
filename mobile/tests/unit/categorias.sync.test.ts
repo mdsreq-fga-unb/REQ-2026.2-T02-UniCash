@@ -224,6 +224,33 @@ describe('desempate determinístico de categorias', () => {
     ).toBe('remota');
   });
 
+  it('edição remota mais recente vence a edição local', () => {
+    const p = categoriaLinha({
+      id: 'uuid-casa-a',
+      nome: 'Casa',
+      nome_normalizado: 'casa',
+      padrao: 1,
+      estado_local: 'editado',
+      limite_tipo: 'valor',
+      limite_centavos: 9000,
+      atualizado_em: '2026-01-01T00:00:00Z',
+    });
+    expect(
+      decidirCategoriaRemota(
+        p,
+        remotaBase({
+          padrao: true,
+          chave: 'casa',
+          nome: 'Casa',
+          nome_normalizado: 'casa',
+          limite_tipo: 'valor',
+          limite_centavos: 5000,
+          atualizado_em: '2026-02-01T00:00:00Z',
+        }),
+      ),
+    ).toBe('remota');
+  });
+
   it('padrão já editada usa o timestamp', () => {
     const p = categoriaLinha({
       id: 'uuid-casa-a',

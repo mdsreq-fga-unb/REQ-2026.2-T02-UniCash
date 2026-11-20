@@ -3278,6 +3278,50 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(banco.despesas()[0].categoria_id).toBeNull();
     });
 
+    it('edição remota mais recente da mesma categoria vence a edição local', async () => {
+      const id = await criarCategoria({ nome: 'Mercado', limite: null });
+      await sincronizarPendentes();
+      await editarCategoria(id, { nome: 'Mercado local', limite: null });
+
+      mockNuvem.set(
+        catPath(id),
+        docCategoriaRemota({
+          nome: 'Mercado remoto',
+          nome_normalizado: 'mercado remoto',
+          atualizado_em: '2999-01-01T00:00:00.000Z',
+        }),
+      );
+      await sincronizarPendentes();
+
+      expect(catLocal(id)).toMatchObject({
+        nome: 'Mercado remoto',
+        sync_status: 'sincronizado',
+      });
+      expect(mockNuvem.get(catPath(id)).nome).toBe('Mercado remoto');
+    });
+
+    it('edição local mais recente da mesma categoria sobrescreve a remota', async () => {
+      const id = await criarCategoria({ nome: 'Mercado', limite: null });
+      await sincronizarPendentes();
+      await editarCategoria(id, { nome: 'Mercado local', limite: null });
+
+      mockNuvem.set(
+        catPath(id),
+        docCategoriaRemota({
+          nome: 'Mercado remoto',
+          nome_normalizado: 'mercado remoto',
+          atualizado_em: '2020-01-01T00:00:00.000Z',
+        }),
+      );
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(catPath(id)).nome).toBe('Mercado local');
+      expect(catLocal(id)).toMatchObject({
+        nome: 'Mercado local',
+        sync_status: 'sincronizado',
+      });
+    });
+
     it('exclusão local prevalece sobre edição remota concorrente', async () => {
       const id = await criarCategoria({ nome: 'Mercado', limite: null });
       await registrarDespesa(despesaInput(id));

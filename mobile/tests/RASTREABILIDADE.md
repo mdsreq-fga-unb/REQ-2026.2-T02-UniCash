@@ -147,7 +147,7 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 | Data | Comando | Suítes | Testes | Resultado |
 |---|---|---|---|---|
 | 18/11/2026 | `npm test -- --ci --coverage` | 44 | 619 | **619 aprovados** |
-| 20/11/2026 | `npm test -- --ci --coverage --runInBand` | 67 | 1.232 | **1.232 aprovados**; cobertura 94,24% statements, 88,4% branches, 97,44% functions, 95,77% lines |
+| 20/11/2026 | `npm test -- --ci --coverage --runInBand` | 67 | 1.235 | **1.235 aprovados**; cobertura 94,7% statements, 88,93% branches, 97,44% functions, 96,28% lines |
 | 20/11/2026 | `npm run test:rules` | 1 | 67 | **67 aprovados** no Firestore Emulator |
 | 20/11/2026 | `npx expo export --platform android` | — | — | **Export Android concluído** (bundle Hermes) |
 
