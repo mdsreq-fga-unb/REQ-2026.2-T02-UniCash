@@ -147,6 +147,7 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 | Data | Comando | Suítes | Testes | Resultado |
 |---|---|---|---|---|
 | 18/11/2026 | `npm test -- --ci --coverage` | 44 | 619 | **619 aprovados** |
+| 20/11/2026 | Baseline histórico PR #73: `npm test -- --ci --coverage` | 63 | 1.153 | **1.153 aprovados**; 90 testes de migrations e 57 de Firestore Rules. Não representa a suíte atual da UC06. |
 | 20/11/2026 | `npm test -- --ci --coverage --runInBand` | 68 | 1.242 | **1.242 aprovados**; cobertura 95,23% statements, 89,73% branches, 98% functions, 96,93% lines |
 | 20/11/2026 | `npm run test:rules` | 1 | 70 | **70 aprovados** no Firestore Emulator |
 | 20/11/2026 | `npx expo export --platform android` | — | — | **Export Android concluído** (bundle Hermes) |
@@ -154,6 +155,8 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 
 - **CI — execução 31:** PR #58, `feat(uc06): gerenciar categorias (listagem, cadastro, edição e exclusão)`, commit `2445ee8` (código) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44390887769
 - **CI — execução 32:** PR #58, commit `aa84979` (documentação) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44418286085
+- **CI — PR #73:** execução [44703149839](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44703149839), 2/2 jobs aprovados (`Lint, typecheck, testes e build` e `Security Rules`).
+- **CI — develop pós-merge do PR #73:** execução [44704829462](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44704829462), 2/2 jobs aprovados.
 - **Manual histórico:** antes do commit `2445ee8`, o diagnóstico da migração 003 no Android foi relatado como bem-sucedido (`user_version = 3`, triggers e categorias preservadas). Esse registro não cobre as migrações 006/007 nem a versão atual.
 - **Manual atual — Expo Go/Android (20/11/2026):** execução local, sem autenticação Firebase; resultados detalhados em 4.4.1.
 - **Firestore Emulator:** `npm run test:rules` cobre as Rules de categorias; não houve publicação em projeto Firebase real nem teste de sincronização real.
@@ -172,8 +175,25 @@ Executados em **20/11/2026**, em dispositivo Android via **Expo Go**, no modo of
 
 **Escopo e limitações:** este smoke foi funcional, em Expo Go, e não uma build nativa/APK. Não houve inspeção de `user_version` nem repetição do upgrade nativo a partir de banco antigo; as migrações 006/007 permanecem cobertas pelos testes automatizados. A sincronização e a restauração Firebase reais não foram executadas por ausência de autenticação/UC10.
 
+### 4.4.2. Baseline histórico da integração UC02 (PR #73)
+
+Os números e links abaixo são **históricos** da integração UC02 + UC06 no merge `9e373e9` e não substituem os resultados atuais da UC06 em 4.4.
+
+| Evidência histórica | Resultado |
+|---|---|
+| Suíte no PR #73 | 63 suítes, 1.153 testes aprovados |
+| Testes de migrations | 90 aprovados |
+| Testes de Firestore Rules naquele baseline | 57 aprovados |
+| CI do PR #73 | [44703149839](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44703149839) — 2/2 jobs |
+| CI da `develop` pós-merge | [44704829462](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44704829462) — 2/2 jobs |
+
+**Checklist histórico da integração UC02:** detalhado em 4.9, incluindo migrations 004/005, slugs históricos, desvinculação, FK e verificação de integridade. A issue #70 registra o encerramento da integração.
+
+**Pendências naquele baseline, superadas ou ainda externas:** RF65, sincronização de categorias e Rules de categorias foram concluídos no PR #76. Permanecem externos o recálculo UC05/UC09, a publicação das Rules no projeto real, a sincronização real e a validação de upgrade nativo a partir de banco antigo.
+
 ### 4.5. Pendências de integração
 
+- **UC02 / issue #70:** integração concluída pelo PR #73 no merge `9e373e9`; evidências históricas em 4.4.2 e 4.9. RF65, sincronização de categorias e Rules de categorias foram concluídos no PR #76.
 - **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 deixa o estado consistente no SQLite (`categorias`, limites, tombstones) e a UC02 mantém as `despesas`; a interface prevista é a leitura dessas tabelas por período após cada operação (contrato em 4.10). Não há evento de domínio nem chamada direta implementada nesta etapa; o cálculo continua sob responsabilidade dessas UCs.
 - **UC10:** a restauração no startup aguarda `authStateReady` e usa `auth.currentUser`, mas o app ainda não possui tela de login própria. Sem sessão, a operação permanece offline-first.
 - **Validação nativa:** o smoke funcional da UC06 foi concluído via **Expo Go em dispositivo Android** em 20/11/2026, cobrindo RF19/RF65/RF66/RF67 e persistência. Não houve build nativa/APK, inspeção de `user_version` ou repetição do upgrade nativo a partir de banco antigo; as migrações 006/007 seguem cobertas por testes automatizados.
@@ -212,6 +232,21 @@ Executados em **20/11/2026**, em dispositivo Android via **Expo Go**, no modo of
 A UC02 já está integrada nas migrações 004/005 (`despesas` e tombstone de `recorrencias`). A UC06 usa a migração 006 para estado local/fila de restauração e a 007 para a faixa percentual definitiva; a versão atual do banco é **7**.
 
 A exclusão de categoria própria desvincula, na mesma transação, despesas não excluídas e séries de despesa, preservando os lançamentos e tombstones. A restauração de despesa/série com categoria ausente usa a fila `restauracao_pendente` e não converte o vínculo em `NULL` silenciosamente. Permanecem fora do escopo da UC06 o recálculo de indicadores/alertas (UC05/UC09) e a tela de login (UC10).
+
+**Baseline histórico da integração UC02 (PR #73 / merge `9e373e9` / issue #70):**
+
+- [x] Migração 004 adiciona `despesas` e as colunas `tipo`, `categoria_id`, `fixa_ou_variavel` e `essencial` em `recorrencias`.
+- [x] Migração 005 adiciona `excluido_em` em `recorrencias`; instalação nova terminava em `user_version = 5` naquele baseline.
+- [x] Bancos v0–v4 migram para v5 preservando dados, com validação estrutural, rollback e idempotência.
+- [x] O esquema canônico é validado por assinaturas normalizadas; a migração ad hoc de recorrências foi removida de `database.ts`.
+- [x] Slugs históricos da UC02 são convertidos para IDs reais; referências não resolvidas permanecem tratáveis.
+- [x] Exclusão de categoria desvincula `despesas.categoria_id` e `recorrencias.categoria_id` na mesma transação.
+- [x] `despesas.recorrencia_id` mantém FK para `recorrencias`; `categoria_id` permanece sem FK, com desvinculação no serviço.
+- [x] `PRAGMA integrity_check` e `PRAGMA foreign_key_check` são verificados; 90 testes de migrations aprovados.
+- [x] Issue #70 encerrada com as evidências da integração UC02: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/70
+- [x] CI do PR #73 e da `develop` pós-merge registrados em 4.4.2.
+
+**Superado pelo PR #76:** RF65, sincronização de categorias, Rules de categorias, migrações 006/007 e normalização percentual. **Ainda externo:** UC05/UC09, UC10, publicação das Rules no projeto real, sincronização real e upgrade nativo a partir de banco antigo.
 
 ### 4.10. Contrato de integração com UC05/UC09
 
