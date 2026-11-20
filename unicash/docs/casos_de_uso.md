@@ -965,6 +965,12 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Alteração ou exclusão depois da conquista (FA08):** a RN07 diz que selos e pontos são recalculados a partir dos lançamentos; falta definir se um selo ou pontos já concedidos podem ser retirados quando o lançamento ou a meta muda.
 - **Notificação de conquista (RF46):** o RF58 prevê o tipo de alerta "conquistas", mas não define o texto da mensagem.
 - **Classificação do grupo (RF30, RNF22):** a pontuação alimenta a classificação do grupo, que está fora do MVP (D09).
+- **Contradição — selos e pontos sincronizados ou derivados:** a RN07, o FA07 e as dependências planejadas dizem que selos e pontos são sempre recalculados a partir dos lançamentos e das metas e nunca sincronizados. Já a pós-condição de sucesso ("sem conexão, o registro fica pendente de sincronização") e a EX05 ("o registro permanece pendente e é reenviado") tratam selos e pontos como registros enviados ao Firestore, e o checklist técnico da issue [#64](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/64) pede testes de Security Rules para selos e pontos de outro usuário, o que só se aplica se eles forem gravados na nuvem. A equipe precisa escolher:
+    - **Derivados (segue a RN07):** retirar a sincronização da pós-condição e da EX05 e o teste de Security Rules do checklist; selos e pontos ficam só na base local e são recalculados após sincronizar ou restaurar.
+    - **Sincronizados:** alterar a RN07, que hoje proíbe sincronizar pontos e selos como contadores, e definir como os conflitos de selos e pontos são resolvidos.
+- **Data da conquista (RF44, A1):** o selo guarda a data em que foi conquistado. Se selos forem derivados, um recálculo após restauração em aparelho novo gera a data do recálculo, e não a data original. Falta definir se a data é recalculada a partir do lançamento ou da meta que cumpriu o marco, ou se pode mudar.
+- **Decisões ainda não registradas:** as dependências planejadas dizem que a definição dos marcos e dos pontos será registrada em `decisoes.md`, mas a decisão ainda não existe no [Registro de decisões](decisoes.md). Enquanto ela não for registrada, a avaliação usa os valores de teste da tabela de configuração.
+- **Revisão para o DoR:** o caso de uso ainda não foi lido por um revisor diferente do responsável, como pede o DoR ([DoR e DoD](dor_dod.md)). A revisão deve conferir os pontos acima antes de o item passar a pronto para desenvolvimento.
 
 ### Dependências planejadas (DoR)
 
@@ -1030,8 +1036,10 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 - **Estado inicial (RF58):** o catálogo não diz se cada tipo de alerta começa ativado ou desativado.
 - **Alerta de saldo negativo (RN18):** a inclusão desse tipo nas preferências está pendente de validação com a cliente.
-- **Preferências e sincronização:** a RN04 trata as preferências como dados do usuário, mas não está definido se elas voltam na restauração dos dados em aparelho novo.
+- **Preferências na restauração em aparelho novo:** não está definido se as preferências voltam quando o usuário restaura os dados em outro aparelho. Nenhuma regra de negócio trata disso: a RN04, citada antes neste ponto, só lista as preferências entre os dados removidos na exclusão do perfil, e não fala de restauração. É preciso decidir se as preferências entram na sincronização (RF62) e, se entrarem, registrar isso numa regra de negócio.
 - **Permissão do aparelho (FA06):** o texto orienta o usuário, mas o catálogo não define esse comportamento.
+- **Decisão ainda não registrada:** as dependências planejadas dizem que o estado inicial de cada tipo de alerta será decidido e registrado em `decisoes.md`, mas a decisão ainda não existe no [Registro de decisões](decisoes.md). Enquanto ela não for registrada, o valor inicial fica na constante única prevista nas dependências.
+- **Revisão para o DoR:** o caso de uso ainda não foi lido por um revisor diferente do responsável, como pede o DoR ([DoR e DoD](dor_dod.md)). A revisão deve conferir os pontos acima antes de o item passar a pronto para desenvolvimento.
 
 ### Dependências planejadas (DoR)
 
@@ -1232,3 +1240,4 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 | 1.13 | 01/11/2026 | Adiciona mais detalhes ao uc03 | Natan França |
 | 1.14 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
 | 1.15 | 07/11/2026 | Ajusta a validação dos UC01 e UC02 à gravação local e retira o RNF06, fundido ao RNF35 (issue #21) | Dante Scarpati |
+| 1.16 | 20/11/2026 | Registra nos pontos para validação do UC13 e do UC14 as contradições e pendências encontradas na verificação do DoR, para decisão da equipe (issues #64 e #65) | Bruno Duarte |
