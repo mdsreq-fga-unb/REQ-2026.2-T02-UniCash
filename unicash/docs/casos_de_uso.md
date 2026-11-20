@@ -406,7 +406,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 2. O sistema solicita confirmação explícita (RN11) e informa que as despesas da categoria serão mantidas como "Sem categoria" e que o histórico da categoria (limite e alertas) será perdido (RN13).
 3. O usuário confirma.
 4. O sistema exclui a categoria com todo o seu histórico (limite, indicadores e alertas); as despesas associadas não são excluídas e passam a constar como "Sem categoria" (RN13).
-5. O sistema recalcula, na mesma operação, os indicadores e alertas dependentes (RN13, RN14).
+5. O sistema recalcula, na mesma operação, os indicadores e alertas dependentes (RN13, RN14, UC05 e UC09).
 6. Se houver conexão, sincroniza; o sistema informa a exclusão, que é definitiva (RN11).
 ### Fluxos alternativos
  
