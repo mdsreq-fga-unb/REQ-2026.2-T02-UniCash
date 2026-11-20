@@ -373,7 +373,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
  
 - A base local está disponível (RN06).
 - As categorias padrão existem: Casa, Alimentação, Mobilidade, Estudos, Saúde, Lazer e Reserva financeira (RN13).
-- Para renomear ou excluir uma categoria, existe ao menos uma categoria própria. As padrão não podem ser renomeadas nem excluídas, mas permitem definir limite (RN13, RN14).
+- Para renomear ou excluir uma categoria, existe ao menos uma categoria própria. As padrão não podem ser renomeadas nem excluídas, mas permitem definir, alterar e remover o limite (RN13, RN14).
 ### Pós-condições
  
 - **Sucesso:** a categoria fica gravada na base local; indicadores e alertas de limite refletem a alteração; sem conexão, o registro fica pendente de sincronização (RN06, RF62). Na exclusão, um marcador de exclusão é guardado para ser sincronizado (RN07) e as despesas da categoria passam a "Sem categoria" (RN13).
@@ -382,20 +382,20 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 ### Fluxo principal
  
 1. O usuário acessa a lista de categorias.
-2. O sistema exibe as categorias padrão e próprias, identificando as padrão e mostrando o limite de gasto de cada uma, quando definido (RF65).
+2. O sistema exibe as categorias padrão e próprias, identificando as padrão, mostrando o limite de gasto de cada uma, quando definido, e a quantidade de lançamentos vinculados (RF65).
 3. O usuário escolhe uma operação: **abrir uma categoria** (A), **criar** (B), **editar** (C) ou **excluir uma categoria própria** (D).
 #### A - Abrir categoria (RF65)
  
-1. O usuário seleciona uma categoria para ver os lançamentos classificados nela.
+1. O usuário aciona o atalho "Ver despesas" de uma categoria para ver os lançamentos classificados nela.
 2. O sistema exibe a consulta de despesas já filtrada por essa categoria (UC02, fluxo B).
 #### B - Criar categoria própria (RF19)
  
 1. O usuário aciona "Nova categoria" e informa o nome e, opcionalmente, um limite de gasto (valor em R$ ou percentual da renda mensal, RN14).
-2. O sistema valida o nome (único por usuário, sem diferenciar maiúsculas e minúsculas, com 1 a 30 caracteres, RN13) e, se informado, o limite: em R$, conforme a RN09; em percentual, maior que 0% e até 100%, com até duas casas decimais (RN14). Em seguida, persiste e confirma. A faixa do percentual é proposta e está pendente de validação com a cliente.
+2. O sistema valida o nome (único por usuário, sem diferenciar maiúsculas e minúsculas, com 1 a 30 caracteres, RN13) e, se informado, o limite: em R$, conforme a RN09; em percentual, de 1% a 100%, com até duas casas decimais (RN14). Em seguida, persiste e confirma.
 3. Se houver conexão, o sistema sincroniza a categoria.
 #### C - Editar categoria (RF66)
  
-1. O usuário seleciona uma categoria e altera o limite; em categoria própria, também o nome. Em categoria padrão, só o limite pode ser alterado (RN13, RN14).
+1. O usuário seleciona uma categoria e altera o limite; em categoria própria, também o nome. Em categoria padrão, o nome não pode ser alterado; o limite pode ser definido, alterado ou removido (RN13, RN14).
 2. O sistema valida o nome, se alterado (único por usuário, sem diferenciar maiúsculas e minúsculas, com 1 a 30 caracteres, RN13), e o limite, nas mesmas condições do passo B2, e persiste a alteração.
 3. O sistema recalcula, na mesma operação, os indicadores de consumo e os alertas de limite afetados (RN14, UC05 e UC09).
 4. Se houver conexão, o sistema sincroniza a categoria.
@@ -420,8 +420,8 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 Cada exceção indica o passo em que ocorre e o ponto de retorno.
  
 - **EX01 - Nome de categoria duplicado (B2 e C2):** o sistema rejeita e informa: "Já existe uma categoria com este nome." **Retorno:** ao passo 1 do fluxo B ou C, com os dados preservados.
-- **EX02 - Categoria padrão (C1 e D1):** as ações de renomear e excluir não aparecem nas categorias padrão (RN13, RF66, RF67); se acionadas por outro meio, o sistema informa: "Categorias padrão não podem ser renomeadas nem excluídas." Só o limite pode ser alterado (RN13, RN14). **Retorno:** à lista de categorias (passo 2 do fluxo principal).
-- **EX03 - Limite inválido (B2 e C2):** o sistema rejeita e informa o motivo (RN09, RN14, RNF14). Mensagens: "O limite deve ser maior que zero, com no máximo duas casas decimais."; "O valor máximo permitido é R$ 999.999.999,99."; "O percentual deve ser maior que 0% e até 100%." **Retorno:** ao passo 1 do fluxo B ou C, com os dados preservados.
+- **EX02 - Categoria padrão (C1 e D1):** as ações de renomear e excluir não aparecem nas categorias padrão (RN13, RF66, RF67); se acionadas por outro meio, o sistema informa: "Categorias padrão não podem ser renomeadas nem excluídas." O limite pode ser definido, alterado ou removido (RN13, RN14). **Retorno:** à lista de categorias (passo 2 do fluxo principal).
+- **EX03 - Limite inválido (B2 e C2):** o sistema rejeita e informa o motivo (RN09, RN14, RNF14). Mensagens: "O limite deve ser maior que zero, com no máximo duas casas decimais."; "O valor máximo permitido é R$ 999.999.999,99."; "O percentual deve ser de 1% a 100%." **Retorno:** ao passo 1 do fluxo B ou C, com os dados preservados.
 - **EX04 - Falha na gravação ou no recálculo (B2, C2 e C3, D4 e D5):** nenhuma alteração parcial permanece, nem na categoria, nem nas despesas, nem em indicadores ou alertas (RN11, RNF05). O sistema informa: "Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao formulário, com os dados preservados; no fluxo D, à lista de categorias.
 - **EX05 - Falha na sincronização (B3, C4, D6):** a operação já está concluída localmente e o registro permanece pendente de sincronização. **Retorno:** o fluxo segue no passo seguinte.
 - **EX06 - Categoria inexistente ou já excluída (A1, C1 e D1):** o sistema informa: "Esta categoria não está mais disponível." **Retorno:** à lista de categorias atualizada (passo 2 do fluxo principal).
