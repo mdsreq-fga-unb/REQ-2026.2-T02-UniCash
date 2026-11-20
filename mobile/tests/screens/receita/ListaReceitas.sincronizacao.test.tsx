@@ -3,7 +3,7 @@ import ListaReceitas from '@/app/receitas/index';
 import { listarReceitas } from '@/features/receitas/service';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import { sincronizarPendentes } from '@/features/receitas/sync';
-import { receitaLinha } from '../helpers/dados';
+import { receitaLinha } from '../../helpers/dados';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);

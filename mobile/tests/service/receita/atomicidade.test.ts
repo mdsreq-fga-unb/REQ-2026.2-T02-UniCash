@@ -4,9 +4,9 @@ import {
   FalhaPersistencia,
   registrarReceita,
 } from '@/features/receitas/service';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 /**
  * RNF05 / RN11: se qualquer etapa da operação falhar, nenhum registro permanece parcialmente alterado.

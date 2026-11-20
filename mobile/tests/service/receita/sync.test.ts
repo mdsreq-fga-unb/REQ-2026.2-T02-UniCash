@@ -10,9 +10,9 @@ import {
   restaurarDaNuvem,
   sincronizarPendentes,
 } from '@/features/receitas/sync';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 // Firestore em memória: o que está em mockNuvem é o que "está na nuvem".
 const mockNuvem = new Map<string, any>();

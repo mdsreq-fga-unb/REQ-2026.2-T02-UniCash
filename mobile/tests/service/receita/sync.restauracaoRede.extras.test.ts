@@ -1,5 +1,5 @@
 import { consumirAcessoNegado, FalhaRestauracao, restaurarDaNuvem } from '@/features/receitas/sync';
-import { instalarBanco } from '../helpers/fakeDb';
+import { instalarBanco } from '../../helpers/fakeDb';
 
 jest.mock('@/lib/firebase', () => ({
   auth: { currentUser: { uid: 'u1' } },

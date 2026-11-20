@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import { ReceitaItem } from '@/components/receitas/ReceitaItem';
-import { receitaLinha } from '../helpers/dados';
+import { receitaLinha } from '../../helpers/dados';
 
 describe('Item da lista de receitas', () => {
   it('receita única não mostra "Recorrente"', async () => {

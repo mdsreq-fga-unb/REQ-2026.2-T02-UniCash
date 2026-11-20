@@ -6,9 +6,9 @@ import {
   registrarReceita,
   ReceitaIndisponivel,
 } from '@/features/receitas/service';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 describe('Editar receita (fluxo C, RN20)', () => {
   let banco: BancoFalso;

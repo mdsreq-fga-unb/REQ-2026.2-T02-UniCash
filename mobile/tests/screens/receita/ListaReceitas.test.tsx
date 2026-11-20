@@ -5,8 +5,8 @@ import { contarPendentes } from '@/features/receitas/pendencias';
 import { consumirAcessoNegado } from '@/features/receitas/sync';
 import { setFeedback } from '@/features/receitas/feedback';
 import { MSG } from '@/features/receitas/validation';
-import { router } from '../helpers/expoRouterMock';
-import { receitaLinha } from '../helpers/dados';
+import { router } from '../../helpers/expoRouterMock';
+import { receitaLinha } from '../../helpers/dados';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);

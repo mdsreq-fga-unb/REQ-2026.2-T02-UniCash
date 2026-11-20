@@ -4,9 +4,9 @@ import {
   listarReceitas,
   registrarReceita,
 } from '@/features/receitas/service';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 describe('Receita recorrente (RN19)', () => {
   let banco: BancoFalso;

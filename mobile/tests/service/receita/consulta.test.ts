@@ -1,8 +1,8 @@
 import { listarReceitas, registrarReceita, excluirReceita } from '@/features/receitas/service';
 import { intervaloDoFiltro } from '@/features/receitas/useReceitas';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 describe('Consulta e filtros (fluxo B, RN12)', () => {
   let banco: BancoFalso;

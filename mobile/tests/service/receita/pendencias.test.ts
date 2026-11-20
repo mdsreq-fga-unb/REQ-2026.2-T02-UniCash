@@ -1,9 +1,9 @@
 import { getDb } from '@/db/database';
 import { excluirReceita, registrarReceita } from '@/features/receitas/service';
 import { contarPendentes } from '@/features/receitas/pendencias';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 describe('Contador de pendências de sincronização', () => {
   let banco: BancoFalso;

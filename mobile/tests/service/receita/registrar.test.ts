@@ -1,7 +1,7 @@
 import { FalhaPersistencia, registrarReceita } from '@/features/receitas/service';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 describe('Registrar receita (fluxo A)', () => {
   let banco: BancoFalso;

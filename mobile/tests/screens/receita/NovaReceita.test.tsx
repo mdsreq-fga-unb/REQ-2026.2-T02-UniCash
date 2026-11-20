@@ -4,7 +4,7 @@ import { FalhaPersistencia, registrarReceita } from '@/features/receitas/service
 import { consumirFeedback } from '@/features/receitas/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
-import { router } from '../helpers/expoRouterMock';
+import { router } from '../../helpers/expoRouterMock';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);

@@ -1,8 +1,8 @@
 import { registrarReceita } from '@/features/receitas/service';
 import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 const mockNuvem = new Map<string, any>();
 

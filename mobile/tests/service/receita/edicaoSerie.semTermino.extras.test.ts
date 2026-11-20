@@ -1,7 +1,7 @@
 import { editarReceita, registrarReceita } from '@/features/receitas/service';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 /** Série mensal SEM término (gera 12 meses à frente a partir de 16/10/2026). */
 describe('Série sem término: comparação da repetição ao editar', () => {

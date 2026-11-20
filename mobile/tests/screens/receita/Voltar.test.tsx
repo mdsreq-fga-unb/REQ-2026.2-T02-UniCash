@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import Detalhe from '@/app/receitas/[id]/index';
 import Editar from '@/app/receitas/[id]/editar';
 import { buscarReceita } from '@/features/receitas/service';
-import { router } from '../helpers/expoRouterMock';
-import { receitaLinha } from '../helpers/dados';
+import { router } from '../../helpers/expoRouterMock';
+import { receitaLinha } from '../../helpers/dados';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);

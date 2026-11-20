@@ -1,7 +1,7 @@
 import { buscarReceita, editarReceita, excluirReceita, registrarReceita } from '@/features/receitas/service';
-import { fixarHoje, restaurarTempo } from '../helpers/tempo';
-import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
+import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 /** Série mensal de R$ 100,00: 16/10, 16/11, 16/12 e 16/01. */
 describe('Série recorrente: ramos restantes de leitura, edição e exclusão', () => {

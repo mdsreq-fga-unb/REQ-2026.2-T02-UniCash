@@ -5,8 +5,8 @@ import {
   listarReceitas,
   registrarReceita,
 } from '@/features/receitas/service';
-import { instalarBanco } from '../helpers/fakeDb';
-import { input } from '../helpers/dados';
+import { instalarBanco } from '../../helpers/fakeDb';
+import { input } from '../../helpers/dados';
 
 describe('EX08: falha na leitura local', () => {
   it('listar lança FalhaLeitura quando a base não abre', async () => {
