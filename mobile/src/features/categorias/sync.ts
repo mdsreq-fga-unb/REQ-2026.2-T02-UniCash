@@ -1,6 +1,9 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { doc, runTransaction } from 'firebase/firestore';
-import { LIMITE_PERCENTUAL_MAX } from '@/db/schema';
+import {
+  PERCENTUAL_MAX_CENTESIMOS,
+  PERCENTUAL_MIN_CENTESIMOS,
+} from './limites';
 import { db as firestore } from '@/lib/firebase';
 import { gerarId } from '@/features/receitas/service';
 import {
@@ -31,6 +34,8 @@ export interface CategoriaRemota {
   criado_em: string;
   atualizado_em: string;
   aliases: string[];
+  /** Indica que um percentual legado foi ajustado e precisa ser reenviado. */
+  percentualNormalizado?: boolean;
 }
 
 function texto(valor: unknown): string | null {
@@ -43,28 +48,46 @@ function inteiroPositivo(valor: unknown, max: number): number | null {
     : null;
 }
 
+/**
+ * Normaliza um percentual legado para a faixa definitiva de 1% a 100%,
+ * arredondando casas excedentes. Retorna também se houve ajuste, para que o
+ * chamador marque a categoria como pendente e reenvie o documento ao Firestore.
+ */
+function normalizarPercentualRemoto(valor: unknown): { valor: number; ajustado: boolean } | null {
+  if (typeof valor !== 'number' || !Number.isFinite(valor)) return null;
+  const arredondado = Math.round(valor);
+  const normalizado = Math.min(
+    PERCENTUAL_MAX_CENTESIMOS,
+    Math.max(PERCENTUAL_MIN_CENTESIMOS, arredondado),
+  );
+  return { valor: normalizado, ajustado: normalizado !== valor };
+}
+
 function normalizarLimite(dados: Record<string, unknown>): {
   tipo: LimiteTipo | null;
   centavos: number | null;
   percentual: number | null;
+  percentualAjustado: boolean;
 } | null {
   const tipo = dados.limite_tipo ?? null;
   if (tipo === null) {
     if (dados.limite_centavos != null || dados.limite_percentual_centesimos != null) return null;
-    return { tipo: null, centavos: null, percentual: null };
+    return { tipo: null, centavos: null, percentual: null, percentualAjustado: false };
   }
   if (tipo === 'valor') {
     const centavos = inteiroPositivo(dados.limite_centavos, 99_999_999_999);
     if (centavos === null || dados.limite_percentual_centesimos != null) return null;
-    return { tipo, centavos, percentual: null };
+    return { tipo, centavos, percentual: null, percentualAjustado: false };
   }
   if (tipo === 'percentual_renda') {
-    const percentual = inteiroPositivo(
-      dados.limite_percentual_centesimos,
-      LIMITE_PERCENTUAL_MAX,
-    );
+    const percentual = normalizarPercentualRemoto(dados.limite_percentual_centesimos);
     if (percentual === null || dados.limite_centavos != null) return null;
-    return { tipo, centavos: null, percentual };
+    return {
+      tipo,
+      centavos: null,
+      percentual: percentual.valor,
+      percentualAjustado: percentual.ajustado,
+    };
   }
   return null;
 }
@@ -134,6 +157,7 @@ export function normalizarCategoriaRemota(
       criado_em: criadoEm,
       atualizado_em: atualizadoEm,
       aliases,
+      ...(limite.percentualAjustado ? { percentualNormalizado: true } : {}),
     };
   }
 
@@ -153,6 +177,7 @@ export function normalizarCategoriaRemota(
     criado_em: criadoEm,
     atualizado_em: atualizadoEm,
     aliases: [],
+    ...(limite.percentualAjustado ? { percentualNormalizado: true } : {}),
   };
 }
 
@@ -410,6 +435,23 @@ function chavesDaCategoria(docId: string, remota: CategoriaRemota): string[] {
   return [...new Set([docId, remota.chave!, ...remota.aliases])];
 }
 
+/** Payload remoto sem metadados internos (ex.: `percentualNormalizado`). */
+function payloadDaRemota(remota: CategoriaRemota, aliases: string[]): CategoriaRemota {
+  return {
+    padrao: remota.padrao,
+    chave: remota.chave,
+    nome: remota.nome,
+    nome_normalizado: remota.nome_normalizado,
+    limite_tipo: remota.limite_tipo,
+    limite_centavos: remota.limite_centavos,
+    limite_percentual_centesimos: remota.limite_percentual_centesimos,
+    excluido_em: remota.excluido_em,
+    criado_em: remota.criado_em,
+    atualizado_em: remota.atualizado_em,
+    aliases,
+  };
+}
+
 /**
  * Aplica um documento remoto de categoria na base local, sem rede.
  * Conflitos de nome entre categorias próprias diferentes NÃO são fundidos:
@@ -546,10 +588,19 @@ function categoriaIdDoDocumento(dados: unknown, docId: string): string {
   return docId;
 }
 
+async function marcarCategoriaPendenteLocal(
+  tx: SQLiteDatabase,
+  id: string,
+): Promise<void> {
+  await tx.runAsync("UPDATE categorias SET sync_status = 'pendente' WHERE id = ?", [id]);
+  await definirEstadoCategoria(tx, id, 'editado');
+}
+
 /**
  * Restaura categorias antes de séries/despesas. Categorias com conflito de nome
  * ou documento inválido ficam na fila `restauracao_pendente`; nada é convertido
- * em NULL nem mesclado por nome.
+ * em NULL nem mesclado por nome. Percentuais legados normalizados são marcados
+ * como pendentes para que a correção seja enviada ao Firestore.
  */
 export async function restaurarCategoriasDaNuvem(
   tx: SQLiteDatabase,
@@ -585,6 +636,9 @@ export async function restaurarCategoriasDaNuvem(
 
     const resultado = await aplicarCategoriaRemota(tx, documento.id, remota);
     if (resultado.status === 'aplicada') {
+      if (remota.percentualNormalizado && resultado.mapa) {
+        await marcarCategoriaPendenteLocal(tx, resultado.mapa);
+      }
       await removerPendente(tx, 'categoria', documento.id);
       for (const chave of resultado.chaves ?? []) {
         mapa.set(chave, resultado.mapa ?? null);
@@ -616,6 +670,9 @@ export async function restaurarCategoriasDaNuvem(
     if (!remota) continue;
     const resultado = await aplicarCategoriaRemota(tx, pendente.id, remota);
     if (resultado.status === 'aplicada') {
+      if (remota.percentualNormalizado && resultado.mapa) {
+        await marcarCategoriaPendenteLocal(tx, resultado.mapa);
+      }
       await removerPendente(tx, 'categoria', pendente.id);
       for (const chave of resultado.chaves ?? []) {
         mapa.set(chave, resultado.mapa ?? null);
@@ -712,7 +769,7 @@ export async function sincronizarCategoriasPendentes(
           tx.set(ref, { ...payload, aliases });
           return { acao: 'local' as const };
         }
-        tx.set(ref, { ...remota, aliases });
+        tx.set(ref, payloadDaRemota(remota, aliases));
         return { acao: 'remota' as const, remota };
       }
 

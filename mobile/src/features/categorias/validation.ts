@@ -14,7 +14,7 @@ export const MSG_CAT = {
   limiteValorInvalido: 'O limite deve ser maior que zero, com no máximo duas casas decimais.',
   limiteValorLimite: 'O valor máximo permitido é R\u00A0$ 999.999.999,99.',
   limitePercentualVazio: 'Informe o percentual do limite.',
-  limitePercentualInvalido: 'O percentual deve ser maior que 0% e até 100%.',
+  limitePercentualInvalido: 'O percentual deve ser de 1% a 100%.',
   dadosInvalidos: 'Não foi possível validar os dados da categoria. Tente novamente.',
   falhaSalvar: 'Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente.',
   falhaSemeadura: 'Não foi possível preparar as categorias padrão. Tente novamente.',
@@ -62,7 +62,7 @@ export interface DadosCategoriaValidos {
  * Validação de domínio compartilhada entre formulário e serviço (RN13, RN14):
  * nome de 1 a 30 caracteres e limite coerente (valor em centavos ou percentual
  * em centésimos). Exige inteiros seguros (Number.isSafeInteger) e, no
- * percentual, a faixa provisória de 0,01% a 100% (1 a 10.000 centésimos).
+ * percentual, a faixa definitiva de 1% a 100% (100 a 10.000 centésimos).
  */
 export function validarDadosCategoria(nome: string, limite: CategoriaInput['limite']): DadosCategoriaValidos {
   const nomeTrim = nome.trim();
@@ -82,7 +82,7 @@ export function validarDadosCategoria(nome: string, limite: CategoriaInput['limi
     }
   } else if (limite.tipo === 'percentual_renda') {
     const p = limite.valor;
-    // Faixa provisória aprovada: 0,01% a 100%, exatamente em centésimos.
+    // Faixa definitiva: 1% a 100%, exatamente em centésimos.
     if (
       !Number.isSafeInteger(p) ||
       p < PERCENTUAL_MIN_CENTESIMOS ||
@@ -103,9 +103,8 @@ export function validarDadosCategoria(nome: string, limite: CategoriaInput['limi
  * com até duas casas. Rejeita notação científica ("1e2"), hexadecimal ("0x1f"),
  * sinais ("+5"), espaços internos, "." e "" isolados — `Number()` nunca é usado
  * sobre o texto completo e a conversão é exata (BigInt).
- * A faixa provisória de 0,01% a 100% (1 a 10.000 centésimos) é aplicada no
- * resultado, antes de convertê-lo para Number; a homologação da cliente segue
- * pendente.
+ * A faixa definitiva de 1% a 100% (100 a 10.000 centésimos) é aplicada no
+ * resultado, antes de convertê-lo para Number.
  */
 export function parsePercentualParaCentesimos(texto: string): number | null {
   const normalizado = texto.trim().replace(',', '.');
@@ -153,7 +152,7 @@ export function validarFormularioCategoria(
         erros.limitePercentual = MSG_CAT.limitePercentualVazio;
       } else {
         const centesimos = parsePercentualParaCentesimos(v.limitePercentual);
-        // Faixa provisória 0,01%–100% (máximo ainda pendente de homologação).
+        // Faixa definitiva 1%–100%.
         if (centesimos === null) {
           erros.limitePercentual = MSG_CAT.limitePercentualInvalido;
         } else {

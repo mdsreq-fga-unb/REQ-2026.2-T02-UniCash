@@ -24,6 +24,8 @@ export interface Categoria {
   atualizado_em: string;
   /** Presente nas leituras que fazem join com `categorias_estado`. */
   estado_local?: EstadoLocalCategoria;
+  /** Quantidade de despesas ativas vinculadas; presente nas leituras de lista. */
+  total_lancamentos?: number;
 }
 
 /** Dados já validados e normalizados, prontos para gravar. */

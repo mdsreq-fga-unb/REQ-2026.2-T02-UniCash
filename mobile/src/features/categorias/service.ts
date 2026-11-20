@@ -163,13 +163,15 @@ export function semearCategoriasPadrao(): Promise<ResultadoSemeadura> {
 // ---------------------------------------------------------------- consultas
 
 /**
- * Lista todas as categorias ativas. A contagem de lançamentos vinculados
- * entra com a integração UC02 (tabela de despesas) — sem valores fictícios.
+ * Lista todas as categorias ativas com a contagem real de despesas vinculadas.
+ * A contagem considera apenas despesas não excluídas (RF65).
  */
 export function listarCategorias() {
   return leitura(async (db) => {
     const itens = await db.getAllAsync<Categoria>(
-      `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local
+      `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local,
+              (SELECT COUNT(*) FROM despesas d
+                WHERE d.categoria_id = c.id AND d.excluido_em IS NULL) AS total_lancamentos
         FROM categorias c
         LEFT JOIN categorias_estado e ON e.categoria_id = c.id
         WHERE c.excluido_em IS NULL
@@ -182,7 +184,9 @@ export function listarCategorias() {
 export function buscarCategoria(id: string) {
   return leitura(async (db) => {
     return db.getFirstAsync<Categoria>(
-      `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local
+      `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local,
+              (SELECT COUNT(*) FROM despesas d
+                WHERE d.categoria_id = c.id AND d.excluido_em IS NULL) AS total_lancamentos
          FROM categorias c
          LEFT JOIN categorias_estado e ON e.categoria_id = c.id
         WHERE c.id = ? AND c.excluido_em IS NULL`,

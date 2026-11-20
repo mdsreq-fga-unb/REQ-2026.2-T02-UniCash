@@ -15,6 +15,7 @@ export function categoriaLinha(extra: Partial<Categoria> = {}): Categoria {
     excluido_em: null,
     criado_em: 't',
     atualizado_em: 't',
+    total_lancamentos: 0,
     ...extra,
   } as Categoria;
 }

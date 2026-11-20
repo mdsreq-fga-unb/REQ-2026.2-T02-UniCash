@@ -98,44 +98,44 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 
 | Requisito | Fluxo do UC06 | Código | Teste automatizado | Situação |
 |---|---|---|---|---|
-| RN06 — base local/offline | todos, FA01 | `src/db/schema.ts`, `src/db/database.ts`, `src/features/categorias/service.ts` | `tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts` | Local testado; envio à nuvem pendente |
-| RN07 — conflito/tombstone | D, EX08 | `service.ts` (`excluirCategoria`), `types.ts` | `tests/service/categorias.test.ts` (“exclui própria com tombstone…”) | Tombstone testado; conflito de sincronização pendente |
+| RN06 — base local/offline | todos, FA01 | `src/db/schema.ts`, `src/db/database.ts`, `src/features/categorias/service.ts`, `categorias/sync.ts` | `tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts`, `tests/service/sync.test.ts` | Local e sincronização testados |
+| RN07 — conflito/tombstone | D, EX08 | `service.ts` (`excluirCategoria`), `categorias/sync.ts`, `categorias/estado.ts` | `tests/service/categorias.test.ts`, `tests/service/sync.test.ts`, `tests/service/categorias.sync.test.ts`, `tests/rules/firestore.rules.test.ts` | Tombstone, conflito e anti-ressurreição testados |
 | RN09 — valor monetário | B, C, EX03 | `validation.ts`, `src/features/receitas/money.ts`, `src/db/schema.ts` | `tests/unit/validation-categorias.test.ts`, `tests/db/schema.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Testado: 1 centavo, zero, teto e inteiros |
-| RN11 — exclusão/atomicidade | C, D, EX04 | `service.ts` (`transacao`, `excluirCategoria`), `[id]/editar.tsx` | `tests/service/categorias.test.ts` (falha em criar/editar/excluir), `tests/screens/EditarCategoria.test.tsx` | Operação local testada; recálculo pendente |
-| RN13 — nome, unicidade e padrões | A, B, C, D | `validation.ts`, `service.ts`, `src/db/schema.ts`, `useCategorias.ts` | `tests/service/categorias.test.ts`, `tests/db/schema.test.ts`, `tests/unit/validation-categorias.test.ts`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx` | Testado (30/31 caracteres, Unicode/emoji, duplicidade, padrões, tombstone); conflito isolado reportado |
-| RN14 — limites por valor/percentual | B, C | `validation.ts`, `formato.ts`, `CategoriaForm.tsx`, `[id]/editar.tsx`, `src/db/schema.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx`, `tests/db/schema.test.ts`, `tests/db/migrations.test.ts` | Faixa provisória 0,01%–100% testada em formulário/domínio/serviço/SQLite; homologação da cliente e recálculo pendentes |
-| RNF03 — isolamento por usuário | EX09, sincronização | Sem regras de categorias no Firestore | `tests/rules/firestore.rules.test.ts` cobre apenas UC01 | **Não aplicável nesta entrega**; pendente com Firebase |
+| RN11 — exclusão/atomicidade | C, D, EX04 | `service.ts` (`transacao`, `excluirCategoria`), `[id]/editar.tsx` | `tests/service/categorias.test.ts` (falha em criar/editar/excluir), `tests/screens/EditarCategoria.test.tsx` | Operação local, desvinculação e rollback testados; recálculo pendente |
+| RN13 — nome, unicidade e padrões | A, B, C, D | `validation.ts`, `service.ts`, `src/db/schema.ts`, `useCategorias.ts`, `firestore.rules` | `tests/service/categorias.test.ts`, `tests/db/schema.test.ts`, `tests/unit/validation-categorias.test.ts`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx`, `tests/rules/firestore.rules.test.ts` | Testado (30/31 caracteres, Unicode/emoji, duplicidade, padrões, tombstone); padrão sem renomear/excluir e com limite editável |
+| RN14 — limites por valor/percentual | B, C | `validation.ts`, `limites.ts`, `formato.ts`, `CategoriaForm.tsx`, `[id]/editar.tsx`, `src/db/schema.ts`, `categorias/sync.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/categorias.sync.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx`, `tests/db/schema.test.ts`, `tests/db/migrations.test.ts` | Faixa definitiva 1%–100% testada em formulário/domínio/serviço/SQLite/Firestore; recálculo UC05/UC09 pendente |
+| RNF03 — isolamento por usuário | EX09, sincronização | `firestore.rules` | `tests/rules/firestore.rules.test.ts` | Isolamento por UID testado nas Rules de categorias |
 | RNF04 — validação local | B, C | `validation.ts`, `CategoriaForm.tsx` | `tests/unit/validation-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Testado |
 | RNF05 — evitar estado parcial | B, C, D | `service.ts` (`transacao`) | `tests/service/categorias.test.ts` (falha em criar/editar/excluir) | Testado no escopo local |
 | RNF07 — precisão monetária | B, C | `money.ts`, `validation.ts`, `schema.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/db/schema.test.ts` | Testado com centavos/centésimos inteiros |
 | RNF14 — mensagens de rejeição | B, C, EX01–EX07 | `validation.ts` (`MSG_CAT`), `CategoriaForm.tsx` | `tests/screens/CategoriaForm.test.tsx`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx` | Testado nos fluxos implementados |
-| RNF35 — Persistir localmente com durabilidade | todos | `schema.ts`, `service.ts` | `tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts` | SQLite testado; smoke anterior antes de `2445ee8`; diagnóstico manual v3 relatado pelo usuário (capturas pendentes); testes funcionais e persistência após encerramento completo pendentes |
-| RNF36 — convergência da sincronização | sincronização | Sem sincronização de categorias | — | **Pendente**; `sync_status` preparado, sem Firebase |
+| RNF35 — Persistir localmente com durabilidade | todos | `schema.ts`, `service.ts` | `tests/db/schema.test.ts`, `tests/db/migrations.test.ts`, `tests/service/categorias.test.ts` | SQLite testado; smoke anterior antes de `2445ee8`; diagnóstico manual v3 relatado pelo usuário (capturas pendentes); persistência após encerramento completo pendente |
+| RNF36 — convergência da sincronização | sincronização | `categorias/sync.ts`, `receitas/sync.ts`, `db/restauracaoPendente.ts`, `firestore.rules` | `tests/service/sync.test.ts`, `tests/service/categorias.sync.test.ts`, `tests/unit/categorias.sync.test.ts`, `tests/rules/firestore.rules.test.ts` | Sincronização, aliases, conflitos, pendências e tombstones testados |
 
 ### 4.2. Fluxos e exceções
 
 | Fluxo / exceção | Código | Teste automatizado | Situação |
 |---|---|---|---|
 | Semeadura inicial (pré-condição RN13) | `service.ts` (`semearCategoriasPadrao`), `useCategorias.ts`, `semeaduraPendente.ts`, `index.tsx` | `tests/service/categorias.test.ts` (vazia, repetida, conflito, rollback, exclusão+recriação), `tests/unit/useCategorias.test.ts`, `tests/unit/semeaduraPendente.test.ts`, `tests/screens/ListaCategorias.test.tsx` | Cria as ausentes; conflito isolado não bloqueia; própria preservada; conflito reportado; após excluir reservado, reavalia uma vez no próximo foco |
-| A — listar/consultar categorias | `src/app/categorias/index.tsx`, `useCategorias.ts`, `service.ts` (`listarCategorias`) | `tests/screens/ListaCategorias.test.tsx`, `tests/unit/useCategorias.test.ts`, `tests/service/categorias.test.ts` | Implementado/testado |
-| A (passo 2) — abrir lançamentos da categoria | `src/app/categorias/index.tsx` (abre edição) | — | **Pendente UC02** (atalho de despesas) |
+| A — listar/consultar categorias | `src/app/categorias/index.tsx`, `useCategorias.ts`, `service.ts` (`listarCategorias`) | `tests/screens/ListaCategorias.test.tsx`, `tests/unit/useCategorias.test.ts`, `tests/service/categorias.test.ts` | Implementado/testado, com contagem real de lançamentos |
+| A (passo 2) — abrir lançamentos da categoria | `src/app/categorias/index.tsx` (atalho “Ver despesas”), `src/app/despesas/index.tsx` (parâmetro `categoriaId`) | `tests/screens/ListaCategorias.test.tsx`, `tests/screens/TelaListaDespesas.test.tsx`, `tests/service/despesas.leitura.test.ts` | Implementado/testado com o filtro da UC02, somente leitura |
 | B — criar categoria | `src/app/categorias/nova.tsx`, `CategoriaForm.tsx`, `service.ts` (`criarCategoria`) | `tests/screens/NovaCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx`, `tests/service/categorias.test.ts` | Implementado/testado |
-| C — editar categoria | `src/app/categorias/[id]/editar.tsx`, `CategoriaForm.tsx`, `service.ts` (`editarCategoria`) | `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx`, `tests/service/categorias.test.ts` | Implementado/testado |
-| D — excluir categoria própria | `src/app/categorias/[id]/editar.tsx`, `service.ts` (`excluirCategoria`) | `tests/screens/EditarCategoria.test.tsx`, `tests/service/categorias.test.ts` | Implementado/testado (local) |
-| FA01 — operação offline | `service.ts`, `schema.ts` | `tests/service/categorias.test.ts` (grava `sync_status='pendente'`) | Local testado; sincronização pendente |
-| FA02 — categoria sem lançamentos | `src/app/categorias/index.tsx` | — | **Pendente UC02** |
-| FA03 — exclusão com lançamentos | `service.ts` (TODO UC02) | — | **Pendente UC02**; não afirma desvinculação |
+| C — editar categoria | `src/app/categorias/[id]/editar.tsx`, `CategoriaForm.tsx`, `service.ts` (`editarCategoria`) | `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx`, `tests/service/categorias.test.ts` | Implementado/testado; padrão só altera/remove limite |
+| D — excluir categoria própria | `src/app/categorias/[id]/editar.tsx`, `service.ts` (`excluirCategoria`) | `tests/screens/EditarCategoria.test.tsx`, `tests/service/categorias.test.ts` | Implementado/testado (local), com desvinculação e rollback |
+| FA01 — operação offline | `service.ts`, `schema.ts` | `tests/service/categorias.test.ts` (grava `sync_status='pendente'`) | Local testado; sincronização testada |
+| FA02 — categoria sem lançamentos | `src/app/categorias/index.tsx`, `src/app/despesas/index.tsx` | `tests/screens/ListaCategorias.test.tsx`, `tests/screens/TelaListaDespesas.test.tsx`, `tests/service/despesas.leitura.test.ts` | Implementado/testado: “Nenhum lançamento” e “Nenhum registro” |
+| FA03 — exclusão com lançamentos | `service.ts` (`marcarCategoriaExcluidaNaTransacao`) | `tests/service/categorias.test.ts` (despesa avulsa, série ativa/inativa, tombstones) | Implementado/testado: despesas mantidas e “Sem categoria” |
 | FA04 — categoria sem limite | `CategoriaForm.tsx`, `EditarCategoria.test.tsx`, `service.ts` | `tests/screens/CategoriaForm.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/service/categorias.test.ts` | Local testado; recálculo pendente UC05/UC09 |
 | FA05 — cancelar edição/exclusão | `NovaCategoria.tsx`, `EditarCategoria.tsx`, `CategoriaForm.tsx` | `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx` | Implementado/testado |
 | EX01 — nome duplicado | `service.ts` (`NomeDuplicado`), `validation.ts` | `tests/service/categorias.test.ts`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx` | Implementado/testado |
 | EX02 — categoria padrão protegida | `service.ts` (`CategoriaPadraoProtegida`), `EditarCategoria.tsx` | `tests/service/categorias.test.ts`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx` | Implementado/testado |
 | EX03 — limite inválido | `validation.ts`, `CategoriaForm.tsx` | `tests/unit/validation-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Implementado/testado |
 | EX04 — falha na gravação/recálculo | `service.ts` (`transacao`), telas | `tests/service/categorias.test.ts` (falha em criar/editar/excluir), `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx` | Gravação testada; recálculo pendente |
-| EX05 — falha de sincronização | Sem sincronização de categorias | — | **Pendente Firebase** |
+| EX05 — falha de sincronização | `categorias/sync.ts`, `receitas/sync.ts` | `tests/service/sync.test.ts` (rede/permissão) | Implementado/testado: permanece pendente |
 | EX06 — categoria inexistente/excluída | `service.ts`, `EditarCategoria.tsx` | `tests/service/categorias.test.ts`, `tests/screens/EditarCategoria.test.tsx` | Implementado/testado |
 | EX07 — nome inválido | `validation.ts`, `CategoriaForm.tsx`, `service.ts` | `tests/unit/validation-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx`, `tests/service/categorias.test.ts` | Implementado/testado |
-| EX08 — conflito de sincronização | Sem sincronização de categorias | — | **Pendente Firebase/RN07** |
-| EX09 — dados de outro usuário | Sem Security Rules de categorias | — | **Pendente Firebase/RNF03** |
+| EX08 — conflito de sincronização | `categorias/sync.ts`, `receitas/sync.ts` | `tests/service/sync.test.ts`, `tests/unit/categorias.sync.test.ts` | Implementado/testado: exclusão prevalece, empate determinístico |
+| EX09 — dados de outro usuário | `firestore.rules` | `tests/rules/firestore.rules.test.ts` | Implementado/testado: isolamento por UID |
 | EX10 — falha de leitura local | `service.ts`, `useCategorias.ts`, `ListaCategorias`, `EditarCategoria` | `tests/service/categorias.test.ts`, `tests/screens/ListaCategorias.test.tsx`, `tests/screens/EditarCategoria.test.tsx` | Implementado/testado |
 
 ### 4.3. Localização das evidências do DoD
@@ -147,6 +147,9 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 | Data | Comando | Suítes | Testes | Resultado |
 |---|---|---|---|---|
 | 18/11/2026 | `npm test -- --ci --coverage` | 44 | 619 | **619 aprovados** |
+| 20/11/2026 | `npm test -- --ci --coverage --runInBand` | 67 | 1.232 | **1.232 aprovados**; cobertura 94,24% statements, 88,4% branches, 97,44% functions, 95,77% lines |
+| 20/11/2026 | `npm run test:rules` | 1 | 67 | **67 aprovados** no Firestore Emulator |
+| 20/11/2026 | `npx expo export --platform android` | — | — | **Export Android concluído** (bundle Hermes) |
 
 - **CI — execução 31:** PR #58, `feat(uc06): gerenciar categorias (listagem, cadastro, edição e exclusão)`, commit `2445ee8` (código) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44390887769
 - **CI — execução 32:** PR #58, commit `aa84979` (documentação) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44418286085
@@ -155,24 +158,22 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 
 ### 4.5. Pendências de integração
 
-- **UC02:** despesas, contagem/atalho de lançamentos, exclusão com desvinculação de `despesas.categoria_id` e `recorrencias.categoria_id` (migração **004**, após a 003 da faixa percentual; ver 4.9).
-- **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria.
-- **Firebase:** sincronização de categorias, conflito RN07 (EX08), isolamento por usuário (EX09/RNF03) e Security Rules/test:rules.
-- **Cliente:** homologação da faixa percentual provisória 0,01%–100%; contradição RF66 × RN13 sobre limite de categoria padrão.
-- **Revisão:** diagnóstico manual v3 relatado pelo usuário; anexar as capturas e revisá-las. Executar os testes funcionais posteriores (editar `Normal` 50→80, excluir `Excluir`, rejeitar 100,01%, corrigir/renomear o legado) e confirmar a persistência após encerramento completo do Expo Go. Tratar os demais apontamentos da revisão do PR #58.
+- **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 persiste a alteração e expõe o evento; o cálculo continua sob responsabilidade dessas UCs.
+- **UC10:** a restauração no startup aguarda `authStateReady` e usa `auth.currentUser`, mas o app ainda não possui tela de login própria. Sem sessão, a operação permanece offline-first.
+- **Validação nativa:** a migração 007 e a desvinculação transacional foram validadas em SQLite/better-sqlite3 e no emulador, mas não há `adb`, Android SDK, emulador ou dispositivo para um smoke nativo nesta máquina.
 - **Semeadura:** conflitos são reportados uma vez por instância e a semeadura não é repetida a cada foco. Após excluir uma categoria própria com nome reservado, um sinal único faz a lista tentar a semeadura no próximo foco; não há conversão automática da categoria própria. Se a tentativa posterior falhar, a exclusão já confirmada permanece e o erro é exibido como falha de preparação das padrão, não como falha da exclusão.
 
-### 4.6. Limite percentual — faixa provisória 0,01%–100%
+### 4.6. Limite percentual — faixa definitiva 1%–100%
 
-**Política provisória:** formulário, domínio, serviço e SQLite aceitam percentuais de **0,01% a 100,00%** (1 a 10.000 centésimos), com até duas casas. A mensagem literal é **“O percentual deve ser maior que 0% e até 100%.”** O teto de 100% é **provisório e pendente de homologação da cliente**; 100,01%, 101% e 200000% são rejeitados. A RN09 permanece inalterada: o limite monetário continua de R$ 0,01 a R$ 999.999.999,99.
+**Política definitiva:** formulário, domínio, serviço, SQLite e Firestore aceitam percentuais de **1% a 100,00%** (100 a 10.000 centésimos), com até duas casas. A mensagem literal é **“O percentual deve ser de 1% a 100%.”** Valores abaixo de 1% e acima de 100% são rejeitados em novas entradas. A RN09 permanece inalterada: o limite monetário continua de R$ 0,01 a R$ 999.999.999,99.
 
-**Limite técnico preservado:** o CHECK da migração 002 continua exigindo inteiro seguro em centésimos até `Number.MAX_SAFE_INTEGER` (90071992547409,91%). A conversão e a formatação seguem em BigInt, sem float nem arredondamento.
+**Normalização de dados antigos (migração 007):** percentuais locais abaixo de 1% viram 100 centésimos e acima de 100% viram 10.000 centésimos; casas excedentes são arredondadas ao centésimo mais próximo. A migração é transacional e idempotente, marca apenas as categorias corrigidas como `sync_status='pendente'`/`estado_local='editado'` e não altera despesas, receitas, séries ou referências financeiras. Os triggers provisórios são substituídos pelos definitivos.
 
-**Migração 003 (aditiva):** cria os triggers `trg_categorias_percentual_insert` e `trg_categorias_percentual_update`, que rejeitam INSERT/UPDATE de limite percentual inteiro acima de 10.000 centésimos. Nenhuma tabela é reconstruída e nenhum dado é apagado, reduzido, convertido ou alterado. Bancos novos, v1 e v2 terminam na versão 3; a versão é gravada na mesma transação dos triggers. Um trigger preexistente com o mesmo nome e definição divergente aborta a migração sem alterar dados, trigger ou versão.
+**Firestore:** ao ler um documento remoto, o percentual legado é normalizado e a categoria local é marcada como pendente; a próxima sincronização grava o valor corrigido no documento canônico. As Security Rules exigem inteiro entre 100 e 10.000 centésimos, impedindo novas escritas fora da faixa e a ressurreição de tombstones.
 
-**Dados legados acima de 100%:** permanecem armazenados e visíveis. Novas escritas/edições de limite fora da faixa são rejeitadas; atualizações de `excluido_em`/`sync_status` não são bloqueadas. O usuário pode reduzir o limite para até 100%, removê-lo ou excluir a categoria própria. Para **renomear** uma categoria própria com limite legado acima de 100%, é necessário primeiro reduzir o limite para até 100% ou removê-lo; a edição regrava as colunas de limite e a validação/trigger rejeitam o valor fora da faixa. O valor legado não é alterado automaticamente. Não há cap automático nem migração destrutiva; esses registros não impedem a abertura do aplicativo.
+**Limite técnico preservado:** o CHECK da migração 002 continua exigindo inteiro seguro em centésimos até `Number.MAX_SAFE_INTEGER`; a faixa de negócio é aplicada por triggers e pelo domínio.
 
-**Testes:** `tests/unit/validation-categorias.test.ts` cobre a tabela vazio/0%/0,001%/0,01%/50%/99,99%/100%/100,00%/100,01%/101%/200000%, o domínio e a mensagem literal; `tests/db/schema.test.ts` cobre INSERT/UPDATE do trigger (9.999, 10.000, 10.001, 20.000.000 e `MAX_SAFE_INTEGER`); `tests/service/categorias.test.ts` confirma a rejeição de 10.001 e a persistência de 10.000; `tests/screens/CategoriaForm.test.tsx` cobre a rejeição de 100,01% e a orientação da faixa; `tests/unit/formato-categorias.test.ts` mantém a formatação de valores legados; `tests/db/migrations.test.ts` cobre instalação nova v3, v1→v3, v2→v3, v2 com 200000% preservado, trigger divergente e rollback.
+**Testes:** `tests/unit/validation-categorias.test.ts` cobre 0%/0,99%/1%/50%/99,99%/100%/100,01%/101%/200000% e a mensagem literal; `tests/db/schema.test.ts` cobre INSERT/UPDATE dos triggers definitivos (99, 100, 9.999, 10.000, 10.001 e `MAX_SAFE_INTEGER`); `tests/service/categorias.test.ts` confirma a rejeição de 99/10.001 e a persistência de 100/10.000; `tests/unit/categorias.sync.test.ts` cobre arredondamento e normalização remota; `tests/service/sync.test.ts` cobre restauração e reenvio ao Firestore; `tests/db/migrations.test.ts` cobre v1→v7, v2→v7, v6→v7, normalização, idempotência e preservação financeira; `tests/rules/firestore.rules.test.ts` cobre a faixa nas Rules.
 
 ### 4.7. Contagem de caracteres (RN13)
 
@@ -183,20 +184,14 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 
 ### 4.8. Proteção das categorias padrão
 
-- **Serviço:** `editarCategoria` rejeita renomear padrão e permite apenas alterar o limite; `excluirCategoria` rejeita exclusão de padrão.
-- **Interface:** o formulário de padrão deixa o nome não editável, esconde a exclusão e explica a regra; a tela de edição só oferece exclusão para categoria própria.
-- **SQLite:** há `CHECK` de `padrao IN (0,1)` e índice único de nome ativo, mas **não há trigger/CHECK** que impeça UPDATE/DELETE direto, renomear uma padrão ou alterar `padrao`. Escrita direta/importação pode furar a proteção; o serviço e a UI são a defesa atual.
-- **Firebase futuro (não implementado):** as Security Rules deverão (a) limitar ao próprio `uid`; (b) impedir criar/alterar `padrao` para verdadeiro; (c) em categoria padrão, permitir somente campos de limite, mantendo nome, `nome_normalizado`, `padrao` e `excluido_em` imutáveis; (d) impedir tombstone/exclusão de padrão; (e) validar nome de 1 a 30 code points e limites coerentes, incluindo o teto técnico. Unicidade por usuário não é verificável apenas por Rules; exigirá chave determinística ou validação transacional no cliente.
-- **Estado:** categorias ainda não sincronizam; não há `test:rules` de categorias nem evidência de isolamento Firebase.
+- **Serviço:** `editarCategoria` rejeita renomear padrão e permite definir, alterar e remover o limite; `excluirCategoria` rejeita exclusão de padrão.
+- **Interface:** o formulário de padrão deixa o nome não editável, esconde a exclusão e explica que o limite pode ser definido, alterado ou removido; a tela de edição só oferece exclusão para categoria própria.
+- **SQLite:** há `CHECK` de `padrao IN (0,1)` e índice único de nome ativo, mas **não há trigger/CHECK** que impeça UPDATE/DELETE direto, renomear uma padrão ou alterar `padrao`. Escrita direta/importação pode furar a proteção; o serviço e a UI são a defesa local.
+- **Firestore Rules:** limitam ao próprio `uid`, validam o documento canônico da padrão (`padrao_casa` etc.), mantêm nome/`nome_normalizado`/`chave`/`criado_em` imutáveis, permitem alterar ou remover somente o limite e impedem tombstone de padrão. Aliases só podem ser adicionados, nunca removidos. Categorias próprias podem ser renomeadas e receber tombstone uma única vez, sem ressurreição.
+- **Estado:** sincronização e `test:rules` de categorias implementados e testados.
 
-### 4.9. Integração UC02, migração 004 e proposta de issue
+### 4.9. Integração UC02 e migrações
 
-Não existe issue dedicada para a desvinculação `despesas.categoria_id`/`recorrencias.categoria_id` na exclusão de categoria. A issue #29 e o PR #55 tratam da UC02, mas não desse fluxo; a issue #43 registra a pendência do UC06.
+A UC02 já está integrada nas migrações 004/005 (`despesas` e tombstone de `recorrencias`). A UC06 usa a migração 006 para estado local/fila de restauração e a 007 para a faixa percentual definitiva; a versão atual do banco é **7**.
 
-**Proposta de issue técnica (não publicada):**
-- **Título:** UC02/UC06 — integrar despesas e recorrências às categorias (migração 004 e desvinculação na exclusão).
-- **Escopo:** criar migração **004** para `despesas` e novas colunas de `recorrencias` (`tipo`, `categoria_id`, `fixa_ou_variavel`, `essencial`), atualizar `ESTRUTURAS_ESPERADAS`/DDL e preservar dados; na exclusão de categoria, na mesma transação, definir `categoria_id = NULL` em `despesas` e `recorrencias` ativas, mantendo os lançamentos e recalculando limites/alertas quando UC05/UC09 existirem; cobrir restauração de despesa com categoria excluída.
-- **Testes:** migração v3→v4 com dados e rollback; exclusão com despesas e séries; despesa mantida como “Sem categoria”; atomicidade; banco novo; nenhuma duplicação.
-- **Dependências:** UC06 (PR #58), UC02 (issue #29/PR #55), UC05/UC09 e Firebase.
-
-**Risco de colisão de migração:** a versão **003** agora pertence ao UC06 (faixa percentual provisória por triggers). A integração UC02 deve usar **004** e incrementar `VERSAO_ESQUEMA` para 4. A branch UC02/PR #55 ainda não tem `migrations.ts`; usa alteração não versionada em `database.ts`. Se a UC02 for integrada antes, `prepararInstalacaoNova` pode rejeitar `recorrencias` com colunas extras, pois `ESTRUTURAS_ESPERADAS` exige a estrutura canônica. A ordem recomendada é integrar o UC06 primeiro e rebasear a UC02 sobre a migração 004. Se a UC02 reconstruir `categorias`, deverá preservar ou recriar os triggers da 003.
+A exclusão de categoria própria desvincula, na mesma transação, despesas não excluídas e séries de despesa, preservando os lançamentos e tombstones. A restauração de despesa/série com categoria ausente usa a fila `restauracao_pendente` e não converte o vínculo em `NULL` silenciosamente. Permanecem fora do escopo da UC06 o recálculo de indicadores/alertas (UC05/UC09) e a tela de login (UC10).

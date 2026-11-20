@@ -3177,6 +3177,33 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       );
     });
 
+    it('normaliza percentual legado remoto e reenvia o valor corrigido ao Firestore', async () => {
+      mockNuvem.set(
+        catPath('legado'),
+        docCategoriaRemota({
+          nome: 'Legado',
+          nome_normalizado: 'legado',
+          limite_tipo: 'percentual_renda',
+          limite_percentual_centesimos: 50, // 0,50% legado
+        }),
+      );
+
+      await restaurarDaNuvem();
+
+      expect(catLocal('legado')).toMatchObject({
+        limite_percentual_centesimos: 100,
+        sync_status: 'pendente',
+      });
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(catPath('legado')).limite_percentual_centesimos).toBe(100);
+      expect(catLocal('legado')).toMatchObject({
+        limite_percentual_centesimos: 100,
+        sync_status: 'sincronizado',
+      });
+    });
+
     it('restaura despesa antiga com UUID de padrão via alias do documento canônico', async () => {
       banco = instalarBanco();
       inserirCategoria({

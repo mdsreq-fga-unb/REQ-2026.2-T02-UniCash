@@ -203,7 +203,7 @@ export default function EditarCategoria() {
       <OpcoesModal
         visivel={confirmando}
         titulo="Excluir categoria?"
-        mensagem={`A categoria “${categoria.nome}” será excluída e o limite de gastos associado será perdido. Esta ação não pode ser desfeita. Quando a integração com despesas (UC02) estiver disponível, os lançamentos relacionados serão mantidos e ficarão como “Sem categoria”.`}
+        mensagem={`A categoria “${categoria.nome}” será excluída e o limite de gastos associado será perdido. As despesas relacionadas serão mantidas e ficarão como “Sem categoria”. Esta ação não pode ser desfeita.`}
         opcoes={[
           {
             rotulo: 'Excluir',

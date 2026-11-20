@@ -169,8 +169,8 @@ service cloud.firestore {
         || (d.limite_tipo == 'percentual_renda'
           && d.limite_centavos == null
           && d.limite_percentual_centesimos is int
-          && d.limite_percentual_centesimos > 0
-          && d.limite_percentual_centesimos <= 9007199254740991);
+          && d.limite_percentual_centesimos >= 100
+          && d.limite_percentual_centesimos <= 10000);
     }
 
     function categoriaBaseValida(d) {

@@ -60,13 +60,24 @@ describe('Schema do banco — restrições de categorias', () => {
       expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 1 })).not.toThrow();
     });
 
-    it('aceita o limite percentual mínimo de 1 centésimo (RN14)', () => {
+    it('aceita o limite percentual mínimo de 1% (100 centésimos) (RN14)', () => {
       expect(() =>
-        inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 1 }),
+        inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 100 }),
       ).not.toThrow();
     });
 
-    it('aceita 100% (10.000 centésimos), máximo provisório da RN14', () => {
+    it('rejeita 0,99% (99 centésimos) abaixo do mínimo definitivo (RN14)', () => {
+      expect(() =>
+        inserir({
+          nome: 'Abaixo',
+          nome_normalizado: 'abaixo',
+          limite_tipo: 'percentual_renda',
+          limite_percentual_centesimos: 99,
+        }),
+      ).toThrow(/limite_percentual_faixa/);
+    });
+
+    it('aceita 100% (10.000 centésimos), máximo da RN14', () => {
       expect(() =>
         inserir({
           nome: 'Cem',
@@ -77,7 +88,7 @@ describe('Schema do banco — restrições de categorias', () => {
       ).not.toThrow();
     });
 
-    it('rejeita 100,01% (10.001 centésimos) pela faixa provisória (RN14)', () => {
+    it('rejeita 100,01% (10.001 centésimos) pela faixa definitiva (RN14)', () => {
       expect(() =>
         inserir({
           nome: 'Cem um',
@@ -88,7 +99,7 @@ describe('Schema do banco — restrições de categorias', () => {
       ).toThrow(/limite_percentual_faixa/);
     });
 
-    it('rejeita o limite técnico de Number.MAX_SAFE_INTEGER pela faixa provisória', () => {
+    it('rejeita o limite técnico de Number.MAX_SAFE_INTEGER pela faixa definitiva', () => {
       expect(() =>
         inserir({
           nome: 'Maximo',
@@ -198,10 +209,10 @@ describe('Schema do banco — restrições de categorias', () => {
   describe('limite percentual', () => {
     it('rejeita percentual zero e negativo', () => {
       expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 0 })).toThrow(
-        /CHECK constraint failed: limite_percentual_valido/,
+        /limite_percentual_(faixa|valido)/,
       );
       expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: -10 })).toThrow(
-        /CHECK constraint failed: limite_percentual_valido/,
+        /limite_percentual_(faixa|valido)/,
       );
     });
 
@@ -225,6 +236,18 @@ describe('Schema do banco — restrições de categorias', () => {
     it('rejeita 200000% (20.000.000 centésimos) pelo trigger de faixa', () => {
       expect(() =>
         inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 20_000_000 }),
+      ).toThrow(/limite_percentual_faixa/);
+    });
+
+    it('rejeita UPDATE de limite para 0,99%', () => {
+      const id = inserir({
+        limite_tipo: 'percentual_renda',
+        limite_percentual_centesimos: 10_000,
+      });
+      expect(() =>
+        sqlite
+          .prepare('UPDATE categorias SET limite_percentual_centesimos = 99 WHERE id = ?')
+          .run(id),
       ).toThrow(/limite_percentual_faixa/);
     });
 

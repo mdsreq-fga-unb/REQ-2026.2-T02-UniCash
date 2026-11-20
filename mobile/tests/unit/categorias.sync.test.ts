@@ -127,6 +127,56 @@ describe('payload e normalização de categoria remota', () => {
     ).toBeNull();
   });
 
+  it('normaliza percentual remoto abaixo de 1% para 1% e sinaliza reenvio', () => {
+    const r = normalizarCategoriaRemota('uuid-mercado', {
+      ...remotaBase(),
+      limite_tipo: 'percentual_renda',
+      limite_percentual_centesimos: 50,
+    });
+
+    expect(r).toMatchObject({
+      limite_percentual_centesimos: 100,
+      percentualNormalizado: true,
+    });
+  });
+
+  it('normaliza percentual remoto acima de 100% para 100% e sinaliza reenvio', () => {
+    const r = normalizarCategoriaRemota('uuid-mercado', {
+      ...remotaBase(),
+      limite_tipo: 'percentual_renda',
+      limite_percentual_centesimos: 20_000,
+    });
+
+    expect(r).toMatchObject({
+      limite_percentual_centesimos: 10_000,
+      percentualNormalizado: true,
+    });
+  });
+
+  it('arredonda percentual remoto com mais de duas casas para o centésimo mais próximo', () => {
+    const r = normalizarCategoriaRemota('uuid-mercado', {
+      ...remotaBase(),
+      limite_tipo: 'percentual_renda',
+      limite_percentual_centesimos: 1_234.5,
+    });
+
+    expect(r).toMatchObject({
+      limite_percentual_centesimos: 1_235,
+      percentualNormalizado: true,
+    });
+  });
+
+  it('mantém percentual remoto já válido sem sinalizar reenvio', () => {
+    const r = normalizarCategoriaRemota('uuid-mercado', {
+      ...remotaBase(),
+      limite_tipo: 'percentual_renda',
+      limite_percentual_centesimos: 5_000,
+    });
+
+    expect(r).toMatchObject({ limite_percentual_centesimos: 5_000 });
+    expect(r?.percentualNormalizado).toBeFalsy();
+  });
+
   it('aceita tombstone de própria com limites nulos', () => {
     expect(
       normalizarCategoriaRemota('uuid-mercado', {

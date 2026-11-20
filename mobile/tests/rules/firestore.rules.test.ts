@@ -479,6 +479,18 @@ describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
         }),
       ),
     );
+    // A remoção do limite é permitida em categoria padrão (issue #72).
+    await assertSucceeds(
+      setDoc(
+        ref,
+        categoriaPadrao({
+          limite_tipo: null,
+          limite_centavos: null,
+          limite_percentual_centesimos: null,
+          aliases: ['uuid-casa-a', 'uuid-casa-b'],
+        }),
+      ),
+    );
     await assertFails(
       setDoc(ref, categoriaPadrao({ aliases: ['uuid-casa-b'] })),
     );
@@ -529,6 +541,49 @@ describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
     );
     await assertFails(
       setDoc(cat(db('u1'), 'u1', 'alias'), categoria({ aliases: ['ok', 1] })),
+    );
+  });
+
+  it('aceita percentual de 1% a 100% e rejeita fora da faixa definitiva', async () => {
+    await assertSucceeds(
+      setDoc(
+        cat(db('u1'), 'u1', 'p-min'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 100,
+        }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(
+        cat(db('u1'), 'u1', 'p-max'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 10_000,
+        }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        cat(db('u1'), 'u1', 'p-abaixo'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 99,
+        }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        cat(db('u1'), 'u1', 'p-acima'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 10_001,
+        }),
+      ),
     );
   });
 
