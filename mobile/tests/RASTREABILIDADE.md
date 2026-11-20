@@ -158,7 +158,7 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 
 ### 4.5. Pendências de integração
 
-- **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 persiste a alteração e expõe o evento; o cálculo continua sob responsabilidade dessas UCs.
+- **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 deixa o estado consistente no SQLite (`categorias`, limites, tombstones) e a UC02 mantém as `despesas`; a interface prevista é a leitura dessas tabelas por período após cada operação. Não há evento de domínio nem chamada direta implementada nesta etapa; o cálculo continua sob responsabilidade dessas UCs.
 - **UC10:** a restauração no startup aguarda `authStateReady` e usa `auth.currentUser`, mas o app ainda não possui tela de login própria. Sem sessão, a operação permanece offline-first.
 - **Validação nativa:** a migração 007 e a desvinculação transacional foram validadas em SQLite/better-sqlite3 e no emulador, mas não há `adb`, Android SDK, emulador ou dispositivo para um smoke nativo nesta máquina.
 - **Semeadura:** conflitos são reportados uma vez por instância e a semeadura não é repetida a cada foco. Após excluir uma categoria própria com nome reservado, um sinal único faz a lista tentar a semeadura no próximo foco; não há conversão automática da categoria própria. Se a tentativa posterior falhar, a exclusão já confirmada permanece e o erro é exibido como falha de preparação das padrão, não como falha da exclusão.
