@@ -20,6 +20,7 @@ import {
   formatarBR,
   mascararData,
 } from '@/features/receitas/dates';
+import { mascararValor } from '@/features/receitas/money';
 import {
   validarFormularioDespesa,
   type ErrosFormDespesa,
@@ -181,7 +182,7 @@ export function DespesaForm({
           rotulo="Valor"
           prefixo="R$"
           value={v.valor}
-          onChangeText={(texto) => set('valor', texto)}
+          onChangeText={(texto) => set('valor', mascararValor(texto))}
           placeholder="0,00"
           keyboardType="decimal-pad"
           erro={erros.valor}

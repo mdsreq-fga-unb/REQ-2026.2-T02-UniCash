@@ -2,6 +2,7 @@ import {
   VALOR_MAXIMO_CENTAVOS,
   centavosParaTexto,
   formatarBRL,
+  mascararValor,
   parseValor,
 } from '@/features/receitas/money';
 
@@ -53,6 +54,21 @@ describe('formatação', () => {
   it('gera o texto editável do campo de valor', () => {
     expect(centavosParaTexto(123456)).toBe('1234,56');
     expect(centavosParaTexto(15000)).toBe('150,00');
+  });
+
+  it('mascara a digitação como moeda, tratando os dígitos como centavos', () => {
+    expect(mascararValor('100,00')).toBe('100,00');
+    expect(mascararValor('100,000')).toBe('1.000,00');
+    expect(mascararValor('1')).toBe('0,01');
+    expect(mascararValor('10')).toBe('0,10');
+    expect(mascararValor('1000')).toBe('10,00');
+    expect(mascararValor('100000')).toBe('1.000,00');
+    expect(mascararValor('12345678901')).toBe('123.456.789,01');
+    expect(mascararValor('R$ 1.234,56')).toBe('1.234,56');
+    expect(mascararValor('0001')).toBe('0,01');
+    expect(mascararValor('0')).toBe('0,00');
+    expect(mascararValor('')).toBe('');
+    expect(mascararValor('abc')).toBe('');
   });
 
   it('ida e volta: texto -> centavos -> texto', () => {
