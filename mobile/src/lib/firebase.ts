@@ -1,6 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getApp, getApps, initializeApp } from 'firebase/app';
-import { connectAuthEmulator, getAuth, getReactNativePersistence, initializeAuth, type Auth } from 'firebase/auth';
+import { connectAuthEmulator, getAuth, initializeAuth, type Auth } from 'firebase/auth';
+// Existe só na build React Native do Firebase (o Metro resolve em tempo de execução); os tipos da web não a declaram.
+// @ts-expect-error TS2305: exportação ausente nos tipos da web
+import { getReactNativePersistence } from 'firebase/auth';
 import { connectFirestoreEmulator, getFirestore } from 'firebase/firestore';
 
 const config = {
