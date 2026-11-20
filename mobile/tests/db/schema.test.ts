@@ -60,13 +60,24 @@ describe('Schema do banco — restrições de categorias', () => {
       expect(() => inserir({ limite_tipo: 'valor', limite_centavos: 1 })).not.toThrow();
     });
 
-    it('aceita o limite percentual mínimo de 1 centésimo (RN14)', () => {
+    it('aceita o limite percentual mínimo de 1% (100 centésimos) (RN14)', () => {
       expect(() =>
-        inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 1 }),
+        inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 100 }),
       ).not.toThrow();
     });
 
-    it('aceita 100% (10.000 centésimos), máximo provisório da RN14', () => {
+    it('rejeita 0,99% (99 centésimos) abaixo do mínimo definitivo (RN14)', () => {
+      expect(() =>
+        inserir({
+          nome: 'Abaixo',
+          nome_normalizado: 'abaixo',
+          limite_tipo: 'percentual_renda',
+          limite_percentual_centesimos: 99,
+        }),
+      ).toThrow(/limite_percentual_faixa/);
+    });
+
+    it('aceita 100% (10.000 centésimos), máximo da RN14', () => {
       expect(() =>
         inserir({
           nome: 'Cem',
@@ -77,7 +88,7 @@ describe('Schema do banco — restrições de categorias', () => {
       ).not.toThrow();
     });
 
-    it('rejeita 100,01% (10.001 centésimos) pela faixa provisória (RN14)', () => {
+    it('rejeita 100,01% (10.001 centésimos) pela faixa definitiva (RN14)', () => {
       expect(() =>
         inserir({
           nome: 'Cem um',
@@ -88,7 +99,7 @@ describe('Schema do banco — restrições de categorias', () => {
       ).toThrow(/limite_percentual_faixa/);
     });
 
-    it('rejeita o limite técnico de Number.MAX_SAFE_INTEGER pela faixa provisória', () => {
+    it('rejeita o limite técnico de Number.MAX_SAFE_INTEGER pela faixa definitiva', () => {
       expect(() =>
         inserir({
           nome: 'Maximo',
@@ -198,10 +209,10 @@ describe('Schema do banco — restrições de categorias', () => {
   describe('limite percentual', () => {
     it('rejeita percentual zero e negativo', () => {
       expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 0 })).toThrow(
-        /CHECK constraint failed: limite_percentual_valido/,
+        /limite_percentual_(faixa|valido)/,
       );
       expect(() => inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: -10 })).toThrow(
-        /CHECK constraint failed: limite_percentual_valido/,
+        /limite_percentual_(faixa|valido)/,
       );
     });
 
@@ -225,6 +236,18 @@ describe('Schema do banco — restrições de categorias', () => {
     it('rejeita 200000% (20.000.000 centésimos) pelo trigger de faixa', () => {
       expect(() =>
         inserir({ limite_tipo: 'percentual_renda', limite_percentual_centesimos: 20_000_000 }),
+      ).toThrow(/limite_percentual_faixa/);
+    });
+
+    it('rejeita UPDATE de limite para 0,99%', () => {
+      const id = inserir({
+        limite_tipo: 'percentual_renda',
+        limite_percentual_centesimos: 10_000,
+      });
+      expect(() =>
+        sqlite
+          .prepare('UPDATE categorias SET limite_percentual_centesimos = 99 WHERE id = ?')
+          .run(id),
       ).toThrow(/limite_percentual_faixa/);
     });
 
@@ -358,8 +381,41 @@ describe('Schema do banco — restrições de categorias', () => {
           'idx_receitas_sync',
           'idx_categorias_nome_unico',
           'idx_categorias_sync',
+          'idx_restauracao_pendente_categoria',
+          'idx_restauracao_pendente_tipo',
         ]),
       );
+    });
+  });
+
+  describe('estado local e restauração adiada (v6)', () => {
+    it('aceita os três estados locais e rejeita valor desconhecido', () => {
+      const inserirEstado = (id: string, estado: string) =>
+        sqlite
+          .prepare('INSERT INTO categorias_estado (categoria_id, estado_local) VALUES (?, ?)')
+          .run(id, estado);
+
+      expect(() => inserirEstado('a', 'semeadura')).not.toThrow();
+      expect(() => inserirEstado('b', 'editado')).not.toThrow();
+      expect(() => inserirEstado('c', 'sincronizado')).not.toThrow();
+      expect(() => inserirEstado('d', 'outro')).toThrow(/estado_local_valido/);
+    });
+
+    it('restauração pendente exige tipo conhecido e chave primária composta', () => {
+      const inserirPendente = (tipo: string, id: string) =>
+        sqlite
+          .prepare(
+            `INSERT INTO restauracao_pendente
+              (tipo, id, categoria_id, motivo, payload, atualizado_em, registrado_em)
+             VALUES (?, ?, 'cat', 'categoria_nao_resolvida', '{}', 't', 't')`,
+          )
+          .run(tipo, id);
+
+      expect(() => inserirPendente('despesa', 'd1')).not.toThrow();
+      expect(() => inserirPendente('recorrencia', 'r1')).not.toThrow();
+      expect(() => inserirPendente('categoria', 'c1')).not.toThrow();
+      expect(() => inserirPendente('receita', 'x1')).toThrow(/tipo_pendente_valido/);
+      expect(() => inserirPendente('despesa', 'd1')).toThrow(/UNIQUE constraint failed/);
     });
   });
 });

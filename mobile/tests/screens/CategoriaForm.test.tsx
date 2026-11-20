@@ -59,11 +59,21 @@ describe('Formulário de categoria (B e C do UC06)', () => {
       expect(onSalvar).toHaveBeenCalledWith({ nome: 'Mercado', limite: { tipo: 'percentual_renda', valor: 1250 } });
     });
 
-    it('rejeita 100,01% no formulário (faixa provisória 0,01%–100%)', async () => {
+    it('rejeita 100,01% no formulário (faixa de 1% a 100%)', async () => {
       const { onSalvar } = await montar();
       await apertar('% da renda');
       await digitar('Nome', 'Mercado');
       await digitar('Percentual da renda', '100,01');
+      await salvar();
+      expect(screen.getByText(MSG_CAT.limitePercentualInvalido)).toBeTruthy();
+      expect(onSalvar).not.toHaveBeenCalled();
+    });
+
+    it('rejeita 0,99% no formulário, abaixo do mínimo de 1%', async () => {
+      const { onSalvar } = await montar();
+      await apertar('% da renda');
+      await digitar('Nome', 'Mercado');
+      await digitar('Percentual da renda', '0,99');
       await salvar();
       expect(screen.getByText(MSG_CAT.limitePercentualInvalido)).toBeTruthy();
       expect(onSalvar).not.toHaveBeenCalled();
@@ -80,7 +90,7 @@ describe('Formulário de categoria (B e C do UC06)', () => {
         limite: { tipo: 'percentual_renda', valor: 10_000 },
       });
       expect(
-        screen.getByText('Percentual da sua renda mensal, de 0,01% a 100%, com até duas casas decimais.'),
+        screen.getByText('Percentual da sua renda mensal, de 1% a 100%, com até duas casas decimais.'),
       ).toBeTruthy();
     });
   });
@@ -213,7 +223,7 @@ describe('Formulário de categoria (B e C do UC06)', () => {
       const campoNome = screen.getByLabelText('Nome');
       expect(campoNome.props.value).toBe('Casa');
       expect(campoNome.props.editable).toBe(false);
-      expect(screen.getByText('Categorias padrão não podem ser renomeadas nem excluídas.')).toBeTruthy();
+      expect(screen.getByText('Categorias padrão não podem ser renomeadas nem excluídas. O limite pode ser definido, alterado ou removido.')).toBeTruthy();
     });
 
     it('salva mantendo o nome, alterando apenas o limite', async () => {

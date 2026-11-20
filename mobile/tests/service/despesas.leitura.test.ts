@@ -103,6 +103,14 @@ describe('Leitura de despesas', () => {
       expect(r.total).toBe(0);
     });
 
+    it('o filtro por categoria é somente leitura e preserva os registros', async () => {
+      const antes = banco.despesas();
+
+      await listarDespesas('2026-10-01', '2026-11-01', 'casa');
+
+      expect(banco.despesas()).toEqual(antes);
+    });
+
     it('não inclui despesas excluídas da categoria', async () => {
       const aluguel = banco.despesas().find((d) => d.titulo === 'Aluguel');
       await excluirDespesa(aluguel.id);

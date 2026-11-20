@@ -6,7 +6,7 @@ import { getDb } from '@/db/database';
 import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { completarRecorrencias } from '@/features/receitas/service';
 import { completarRecorrenciasDespesas } from '@/features/despesas/service';
-import { sincronizarPendentes } from '@/features/receitas/sync';
+import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync';
 import { cores, raio } from '@/lib/theme';
 
 type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
@@ -122,6 +122,13 @@ async function rotinasPosInicializacao() {
     await completarRecorrenciasDespesas();
   } catch (erro) {
     console.warn('Falha ao completar as recorrências de despesas.', erro);
+  }
+
+  try {
+    await restaurarDaNuvem();
+  } catch (erro) {
+    // Sem conta, sem rede ou restauração adiada: o app segue offline-first.
+    console.warn('Falha ao restaurar os dados da nuvem.', erro);
   }
 
   try {

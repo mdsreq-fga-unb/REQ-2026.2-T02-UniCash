@@ -142,7 +142,7 @@ export function CategoriaForm({
           erro={erroNome ?? undefined}
           abaixo={
             padrao ? (
-              <Text style={estilos.dicaPadrao}>Categorias padrão não podem ser renomeadas nem excluídas.</Text>
+              <Text style={estilos.dicaPadrao}>Categorias padrão não podem ser renomeadas nem excluídas. O limite pode ser definido, alterado ou removido.</Text>
             ) : undefined
           }
         />
@@ -180,7 +180,7 @@ export function CategoriaForm({
             placeholder="Ex.: 12,5"
             keyboardType="decimal-pad"
             erro={erros.limitePercentual}
-            abaixo={<Text style={estilos.dica}>Percentual da sua renda mensal, de 0,01% a 100%, com até duas casas decimais.</Text>}
+            abaixo={<Text style={estilos.dica}>Percentual da sua renda mensal, de 1% a 100%, com até duas casas decimais.</Text>}
             acao={<Text style={estilos.sufixo}>%</Text>}
           />
         ) : null}

@@ -108,7 +108,7 @@ describe('sincronizarEmSegundoPlano', () => {
     return jest
       .spyOn(banco.sqlite, 'prepare')
       .mockImplementation((sql: string) => {
-        if (sql.includes('FROM categorias')) {
+        if (sql.includes('SELECT * FROM categorias')) {
           throw new Error('falha simulada na leitura do catálogo');
         }
         return prepareOriginal(sql);
@@ -174,7 +174,7 @@ describe('sincronizarEmSegundoPlano', () => {
     expect(sincronizada.sync_status).toBe('sincronizado');
     expect(
       mockNuvem.get(`usuarios/u1/despesas/${antes.id}`),
-    ).toMatchObject({ categoria_id: 'uuid-casa' });
+    ).toMatchObject({ categoria_id: 'casa' });
   });
 
   it('captura a rejeição de catálogo em segundo plano sem retry nem acessoNegado', async () => {

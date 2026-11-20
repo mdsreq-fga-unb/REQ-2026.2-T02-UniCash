@@ -9,6 +9,7 @@ import {
 } from '@testing-library/react-native';
 
 import ListaDespesas from '@/app/despesas/index';
+import { useLocalSearchParams } from 'expo-router';
 import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
 import {
   FalhaLeitura,
@@ -95,6 +96,7 @@ jest.mock('@/features/categorias/useCategoriasAtivas', () => ({
 
 const listar = listarDespesas as jest.Mock;
 const mockCategorias = useCategoriasAtivas as jest.Mock;
+const mockParams = useLocalSearchParams as jest.Mock;
 const recarregarCategorias = jest.fn();
 
 const CATEGORIAS_REAIS = [
@@ -135,6 +137,7 @@ describe('Lista de despesas', () => {
     jest.clearAllMocks();
     mockFoco = null;
     mockSairFoco = null;
+    mockParams.mockReturnValue({ id: 'abc' });
     mockCategorias.mockReturnValue(retornoCategorias());
     (contarPendentes as jest.Mock).mockResolvedValue(0);
     (sincronizarPendentes as jest.Mock).mockResolvedValue(false);
@@ -260,6 +263,24 @@ describe('Lista de despesas', () => {
   });
 
   describe('filtro por categoria (B, FA04)', () => {
+    it('abre já filtrada quando recebe categoriaId por parâmetro (atalho do UC06)', async () => {
+      mockParams.mockReturnValue({ categoriaId: 'uuid-saude' });
+      listar.mockResolvedValue({ itens: [], total: 0 });
+
+      await render(<ListaDespesas />);
+
+      await waitFor(() => {
+        expect(listar).toHaveBeenLastCalledWith(
+          expect.any(String),
+          expect.any(String),
+          'uuid-saude',
+        );
+      });
+      expect(
+        screen.getByRole('button', { name: 'Saúde', selected: true }),
+      ).toBeTruthy();
+    });
+
     it('mostra Todas, padrão e própria com IDs reais, sem duplicatas', async () => {
       listar.mockResolvedValue({ itens: [], total: 0 });
 
