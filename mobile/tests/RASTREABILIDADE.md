@@ -146,22 +146,21 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 
 | Data | Comando | Suítes | Testes | Resultado |
 |---|---|---|---|---|
-| 18/11/2026 | `npm test -- --ci --coverage` | 44 | 619 | **619 aprovados** |
+| 18/11/2026 | `npm test -- --ci --coverage` (PR #58) | 44 | 619 | **619 aprovados** |
+| 20/11/2026 | `npm test -- --ci --coverage --runInBand` (PR #73) | 63 | 1153 | **1.153 aprovados**; 90 testes de migrations e 57 testes de Firestore Rules |
 
-- **CI — execução 31:** PR #58, `feat(uc06): gerenciar categorias (listagem, cadastro, edição e exclusão)`, commit `2445ee8` (código) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44390887769
-- **CI — execução 32:** PR #58, commit `aa84979` (documentação) — 2/2 checks aprovados: https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44418286085
-- **Manual:** o smoke anterior foi executado antes do commit `2445ee8`. O diagnóstico manual da migração 003 no Android foi **relatado pelo usuário como bem-sucedido**: `unicash.db`, `user_version = 3`, os dois triggers e as três categorias preservadas (`Normal` 5000, `Legado` 20000000, `Excluir` 10000, ativas). As capturas serão anexadas posteriormente e ainda não foram revisadas; o instante exato da migração não foi observado. O full reload carregou o bundle v3, mas o encerramento completo do Expo Go, os testes funcionais posteriores (editar `Normal` 50→80, excluir `Excluir`, rejeitar 100,01%, corrigir/renomear o legado) e a persistência final após reabrir **seguem pendentes**.
-- **Security Rules:** não aplicável à UC06 nesta entrega; `npm run test:rules` cobre a UC01.
-
+- **CI — PR #58:** execuções [31](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44390887769) (código, `2445ee8`) e [32](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44418286085) (documentação, `aa84979`), ambas com 2/2 jobs aprovados.
+- **CI — PR #73:** execução [44703149839](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44703149839), 2/2 jobs aprovados (`Lint, typecheck, testes e build` e `Security Rules (Firebase Emulator)`).
+- **CI — develop pós-merge:** execução [44704829462](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44704829462), 2/2 jobs aprovados.
+- **Manual:** o smoke anterior do PR #58 e o diagnóstico da migração 003 no Android permanecem como evidência histórica. A migração 005 e o smoke pós-integração em Android continuam **pendentes**; não há captura revisada da migração 005.
+- **Security Rules:** as Rules atuais cobrem receitas, recorrências e despesas; categorias ainda não têm sincronização nem Rules próprias.
 ### 4.5. Pendências de integração
 
-- **UC02:** despesas, contagem/atalho de lançamentos, exclusão com desvinculação de `despesas.categoria_id` e `recorrencias.categoria_id` (migração **004**, após a 003 da faixa percentual; ver 4.9).
-- **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria.
-- **Firebase:** sincronização de categorias, conflito RN07 (EX08), isolamento por usuário (EX09/RNF03) e Security Rules/test:rules.
-- **Cliente:** homologação da faixa percentual provisória 0,01%–100%; contradição RF66 × RN13 sobre limite de categoria padrão.
-- **Revisão:** diagnóstico manual v3 relatado pelo usuário; anexar as capturas e revisá-las. Executar os testes funcionais posteriores (editar `Normal` 50→80, excluir `Excluir`, rejeitar 100,01%, corrigir/renomear o legado) e confirmar a persistência após encerramento completo do Expo Go. Tratar os demais apontamentos da revisão do PR #58.
-- **Semeadura:** conflitos são reportados uma vez por instância e a semeadura não é repetida a cada foco. Após excluir uma categoria própria com nome reservado, um sinal único faz a lista tentar a semeadura no próximo foco; não há conversão automática da categoria própria. Se a tentativa posterior falhar, a exclusão já confirmada permanece e o erro é exibido como falha de preparação das padrão, não como falha da exclusão.
-
+- **UC02:** integração concluída pelo PR #73 (merge `9e373e9`): despesas, categorias, migrations 001–005, sincronização/tombstones e desvinculação na exclusão. Permanecem pendentes a contagem/atalho de lançamentos (RF65) e o recálculo de limites/alertas da UC05/UC09.
+- **UC05/UC09:** recálculo de saldo, limites e alertas após criar/editar/excluir categoria.
+- **Firebase:** sincronização de categorias, conflito RN07/EX08, isolamento por usuário (EX09/RNF03) e Security Rules/test:rules de categorias.
+- **Validação Android:** migration 005 e smoke test nativo após a integração; o `expo export` não substitui a validação no SQLite nativo.
+- **Cliente:** homologação da faixa percentual 0,01%–100% (#71) e decisão RF66/RN13 (#72).
 ### 4.6. Limite percentual — faixa provisória 0,01%–100%
 
 **Política provisória:** formulário, domínio, serviço e SQLite aceitam percentuais de **0,01% a 100,00%** (1 a 10.000 centésimos), com até duas casas. A mensagem literal é **“O percentual deve ser maior que 0% e até 100%.”** O teto de 100% é **provisório e pendente de homologação da cliente**; 100,01%, 101% e 200000% são rejeitados. A RN09 permanece inalterada: o limite monetário continua de R$ 0,01 a R$ 999.999.999,99.
@@ -189,14 +188,19 @@ As evidências do DoD Nível 1 são preenchidas e acompanhadas na **issue #43** 
 - **Firebase futuro (não implementado):** as Security Rules deverão (a) limitar ao próprio `uid`; (b) impedir criar/alterar `padrao` para verdadeiro; (c) em categoria padrão, permitir somente campos de limite, mantendo nome, `nome_normalizado`, `padrao` e `excluido_em` imutáveis; (d) impedir tombstone/exclusão de padrão; (e) validar nome de 1 a 30 code points e limites coerentes, incluindo o teto técnico. Unicidade por usuário não é verificável apenas por Rules; exigirá chave determinística ou validação transacional no cliente.
 - **Estado:** categorias ainda não sincronizam; não há `test:rules` de categorias nem evidência de isolamento Firebase.
 
-### 4.9. Integração UC02, migração 004 e proposta de issue
+### 4.9. Integração UC02 e migrations 004/005
 
-Não existe issue dedicada para a desvinculação `despesas.categoria_id`/`recorrencias.categoria_id` na exclusão de categoria. A issue #29 e o PR #55 tratam da UC02, mas não desse fluxo; a issue #43 registra a pendência do UC06.
+A integração foi entregue pelo **PR #73**, integrado à `develop` no merge **`9e373e9`**. A issue técnica [#70](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/70) foi encerrada com os critérios atendidos.
 
-**Proposta de issue técnica (não publicada):**
-- **Título:** UC02/UC06 — integrar despesas e recorrências às categorias (migração 004 e desvinculação na exclusão).
-- **Escopo:** criar migração **004** para `despesas` e novas colunas de `recorrencias` (`tipo`, `categoria_id`, `fixa_ou_variavel`, `essencial`), atualizar `ESTRUTURAS_ESPERADAS`/DDL e preservar dados; na exclusão de categoria, na mesma transação, definir `categoria_id = NULL` em `despesas` e `recorrencias` ativas, mantendo os lançamentos e recalculando limites/alertas quando UC05/UC09 existirem; cobrir restauração de despesa com categoria excluída.
-- **Testes:** migração v3→v4 com dados e rollback; exclusão com despesas e séries; despesa mantida como “Sem categoria”; atomicidade; banco novo; nenhuma duplicação.
-- **Dependências:** UC06 (PR #58), UC02 (issue #29/PR #55), UC05/UC09 e Firebase.
+- [x] Migração 004 adiciona `despesas` e as colunas `tipo`, `categoria_id`, `fixa_ou_variavel` e `essencial` em `recorrencias`, com índices e constraints.
+- [x] Migração 005 adiciona `excluido_em` em `recorrencias`; instalação nova termina em `user_version = 5`.
+- [x] Bancos v0/v1/v2/v3/v4 migram para v5 preservando dados, com validação estrutural, rollback e idempotência.
+- [x] O esquema canônico é validado por assinaturas normalizadas; `migrarRecorrencias` ad hoc foi removido de `database.ts`.
+- [x] Slugs históricos da UC02 são convertidos para IDs reais em `semearCategoriasPadrao`; referências não resolvidas viram `NULL`.
+- [x] Exclusão de categoria desvincula `despesas.categoria_id` e `recorrencias.categoria_id` na mesma transação, preservando lançamentos.
+- [x] `despesas.recorrencia_id` mantém FK para `recorrencias`; `categoria_id` permanece sem FK, com desvinculação no serviço.
+- [x] `PRAGMA integrity_check` e `PRAGMA foreign_key_check` são verificados nos testes; 90 testes de migrations aprovados.
+- [ ] Contagem/atalho de lançamentos (RF65), recálculo UC05/UC09 e sincronização/Firebase de categorias permanecem fora desta integração.
+- [ ] Migration 005 e smoke nativo em Android continuam pendentes de validação manual.
 
-**Risco de colisão de migração:** a versão **003** agora pertence ao UC06 (faixa percentual provisória por triggers). A integração UC02 deve usar **004** e incrementar `VERSAO_ESQUEMA` para 4. A branch UC02/PR #55 ainda não tem `migrations.ts`; usa alteração não versionada em `database.ts`. Se a UC02 for integrada antes, `prepararInstalacaoNova` pode rejeitar `recorrencias` com colunas extras, pois `ESTRUTURAS_ESPERADAS` exige a estrutura canônica. A ordem recomendada é integrar o UC06 primeiro e rebasear a UC02 sobre a migração 004. Se a UC02 reconstruir `categorias`, deverá preservar ou recriar os triggers da 003.
+Evidências: `mobile/tests/db/migrations.test.ts`, `mobile/tests/service/categorias.test.ts`, `mobile/tests/service/sync.test.ts`, CI do PR #73 ([44703149839](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44703149839)) e CI pós-merge na `develop` ([44704829462](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44704829462)).
