@@ -242,6 +242,19 @@ export const DDL_SALDO_MENSAL = `
     );
   `;
 
+/** Migração 007: numera transições por mês sem alterar os IDs já enviados ao Firestore. */
+export const DDL_NUMERAR_ALERTAS = `
+  ALTER TABLE alertas_emitidos ADD COLUMN transicao INTEGER NOT NULL DEFAULT 0;
+  WITH numerados AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY mes ORDER BY criado_em, rowid) AS numero
+    FROM alertas_emitidos
+  )
+  UPDATE alertas_emitidos SET transicao = (
+    SELECT numero FROM numerados WHERE numerados.id = alertas_emitidos.id
+  );
+  CREATE UNIQUE INDEX idx_alertas_mes_transicao ON alertas_emitidos(mes, transicao);
+`;
+
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
@@ -251,4 +264,6 @@ export const ESQUEMA_SQL = `
     ${DDL_TRIGGER_PERCENTUAL}
 
     ${DDL_SALDO_MENSAL}
+
+    ${DDL_NUMERAR_ALERTAS}
   `;

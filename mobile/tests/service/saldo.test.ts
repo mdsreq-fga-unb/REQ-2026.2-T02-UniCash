@@ -66,6 +66,8 @@ describe('consulta local do resumo mensal', () => {
     const alertas = await consultarAlertas();
     expect(alertas).toHaveLength(1);
     expect(alertas[0].id).not.toBe(primeiro.id);
+    expect(banco.sqlite.prepare('SELECT id, transicao FROM alertas_emitidos ORDER BY transicao').all())
+      .toEqual([{ id: primeiro.id, transicao: 1 }, { id: alertas[0].id, transicao: 2 }]);
     expect(alertas[0]).toMatchObject({ anterior_centavos: 0, saldo_centavos: -1500 });
   });
 

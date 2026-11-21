@@ -33,9 +33,10 @@ export async function registrarTransicoes<T>(tx: SQLiteDatabase, alterar: () => 
     const anterior = antes.get(mes) ?? 0;
     if (anterior >= 0 && saldo < 0) {
       await tx.runAsync(
-        `INSERT INTO alertas_emitidos (id, mes, anterior_centavos, saldo_centavos, criado_em)
-         VALUES (lower(hex(randomblob(16))), ?, ?, ?, ?)`,
-        [mes, anterior, saldo, new Date().toISOString()],
+        `INSERT INTO alertas_emitidos (id, mes, anterior_centavos, saldo_centavos, criado_em, transicao)
+         SELECT lower(hex(randomblob(16))), ?, ?, ?, ?, COALESCE(MAX(transicao), 0) + 1
+         FROM alertas_emitidos WHERE mes = ?`,
+        [mes, anterior, saldo, new Date().toISOString(), mes],
       );
     }
   }
