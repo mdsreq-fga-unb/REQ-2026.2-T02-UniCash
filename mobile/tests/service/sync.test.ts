@@ -3062,6 +3062,62 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       )?.estado_local;
     }
 
+    /**
+     * Simula a edição local que ocorre depois do snapshot de envio.
+     * Mantém `atualizado_em` inalterado para provar que a assinatura de versão
+     * detecta a mudança mesmo quando o relógio tem a mesma resolução.
+     */
+    function editarLocalConcorrente(id: string, limiteCentavos: number): void {
+      banco.sqlite
+        .prepare(
+          `UPDATE categorias
+              SET limite_centavos = ?, sync_status = 'pendente'
+            WHERE id = ?`,
+        )
+        .run(limiteCentavos, id);
+      banco.sqlite
+        .prepare(
+          `UPDATE categorias_estado
+              SET estado_local = 'editado'
+            WHERE categoria_id = ?`,
+        )
+        .run(id);
+    }
+
+    /** Simula a exclusão local concorrente com o mesmo efeito do serviço. */
+    function excluirLocalConcorrente(id: string, excluidoEm: string): void {
+      banco.sqlite
+        .prepare(
+          `UPDATE despesas
+              SET categoria_id = NULL, sync_status = 'pendente', atualizado_em = ?
+            WHERE categoria_id = ? AND excluido_em IS NULL`,
+        )
+        .run(excluidoEm, id);
+      banco.sqlite
+        .prepare(
+          `UPDATE recorrencias
+              SET categoria_id = NULL, sync_status = 'pendente', atualizado_em = ?
+            WHERE categoria_id = ? AND tipo = 'despesa'`,
+        )
+        .run(excluidoEm, id);
+      banco.sqlite
+        .prepare(
+          `UPDATE categorias
+              SET excluido_em = ?, limite_tipo = NULL, limite_centavos = NULL,
+                  limite_percentual_centesimos = NULL,
+                  sync_status = 'pendente', atualizado_em = ?
+            WHERE id = ?`,
+        )
+        .run(excluidoEm, excluidoEm, id);
+      banco.sqlite
+        .prepare(
+          `UPDATE categorias_estado
+              SET estado_local = 'editado'
+            WHERE categoria_id = ?`,
+        )
+        .run(id);
+    }
+
     function pendentes(): number {
       return (
         banco.sqlite.prepare('SELECT COUNT(*) AS n FROM restauracao_pendente').get() as { n: number }
@@ -3658,6 +3714,170 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       mockTrocarUsuario = true;
       await expect(restaurarDaNuvem()).rejects.toBeInstanceOf(FalhaRestauracao);
       expect(banco.despesas()).toHaveLength(0);
+    });
+
+    it('não marca como sincronizada uma edição local feita durante o envio', async () => {
+      const id = await criarCategoria({
+        nome: 'Mercado',
+        limite: { tipo: 'valor', valor: 5000 },
+      });
+      const versaoInicial = catLocal(id);
+      expect(versaoInicial).toMatchObject({
+        limite_centavos: 5000,
+        sync_status: 'pendente',
+      });
+
+      mockAntesDaTransacao = () => {
+        editarLocalConcorrente(id, 8000);
+      };
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(catPath(id))).toMatchObject({
+        limite_centavos: 5000,
+      });
+      expect(catLocal(id)).toMatchObject({
+        limite_centavos: 8000,
+        sync_status: 'pendente',
+        atualizado_em: versaoInicial.atualizado_em,
+      });
+      expect(estadoLocal(id)).toBe('editado');
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(catPath(id))).toMatchObject({
+        limite_centavos: 8000,
+      });
+      expect(catLocal(id)).toMatchObject({
+        limite_centavos: 8000,
+        sync_status: 'sincronizado',
+        atualizado_em: versaoInicial.atualizado_em,
+      });
+      expect(estadoLocal(id)).toBe('sincronizado');
+    });
+
+    it('não aplica decisão remota obsoleta sobre edição local feita durante a sincronização', async () => {
+      const id = await criarCategoria({
+        nome: 'Mercado',
+        limite: { tipo: 'valor', valor: 5000 },
+      });
+      await sincronizarPendentes();
+      await editarCategoria(id, {
+        nome: 'Mercado',
+        limite: { tipo: 'valor', valor: 8000 },
+      });
+      mockNuvem.set(
+        catPath(id),
+        docCategoriaRemota({
+          limite_tipo: 'valor',
+          limite_centavos: 9000,
+          atualizado_em: '2999-01-01T00:00:00.000Z',
+        }),
+      );
+
+      mockAntesDaTransacao = () => {
+        editarLocalConcorrente(id, 7000);
+      };
+
+      await sincronizarPendentes();
+
+      expect(catLocal(id)).toMatchObject({
+        limite_centavos: 7000,
+        sync_status: 'pendente',
+      });
+      expect(estadoLocal(id)).toBe('editado');
+      expect(mockNuvem.get(catPath(id))).toMatchObject({
+        limite_centavos: 9000,
+      });
+
+      await sincronizarPendentes();
+
+      expect(catLocal(id)).toMatchObject({
+        limite_centavos: 9000,
+        sync_status: 'sincronizado',
+      });
+      expect(mockNuvem.get(catPath(id))).toMatchObject({
+        limite_centavos: 9000,
+      });
+    });
+
+    it('não reverte exclusão local feita durante a aplicação de versão remota ativa', async () => {
+      const id = await criarCategoria({
+        nome: 'Mercado',
+        limite: { tipo: 'valor', valor: 5000 },
+      });
+      await registrarDespesa(despesaInput(id));
+      await sincronizarPendentes();
+      await editarCategoria(id, {
+        nome: 'Mercado',
+        limite: { tipo: 'valor', valor: 8000 },
+      });
+      mockNuvem.set(
+        catPath(id),
+        docCategoriaRemota({
+          limite_tipo: 'valor',
+          limite_centavos: 9000,
+          atualizado_em: '2999-01-01T00:00:00.000Z',
+        }),
+      );
+
+      mockAntesDaTransacao = () => {
+        excluirLocalConcorrente(id, '2999-01-01T00:00:00.000Z');
+      };
+
+      await sincronizarPendentes();
+
+      expect(catLocal(id)).toMatchObject({
+        excluido_em: '2999-01-01T00:00:00.000Z',
+        limite_tipo: null,
+        limite_centavos: null,
+        sync_status: 'pendente',
+      });
+      expect(estadoLocal(id)).toBe('editado');
+      expect(mockNuvem.get(catPath(id))).toMatchObject({ excluido_em: null });
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(catPath(id))).toMatchObject({
+        excluido_em: '2999-01-01T00:00:00.000Z',
+      });
+      expect(catLocal(id)).toMatchObject({ sync_status: 'sincronizado' });
+      expect(banco.despesas()[0].categoria_id).toBeNull();
+    });
+
+    it('tombstone remoto prevalece sobre edição local feita durante a transação remota', async () => {
+      const id = await criarCategoria({
+        nome: 'Mercado',
+        limite: { tipo: 'valor', valor: 5000 },
+      });
+      await registrarDespesa(despesaInput(id));
+      await sincronizarPendentes();
+      await editarCategoria(id, {
+        nome: 'Mercado',
+        limite: { tipo: 'valor', valor: 8000 },
+      });
+      mockNuvem.set(
+        catPath(id),
+        docCategoriaRemota({
+          excluido_em: '2999-01-01T00:00:00.000Z',
+          atualizado_em: '2999-01-01T00:00:00.000Z',
+        }),
+      );
+
+      mockAntesDaTransacao = () => {
+        editarLocalConcorrente(id, 7000);
+      };
+
+      await sincronizarPendentes();
+
+      expect(catLocal(id)).toMatchObject({
+        excluido_em: '2999-01-01T00:00:00.000Z',
+        limite_tipo: null,
+        limite_centavos: null,
+        sync_status: 'sincronizado',
+      });
+      expect(estadoLocal(id)).toBe('sincronizado');
+      expect(banco.despesas()[0].categoria_id).toBeNull();
     });
 
     describe('normalização remota em massa (issue #71)', () => {

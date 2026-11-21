@@ -223,6 +223,34 @@ function assinaturaCategoria(
 }
 
 /**
+ * Impressão digital da versão local para controle otimista.
+ * Inclui conteúdo, estado e timestamps: uma edição no mesmo milissegundo
+ * continua detectável, e `sync_status`/`estado_local` não são mascarados.
+ * Os mesmos campos existem no snapshot de `sincronizarCategoriasPendentes`
+ * (`c.*` + `estado_local`) e na releitura de `lerCategoriaPorId`.
+ */
+function assinaturaVersaoLocal(categoria: Categoria): string {
+  return JSON.stringify([
+    categoria.id,
+    categoria.nome,
+    categoria.nome_normalizado,
+    categoria.padrao,
+    categoria.limite_tipo ?? null,
+    categoria.limite_centavos ?? null,
+    categoria.limite_percentual_centesimos ?? null,
+    categoria.sync_status,
+    categoria.excluido_em ?? null,
+    categoria.criado_em,
+    categoria.atualizado_em,
+    categoria.estado_local ?? 'editado',
+  ]);
+}
+
+function mesmaVersaoLocal(atual: Categoria | null, esperada: Categoria): boolean {
+  return atual !== null && assinaturaVersaoLocal(atual) === assinaturaVersaoLocal(esperada);
+}
+
+/**
  * Decide deterministicamente entre a versão local e a remota da MESMA categoria.
  * - exclusão prevalece sobre edição;
  * - padrão não pode ser excluída;
@@ -256,7 +284,8 @@ export type MotivoPendenciaCategoria =
   | 'categoria_invalida'
   | 'categoria_desconhecida'
   | 'conflito_nome'
-  | 'padrao_ambigua';
+  | 'padrao_ambigua'
+  | 'alteracao_local_concorrente';
 
 export interface ResultadoAplicacaoCategoria {
   status: 'aplicada' | 'pendente';
@@ -769,16 +798,27 @@ export async function restaurarCategoriasDaNuvem(
   return mapa;
 }
 
+/**
+ * Confirma o envio somente se a linha local ainda for a versão que originou o
+ * payload. A releitura e o UPDATE ficam na mesma transação SQLite exclusiva.
+ */
 async function marcarCategoriaSincronizada(
   db: SQLiteDatabase,
-  id: string,
+  esperada: Categoria,
 ): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
-    await tx.runAsync(
-      "UPDATE categorias SET sync_status = 'sincronizado' WHERE id = ?",
-      [id],
+    const atual = await lerCategoriaPorId(tx, esperada.id);
+    if (!mesmaVersaoLocal(atual, esperada)) return;
+
+    const resultado = await tx.runAsync(
+      `UPDATE categorias
+          SET sync_status = 'sincronizado'
+        WHERE id = ? AND sync_status = 'pendente'`,
+      [esperada.id],
     );
-    await definirEstadoCategoria(tx, id, 'sincronizado');
+    if (resultado.changes !== 1) return;
+
+    await definirEstadoCategoria(tx, esperada.id, 'sincronizado');
   });
 }
 
@@ -786,18 +826,33 @@ async function aplicarRemotaNaTransacao(
   db: SQLiteDatabase,
   docId: string,
   remota: CategoriaRemota,
+  esperada: Categoria,
 ): Promise<ResultadoAplicacaoCategoria> {
-  let resultado: ResultadoAplicacaoCategoria = { status: 'pendente', motivo: 'categoria_invalida' };
+  let resultado: ResultadoAplicacaoCategoria = {
+    status: 'pendente',
+    motivo: 'alteracao_local_concorrente',
+  };
+
   await db.withExclusiveTransactionAsync(async (tx) => {
+    const atual = await lerCategoriaPorId(tx, esperada.id);
+    const versaoMudou = !mesmaVersaoLocal(atual, esperada);
+
+    // Uma aplicação remota ativa decidida sobre uma versão antiga não pode
+    // sobrescrever uma edição ou exclusão local feita durante a rede.
+    if (versaoMudou && !remota.excluido_em) return;
+
     resultado = await aplicarCategoriaRemota(tx, docId, remota, { forcarRemota: true });
-    if (resultado.status === 'aplicada' && resultado.mapa && !resultado.precisaReenviar) {
-      await tx.runAsync(
-        "UPDATE categorias SET sync_status = 'sincronizado' WHERE id = ?",
-        [resultado.mapa],
-      );
-      await definirEstadoCategoria(tx, resultado.mapa, 'sincronizado');
+    if (resultado.status !== 'aplicada' || !resultado.mapa || resultado.precisaReenviar) {
+      return;
     }
+
+    await tx.runAsync(
+      "UPDATE categorias SET sync_status = 'sincronizado' WHERE id = ?",
+      [resultado.mapa],
+    );
+    await definirEstadoCategoria(tx, resultado.mapa, 'sincronizado');
   });
+
   return resultado;
 }
 
@@ -885,7 +940,7 @@ export async function sincronizarCategoriasPendentes(
 
     if (decisao.acao === 'local') {
       try {
-        await marcarCategoriaSincronizada(db, categoria.id);
+        await marcarCategoriaSincronizada(db, categoria);
       } catch {
         // A nuvem confirmou, mas o SQLite não. A categoria continua pendente
         // para a próxima tentativa; não bloqueia despesas/séries.
@@ -895,7 +950,7 @@ export async function sincronizarCategoriasPendentes(
 
     let aplicada: ResultadoAplicacaoCategoria | null = null;
     try {
-      aplicada = await aplicarRemotaNaTransacao(db, docId, decisao.remota);
+      aplicada = await aplicarRemotaNaTransacao(db, docId, decisao.remota, categoria);
     } catch {
       // Mantém a categoria pendente e segue para os demais registros.
     }
