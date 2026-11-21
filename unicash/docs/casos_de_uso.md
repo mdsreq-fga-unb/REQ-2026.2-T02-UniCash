@@ -319,6 +319,15 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Funcionais:** RF34, RF35. Relacionados: RF07, RF15, RF11, RF17, RF18.
 - **Não funcionais específicos:** RNF07, RNF08, RNF29, RNF38.
 - **Regras de negócio:** RN06, RN07, RN15, RN16, RN17, RN18.
+
+### Implementação e verificação do UC04
+
+O resumo lê os lançamentos do UC01 e do UC02 no SQLite e calcula o saldo a cada consulta. O saldo inicial local é a referência provisória para a integração com o UC08. Os limites de gasto pertencem ao UC05. A apresentação percentual segue a [RN21](requisitos_funcionais.md#rn21-precisao-dos-valores-monetarios-rnf07).
+
+Cada passagem de saldo não negativo para negativo recebe um número de transição único no mês na base local. O lançamento e o alerta são gravados na mesma transação. Se a gravação local do alerta falhar, os dados anteriores são preservados e a interface permite tentar novamente. Uma falha de envio mantém o alerta pendente para reenvio com o mesmo identificador.
+
+A tabela de rastreabilidade, os resultados e o roteiro de verificação em aparelho ficam na [issue #31](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/31). A implementação e os checks ficam no [PR #68](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/68). A evidência em aparelho permanece pendente.
+
 ---
 
 ## UC05 - Monitorar limites de gastos
