@@ -102,7 +102,11 @@ async function gerarOcorrencias(tx: SQLiteDatabase, rec: Recorrencia, limite: st
 export function completarRecorrencias() {
   return transacao(async (tx) => {
     const series = await tx.getAllAsync<Recorrencia>(
-      'SELECT * FROM recorrencias WHERE ativa = 1 AND termino IS NULL',
+      `SELECT * FROM recorrencias
+WHERE ativa = 1
+   AND termino IS NULL
+   AND excluido_em IS NULL
+   AND tipo = 'receita'`,
     );
     const limite = adicionarMeses(hojeISO(), HORIZONTE_MESES);
     for (const s of series) await gerarOcorrencias(tx, s, limite);
@@ -128,6 +132,7 @@ async function criarSerie(tx: SQLiteDatabase, d: DadosSerie, ts: string) {
     descricao: d.descricao,
     sync_status: 'pendente',
     atualizado_em: ts,
+    excluido_em: null,
   };
   await tx.runAsync(
     `INSERT INTO recorrencias
@@ -159,6 +164,16 @@ async function desativarSerie(tx: SQLiteDatabase, recId: string, ts: string) {
   await tx.runAsync(
     `UPDATE recorrencias SET ativa = 0, sync_status = 'pendente', atualizado_em = ? WHERE id = ?`,
     [ts, recId],
+  );
+}
+
+async function excluirSerie(tx: SQLiteDatabase, recId: string, ts: string) {
+  await tx.runAsync(
+    `UPDATE recorrencias
+        SET excluido_em = ?, ativa = 0, sync_status = 'pendente',
+            atualizado_em = ?
+      WHERE id = ?`,
+    [ts, ts, recId],
   );
 }
 
@@ -302,7 +317,7 @@ export function excluirReceita(id: string, escopo: EscopoSerie = 'esta') {
     const rec = await tx.getFirstAsync<Recorrencia>('SELECT * FROM recorrencias WHERE id = ?', [atual.recorrencia_id]);
     if (escopo === 'todas') {
       await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND excluido_em IS NULL`, [ts, ts, atual.recorrencia_id]);
-      await desativarSerie(tx, atual.recorrencia_id, ts);
+      await excluirSerie(tx, atual.recorrencia_id, ts);
       return;
     }
 

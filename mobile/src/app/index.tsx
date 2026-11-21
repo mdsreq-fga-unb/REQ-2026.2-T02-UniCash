@@ -2,12 +2,11 @@ import { useCallback, useState } from 'react';
 import { Link, useFocusEffect } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adicionarMeses, formatarBR, hojeISO, nomeMes } from '@/features/receitas/dates';
+import { adicionarMeses, hojeISO, nomeMes } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
-import { consultarResumoMensal, listarDespesas, type Despesa } from '@/features/saldo/service';
+import { consultarResumoMensal } from '@/features/saldo/service';
 import { FormularioSaldo } from '@/components/saldo/FormularioSaldo';
 import { consultarAlertas, dispensarAlerta, type AlertaSaldo } from '@/features/saldo/alertas';
-import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { cores, raio } from '@/lib/theme';
 
 type Resumo = Awaited<ReturnType<typeof consultarResumoMensal>>;
@@ -17,9 +16,7 @@ export default function Home() {
   const [resumo, setResumo] = useState<Resumo | null>(null);
   const [alertas, setAlertas] = useState<AlertaSaldo[]>([]);
   const [erroAlerta, setErroAlerta] = useState(false);
-  const [despesas, setDespesas] = useState<Despesa[]>([]);
-  const [despesaEmEdicao, setDespesaEmEdicao] = useState<Despesa>();
-  const [formulario, setFormulario] = useState<'despesa' | 'inicial' | null>(null);
+  const [editandoInicial, setEditandoInicial] = useState(false);
   const [erro, setErro] = useState(false);
   const [ano, mes] = consulta.inicio.split('-').map(Number);
 
@@ -33,12 +30,8 @@ export default function Home() {
         (resultado) => { if (ativo) setAlertas(resultado); },
         () => { if (ativo) setErroAlerta(true); },
       );
-      Promise.all([consultarResumoMensal(consulta.inicio), listarDespesas(consulta.inicio)]).then(
-        ([resultado, itens]) => {
-          if (!ativo) return;
-          setResumo(resultado);
-          setDespesas(itens);
-        },
+      consultarResumoMensal(consulta.inicio).then(
+        (resultado) => { if (ativo) setResumo(resultado); },
         () => { if (ativo) setErro(true); },
       );
       return () => { ativo = false; };
@@ -59,15 +52,9 @@ export default function Home() {
     setConsulta((atual) => ({ ...atual }));
   }
 
-  function fecharFormulario() {
-    setFormulario(null);
-    setDespesaEmEdicao(undefined);
-  }
-
   function concluirFormulario() {
-    fecharFormulario();
+    setEditandoInicial(false);
     recarregar();
-    sincronizarEmSegundoPlano();
   }
 
   function mudarMes(direcao: number) {
@@ -82,6 +69,8 @@ export default function Home() {
         <Text accessibilityRole="header" style={styles.titulo}>Resumo financeiro</Text>
         {alertas.slice(0, 1).map((alerta) => (
           <View key={alerta.id} style={styles.cartao}>
+            <Text style={styles.rotulo}>{nomeMes(Number(alerta.mes.slice(0, 4)), Number(alerta.mes.slice(5)))}</Text>
+            {alertas.length > 1 && <Text style={styles.rotulo}>{alertas.length} avisos pendentes</Text>}
             <Text accessibilityRole="alert" style={styles.total}>
               {formatarBRL(alerta.anterior_centavos)} → {formatarBRL(alerta.saldo_centavos)}
             </Text>
@@ -96,11 +85,11 @@ export default function Home() {
           </Pressable>
         )}
         <View style={styles.meses}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Mês anterior" disabled={formulario !== null} onPress={() => mudarMes(-1)} style={styles.botaoMes}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Mês anterior" disabled={editandoInicial} onPress={() => mudarMes(-1)} style={styles.botaoMes}>
             <Text style={styles.acao}>‹</Text>
           </Pressable>
-          <Text style={styles.mes}>{nomeMes(ano, mes)}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Próximo mês" disabled={formulario !== null} onPress={() => mudarMes(1)} style={styles.botaoMes}>
+          <Text accessibilityLabel="Mês do resumo" style={styles.mes}>{nomeMes(ano, mes)}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Próximo mês" disabled={editandoInicial} onPress={() => mudarMes(1)} style={styles.botaoMes}>
             <Text style={styles.acao}>›</Text>
           </Pressable>
         </View>
@@ -133,32 +122,18 @@ export default function Home() {
           </View>
         )}
         {!resumo && !erro && <ActivityIndicator accessibilityLabel="Calculando saldo" color={cores.primaria} />}
-        {resumo && (formulario ? (
-          <FormularioSaldo modo={formulario} inicio={consulta.inicio}
-            despesaEmEdicao={despesaEmEdicao}
-            valorInicial={despesaEmEdicao?.valor_centavos ?? (formulario === 'inicial' &&
-              resumo.inicial?.mes === consulta.inicio.slice(0, 7) ? resumo.inicial.centavos : undefined)}
-            aoSalvar={concluirFormulario} aoCancelar={fecharFormulario} />
+        {resumo && (editandoInicial ? (
+          <FormularioSaldo inicio={consulta.inicio}
+            valorInicial={resumo.inicial?.mes === consulta.inicio.slice(0, 7) ? resumo.inicial.centavos : undefined}
+            aoSalvar={concluirFormulario} aoCancelar={() => setEditandoInicial(false)} />
         ) : (
-          <>
-            <Pressable accessibilityRole="button" onPress={() => setFormulario('despesa')}>
-              <Text style={styles.acao}>Nova despesa</Text>
-            </Pressable>
-            {despesas.map((despesa) => {
-              const descricao = `${formatarBR(despesa.data)} · ${formatarBRL(despesa.valor_centavos)}`;
-              return (
-                <Pressable key={despesa.id} accessibilityRole="button" accessibilityLabel={`Editar despesa de ${descricao}`}
-                  style={styles.cartao} onPress={() => { setDespesaEmEdicao(despesa); setFormulario('despesa'); }}>
-                  <Text style={styles.acao}>{descricao}</Text>
-                </Pressable>
-              );
-            })}
-            <Pressable accessibilityRole="button" onPress={() => setFormulario('inicial')}>
-              <Text style={styles.acao}>{resumo.inicial ? 'Alterar saldo inicial' : 'Informar saldo inicial'}</Text>
-            </Pressable>
-          </>
+          <Pressable accessibilityRole="button" onPress={() => setEditandoInicial(true)}>
+            <Text style={styles.acao}>{resumo.inicial ? 'Alterar saldo inicial' : 'Informar saldo inicial'}</Text>
+          </Pressable>
         ))}
-        <Link href="/receitas" style={styles.acao}>Ver receitas</Link>
+        <Link href="/receitas" style={styles.acao}>Receitas</Link>
+        <Link href="/despesas" style={styles.acao}>Despesas</Link>
+        <Link href="/categorias" style={styles.acao}>Categorias</Link>
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,3 +1,5 @@
+import { corAbaixoDasFaixas, faixas, indicadorSemReceitas } from './config';
+
 type TotaisMensais = {
   receitas: number;
   despesas: number;
@@ -7,14 +9,6 @@ type SaldoInicial = {
   mes: string;
   centavos: number;
 };
-
-const indicadorSemReceitas = { cor: '#171717', texto: 'Sem receitas no mês' };
-const faixas = [
-  { limite: 0.9, inclusivo: false, cor: '#166534' },
-  { limite: 0.8, inclusivo: false, cor: '#854D0E' },
-  { limite: 0.5, inclusivo: true, cor: '#9A3412' },
-];
-const corAbaixoDasFaixas = '#B91C1C';
 
 export function calcularSaldo({ receitas, despesas }: TotaisMensais) {
   return receitas - despesas;

@@ -14,7 +14,7 @@ function saldosComDespesas(db: SQLiteDatabase) {
     WITH totais AS (
       SELECT substr(data, 1, 7) AS mes, SUM(valor_centavos) AS despesas
       FROM despesas
-      WHERE data >= COALESCE((SELECT mes || '-01' FROM saldo_inicial WHERE id = 1), '')
+      WHERE excluido_em IS NULL AND data >= COALESCE((SELECT mes || '-01' FROM saldo_inicial WHERE id = 1), '')
       GROUP BY substr(data, 1, 7)
     )
     SELECT mes, COALESCE((
@@ -25,7 +25,7 @@ function saldosComDespesas(db: SQLiteDatabase) {
   `);
 }
 
-/** Compara os saldos da mesma transação, incluindo alterações em vários meses por séries. */
+/** Compara os meses com despesas antes e depois da operação, incluindo alterações em séries. */
 export async function registrarTransicoes<T>(tx: SQLiteDatabase, alterar: () => Promise<T>) {
   const antes = new Map((await saldosComDespesas(tx)).map(({ mes, saldo }) => [mes, saldo]));
   const resultado = await alterar();

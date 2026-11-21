@@ -4,7 +4,7 @@ import { OpcoesModal } from './OpcoesModal';
 import { excluirReceita, ReceitaIndisponivel } from '@/features/receitas/service';
 import { formatarBR } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
 import type { EscopoSerie } from '@/features/receitas/types';

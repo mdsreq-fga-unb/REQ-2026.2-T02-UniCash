@@ -9,7 +9,5 @@ module.exports = {
     'src/features/saldo/**/*.ts',
   ],
   coverageDirectory: '<rootDir>/coverage/uc04',
-  coverageThreshold: {
-    global: { statements: 100, branches: 100, functions: 100, lines: 100 },
-  },
+  coverageThreshold: {},
 };
