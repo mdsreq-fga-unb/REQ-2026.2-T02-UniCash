@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { lerTotaisLocais } from '@/features/consumo/sqlite';
 import ListaCategorias from '@/app/categorias/index';
 import { listarCategorias, semearCategoriasPadrao } from '@/features/categorias/service';
 import * as useCategoriasModulo from '@/features/categorias/useCategorias';
@@ -14,6 +15,10 @@ jest.mock('react-native-safe-area-context', () => require('react-native-safe-are
 jest.mock('@/features/categorias/service', () => ({
   listarCategorias: jest.fn(),
   semearCategoriasPadrao: jest.fn(),
+}));
+
+jest.mock('@/features/consumo/sqlite', () => ({
+  lerTotaisLocais: jest.fn(async () => ({ categorias: [], rendaCentavos: 0 })),
 }));
 
 const listar = listarCategorias as jest.Mock;
@@ -193,4 +198,22 @@ describe('Lista de categorias (fluxo A do UC06)', () => {
 
     usarHook.mockRestore();
   });
+});
+
+it('atualiza o indicador da categoria quando o mês muda', async () => {
+  listar.mockResolvedValue([categoriaLinha({ id: '1', nome: 'Casa', limite_tipo: 'valor', limite_centavos: 10000 })]);
+  semear.mockResolvedValue({ criadas: [], conflitos: [] });
+  const dados = {
+    rendaCentavos: 0,
+    categorias: [{ categoriaId: '1', nome: 'Casa', gastoCentavos: 8000,
+      limite: { tipo: 'reais' as const, centavos: 10000 } }],
+  };
+  const ler = jest.mocked(lerTotaisLocais);
+  ler.mockResolvedValue(dados);
+  await render(<ListaCategorias />);
+  expect(await screen.findByText('80% · Próximo do limite')).toBeTruthy();
+  ler.mockResolvedValue({ ...dados, categorias: [{ ...dados.categorias[0], gastoCentavos: 0 }] });
+  await fireEvent.press(screen.getByRole('button', { name: 'Mês anterior' }));
+  expect(await screen.findByText('0% · Consumo baixo')).toBeTruthy();
+  ler.mockResolvedValue({ categorias: [], rendaCentavos: 0 });
 });
