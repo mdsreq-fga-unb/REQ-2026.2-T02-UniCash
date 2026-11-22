@@ -6,20 +6,26 @@
  * ao registro MIGRACOES. Nunca ler nem gravar user_version fora deste arquivo.
  */
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { PERCENTUAL_MAX_CENTESIMOS } from '@/features/categorias/limites';
+import {
+  PERCENTUAL_MAX_CENTESIMOS,
+  PERCENTUAL_MIN_CENTESIMOS,
+} from '@/features/categorias/limites';
 import {
   DDL_ESQUEMA,
   DDL_INDICES_DESPESAS,
+  DDL_INDICES_V6,
   DDL_RECORRENCIAS_V5,
+  DDL_TABELA_CATEGORIA_ESTADO,
   DDL_TABELA_DESPESAS,
   DDL_TABELA_CATEGORIAS,
+  DDL_TABELA_RESTAURACAO_PENDENTE,
   DDL_TRIGGER_PERCENTUAL,
   LIMITE_PERCENTUAL_MAX,
   TRIGGERS_PERCENTUAL,
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 5;
+export const VERSAO_ESQUEMA = 7;
 
 export interface RegistroInvalido {
   id: string;
@@ -111,6 +117,11 @@ interface Migracao {
  * 0,01% a 100% (1 a 10.000 centésimos), sem reconstruir a tabela nem alterar
  * dados legados.
  * A 004 integra as estruturas da UC02 (`recorrencias` e `despesas`).
+ * A 005 adiciona o tombstone lógico de recorrências.
+ * A 006 adiciona o estado local explícito das categorias e a fila de
+ * restauração adiada, de forma aditiva e sem alterar dados existentes.
+ * A 007 normaliza os percentuais legados para a faixa definitiva de 1% a 100%
+ * e substitui os triggers da faixa provisória pelos definitivos.
  */
 const MIGRACOES: Migracao[] = [
   { versao: 1, executar: migrar001 },
@@ -118,6 +129,8 @@ const MIGRACOES: Migracao[] = [
   { versao: 3, executar: migrar003 },
   { versao: 4, executar: migrar004 },
   { versao: 5, executar: migrar005 },
+  { versao: 6, executar: migrar006 },
+  { versao: 7, executar: migrar007 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -404,7 +417,12 @@ async function prepararInstalacaoNova(tx: SQLiteDatabase): Promise<void> {
   if (objetos.length === 0) return; // banco realmente vazio
 
   const inesperados = objetos.filter(
-    (n) => n !== 'recorrencias' && n !== 'receitas' && n !== 'despesas',
+    (n) =>
+      n !== 'recorrencias' &&
+      n !== 'receitas' &&
+      n !== 'despesas' &&
+      n !== 'categorias_estado' &&
+      n !== 'restauracao_pendente',
   );
   if (inesperados.length > 0) {
     throw new EstruturaLegadaInesperada(
@@ -512,6 +530,7 @@ async function validarFormaNova(tx: SQLiteDatabase, sqlCategorias: string): Prom
  */
 const MARCAS_TRIGGER_PERCENTUAL = [
   'limite_percentual_faixa',
+  `< ${PERCENTUAL_MIN_CENTESIMOS}`,
   `> ${PERCENTUAL_MAX_CENTESIMOS}`,
 ];
 
@@ -584,6 +603,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirColunasRecorrencias(tx);
       await garantirTabelaDespesas(tx);
       await garantirColunaExcluidoEmRecorrencias(tx);
+      await garantirTabelasV6(tx);
       await aplicarTriggersPercentual(tx);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
@@ -685,6 +705,147 @@ async function migrar004(db: SQLiteDatabase, versaoDestino: number): Promise<voi
 async function migrar005(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await garantirColunaExcluidoEmRecorrencias(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/**
+ * 006 — estado local explícito das categorias e fila de restauração adiada.
+ *
+ * Aditiva: cria apenas duas tabelas e seus índices. Nenhuma tabela existente é
+ * reconstruída e nenhum dado financeiro é alterado. Categorias já existentes
+ * recebem um estado inicial inferido de forma conservadora:
+ * - padrão ativa, sem limite e com timestamps iguais = `semeadura`;
+ * - qualquer outro caso = `editado`.
+ * Assim, uma padrão intocada não sobrescreve limite remoto, e uma categoria
+ * possivelmente editada nunca é tratada como recém-semeada.
+ */
+async function garantirTabelasV6(tx: SQLiteDatabase): Promise<void> {
+  await tx.execAsync(DDL_TABELA_CATEGORIA_ESTADO);
+  await tx.execAsync(DDL_TABELA_RESTAURACAO_PENDENTE);
+  for (const ddl of DDL_INDICES_V6) await tx.execAsync(ddl);
+}
+
+async function migrar006(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await garantirTabelasV6(tx);
+
+    await tx.runAsync(
+      `INSERT INTO categorias_estado (categoria_id, estado_local)
+       SELECT id,
+         CASE
+           WHEN padrao = 1
+             AND excluido_em IS NULL
+             AND limite_tipo IS NULL
+             AND criado_em = atualizado_em
+           THEN 'semeadura'
+           ELSE 'editado'
+         END
+       FROM categorias
+       WHERE 1
+       ON CONFLICT(categoria_id) DO NOTHING`,
+    );
+
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/**
+ * Substitui os triggers da faixa provisória (somente máximo) pelos da faixa
+ * definitiva (1% a 100%). Triggers ausentes são criados; definições
+ * desconhecidas abortam sem alteração, preservando mudanças de colegas.
+ */
+async function substituirTriggersPercentualDefinitivos(tx: SQLiteDatabase): Promise<void> {
+  const linhas = await tx.getAllAsync<{ name: string; sql: string | null }>(
+    "SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND name IN (?, ?)",
+    [...TRIGGERS_PERCENTUAL],
+  );
+
+  const temMarcasDefinitivas = (sql: string) =>
+    MARCAS_TRIGGER_PERCENTUAL.every((marca) => sql.includes(marca));
+  const temMarcasProvisorias = (sql: string) =>
+    sql.includes('limite_percentual_faixa') &&
+    sql.includes(`> ${PERCENTUAL_MAX_CENTESIMOS}`) &&
+    !sql.includes(`< ${PERCENTUAL_MIN_CENTESIMOS}`);
+
+  for (const linha of linhas) {
+    const sql = linha.sql ?? '';
+    if (temMarcasDefinitivas(sql) || temMarcasProvisorias(sql)) continue;
+    throw new DependenciaInesperada(
+      `trigger "${linha.name}" com definição divergente da faixa percentual`,
+    );
+  }
+
+  for (const nome of TRIGGERS_PERCENTUAL) {
+    await tx.runAsync(`DROP TRIGGER IF EXISTS ${nome}`);
+  }
+  await tx.execAsync(DDL_TRIGGER_PERCENTUAL);
+  await validarTriggersPercentual(tx);
+}
+
+/**
+ * Normaliza percentuais legados para a faixa definitiva:
+ * - abaixo de 1% vira 1% (100 centésimos);
+ * - acima de 100% vira 100% (10.000 centésimos);
+ * - casas excedentes são arredondadas para o inteiro mais próximo.
+ *
+ * Apenas categorias alteradas são marcadas como pendentes e recebem estado
+ * local `editado`, para que a correção chegue ao Firestore. Despesas, receitas,
+ * séries e referências financeiras não são tocadas. A operação é idempotente:
+ * uma segunda execução não encontra mais linhas fora do padrão.
+ */
+async function normalizarPercentuaisLegados(tx: SQLiteDatabase): Promise<void> {
+  const filtro = `
+    limite_tipo = 'percentual_renda'
+    AND limite_percentual_centesimos IS NOT NULL
+    AND (
+      limite_percentual_centesimos < ${PERCENTUAL_MIN_CENTESIMOS}
+      OR limite_percentual_centesimos > ${PERCENTUAL_MAX_CENTESIMOS}
+      OR CAST(ROUND(limite_percentual_centesimos) AS INTEGER) <> limite_percentual_centesimos
+    )`;
+
+  const alvos = await tx.getAllAsync<{ id: string }>(
+    `SELECT id FROM categorias WHERE ${filtro} ORDER BY id`,
+  );
+  if (alvos.length === 0) return;
+
+  const agoraIso = new Date().toISOString();
+  await tx.runAsync(
+    `UPDATE categorias
+        SET limite_percentual_centesimos = CASE
+              WHEN ROUND(limite_percentual_centesimos) < ${PERCENTUAL_MIN_CENTESIMOS}
+                THEN ${PERCENTUAL_MIN_CENTESIMOS}
+              WHEN ROUND(limite_percentual_centesimos) > ${PERCENTUAL_MAX_CENTESIMOS}
+                THEN ${PERCENTUAL_MAX_CENTESIMOS}
+              ELSE CAST(ROUND(limite_percentual_centesimos) AS INTEGER)
+            END,
+            sync_status = 'pendente',
+            atualizado_em = ?
+      WHERE ${filtro}`,
+    [agoraIso],
+  );
+
+  for (const { id } of alvos) {
+    await tx.runAsync(
+      `INSERT INTO categorias_estado (categoria_id, estado_local)
+       VALUES (?, 'editado')
+       ON CONFLICT(categoria_id) DO UPDATE SET estado_local = excluded.estado_local`,
+      [id],
+    );
+  }
+}
+
+/**
+ * 007 — faixa percentual definitiva de 1% a 100%.
+ *
+ * Transacional e idempotente. Substitui os triggers provisórios, normaliza
+ * dados legados e marca apenas as categorias corrigidas como pendentes. Não
+ * altera despesas, receitas, recorrências nem referências financeiras.
+ */
+async function migrar007(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await substituirTriggersPercentualDefinitivos(tx);
+    await normalizarPercentuaisLegados(tx);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

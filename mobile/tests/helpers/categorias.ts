@@ -11,9 +11,11 @@ export function categoriaLinha(extra: Partial<Categoria> = {}): Categoria {
     limite_centavos: null,
     limite_percentual_centesimos: null,
     sync_status: 'sincronizado',
+    estado_local: 'sincronizado',
     excluido_em: null,
     criado_em: 't',
     atualizado_em: 't',
+    total_lancamentos: 0,
     ...extra,
   } as Categoria;
 }

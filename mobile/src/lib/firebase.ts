@@ -1,7 +1,7 @@
 import { getApp, getApps, initializeApp } from "firebase/app";
 import * as firebaseAuth from "firebase/auth";
-import { getAuth, initializeAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, initializeAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
@@ -18,9 +18,33 @@ const firebaseConfig = {
   appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+/**
+ * O app é offline-first: sem as variáveis EXPO_PUBLIC_FIREBASE_*, ele abre e
+ * opera somente com o SQLite local. Isso evita que uma chave vazia derrube a
+ * inicialização do Expo Go durante o desenvolvimento ou o primeiro uso.
+ */
+export const firebaseConfigurado = [
+  firebaseConfig.apiKey,
+  firebaseConfig.authDomain,
+  firebaseConfig.projectId,
+  firebaseConfig.storageBucket,
+  firebaseConfig.messagingSenderId,
+  firebaseConfig.appId,
+].every((valor) => typeof valor === "string" && valor.trim().length > 0);
 
-function createAuth() {
+const app = firebaseConfigurado
+  ? getApps().length
+    ? getApp()
+    : initializeApp(firebaseConfig)
+  : null;
+
+function createAuth(): Auth {
+  if (!app) {
+    return {
+      currentUser: null,
+      authStateReady: async () => undefined,
+    } as unknown as Auth;
+  }
   if (Platform.OS === "web") {
     return getAuth(app);
   }
@@ -34,4 +58,4 @@ function createAuth() {
 }
 
 export const auth = createAuth();
-export const db = getFirestore(app);
+export const db = (app ? getFirestore(app) : {}) as Firestore;
