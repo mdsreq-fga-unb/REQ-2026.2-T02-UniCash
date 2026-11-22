@@ -8,7 +8,7 @@ import { MSG } from '@/features/receitas/validation';
 import { router } from '../../helpers/expoRouterMock';
 import { receitaLinha } from '../../helpers/dados';
 
-jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
+jest.mock('expo-router', () => require('../../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/receitas/service', () => ({
   ...jest.requireActual('@/features/receitas/service'),

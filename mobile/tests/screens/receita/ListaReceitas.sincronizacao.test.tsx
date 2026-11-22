@@ -5,7 +5,7 @@ import { contarPendentes } from '@/features/receitas/pendencias';
 import { sincronizarPendentes } from '@/features/receitas/sync';
 import { receitaLinha } from '../../helpers/dados';
 
-jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
+jest.mock('expo-router', () => require('../../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/receitas/service', () => ({
   ...jest.requireActual('@/features/receitas/service'),

@@ -1,7 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native';
 import { useExclusao } from '@/components/receitas/useExclusao';
 
-jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
+jest.mock('expo-router', () => require('../../helpers/expoRouterMock'));
 jest.mock('@/features/receitas/sync', () => ({
   sincronizarPendentes: jest.fn().mockResolvedValue(false),
   sincronizarEmSegundoPlano: jest.fn(),
