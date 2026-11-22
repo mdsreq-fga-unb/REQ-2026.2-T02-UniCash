@@ -63,10 +63,10 @@ export function criarAuthFirebase(): AuthService {
       try {
         const perfil: Record<string, unknown> = {
           email: email.trim(),
-          criadoEm: serverTimestamp(),
+          criado_em: serverTimestamp(),
         };
         if (nome?.trim()) perfil.nome = nome.trim();
-        await comTimeout(setDoc(doc(db, 'users', u.uid), perfil)); // sem CPF
+        await comTimeout(setDoc(doc(db, 'usuarios', u.uid), perfil)); // sem CPF
         await sendEmailVerification(u, configAcao); // A6
       } catch (e) {
         // Desfaz: nenhuma conta ou perfil parcial (EX07, EX10).
@@ -169,7 +169,7 @@ export function criarAuthFirebase(): AuthService {
         await u.reload();
         await u.getIdToken(true);
         if (u.email) {
-          await comTimeout(updateDoc(doc(db, 'users', u.uid), { email: u.email, atualizadoEm: serverTimestamp() }));
+          await comTimeout(updateDoc(doc(db, 'usuarios', u.uid), { email: u.email, atualizado_em: serverTimestamp() }));
         }
         definirSessao(sessaoDe(u));
       } catch (e) {
