@@ -89,8 +89,8 @@ describe('signUp (fluxo A)', () => {
     m(fa.createUserWithEmailAndPassword).mockResolvedValue({ user: usuario() });
     await criarAuthFirebase().signUp(dados);
     const [ref, perfil] = m(ff.setDoc).mock.calls[0];
-    expect(ref).toEqual({ path: 'users/u1' });
-    expect(perfil).toEqual({ email: 'ana@exemplo.com', criadoEm: 'TS' });
+    expect(ref).toEqual({ path: 'usuarios/u1' });
+    expect(perfil).toEqual({ email: 'ana@exemplo.com', criado_em: 'TS' });
     expect(Object.keys(perfil)).not.toContain('cpf');
     expect(JSON.stringify(perfil)).not.toContain('Abcdef1!');
   });
@@ -396,8 +396,8 @@ describe('requestEmailChange e confirmEmailChange (UC11)', () => {
     await criarAuthFirebase().confirmEmailChange('cod');
     expect(m(fa.applyActionCode).mock.calls[0][1]).toBe('cod');
     expect(m(ff.updateDoc)).toHaveBeenCalledWith(
-      { path: 'users/u1' },
-      { email: 'novo@exemplo.com', atualizadoEm: 'TS' },
+      { path: 'usuarios/u1' },
+      { email: 'novo@exemplo.com', atualizado_em: 'TS' },
     );
     expect(obterSessao()).toEqual({ status: 'ativa', uid: 'u1', email: 'novo@exemplo.com' });
   });

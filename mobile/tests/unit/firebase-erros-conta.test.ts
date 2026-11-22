@@ -1,5 +1,6 @@
 import { comTimeout, traduzirErroFirebase } from '@/features/conta/firebase-erros';
 import { ErroConta, type CodigoErro } from '@/features/conta/types';
+import { MSG } from '@/features/conta/validation';
 
 describe('traduzirErroFirebase (tabela EX01 a EX10)', () => {
   const tabela: [string, CodigoErro][] = [
@@ -15,6 +16,8 @@ describe('traduzirErroFirebase (tabela EX01 a EX10)', () => {
     ['auth/expired-action-code', 'ligacao-invalida'],
     ['auth/invalid-action-code', 'ligacao-invalida'],
     ['permission-denied', 'regras-recusadas'],
+    ['auth/password-does-not-meet-requirements', 'regras-recusadas'],
+    ['auth/weak-password', 'regras-recusadas'],
     ['auth/too-many-requests', 'falha'],
     ['auth/qualquer-outro', 'falha'],
   ];
@@ -29,6 +32,13 @@ describe('traduzirErroFirebase (tabela EX01 a EX10)', () => {
     const e = traduzirErroFirebase({ code: 'permission-denied', message: 'token abc123 de ana@exemplo.com' });
     expect(`${e.message} ${e.motivo ?? ''}`).not.toMatch(/abc123|ana@exemplo\.com/);
   });
+
+  it.each(['auth/password-does-not-meet-requirements', 'auth/weak-password'])(
+    'política de senha recusada pelo servidor (%s) mostra o texto da política',
+    (code) => {
+      expect(traduzirErroFirebase({ code }).motivo).toBe(MSG.senhaForaDaPolitica);
+    },
+  );
 
   it('mantém um ErroConta que já veio traduzido', () => {
     const original = new ErroConta('email-nao-confirmado');

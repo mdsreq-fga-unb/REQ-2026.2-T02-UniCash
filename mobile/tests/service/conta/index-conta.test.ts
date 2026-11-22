@@ -1,3 +1,5 @@
+let mockSync: Record<string, jest.Mock>;
+
 jest.mock('@/features/conta/auth.firebase', () => ({
   criarAuthFirebase: jest.fn(() => ({ tag: 'auth' })),
   iniciarObservadorDeSessao: jest.fn(),
@@ -5,12 +7,15 @@ jest.mock('@/features/conta/auth.firebase', () => ({
 jest.mock('@/features/conta/service.firebase', () => ({
   criarContaServiceFirebase: jest.fn(() => ({ tag: 'servico' })),
 }));
+jest.mock('@/features/conta/sync.app', () => ({
+  criarSincronizacaoDoApp: jest.fn(() => mockSync),
+}));
 
 const esperar = () => new Promise((r) => setImmediate(r));
 
 function carregar() {
   jest.resetModules();
-  const sync = {
+  mockSync = {
     marcarTodosComoPendentes: jest.fn().mockResolvedValue(undefined),
     contarPendentes: jest.fn().mockResolvedValue(0),
     sincronizar: jest.fn().mockResolvedValue(undefined),
@@ -21,10 +26,9 @@ function carregar() {
   const { iniciarConta } = require('@/features/conta/index');
   const { obterServicoConta } = require('@/features/conta/service');
   const { definirSessao } = require('@/features/conta/sessao');
-  const { definirSincronizacao } = require('@/features/conta/sync');
+  const { obterSincronizacao } = require('@/features/conta/sync');
   const authMod = require('@/features/conta/auth.firebase');
-  definirSincronizacao(sync);
-  return { iniciarConta, obterServicoConta, definirSessao, authMod, sync };
+  return { iniciarConta, obterServicoConta, obterSincronizacao, definirSessao, authMod, sync: mockSync };
 }
 
 describe('iniciarConta', () => {
@@ -32,6 +36,12 @@ describe('iniciarConta', () => {
     const { iniciarConta, obterServicoConta } = carregar();
     iniciarConta();
     expect(obterServicoConta()).toEqual({ tag: 'servico' });
+  });
+
+  it('troca a sincronização simulada pela do app', () => {
+    const { iniciarConta, obterSincronizacao, sync } = carregar();
+    iniciarConta();
+    expect(obterSincronizacao()).toBe(sync);
   });
 
   it('é idempotente: chamar duas vezes liga uma vez só', () => {

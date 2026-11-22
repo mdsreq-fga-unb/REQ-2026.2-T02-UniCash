@@ -1,5 +1,5 @@
 // Deve ser o primeiro import: registra os mocks de expo-router e do serviço de conta.
-import { reiniciar, servico } from '../../helpers/conta';
+import { reiniciar, servico } from '../helpers/mocksConta';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import Cadastro from '@/app/conta/cadastro';
