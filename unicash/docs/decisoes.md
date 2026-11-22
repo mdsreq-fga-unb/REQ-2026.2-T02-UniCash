@@ -31,7 +31,7 @@ Esta página reúne as decisões que mudaram o escopo, os requisitos, o processo
 | [D21](#d21) | 07/11/2026 | Ajuste dos RNFs ao modelo local-first | [Issue #21](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/21) | Proposta |
 | <span id="d22"></span>[D22](#d22) | 10/11/2026 | Validado com a cliente das regras de limites, retenção, uso offline e gamificação | Documento validado com Leinad e Maria | Vigente, com RF57 pendente |
 | <span id="d23"></span>[D23](#d23) | 10/11/2026 | Retirada dos fluxos de importação, extração de comprovantes, anexos e backup por arquivo do escopo atual | Atualização do catálogo de requisitos pela equipe | Vigente |
-| <span id="d24"></span>[D24](#d24) | 20/11/2026 | Faixa percentual de 1% a 100% e proteção das categorias padrão | Issues #71 e #72 | Vigente |
+| [D24](#d24) | 20/11/2026 | Faixa percentual de 1% a 100% e proteção das categorias padrão | Issues #71 e #72 | Vigente |
 
 A situação **Proposta** indica uma decisão da equipe que ainda depende de confirmação da cliente.
 
