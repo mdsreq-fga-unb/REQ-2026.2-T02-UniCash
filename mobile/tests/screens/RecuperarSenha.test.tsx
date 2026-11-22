@@ -13,50 +13,50 @@ beforeEach(() => reiniciar());
 
 describe('Recuperar senha (fluxo C, passos 1-2)', () => {
   it('e-mail vazio não chama o serviço', async () => {
-    render(<RecuperarSenha />);
-    enviar();
+    await render(<RecuperarSenha />);
+    await enviar();
     expect(await screen.findByText(MSG.emailVazio)).toBeTruthy();
     expect(servico.enviarRecuperacao).not.toHaveBeenCalled();
   });
 
   it('e-mail inválido não chama o serviço', async () => {
-    render(<RecuperarSenha />);
-    fireEvent.changeText(email(), 'abc');
-    enviar();
+    await render(<RecuperarSenha />);
+    await fireEvent.changeText(email(), 'abc');
+    await enviar();
     expect(await screen.findByText(MSG.emailInvalido)).toBeTruthy();
     expect(servico.enviarRecuperacao).not.toHaveBeenCalled();
   });
 
   it('C2: envia e responde de forma neutra, com o prazo de 5 minutos', async () => {
-    render(<RecuperarSenha />);
-    fireEvent.changeText(email(), '  ana@exemplo.com ');
-    enviar();
+    await render(<RecuperarSenha />);
+    await fireEvent.changeText(email(), '  ana@exemplo.com ');
+    await enviar();
     expect(await screen.findByText(/Se existir uma conta com esse e-mail, a ligação foi enviada\./)).toBeTruthy();
     expect(screen.getByText(/vale por 5 minutos e só pode ser usada uma vez/)).toBeTruthy();
     expect(servico.enviarRecuperacao).toHaveBeenCalledWith('ana@exemplo.com');
   });
 
   it('depois de enviar, oferece voltar para a entrada', async () => {
-    render(<RecuperarSenha />);
-    fireEvent.changeText(email(), 'ana@exemplo.com');
-    enviar();
-    fireEvent.press(await screen.findByText('Voltar para entrar'));
+    await render(<RecuperarSenha />);
+    await fireEvent.changeText(email(), 'ana@exemplo.com');
+    await enviar();
+    await fireEvent.press(await screen.findByText('Voltar para entrar'));
     expect(router.replace).toHaveBeenCalledWith('/conta/entrar');
   });
 
   it('EX03: sem conexão preserva o e-mail e não mostra a resposta de sucesso', async () => {
     servico.enviarRecuperacao.mockRejectedValue(new ErroConta('sem-conexao'));
-    render(<RecuperarSenha />);
-    fireEvent.changeText(email(), 'ana@exemplo.com');
-    enviar();
+    await render(<RecuperarSenha />);
+    await fireEvent.changeText(email(), 'ana@exemplo.com');
+    await enviar();
     expect(await screen.findByText(MSG.semConexaoContinuar)).toBeTruthy();
     expect(email().props.value).toBe('ana@exemplo.com');
     expect(screen.queryByText(/a ligação foi enviada/)).toBeNull();
   });
 
-  it('FA05: cancelar não envia nada', () => {
-    render(<RecuperarSenha />);
-    fireEvent.press(screen.getByText('Cancelar'));
+  it('FA05: cancelar não envia nada', async () => {
+    await render(<RecuperarSenha />);
+    await fireEvent.press(screen.getByText('Cancelar'));
     expect(router.back).toHaveBeenCalled();
     expect(servico.enviarRecuperacao).not.toHaveBeenCalled();
   });

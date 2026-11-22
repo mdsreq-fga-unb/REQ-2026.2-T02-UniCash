@@ -13,50 +13,50 @@ const email = () => screen.getByPlaceholderText(EMAIL);
 const senha = () => screen.getByPlaceholderText(SENHA);
 const criar = () => fireEvent.press(screen.getByTestId('criar-conta'));
 
-function preencher(e: string, s: string) {
-  fireEvent.changeText(email(), e);
-  fireEvent.changeText(senha(), s);
+async function preencher(e: string, s: string) {
+  await fireEvent.changeText(email(), e);
+  await fireEvent.changeText(senha(), s);
 }
 
 beforeEach(() => reiniciar());
 
 describe('Cadastro (fluxo A)', () => {
-  it('A2: informa a finalidade dos dados (RNF32) e não pede CPF', () => {
-    render(<Cadastro />);
+  it('A2: informa a finalidade dos dados (RNF32) e não pede CPF', async () => {
+    await render(<Cadastro />);
     expect(screen.getByText(/Usamos seu e-mail só para criar a conta/)).toBeTruthy();
     expect(screen.queryByPlaceholderText(/CPF/i)).toBeNull();
     expect(screen.queryByText(/^CPF$/i)).toBeNull();
   });
 
   it('A4 / EX01: campos vazios mostram os dois motivos e não chamam o serviço', async () => {
-    render(<Cadastro />);
-    criar();
+    await render(<Cadastro />);
+    await criar();
     expect(await screen.findByText(MSG.emailVazio)).toBeTruthy();
     expect(screen.getByText(MSG.senhaVazia)).toBeTruthy();
     expect(servico.cadastrar).not.toHaveBeenCalled();
   });
 
   it('EX01: e-mail em formato inválido', async () => {
-    render(<Cadastro />);
-    preencher('abc', 'Abcdef1!');
-    criar();
+    await render(<Cadastro />);
+    await preencher('abc', 'Abcdef1!');
+    await criar();
     expect(await screen.findByText(MSG.emailInvalido)).toBeTruthy();
     expect(servico.cadastrar).not.toHaveBeenCalled();
   });
 
   it('EX01: preserva o e-mail digitado e limpa só a senha', async () => {
-    render(<Cadastro />);
-    preencher('abc', 'Abcdef1!');
-    criar();
+    await render(<Cadastro />);
+    await preencher('abc', 'Abcdef1!');
+    await criar();
     await screen.findByText(MSG.emailInvalido);
     expect(email().props.value).toBe('abc');
     expect(senha().props.value).toBe('');
   });
 
   it('valor-limite: senha de 7 caracteres é recusada', async () => {
-    render(<Cadastro />);
-    preencher(EMAIL.replace('voce', 'ana'), 'Abcde1!');
-    criar();
+    await render(<Cadastro />);
+    await preencher(EMAIL.replace('voce', 'ana'), 'Abcde1!');
+    await criar();
     expect(await screen.findByText(MSG.senhaForaDaPolitica)).toBeTruthy();
     expect(servico.cadastrar).not.toHaveBeenCalled();
   });
@@ -66,17 +66,17 @@ describe('Cadastro (fluxo A)', () => {
     ['sem minúscula', 'ABCDEF1!'],
     ['sem caractere especial', 'Abcdefg1'],
   ])('EX01: senha %s é recusada', async (_n, s) => {
-    render(<Cadastro />);
-    preencher('ana@exemplo.com', s);
-    criar();
+    await render(<Cadastro />);
+    await preencher('ana@exemplo.com', s);
+    await criar();
     expect(await screen.findByText(MSG.senhaForaDaPolitica)).toBeTruthy();
     expect(servico.cadastrar).not.toHaveBeenCalled();
   });
 
   it('valor-limite: senha de 8 caracteres válida cadastra e segue para a confirmação (A6)', async () => {
-    render(<Cadastro />);
-    preencher('ana@exemplo.com', 'Abcdef1!');
-    criar();
+    await render(<Cadastro />);
+    await preencher('ana@exemplo.com', 'Abcdef1!');
+    await criar();
     await waitFor(() =>
       expect(router.replace).toHaveBeenCalledWith({
         pathname: '/conta/confirmar-email',
@@ -87,19 +87,19 @@ describe('Cadastro (fluxo A)', () => {
   });
 
   it('envia o nome quando informado e o e-mail sem espaços', async () => {
-    render(<Cadastro />);
-    fireEvent.changeText(screen.getByPlaceholderText('Como você quer ser chamado?'), '  Ana  ');
-    preencher('  ana@exemplo.com  ', 'Abcdef1!');
-    criar();
+    await render(<Cadastro />);
+    await fireEvent.changeText(screen.getByPlaceholderText('Como você quer ser chamado?'), '  Ana  ');
+    await preencher('  ana@exemplo.com  ', 'Abcdef1!');
+    await criar();
     await waitFor(() => expect(servico.cadastrar).toHaveBeenCalled());
     expect(servico.cadastrar).toHaveBeenCalledWith({ email: 'ana@exemplo.com', senha: 'Abcdef1!', nome: 'Ana' });
   });
 
   it('EX02: e-mail já em uso aparece ao lado do campo e preserva o e-mail', async () => {
     servico.cadastrar.mockRejectedValue(new ErroConta('email-em-uso'));
-    render(<Cadastro />);
-    preencher('ana@exemplo.com', 'Abcdef1!');
-    criar();
+    await render(<Cadastro />);
+    await preencher('ana@exemplo.com', 'Abcdef1!');
+    await criar();
     expect(await screen.findByText(MSG.emailEmUso)).toBeTruthy();
     expect(email().props.value).toBe('ana@exemplo.com');
     expect(senha().props.value).toBe('');
@@ -108,9 +108,9 @@ describe('Cadastro (fluxo A)', () => {
 
   it('EX03: sem conexão', async () => {
     servico.cadastrar.mockRejectedValue(new ErroConta('sem-conexao'));
-    render(<Cadastro />);
-    preencher('ana@exemplo.com', 'Abcdef1!');
-    criar();
+    await render(<Cadastro />);
+    await preencher('ana@exemplo.com', 'Abcdef1!');
+    await criar();
     expect(await screen.findByText(MSG.semConexaoContinuar)).toBeTruthy();
     expect(email().props.value).toBe('ana@exemplo.com');
     expect(senha().props.value).toBe('');
@@ -118,31 +118,31 @@ describe('Cadastro (fluxo A)', () => {
 
   it('EX07: falha ao criar a conta', async () => {
     servico.cadastrar.mockRejectedValue(new ErroConta('falha'));
-    render(<Cadastro />);
-    preencher('ana@exemplo.com', 'Abcdef1!');
-    criar();
+    await render(<Cadastro />);
+    await preencher('ana@exemplo.com', 'Abcdef1!');
+    await criar();
     expect(await screen.findByText(MSG.falhaCriarConta)).toBeTruthy();
     expect(router.replace).not.toHaveBeenCalled();
   });
 
   it('EX10: dados recusados pelas Security Rules mostram o motivo', async () => {
     servico.cadastrar.mockRejectedValue(new ErroConta('regras-recusadas', 'Dados recusados pelo servidor.'));
-    render(<Cadastro />);
-    preencher('ana@exemplo.com', 'Abcdef1!');
-    criar();
+    await render(<Cadastro />);
+    await preencher('ana@exemplo.com', 'Abcdef1!');
+    await criar();
     expect(await screen.findByText('Dados recusados pelo servidor.')).toBeTruthy();
   });
 
-  it('FA05: "Continuar sem conta" não cria nada', () => {
-    render(<Cadastro />);
-    fireEvent.press(screen.getByTestId('continuar-sem-conta'));
+  it('FA05: "Continuar sem conta" não cria nada', async () => {
+    await render(<Cadastro />);
+    await fireEvent.press(screen.getByTestId('continuar-sem-conta'));
     expect(router.replace).toHaveBeenCalledWith('/');
     expect(servico.cadastrar).not.toHaveBeenCalled();
   });
 
-  it('"Já tenho conta" leva à entrada', () => {
-    render(<Cadastro />);
-    fireEvent.press(screen.getByText('Já tenho conta · Entrar'));
+  it('"Já tenho conta" leva à entrada', async () => {
+    await render(<Cadastro />);
+    await fireEvent.press(screen.getByText('Já tenho conta · Entrar'));
     expect(router.replace).toHaveBeenCalledWith('/conta/entrar');
   });
 });
