@@ -1,4 +1,5 @@
 import { ErroConta } from './types';
+import { MSG } from './validation';
 
 /**
  * Tabela de códigos de erro (EX01 a EX10). Converte o erro bruto do Firebase em ErroConta.
@@ -12,6 +13,8 @@ import { ErroConta } from './types';
  *    user-not-found, invalid-email, user-disabled        → credenciais       → EX04
  *  auth/expired-action-code, invalid-action-code         → ligacao-invalida  → EX06
  *  permission-denied (Security Rules)                    → regras-recusadas  → EX10
+ *  auth/password-does-not-meet-requirements,
+ *    auth/weak-password (política de senha do servidor)  → regras-recusadas  → EX01 (texto da política)
  *  qualquer outro                                        → falha             → EX07
  *  (email-nao-confirmado é lançado pelo próprio serviço → EX11)
  */
@@ -34,6 +37,10 @@ export function traduzirErroFirebase(e: unknown): ErroConta {
     case 'auth/expired-action-code':
     case 'auth/invalid-action-code':
       return new ErroConta('ligacao-invalida');
+    case 'auth/password-does-not-meet-requirements':
+    case 'auth/weak-password':
+      // A política de senha também vale no servidor (Authentication > Settings > Password policy).
+      return new ErroConta('regras-recusadas', MSG.senhaForaDaPolitica);
     case 'permission-denied':
       return new ErroConta('regras-recusadas', 'Os dados informados foram recusados pelo servidor.');
     default:
