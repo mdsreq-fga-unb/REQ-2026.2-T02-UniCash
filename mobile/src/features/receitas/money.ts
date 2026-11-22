@@ -32,14 +32,17 @@ function agrupar(inteiro: string): string {
  * Máscara de digitação monetária: cada dígito representa um centavo.
  * Ex.: "100,000" (usuário acrescentou um zero à direita) vira "1.000,00".
  * A conversão é feita por string, sem float e sem perder zeros à esquerda.
+ * O sinal negativo é preservado para que a validação existente o rejeite.
  */
 export function mascararValor(texto: string): string {
+  const negativo = texto.includes('-');
   const digitos = texto.replace(/\D/g, '');
-  if (!digitos) return '';
+  if (!digitos) return negativo ? '-' : '';
 
   const semZeros = digitos.replace(/^0+(?=\d)/, '');
   const centavos = semZeros.padStart(3, '0');
-  return `${agrupar(centavos.slice(0, -2))},${centavos.slice(-2)}`;
+  const mascarado = `${agrupar(centavos.slice(0, -2))},${centavos.slice(-2)}`;
+  return `${negativo ? '-' : ''}${mascarado}`;
 }
 
 export function formatarBRL(centavos: number): string {

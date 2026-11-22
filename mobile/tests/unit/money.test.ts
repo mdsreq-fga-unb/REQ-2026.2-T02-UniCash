@@ -71,6 +71,12 @@ describe('formatação', () => {
     expect(mascararValor('abc')).toBe('');
   });
 
+  it('preserva o sinal negativo para a validação rejeitar', () => {
+    expect(mascararValor('-150,00')).toBe('-150,00');
+    expect(mascararValor('-')).toBe('-');
+    expect(mascararValor('-100,000')).toBe('-1.000,00');
+  });
+
   it('ida e volta: texto -> centavos -> texto', () => {
     const r = parseValor(centavosParaTexto(987654));
     expect(r).toEqual({ ok: true, centavos: 987654 });
