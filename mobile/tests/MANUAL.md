@@ -59,3 +59,81 @@ Em `package.json`, em `scripts`:
 ### 3.4 RNF27 – registro em até 3 etapas
 Contagem (sem recorrência), a partir da lista: **(1)** tocar em "+"; **(2)** preencher título, valor e data (o botão "Hoje" ajuda); **(3)** tocar em "Salvar receita". Cronometre 5 pessoas e confirme que ninguém precisa de um passo extra.
 **Com recorrência:** a contagem ainda está pendente de definição (abrir "Repetição", escolher "Repete", ajustar e "Concluir" somam etapas); anote o resultado para decidir o limite.
+
+---
+
+# Testes do UC10 – Conta e sessão
+
+## 1. Preparação (uma vez)
+
+As dependências de teste são as mesmas do UC01. Para o UC10 acrescente:
+
+```bash
+npx expo install firebase @react-native-async-storage/async-storage
+```
+
+- `npm test` roda unitários, serviço e telas do UC10 junto com os demais. Não precisa de emulador nem de celular.
+- `npm run test:rules` roda também `tests/rules/conta.rules.test.ts` (perfil em `usuarios/{uid}`), sobre o mesmo `firestore.rules` do UC01.
+- A prova manual (seção 3) usa o **Firebase real**, porque o Emulator Suite não envia e-mails: no `.env`, `EXPO_PUBLIC_USE_EMULATOR=false` e as variáveis `EXPO_PUBLIC_FIREBASE_*` preenchidas. No Console: ativar o provedor E-mail/senha (Authentication → Sign-in method) e publicar as regras com `firebase deploy --only firestore:rules`.
+- No `src/app/_layout.tsx`, `iniciarConta()` precisa estar chamada; sem ela o app continua com o serviço simulado.
+
+## 2. Mapa do checklist → arquivos
+
+| Item do checklist | Onde |
+|---|---|
+| Cadastro com campos válidos; finalidade dos dados; sem CPF | `screens/CadastroConta.test.tsx`, `service/auth-conta.test.ts` |
+| E-mail ausente, inválido; senha com 7 e com 8 caracteres; sem maiúscula, sem minúscula, sem caractere especial | `unit/validation-conta.test.ts`, `screens/CadastroConta.test.tsx`, `screens/RedefinirSenha.test.tsx` |
+| E-mail já em uso (EX02); falha ao criar conta ou perfil sem estado parcial (EX07, EX10) | `service/auth-conta.test.ts`, `screens/CadastroConta.test.tsx`, `unit/firebase-erros-conta.test.ts` |
+| Conta pendente de confirmação não inicia sessão; "Já confirmei"; reenvio (EX11, FA07) | `screens/ConfirmarEmail.test.tsx`, `screens/EntrarConta.test.tsx`, `service/auth-conta.test.ts` |
+| Entrada com credenciais corretas e rejeitadas; sem conexão (EX04, EX05) | `screens/EntrarConta.test.tsx`, `service/auth-conta.test.ts`, `unit/erros-conta.test.ts` |
+| Recuperar senha com resposta neutra; ligação inválida (EX06) | `screens/RecuperarSenha.test.tsx`, `screens/RedefinirSenha.test.tsx`, `service/auth-conta.test.ts` |
+| Encerrar sessão; pendências ao sair; falha ao sair (FA03, EX09) | `screens/Conta.test.tsx`, `service/servico-conta.test.ts`, `service/sync-app-conta.test.ts` |
+| Marcar dados do aparelho como pendentes e enviar; recusar o envio (E5, E6, FA01, EX08) | `screens/ConfirmarEmail.test.tsx`, `service/servico-conta.test.ts`, `service/sync-app-conta.test.ts` |
+| Restauração em aparelho novo (FA02, RNF40) | `service/sync-app-conta.test.ts`, `service/index-conta.test.ts` |
+| Mensagens sem senha, token ou dados sensíveis (RNF14) | `unit/erros-conta.test.ts`, `unit/firebase-erros-conta.test.ts` |
+| Security Rules: perfil de outro usuário negado; e-mail ausente recusado (RNF03, RNF04) | `rules/conta.rules.test.ts` |
+| Dados locais continuam após sair e reabrir o app (RN06) | roteiros 3.2 e 3.3 |
+| Acessibilidade e paleta (RNF33, RNF38) | roteiro 3.7 |
+
+## 3. Roteiros manuais (não automatizáveis)
+
+Antes de começar, cadastre alguns registros locais (receitas e despesas) para conferir que os dados do aparelho são preservados. Use duas caixas de e-mail de teste (A e B). Anexe as evidências na issue.
+
+### 3.1 Cadastro e confirmação do e-mail
+1. Conta → Criar conta. Informe o e-mail A e a senha `Abcdef1!`. **Esperado:** a tela informa a finalidade dos dados e não pede CPF; chega o e-mail de confirmação.
+2. Antes de confirmar, feche o app, abra e tente Entrar com o e-mail A. **Esperado:** "Este e-mail ainda não foi confirmado" e a tela de confirmação com "Reenviar". Não há sessão.
+3. Toque em "Reenviar". **Esperado:** chega uma nova ligação.
+4. Abra a ligação, volte ao app e toque "Já confirmei". **Esperado:** a sessão inicia e o app pergunta se envia os dados do aparelho.
+5. Tente cadastrar de novo o e-mail A. **Esperado:** "Este e-mail já está em uso."
+6. Tente cadastrar com `Abcde1!` (7 caracteres), `abcdef1!`, `ABCDEF1!` e `Abcdefg1`. **Esperado:** cada uma é recusada com a mensagem da política, o e-mail preservado e a senha limpa.
+
+### 3.2 Entrar, reabrir o app e uso sem conta
+1. Entre com o e-mail A. **Esperado:** vai à tela inicial.
+2. Feche o app por completo e abra de novo. **Esperado:** a sessão continua ativa e os dados locais estão lá.
+3. Em outro aparelho (ou após Sair), use "Continuar sem conta". **Esperado:** o app funciona normalmente só no aparelho (RF61).
+
+### 3.3 Sair e dados locais (RN06, FA03)
+1. Conta → Sair, sem pendências. **Esperado:** "Sessão encerrada" e os dados continuam no aparelho.
+2. Entre de novo, ative o modo avião, registre uma receita e toque em Sair. **Esperado:** o app avisa da alteração pendente; "Sair mesmo assim" encerra; com conexão, "Sincronizar e sair" envia antes.
+3. Reabra o app. **Esperado:** os dados locais continuam.
+
+### 3.4 Sem conexão (EX03, EX05, FA04)
+1. Com o modo avião, tente cadastrar, entrar e recuperar a senha. **Esperado:** cada operação mostra a mensagem de falta de conexão e nada é criado.
+2. Com sessão ativa e modo avião, toque em Sair. **Esperado:** a sessão é encerrada sem exigir conexão.
+
+### 3.5 Recuperar a senha
+1. Entrar → Esqueci minha senha → e-mail A. **Esperado:** mensagem neutra ("Se existir uma conta com esse e-mail...") e chega o e-mail.
+2. Abra a ligação e defina a nova senha na página do Firebase. **Esperado:** a senha antiga deixa de funcionar e a nova entra no app.
+3. Informe um e-mail sem conta. **Esperado:** a mesma mensagem neutra, sem revelar se a conta existe.
+
+### 3.6 Envio inicial e restauração
+1. Confirme o e-mail A e escolha "Enviar meus dados". **Esperado:** os registros continuam no app e aparecem em `usuarios/{uid}/receitas`, `despesas` e `recorrencias` no Console do Firebase; o perfil `usuarios/{uid}` tem só `email`, `criado_em` e `nome` (se informado), sem CPF e sem senha.
+2. Cadastre o e-mail B, confirme e escolha "Não enviar". **Esperado:** os dados ficam só no aparelho e nada aparece na nuvem enquanto não houver novo envio (ver pendência FA01).
+3. **Aparelho novo:** com os dados do passo 1 já enviados, limpe os dados do app (ou reinstale) e entre com o e-mail A. **Esperado:** receitas, despesas e séries voltam sem duplicar ocorrências, e a receita excluída não reaparece. Se falhar com a mensagem de catálogo ausente, abra a lista de categorias para semear as padrão e entre de novo.
+
+### 3.7 Acessibilidade e identidade visual (RNF33, RNF38)
+Percorra cadastro, entrada, confirmação, recuperação e conta com TalkBack (Android) ou VoiceOver (iOS), com a fonte ampliada e nos modos claro e escuro. **Esperado:** todo campo e botão tem rótulo lido pelo leitor de tela; o texto continua legível com fonte ampliada; os contrastes seguem a WCAG 2.1 AA; a paleta é a "Tesouraria Teal". Registre as respostas.
+
+### 3.8 Verificações no Console do Firebase
+- A conta aparece em Authentication com o e-mail confirmado.
+- Uma chamada direta à API com senha de 7 caracteres é recusada, se a política de senha do servidor estiver ativa.
