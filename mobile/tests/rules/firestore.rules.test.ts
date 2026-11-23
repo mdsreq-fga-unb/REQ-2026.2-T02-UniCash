@@ -34,6 +34,7 @@ const receita = (extra: Record<string, unknown> = {}) => ({
 });
 
 const serie = (extra: Record<string, unknown> = {}) => ({
+  tipo: 'receita',
   intervalo: 1,
   unidade: 'mes',
   inicio: '2026-10-16',
