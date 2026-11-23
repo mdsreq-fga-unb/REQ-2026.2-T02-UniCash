@@ -6,7 +6,7 @@ import {
   FalhaPersistencia,
   ReceitaIndisponivel,
 } from '@/features/receitas/service';
-import { consumirFeedback } from '@/features/receitas/feedback';
+import { consumirFeedback } from '@/lib/feedback';
 import { MSG } from '@/features/receitas/validation';
 import { router } from '../../helpers/expoRouterMock';
 import { receitaLinha, serieLinha } from '../../helpers/dados';

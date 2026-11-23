@@ -12,6 +12,12 @@ export default function Home() {
       <Link href="/conta" style={styles.link}>
         Conta
       </Link>
+      <Link href="/despesas" style={styles.link}>
+        Despesas
+      </Link>
+      <Link href="/categorias" style={styles.link}>
+        Categorias
+      </Link>
     </View>
   );
 }

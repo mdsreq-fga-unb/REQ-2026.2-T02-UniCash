@@ -6,7 +6,7 @@ import { useExclusao } from '@/components/receitas/useExclusao';
 import { buscarReceita } from '@/features/receitas/service';
 import { formatarBR, formatarDataHora } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { MSG } from '@/features/receitas/validation';
 import type { Receita, Recorrencia } from '@/features/receitas/types';
 import { cores, raio } from '@/lib/theme';

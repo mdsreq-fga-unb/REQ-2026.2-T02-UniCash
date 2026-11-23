@@ -6,10 +6,14 @@ import { cores, raio } from '@/lib/theme';
 import { FiltroReceitas } from '@/components/receitas/FiltroReceitas';
 import { ReceitaItem } from '@/components/receitas/ReceitaItem';
 import { formatarBRL } from '@/features/receitas/money';
-import { consumirFeedback, type Feedback } from '@/features/receitas/feedback';
+import { consumirFeedback, type Feedback } from '@/lib/feedback';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import { useReceitas } from '@/features/receitas/useReceitas';
-import { consumirAcessoNegado, sincronizarPendentes } from '@/features/receitas/sync';
+import {
+  consumirAcessoNegado,
+  FalhaLeituraCatalogoSincronizacao,
+  sincronizarPendentes,
+} from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
 import type { Filtro } from '@/features/receitas/types';
 
@@ -35,15 +39,49 @@ export default function ListaReceitas() {
   // Ao voltar de outra tela: mostra mensagem pendente, recarrega e tenta sincronizar (EX05).
   useFocusEffect(
     useCallback(() => {
+      let ativo = true;
+
       setFeedback(consumirFeedback());
       void recarregar();
       void atualizarPendentes();
-      void sincronizarPendentes().then((mudou) => {
-        if (mudou) void recarregar();
-        // EX07: a nuvem negou o acesso; os dados locais seguem intactos.
-        if (consumirAcessoNegado()) setFeedback({ tipo: 'erro', texto: MSG.acessoNegado });
-        void atualizarPendentes();
-      });
+
+      void sincronizarPendentes()
+        .then((mudou) => {
+          if (!ativo) return;
+
+          if (mudou) void recarregar();
+          // EX07: a nuvem negou o acesso; os dados locais seguem intactos.
+          if (consumirAcessoNegado()) {
+            setFeedback({ tipo: 'erro', texto: MSG.acessoNegado });
+          }
+        })
+        .catch((erro) => {
+          if (erro instanceof FalhaLeituraCatalogoSincronizacao) {
+            console.warn(
+              'Sincronização em segundo plano: falha ao ler o catálogo local na lista de receitas.',
+              erro,
+            );
+          } else {
+            console.error(
+              'Falha inesperada ao sincronizar pendências na lista de receitas.',
+              erro,
+            );
+          }
+
+          if (!ativo) return;
+
+          // Consome apenas uma negação real anterior; não marca novo acesso negado.
+          if (consumirAcessoNegado()) {
+            setFeedback({ tipo: 'erro', texto: MSG.acessoNegado });
+          }
+        })
+        .finally(() => {
+          if (ativo) void atualizarPendentes();
+        });
+
+      return () => {
+        ativo = false;
+      };
     }, [recarregar, atualizarPendentes]),
   );
 

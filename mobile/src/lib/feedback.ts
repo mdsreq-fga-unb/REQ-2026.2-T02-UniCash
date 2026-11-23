@@ -5,7 +5,7 @@ export interface Feedback {
 
 let atual: Feedback | null = null;
 
-/** Mensagem exibida uma única vez na lista de receitas ao voltar de outra tela. */
+/** Mensagem exibida uma única vez na lista (receitas ou despesas) ao voltar de outra tela. */
 export function setFeedback(f: Feedback) {
   atual = f;
 }

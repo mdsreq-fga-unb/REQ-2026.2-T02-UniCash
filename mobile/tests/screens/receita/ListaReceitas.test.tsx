@@ -3,7 +3,7 @@ import ListaReceitas from '@/app/receitas/index';
 import { FalhaLeitura, listarReceitas } from '@/features/receitas/service';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import { consumirAcessoNegado } from '@/features/receitas/sync';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
 import { MSG } from '@/features/receitas/validation';
 import { router } from '../../helpers/expoRouterMock';
 import { receitaLinha } from '../../helpers/dados';

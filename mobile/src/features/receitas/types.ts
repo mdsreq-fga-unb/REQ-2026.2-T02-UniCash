@@ -27,6 +27,7 @@ export interface Recorrencia {
   descricao: string | null;
   sync_status: SyncStatus;
   atualizado_em: string;
+  excluido_em: string | null;
 }
 
 /** Dados já validados e normalizados, prontos para gravar. */

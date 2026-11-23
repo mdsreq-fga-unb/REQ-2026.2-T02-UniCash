@@ -21,6 +21,18 @@ jest.mock('firebase/firestore', () => ({
   setDoc: async (ref: any, dados: any) => {
     mockNuvem.set(ref.path, JSON.parse(JSON.stringify(dados)));
   },
+  runTransaction: async (_db: unknown, fn: (tx: any) => Promise<any>) => {
+    const tx = {
+      get: async (ref: any) => ({
+        exists: () => mockNuvem.has(ref.path),
+        data: () => mockNuvem.get(ref.path),
+      }),
+      set: (ref: any, dados: any) => {
+        mockNuvem.set(ref.path, JSON.parse(JSON.stringify(dados)));
+      },
+    };
+    return fn(tx);
+  },
   getDoc: async (ref: any) => ({ exists: () => mockNuvem.has(ref.path), data: () => mockNuvem.get(ref.path) }),
   deleteDoc: async (ref: any) => {
     mockNuvem.delete(ref.path);

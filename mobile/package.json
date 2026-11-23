@@ -57,10 +57,11 @@
     "build:aab": "eas build -p android --profile production",
     "build:ios": "eas build -p ios --profile preview",
     "test": "jest",
-    "test:rules": "firebase emulators:exec --only firestore --project unicash-rules-test \"jest --config jest.rules.config.js\""
+    "test:rules": "firebase --config ../firebase.json emulators:exec --only firestore --project unicash-rules-test \"jest --config jest.rules.config.js\""
   },
   "private": true,
   "allowScripts": {
-    "@firebase/util@1.15.3": true
+    "@firebase/util@1.15.3": true,
+    "better-sqlite3@13.0.3": true
   }
 }

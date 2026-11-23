@@ -1,4 +1,5 @@
 import { getDb } from '@/db/database';
+import { criarCategoria, excluirCategoria } from '@/features/categorias/service';
 import { excluirReceita, registrarReceita } from '@/features/receitas/service';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
@@ -50,6 +51,23 @@ describe('Contador de pendências de sincronização', () => {
     // 16/10, 16/11 e 16/12/2026
     await registrarReceita(input({ recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' } }));
     expect(await contarPendentes()).toBe(3);
+  });
+
+  it('conta categorias pendentes, inclusive tombstones, junto com os demais registros', async () => {
+    await criarCategoria({ nome: 'Mercado', limite: null });
+    await registrarReceita(input({ titulo: 'A' }));
+
+    expect(await contarPendentes()).toBe(2);
+
+    const id = (
+      banco.sqlite.prepare("SELECT id FROM categorias WHERE nome = 'Mercado'").get() as {
+        id: string;
+      }
+    ).id;
+    await excluirCategoria(id);
+
+    // O tombstone da categoria continua pendente até a confirmação remota.
+    expect(await contarPendentes()).toBe(2);
   });
 
   it('resultado vazio da consulta é tratado como zero', async () => {
