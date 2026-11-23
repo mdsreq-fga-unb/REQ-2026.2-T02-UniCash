@@ -19,6 +19,8 @@ function carregar() {
     marcarTodosComoPendentes: jest.fn().mockResolvedValue(undefined),
     contarPendentes: jest.fn().mockResolvedValue(0),
     sincronizar: jest.fn().mockResolvedValue(undefined),
+    pausarEnvioAutomatico: jest.fn().mockResolvedValue(undefined),
+    liberarEnvioAutomatico: jest.fn().mockResolvedValue(undefined),
     retomar: jest.fn().mockResolvedValue(undefined),
     suspender: jest.fn().mockResolvedValue(undefined),
     restaurarSeAparelhoVazio: jest.fn().mockResolvedValue(undefined),

@@ -1,10 +1,16 @@
 import { getDb } from '@/db/database';
-import { restaurarDaNuvem, sincronizarEmSegundoPlano, sincronizarPendentes } from '@/features/receitas/sync';
+import {
+  definirEnvioAutomatico,
+  restaurarDaNuvem,
+  sincronizarEmSegundoPlano,
+  sincronizarPendentes,
+} from '@/features/receitas/sync';
 import { criarSincronizacaoDoApp } from '@/features/conta/sync.app';
 import type { CodigoErro } from '@/features/conta/types';
 
 jest.mock('@/db/database', () => ({ getDb: jest.fn() }));
 jest.mock('@/features/receitas/sync', () => ({
+  definirEnvioAutomatico: jest.fn(),
   restaurarDaNuvem: jest.fn(),
   sincronizarEmSegundoPlano: jest.fn(),
   sincronizarPendentes: jest.fn(),
@@ -21,10 +27,17 @@ async function codigoDoErro(p: Promise<unknown>): Promise<CodigoErro | 'sem-erro
   return 'sem-erro';
 }
 
-/** Banco falso: contagens por tabela (pendentes e total). */
-function bancoFalso(opcoes: { pendentes?: Record<string, number>; total?: Record<string, number> } = {}) {
-  const { pendentes = {}, total = {} } = opcoes;
+/** Banco falso: tabelas existentes e contagens por tabela (pendentes e total). */
+function bancoFalso(
+  opcoes: { pendentes?: Record<string, number>; total?: Record<string, number>; tabelas?: string[] } = {},
+) {
+  const {
+    pendentes = {},
+    total = {},
+    tabelas = ['receitas', 'despesas', 'recorrencias', 'categorias', 'preferencias'],
+  } = opcoes;
   return {
+    getAllAsync: jest.fn(async () => tabelas.map((name) => ({ name }))),
     getFirstAsync: jest.fn(async (sql: string) => {
       const tabela = /FROM (\w+)/.exec(sql)![1];
       const mapa = sql.includes("sync_status = 'pendente'") ? pendentes : total;
@@ -38,6 +51,7 @@ function bancoFalso(opcoes: { pendentes?: Record<string, number>; total?: Record
 beforeEach(() => {
   jest.resetAllMocks();
   m(sincronizarPendentes).mockResolvedValue(false);
+  m(definirEnvioAutomatico).mockResolvedValue(undefined);
   m(restaurarDaNuvem).mockResolvedValue({ receitas: 0, despesas: 0, recorrencias: 0 });
 });
 
@@ -55,6 +69,16 @@ describe('marcarTodosComoPendentes (E6)', () => {
     expect(banco.withTransactionAsync).toHaveBeenCalledTimes(1);
   });
 
+  it('esquema sem a tabela de despesas: marca só as que existem, sem consultar a que não existe', async () => {
+    const banco = bancoFalso({ tabelas: ['receitas', 'recorrencias', 'preferencias'] });
+    m(getDb).mockResolvedValue(banco);
+    await criarSincronizacaoDoApp().marcarTodosComoPendentes();
+    expect(banco.runAsync.mock.calls.map((c) => c[0])).toEqual([
+      "UPDATE receitas SET sync_status = 'pendente'",
+      "UPDATE recorrencias SET sync_status = 'pendente'",
+    ]);
+  });
+
   it('não mexe nas categorias (elas ainda não sincronizam)', async () => {
     const banco = bancoFalso();
     m(getDb).mockResolvedValue(banco);
@@ -67,6 +91,13 @@ describe('contarPendentes (FA03)', () => {
   it('soma as pendências das três tabelas', async () => {
     m(getDb).mockResolvedValue(bancoFalso({ pendentes: { receitas: 2, despesas: 1, recorrencias: 4 } }));
     expect(await criarSincronizacaoDoApp().contarPendentes()).toBe(7);
+  });
+
+  it('esquema sem a tabela de despesas: soma só as que existem e não consulta despesas', async () => {
+    const banco = bancoFalso({ tabelas: ['receitas', 'recorrencias'], pendentes: { receitas: 2, recorrencias: 1, despesas: 9 } });
+    m(getDb).mockResolvedValue(banco);
+    expect(await criarSincronizacaoDoApp().contarPendentes()).toBe(3);
+    expect(banco.getFirstAsync.mock.calls.some((c) => String(c[0]).includes('despesas'))).toBe(false);
   });
 
   it('sem pendências devolve zero', async () => {
@@ -82,6 +113,12 @@ describe('sincronizar', () => {
     expect(sincronizarPendentes).toHaveBeenCalledTimes(1);
   });
 
+  it('FA01: é um envio pedido pela pessoa, então chama o envio como manual', async () => {
+    m(getDb).mockResolvedValue(bancoFalso());
+    await criarSincronizacaoDoApp().sincronizar();
+    expect(sincronizarPendentes).toHaveBeenCalledWith({ manual: true });
+  });
+
   it('EX08: o sincronizarPendentes não lança em falha de rede; pendências que sobram viram erro de conexão', async () => {
     m(getDb).mockResolvedValue(bancoFalso({ pendentes: { receitas: 1 } }));
     expect(await codigoDoErro(criarSincronizacaoDoApp().sincronizar())).toBe('sem-conexao');
@@ -91,6 +128,19 @@ describe('sincronizar', () => {
     m(sincronizarPendentes).mockRejectedValue(new Error('catálogo'));
     m(getDb).mockResolvedValue(bancoFalso());
     expect(await codigoDoErro(criarSincronizacaoDoApp().sincronizar())).toBe('falha');
+  });
+});
+
+describe('pausar o envio automático (FA01)', () => {
+  it('pausarEnvioAutomatico desliga o envio automático', async () => {
+    await criarSincronizacaoDoApp().pausarEnvioAutomatico();
+    expect(definirEnvioAutomatico).toHaveBeenCalledWith(false);
+  });
+
+  it('retomar não libera a pausa: a escolha "Não enviar" vale até a pessoa pedir o envio', async () => {
+    await criarSincronizacaoDoApp().retomar('uid-conta-123');
+    expect(definirEnvioAutomatico).not.toHaveBeenCalled();
+    expect(sincronizarEmSegundoPlano).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -119,6 +169,14 @@ describe('restaurarSeAparelhoVazio (FA02, RNF40)', () => {
     m(getDb).mockResolvedValue(bancoFalso({ total: { [tabela]: 1 } }));
     await criarSincronizacaoDoApp().restaurarSeAparelhoVazio('u1');
     expect(restaurarDaNuvem).not.toHaveBeenCalled();
+  });
+
+  it('esquema sem a tabela de despesas: a checagem de aparelho vazio não consulta despesas', async () => {
+    const banco = bancoFalso({ tabelas: ['receitas', 'recorrencias'] });
+    m(getDb).mockResolvedValue(banco);
+    await criarSincronizacaoDoApp().restaurarSeAparelhoVazio('u1');
+    expect(restaurarDaNuvem).toHaveBeenCalledTimes(1);
+    expect(banco.getFirstAsync.mock.calls.some((c) => String(c[0]).includes('despesas'))).toBe(false);
   });
 
   it('aparelho vazio: restaura da nuvem', async () => {

@@ -11,7 +11,7 @@ function authFalso() {
     checkEmailVerified: jest.fn().mockResolvedValue(true),
     resendVerification: jest.fn().mockResolvedValue(undefined),
     signOut: jest.fn().mockResolvedValue(undefined),
-    currentSession: jest.fn(),
+    currentSession: jest.fn().mockReturnValue({ status: 'ativa', uid: 'u1', email: 'a@b.com' }),
     changePassword: jest.fn(),
     requestEmailChange: jest.fn(),
     confirmEmailChange: jest.fn(),
@@ -23,6 +23,7 @@ function syncFalso() {
     marcarTodosComoPendentes: jest.fn().mockResolvedValue(undefined),
     contarPendentes: jest.fn().mockResolvedValue(0),
     sincronizar: jest.fn().mockResolvedValue(undefined),
+    pausarEnvioAutomatico: jest.fn().mockResolvedValue(undefined),
     retomar: jest.fn().mockResolvedValue(undefined),
     suspender: jest.fn().mockResolvedValue(undefined),
     restaurarSeAparelhoVazio: jest.fn().mockResolvedValue(undefined),
@@ -76,6 +77,44 @@ describe('delegação ao AuthService', () => {
   });
 });
 
+describe('envio automático (FA01)', () => {
+  it('cadastrar pausa o envio automático depois de criar a conta', async () => {
+    await servico.cadastrar({ email: 'a@b.com', senha: 'Abcdef1!' });
+    expect(sync.pausarEnvioAutomatico).toHaveBeenCalledTimes(1);
+    expect(auth.signUp.mock.invocationCallOrder[0]).toBeLessThan(sync.pausarEnvioAutomatico.mock.invocationCallOrder[0]);
+  });
+
+  it('cadastro que falha não pausa nada', async () => {
+    auth.signUp.mockRejectedValue(new ErroConta('email-em-uso'));
+    expect(await codigoDoErro(servico.cadastrar({ email: 'a@b.com', senha: 'Abcdef1!' }))).toBe('email-em-uso');
+    expect(sync.pausarEnvioAutomatico).not.toHaveBeenCalled();
+  });
+
+  it('falha ao pausar não derruba o cadastro', async () => {
+    sync.pausarEnvioAutomatico.mockRejectedValue(new Error('banco'));
+    await expect(servico.cadastrar({ email: 'a@b.com', senha: 'Abcdef1!' })).resolves.toBeUndefined();
+  });
+
+  it('entrar só autentica: não mexe na pausa nem retoma a sincronização por conta própria', async () => {
+    await servico.entrar({ email: 'a@b.com', senha: 'x' });
+    expect(auth.signIn).toHaveBeenCalledWith('a@b.com', 'x');
+    expect(sync.pausarEnvioAutomatico).not.toHaveBeenCalled();
+    expect(sync.retomar).not.toHaveBeenCalled(); // quem retoma é o observador de sessão (index.ts)
+  });
+
+  it('entrar que falha (e-mail não confirmado) propaga o erro', async () => {
+    auth.signIn.mockRejectedValue(new ErroConta('email-nao-confirmado'));
+    expect(await codigoDoErro(servico.entrar({ email: 'a@b.com', senha: 'x' }))).toBe('email-nao-confirmado');
+  });
+
+  it('o envio pedido pela pessoa (enviarDadosDoAparelho) usa a sincronização manual, sem retomar antes', async () => {
+    await servico.enviarDadosDoAparelho();
+    expect(sync.sincronizar).toHaveBeenCalledTimes(1);
+    // retomar() ocupa a trava do envio em segundo plano e faria o envio manual ser descartado
+    expect(sync.retomar).not.toHaveBeenCalled();
+  });
+});
+
 describe('enviarDadosDoAparelho (E6)', () => {
   it('marca os registros como pendentes e depois sincroniza', async () => {
     await servico.enviarDadosDoAparelho();
@@ -84,6 +123,13 @@ describe('enviarDadosDoAparelho (E6)', () => {
     expect(sync.marcarTodosComoPendentes.mock.invocationCallOrder[0]).toBeLessThan(
       sync.sincronizar.mock.invocationCallOrder[0],
     );
+  });
+
+  it('sem sessão ativa, não marca nem envia nada', async () => {
+    auth.currentSession.mockReturnValue({ status: 'sem-sessao' });
+    expect(await codigoDoErro(servico.enviarDadosDoAparelho())).toBe('falha');
+    expect(sync.marcarTodosComoPendentes).not.toHaveBeenCalled();
+    expect(sync.sincronizar).not.toHaveBeenCalled();
   });
 
   it('EX08: falha na sincronização lança ErroConta, e os registros já ficaram marcados como pendentes', async () => {
@@ -103,9 +149,15 @@ describe('pendências (FA03)', () => {
     sync.contarPendentes.mockResolvedValue(4);
     expect(await servico.contarPendentes()).toBe(4);
   });
-  it('sincroniza agora', async () => {
+  it('sincroniza agora, sem retomar antes (evita descartar o envio)', async () => {
     await servico.sincronizarAgora();
-    expect(sync.sincronizar).toHaveBeenCalled();
+    expect(sync.sincronizar).toHaveBeenCalledTimes(1);
+    expect(sync.retomar).not.toHaveBeenCalled();
+  });
+  it('sem sessão ativa, não sincroniza', async () => {
+    auth.currentSession.mockReturnValue({ status: 'sem-sessao' });
+    expect(await codigoDoErro(servico.sincronizarAgora())).toBe('falha');
+    expect(sync.sincronizar).not.toHaveBeenCalled();
   });
   it('sem conexão ao sincronizar vira ErroConta', async () => {
     sync.sincronizar.mockRejectedValue({ code: 'unavailable' });
@@ -114,9 +166,15 @@ describe('pendências (FA03)', () => {
 });
 
 describe('sair (fluxo D)', () => {
-  it('invalida a sessão', async () => {
+  it('suspende a sincronização e depois invalida a sessão', async () => {
     await servico.sair();
-    expect(auth.signOut).toHaveBeenCalled();
+    expect(sync.suspender).toHaveBeenCalledTimes(1);
+    expect(auth.signOut).toHaveBeenCalledTimes(1);
+    expect(sync.suspender.mock.invocationCallOrder[0]).toBeLessThan(auth.signOut.mock.invocationCallOrder[0]);
+  });
+  it('sair não mexe na pausa do envio automático', async () => {
+    await servico.sair();
+    expect(sync.pausarEnvioAutomatico).not.toHaveBeenCalled();
   });
   it('EX09: falha vira ErroConta "falha"', async () => {
     auth.signOut.mockRejectedValue(new Error('x'));

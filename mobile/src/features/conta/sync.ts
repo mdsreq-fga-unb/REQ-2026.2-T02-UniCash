@@ -4,18 +4,23 @@
  * A implementação real (banco local + Cloud Firestore) entra por definirSincronizacao().
  */
 export interface SincronizacaoPort {
-  /** E6: marca todos os registros existentes no aparelho como pendentes. */
   marcarTodosComoPendentes(): Promise<void>;
   contarPendentes(): Promise<number>;
-  /** Envia as pendências. Lança erro se não conseguir; os registros continuam pendentes (EX08). */
   sincronizar(): Promise<void>;
-  /** B4: retoma a sincronização para a conta e envia as alterações pendentes. */
+
+  /** FA01: impede o envio automático até autorização do usuário. */
+  pausarEnvioAutomatico(): Promise<void>;
+
+  /** B4: retoma a sincronização para a conta autenticada. */
   retomar(uid: string): Promise<void>;
-  /** D2: suspende a sincronização. Os dados locais permanecem (RN06). */
+
+  /** D2: suspende a sincronização. Os dados locais permanecem. */
   suspender(): Promise<void>;
-  /** FA02 / RNF40: em aparelho novo ou reinstalado, restaura os dados da conta a partir do Firestore. */
+
+  /** FA02 / RNF40: restaura os dados da conta em aparelho vazio. */
   restaurarSeAparelhoVazio(uid: string): Promise<void>;
 }
+
 
 function criarSincronizacaoSimulada(): SincronizacaoPort {
   return {
@@ -24,6 +29,7 @@ function criarSincronizacaoSimulada(): SincronizacaoPort {
       return 0;
     },
     async sincronizar() {},
+    async pausarEnvioAutomatico() {},
     async retomar() {},
     async suspender() {},
     async restaurarSeAparelhoVazio() {},
