@@ -21,18 +21,18 @@ Em `package.json`, em `scripts`:
 
 | Item do checklist | Onde |
 |---|---|
-| Registrar com campos válidos | `service/registrar.test.ts`, `screens/ReceitaForm.test.tsx` |
-| Data, título ou valor ausentes; valor ≤ 0, > 2 casas, acima do limite (RN09) | `unit/validation.test.ts`, `unit/money.test.ts`, `screens/ReceitaForm.test.tsx` |
-| Título vazio, só espaços, > 80; descrição vazia aceita e > 255 rejeitada (RN10) | `unit/validation.test.ts`, `screens/ReceitaForm.test.tsx` |
-| Data futura no mês correto; filtros (sem filtro, data única, período, invertido); ordenação; estado vazio | `service/consulta.test.ts`, `screens/FiltroReceitas.test.tsx`, `screens/ListaReceitas.test.tsx` |
-| Editar cada campo, inclusive mudança de mês, e recálculo dos dois meses | `service/editar.test.ts`, `service/serie.test.ts` |
-| Recorrência em dias, meses e anos, com e sem término; intervalo zero e término anterior rejeitados | `service/recorrencia.test.ts`, `unit/validation.test.ts`, `screens/ReceitaForm.test.tsx` |
-| Série: editar e excluir nos três alcances, totais; geração sem término (12 meses) e conclusão ao abrir o app sem duplicidade | `service/serie.test.ts`, `service/recorrencia.test.ts`, `screens/EditarReceita.test.tsx`, `screens/DetalheReceita.test.tsx` |
-| Excluir com confirmação, cancelar, falha em cada etapa da transação (RNF05) | `screens/DetalheReceita.test.tsx`, `service/atomicidade.test.ts` |
-| EX06: receita já excluída | `service/editar.test.ts`, `screens/DetalheReceita.test.tsx`, `screens/EditarReceita.test.tsx` |
-| EX08: falha de leitura local | `service/leitura.test.ts`, `screens/ListaReceitas.test.tsx`, `screens/DetalheReceita.test.tsx`, `screens/EditarReceita.test.tsx` |
-| Encerramento forçado durante a gravação (RNF35) | simulado em `service/atomicidade.test.ts`; roteiro real em 3.1 |
-| Offline com reinício; excluir, sincronizar e restaurar da nuvem; EX07 (acesso negado) | `service/sync.test.ts`, `screens/ListaReceitas.test.tsx`; roteiro real em 3.2 |
+| Registrar com campos válidos | `service/receita/registrar.test.ts`, `screens/receita/ReceitaForm.test.tsx` |
+| Data, título ou valor ausentes; valor ≤ 0, > 2 casas, acima do limite (RN09) | `unit/validation.test.ts`, `unit/money.test.ts`, `screens/receita/ReceitaForm.test.tsx` |
+| Título vazio, só espaços, > 80; descrição vazia aceita e > 255 rejeitada (RN10) | `unit/validation.test.ts`, `screens/receita/ReceitaForm.test.tsx` |
+| Data futura no mês correto; filtros (sem filtro, data única, período, invertido); ordenação; estado vazio | `service/receita/consulta.test.ts`, `screens/receita/FiltroReceitas.test.tsx`, `screens/receita/ListaReceitas.test.tsx` |
+| Editar cada campo, inclusive mudança de mês, e recálculo dos dois meses | `service/receita/editar.test.ts`, `service/receita/serie.test.ts` |
+| Recorrência em dias, meses e anos, com e sem término; intervalo zero e término anterior rejeitados | `service/receita/recorrencia.test.ts`, `unit/validation.test.ts`, `screens/receita/ReceitaForm.test.tsx` |
+| Série: editar e excluir nos três alcances, totais; geração sem término (12 meses) e conclusão ao abrir o app sem duplicidade | `service/receita/serie.test.ts`, `service/receita/recorrencia.test.ts`, `screens/receita/EditarReceita.test.tsx`, `screens/receita/DetalheReceita.test.tsx` |
+| Excluir com confirmação, cancelar, falha em cada etapa da transação (RNF05) | `screens/receita/DetalheReceita.test.tsx`, `service/receita/atomicidade.test.ts` |
+| EX06: receita já excluída | `service/receita/editar.test.ts`, `screens/receita/DetalheReceita.test.tsx`, `screens/receita/EditarReceita.test.tsx` |
+| EX08: falha de leitura local | `service/receita/leitura.test.ts`, `screens/receita/ListaReceitas.test.tsx`, `screens/receita/DetalheReceita.test.tsx`, `screens/receita/EditarReceita.test.tsx` |
+| Encerramento forçado durante a gravação (RNF35) | simulado em `service/receita/atomicidade.test.ts`; roteiro real em 3.1 |
+| Offline com reinício; excluir, sincronizar e restaurar da nuvem; EX07 (acesso negado) | `service/receita/sync.test.ts`, `screens/receita/ListaReceitas.test.tsx`; roteiro real em 3.2 |
 | Security Rules, inclusive outro usuário (RNF03) | `rules/firestore.rules.test.ts` |
 | Usabilidade RNF14 e RNF27 | roteiros 3.3 e 3.4 |
 
@@ -49,7 +49,7 @@ Em `package.json`, em `scripts`:
 2. Feche e reabra o app ainda offline. **Esperado:** os dados continuam lá e continuam pendentes.
 3. Desative o modo avião e abra a lista. **Esperado:** pendências somem e os documentos aparecem em `usuarios/{uid}/receitas` no console do Firebase.
 4. Exclua uma receita já sincronizada e deixe sincronizar. **Esperado:** o documento some do console.
-5. **Restauração da nuvem:** a função `restaurarDaNuvem()` (em `sync.ts`) já existe e é coberta por `service/sync.test.ts`. Para validar no aparelho: com a conta conectada e dados sincronizados, desinstale/limpe o app, entre na mesma conta e acione a restauração. **Esperado:** receitas e séries voltam sem duplicar ocorrências, e a receita excluída **não** reaparece. A tela/botão que chama a função pertence ao fluxo de login/cadastro (fora do UC01).
+5. **Restauração da nuvem:** a função `restaurarDaNuvem()` (em `sync.ts`) já existe e é coberta por `service/receita/sync.test.ts`. Para validar no aparelho: com a conta conectada e dados sincronizados, desinstale/limpe o app, entre na mesma conta e acione a restauração. **Esperado:** receitas e séries voltam sem duplicar ocorrências, e a receita excluída **não** reaparece. Quem chama a função é o UC10: ao entrar com uma conta em aparelho vazio, a restauração é automática (roteiro 3.6 do UC10).
 
 ### 3.3 RNF14 – o usuário identifica o motivo do erro (4 de 5)
 - Recrute 5 pessoas. Para cada uma, mostre a tela de nova receita já com um erro provocado (um por pessoa, rodando os 5 primeiros): data vazia; título só com espaços; valor `0`; valor `10,999`; término anterior ao início.
@@ -76,20 +76,25 @@ npx expo install firebase @react-native-async-storage/async-storage
 - `npm run test:rules` roda também `tests/rules/conta.rules.test.ts` (perfil em `usuarios/{uid}`), sobre o mesmo `firestore.rules` do UC01.
 - A prova manual (seção 3) usa o **Firebase real**, porque o Emulator Suite não envia e-mails: no `.env`, `EXPO_PUBLIC_USE_EMULATOR=false` e as variáveis `EXPO_PUBLIC_FIREBASE_*` preenchidas. No Console: ativar o provedor E-mail/senha (Authentication → Sign-in method) e publicar as regras com `firebase deploy --only firestore:rules`.
 - No `src/app/_layout.tsx`, `iniciarConta()` precisa estar chamada; sem ela o app continua com o serviço simulado.
+- O prazo de validade das ligações de e-mail (confirmação, redefinição e novo e-mail) é o do Firebase Authentication e não é configurável (decisão de 23/11/2026). A redefinição de senha acontece na página padrão do Firebase.
+- A sincronização só roda com o e-mail confirmado e, depois de um cadastro novo, fica **pausada** até a pessoa pedir o envio (FA01). Para repetir o roteiro 3.6 num aparelho já usado, limpe os dados do app: a pausa fica na base local (tabela `preferencias`) e vale para o aparelho, não para a conta.
 
 ## 2. Mapa do checklist → arquivos
 
 | Item do checklist | Onde |
 |---|---|
-| Cadastro com campos válidos; finalidade dos dados; sem CPF | `screens/CadastroConta.test.tsx`, `service/auth-conta.test.ts` |
+| Cadastro com campos válidos; finalidade dos dados; sem CPF | `screens/CadastroConta.test.tsx`, `service/conta/auth-conta.test.ts` |
 | E-mail ausente, inválido; senha com 7 e com 8 caracteres; sem maiúscula, sem minúscula, sem caractere especial | `unit/validation-conta.test.ts`, `screens/CadastroConta.test.tsx`, `screens/RedefinirSenha.test.tsx` |
-| E-mail já em uso (EX02); falha ao criar conta ou perfil sem estado parcial (EX07, EX10) | `service/auth-conta.test.ts`, `screens/CadastroConta.test.tsx`, `unit/firebase-erros-conta.test.ts` |
-| Conta pendente de confirmação não inicia sessão; "Já confirmei"; reenvio (EX11, FA07) | `screens/ConfirmarEmail.test.tsx`, `screens/EntrarConta.test.tsx`, `service/auth-conta.test.ts` |
-| Entrada com credenciais corretas e rejeitadas; sem conexão (EX04, EX05) | `screens/EntrarConta.test.tsx`, `service/auth-conta.test.ts`, `unit/erros-conta.test.ts` |
-| Recuperar senha com resposta neutra; ligação inválida (EX06) | `screens/RecuperarSenha.test.tsx`, `screens/RedefinirSenha.test.tsx`, `service/auth-conta.test.ts` |
-| Encerrar sessão; pendências ao sair; falha ao sair (FA03, EX09) | `screens/Conta.test.tsx`, `service/servico-conta.test.ts`, `service/sync-app-conta.test.ts` |
-| Marcar dados do aparelho como pendentes e enviar; recusar o envio (E5, E6, FA01, EX08) | `screens/ConfirmarEmail.test.tsx`, `service/servico-conta.test.ts`, `service/sync-app-conta.test.ts` |
-| Restauração em aparelho novo (FA02, RNF40) | `service/sync-app-conta.test.ts`, `service/index-conta.test.ts` |
+| E-mail já em uso (EX02); falha ao criar conta ou perfil sem estado parcial (EX07, EX10) | `service/conta/auth-conta.test.ts`, `screens/CadastroConta.test.tsx`, `unit/firebase-erros-conta.test.ts` |
+| Conta pendente de confirmação não inicia sessão; "Já confirmei"; reenvio (EX11, FA07) | `screens/ConfirmarEmail.test.tsx`, `screens/EntrarConta.test.tsx`, `service/conta/auth-conta.test.ts` |
+| Entrada com credenciais corretas e rejeitadas; sem conexão (EX04, EX05) | `screens/EntrarConta.test.tsx`, `service/conta/auth-conta.test.ts`, `unit/erros-conta.test.ts` |
+| Recuperar senha com resposta neutra; ligação inválida (EX06) | `screens/RecuperarSenha.test.tsx`, `screens/RedefinirSenha.test.tsx`, `service/conta/auth-conta.test.ts` |
+| Encerrar sessão; pendências ao sair; falha ao sair (FA03, EX09) | `screens/Conta.test.tsx`, `service/conta/servico-conta.test.ts`, `service/conta/sync-app-conta.test.ts` |
+| Marcar dados do aparelho como pendentes e enviar; recusar o envio (E5, E6, FA01, EX08) | `screens/ConfirmarEmail.test.tsx`, `service/conta/servico-conta.test.ts`, `service/conta/sync-app-conta.test.ts` |
+| Sincronização só com e-mail confirmado (RF62, EX11) | `service/receita/sync.test.ts`, `service/receita/sync.segundoPlano.test.ts` |
+| Envio automático pausado depois do cadastro; "Não enviar"; envio pedido pela pessoa libera o envio (FA01) | `service/receita/sync.test.ts`, `service/conta/servico-conta.test.ts`, `service/conta/sync-app-conta.test.ts`, `screens/ConfirmarEmail.test.tsx` |
+| Sair suspende a sincronização e mantém os dados locais (RF06, RN06) | `service/conta/servico-conta.test.ts`, `screens/Conta.test.tsx` |
+| Restauração em aparelho novo (FA02, RNF40) | `service/conta/sync-app-conta.test.ts`, `service/conta/index-conta.test.ts` |
 | Mensagens sem senha, token ou dados sensíveis (RNF14) | `unit/erros-conta.test.ts`, `unit/firebase-erros-conta.test.ts` |
 | Security Rules: perfil de outro usuário negado; e-mail ausente recusado (RNF03, RNF04) | `rules/conta.rules.test.ts` |
 | Dados locais continuam após sair e reabrir o app (RN06) | roteiros 3.2 e 3.3 |
@@ -100,9 +105,9 @@ npx expo install firebase @react-native-async-storage/async-storage
 Antes de começar, cadastre alguns registros locais (receitas e despesas) para conferir que os dados do aparelho são preservados. Use duas caixas de e-mail de teste (A e B). Anexe as evidências na issue.
 
 ### 3.1 Cadastro e confirmação do e-mail
-1. Conta → Criar conta. Informe o e-mail A e a senha `Abcdef1!`. **Esperado:** a tela informa a finalidade dos dados e não pede CPF; chega o e-mail de confirmação.
+1. Conta → Criar conta. Informe o e-mail A e a senha `Abcdef1!`. **Esperado:** a tela informa a finalidade dos dados e não pede CPF; chega o e-mail de confirmação. No Console, `usuarios/{uid}` existe (só `email`, `criado_em` e `nome`, se informado) e **não há** documentos em `usuarios/{uid}/receitas`, mesmo com registros locais e conexão: nada sobe antes de confirmar o e-mail.
 2. Antes de confirmar, feche o app, abra e tente Entrar com o e-mail A. **Esperado:** "Este e-mail ainda não foi confirmado" e a tela de confirmação com "Reenviar". Não há sessão.
-3. Toque em "Reenviar". **Esperado:** chega uma nova ligação.
+3. Toque em "Reenviar". **Esperado:** chega uma nova ligação. (O prazo de validade é o do Firebase; a tela não promete um prazo em minutos depois do ajuste da pendência 5.5 da rastreabilidade. Se ainda mostrar "5 minutos", registre na issue.)
 4. Abra a ligação, volte ao app e toque "Já confirmei". **Esperado:** a sessão inicia e o app pergunta se envia os dados do aparelho.
 5. Tente cadastrar de novo o e-mail A. **Esperado:** "Este e-mail já está em uso."
 6. Tente cadastrar com `Abcde1!` (7 caracteres), `abcdef1!`, `ABCDEF1!` e `Abcdefg1`. **Esperado:** cada uma é recusada com a mensagem da política, o e-mail preservado e a senha limpa.
@@ -127,8 +132,13 @@ Antes de começar, cadastre alguns registros locais (receitas e despesas) para c
 3. Informe um e-mail sem conta. **Esperado:** a mesma mensagem neutra, sem revelar se a conta existe.
 
 ### 3.6 Envio inicial e restauração
-1. Confirme o e-mail A e escolha "Enviar meus dados". **Esperado:** os registros continuam no app e aparecem em `usuarios/{uid}/receitas`, `despesas` e `recorrencias` no Console do Firebase; o perfil `usuarios/{uid}` tem só `email`, `criado_em` e `nome` (se informado), sem CPF e sem senha.
-2. Cadastre o e-mail B, confirme e escolha "Não enviar". **Esperado:** os dados ficam só no aparelho e nada aparece na nuvem enquanto não houver novo envio (ver pendência FA01).
+1. Confirme o e-mail A e escolha "Enviar meus dados". **Esperado:** os registros continuam no app e aparecem em `usuarios/{uid}/receitas`, `despesas` (se a UC02 já estiver integrada) e `recorrencias` no Console do Firebase; uma receita registrada depois disso sobe sem nova ação; o perfil `usuarios/{uid}` tem só `email`, `criado_em` e `nome` (se informado), sem CPF e sem senha.
+2. **FA01 — recusar o envio.** Cadastre o e-mail B, confirme e escolha "Não enviar". **Esperado:** vai à tela inicial; os dados ficam só no aparelho e nada aparece na nuvem.
+   1. Registre uma receita nova e abra a lista, com conexão. **Esperado:** continua "pendente" (cabeçalho com "N pendentes") e nada aparece no Console. Feche e reabra o app: a pausa continua.
+   2. Conta → Sair → "Sincronizar e sair". **Esperado:** todos os pendentes (os do aparelho e os feitos depois da recusa) aparecem em `usuarios/{uid}/receitas` e a sessão é encerrada.
+   3. Entre de novo com o e-mail B, registre outra receita e abra a lista. **Esperado:** ela sobe sozinha: o envio automático voltou depois do pedido da pessoa.
+   4. Com outro e-mail (C), cadastre, confirme e **feche o app sem responder** à pergunta. Reabra e entre. **Esperado:** nada sobe até a pessoa pedir o envio (a pausa começa no cadastro).
+   5. Observação (limitação conhecida): a pausa é do aparelho, não da conta. Registre se outra conta que entra no mesmo aparelho também fica sem envio automático.
 3. **Aparelho novo:** com os dados do passo 1 já enviados, limpe os dados do app (ou reinstale) e entre com o e-mail A. **Esperado:** receitas, despesas e séries voltam sem duplicar ocorrências, e a receita excluída não reaparece. Se falhar com a mensagem de catálogo ausente, abra a lista de categorias para semear as padrão e entre de novo.
 
 ### 3.7 Acessibilidade e identidade visual (RNF33, RNF38)
@@ -136,4 +146,20 @@ Percorra cadastro, entrada, confirmação, recuperação e conta com TalkBack (A
 
 ### 3.8 Verificações no Console do Firebase
 - A conta aparece em Authentication com o e-mail confirmado.
+- Séries (`recorrencias`): se alguma série ficar pendente com "permission-denied" (aviso de acesso negado na lista), registre na issue; é o ponto sobre o campo `tipo` descrito na pendência 5.5 da rastreabilidade.
 - Uma chamada direta à API com senha de 7 caracteres é recusada, se a política de senha do servidor estiver ativa.
+
+## 4. Registro de execução do UC10
+
+Preencher a cada rodada, com a data, o responsável, o aparelho e a versão e os casos aprovados. Anexar as capturas de tela na issue e colocar o link aqui.
+
+| Roteiro | Data | Responsável | Aparelho / versão | Casos aprovados | Evidências (link na issue) |
+|---|---|---|---|---|---|
+| 3.1 Cadastro e confirmação do e-mail | | | | | |
+| 3.2 Entrar, reabrir o app e uso sem conta | | | | | |
+| 3.3 Sair e dados locais | | | | | |
+| 3.4 Sem conexão | | | | | |
+| 3.5 Recuperar a senha | | | | | |
+| 3.6 Envio inicial, recusa do envio (FA01) e restauração | | | | | |
+| 3.7 Acessibilidade e identidade visual | | | | | |
+| 3.8 Verificações no Console | | | | | |
