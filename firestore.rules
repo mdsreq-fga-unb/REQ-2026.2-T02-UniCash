@@ -156,7 +156,7 @@ service cloud.firestore {
         && request.resource.data.criado_em == request.time;
       allow update: if dono(uid)
         && perfilValido(request.resource.data)
-        && request.resource.data.criado_em == resource.data.criado_em;
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['criado_em']);
       allow delete: if false;
     }
 
