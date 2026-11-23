@@ -215,7 +215,14 @@ describe('Resumo financeiro (UC03)', () => {
       await expect(calcularResumo(2026, 10)).rejects.toBeInstanceOf(FalhaCalculo);
     });
 
-    it('falha numa consulta vira FalhaCalculo, e tentar de novo recalcula', async () => {
+    it('consulta sem resultado vira FalhaCalculo', async () => {
+    const api = await getDb();
+    const vazia = jest.spyOn(api, 'getFirstAsync').mockResolvedValueOnce(null);
+    await expect(calcularResumo(2026, 10)).rejects.toBeInstanceOf(FalhaCalculo);
+    vazia.mockRestore();
+  });
+
+  it('falha numa consulta vira FalhaCalculo, e tentar de novo recalcula', async () => {
       await registrarReceita(input({ data: '2026-10-05', valorCentavos: 10000 }));
       const api = await getDb();
       const original = api.getFirstAsync;
@@ -226,14 +233,32 @@ describe('Resumo financeiro (UC03)', () => {
     });
   });
 
-  it('lê todos os totais numa única transação, para não divergirem se houver gravação no meio', async () => {
+  it('lê todos os totais numa única consulta, sem transação que bloqueie gravações', async () => {
     await registrarReceita(input({ data: '2026-10-05', valorCentavos: 10000 }));
+    await registrarReceita(input({ data: '2026-10-05', valorCentavos: 2500 }));
+    await registrarDespesa(despesa({ data: '2026-10-06', valorCentavos: 4000 }));
     const api = await getDb();
+    const primeira = jest.spyOn(api, 'getFirstAsync');
+    const todas = jest.spyOn(api, 'getAllAsync');
     const transacao = jest.spyOn(api, 'withExclusiveTransactionAsync');
+
     const r = await calcularResumo(2026, 10);
-    expect(transacao).toHaveBeenCalledTimes(1);
+
+    expect(primeira).toHaveBeenCalledTimes(1);
+    expect(todas).not.toHaveBeenCalled();
+    expect(transacao).not.toHaveBeenCalled();
     expect(r.totalReceitasCentavos).toBe(r.receitasPorDia.reduce((s, d) => s + d.totalCentavos, 0));
-    transacao.mockRestore();
+    expect(r.receitasPorDia).toEqual([{ data: '2026-10-05', totalCentavos: 12500 }]);
+    jest.restoreAllMocks();
+  });
+
+  it('gravações durante a abertura do app não falham por causa do resumo', async () => {
+    // ao abrir o app, o resumo é calculado enquanto as recorrências são geradas (_layout.tsx)
+    await Promise.all([calcularResumo(2026, 10), registrarReceita(input({ data: '2026-10-05', valorCentavos: 10000 }))]);
+    await Promise.all([calcularResumo(2026, 10), registrarDespesa(despesa({ data: '2026-10-06', valorCentavos: 4000 }))]);
+    expect(banco.receitas()).toHaveLength(1);
+    expect(banco.despesas()).toHaveLength(1);
+    expect((await calcularResumo(2026, 10)).saldoCentavos).toBe(6000);
   });
 
   it('pós-condição: calcular e navegar pelo resumo não altera nenhum dado', async () => {

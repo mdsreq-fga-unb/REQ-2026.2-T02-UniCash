@@ -58,15 +58,6 @@ async function calculo<T>(fn: (db: SQLiteDatabase) => Promise<T>): Promise<T> {
   }
 }
 
-/** Executa as leituras numa transação exclusiva: nenhuma gravação entra no meio delas. */
-async function numaTransacao<T>(db: SQLiteDatabase, fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> {
-  let resultado!: T;
-  await db.withExclusiveTransactionAsync(async (tx) => {
-    resultado = await fn(tx as unknown as SQLiteDatabase);
-  });
-  return resultado;
-}
-
 // ------------------------------------------------- funções base (recebem a conexão)
 
 async function somaNoIntervalo(db: SQLiteDatabase, tabela: Tabela, inicio: string, fim: string) {
@@ -87,14 +78,6 @@ async function receitasPorDiaNoIntervalo(db: SQLiteDatabase, inicio: string, fim
     [inicio, fim],
   );
   return linhas.map((l) => ({ data: l.data, totalCentavos: l.total }));
-}
-
-async function existeLancamento(db: SQLiteDatabase) {
-  const r = await db.getFirstAsync<{ existe: number }>(
-    `SELECT EXISTS (SELECT 1 FROM receitas WHERE excluido_em IS NULL)
-         OR EXISTS (SELECT 1 FROM despesas WHERE excluido_em IS NULL) AS existe`,
-  );
-  return r?.existe === 1;
 }
 
 /** Placeholder até existir a tabela de metas (RF12). */
@@ -141,28 +124,47 @@ export function progressoMetasDoMes(ano: number, mes: number) {
 /**
  * Tudo o que a tela de resumo mostra, numa só leitura da base local (UC03 passo 3). Somente leitura.
  *
- * As consultas rodam dentro de uma transação para enxergarem o mesmo estado da base: se a geração de
- * recorrências ou a sincronização gravarem no meio, o total do mês não diverge da soma por dia.
+ * Os totais, a visão por dia e a existência de lançamentos vêm de uma única instrução SQL. O SQLite
+ * executa cada instrução sobre um retrato consistente da base: se a geração de recorrências ou a
+ * sincronização gravarem ao mesmo tempo, o total do mês não diverge da soma por dia. E, por ser só
+ * leitura, não bloqueia essas gravações (no modo WAL, leitores e escritores não se esperam).
  */
 export function calcularResumo(ano: number, mes: number): Promise<ResumoMensal> {
   const { inicio, fim } = intervaloDoMes(ano, mes);
-  return calculo((db) =>
-    numaTransacao(db, async (tx) => {
-      const totalReceitasCentavos = await somaNoIntervalo(tx, 'receitas', inicio, fim);
-      const totalDespesasCentavos = await somaNoIntervalo(tx, 'despesas', inicio, fim);
-      const porDia = await receitasPorDiaNoIntervalo(tx, inicio, fim);
-      const metas = await metasDoPeriodo(tx, inicio, fim);
-      const semLancamentos = !(await existeLancamento(tx));
-      return {
-        ano,
-        mes,
-        totalReceitasCentavos,
-        totalDespesasCentavos,
-        saldoCentavos: totalReceitasCentavos - totalDespesasCentavos,
-        receitasPorDia: porDia,
-        metas,
-        semLancamentos,
-      };
-    }),
-  );
+  const filtro = 'excluido_em IS NULL AND data >= ? AND data < ?';
+  return calculo(async (db) => {
+    const r = await db.getFirstAsync<{
+      receitas: number;
+      despesas: number;
+      por_dia: string;
+      existe: number;
+    }>(
+      `SELECT
+         (SELECT COALESCE(SUM(valor_centavos), 0) FROM receitas WHERE ${filtro}) AS receitas,
+         (SELECT COALESCE(SUM(valor_centavos), 0) FROM despesas WHERE ${filtro}) AS despesas,
+         (SELECT json_group_array(json_object('data', data, 'total', total))
+            FROM (SELECT data, SUM(valor_centavos) AS total FROM receitas
+                  WHERE ${filtro} GROUP BY data)) AS por_dia,
+         (EXISTS (SELECT 1 FROM receitas WHERE excluido_em IS NULL)
+          OR EXISTS (SELECT 1 FROM despesas WHERE excluido_em IS NULL)) AS existe`,
+      [inicio, fim, inicio, fim, inicio, fim],
+    );
+    if (!r) throw new Error('consulta do resumo sem resultado');
+
+    const receitasPorDia = (JSON.parse(r.por_dia) as { data: string; total: number }[])
+      .map((d) => ({ data: d.data, totalCentavos: d.total }))
+      .sort((x, y) => x.data.localeCompare(y.data));
+    const metas = await metasDoPeriodo(db, inicio, fim);
+
+    return {
+      ano,
+      mes,
+      totalReceitasCentavos: r.receitas,
+      totalDespesasCentavos: r.despesas,
+      saldoCentavos: r.receitas - r.despesas,
+      receitasPorDia,
+      metas,
+      semLancamentos: r.existe !== 1,
+    };
+  });
 }
