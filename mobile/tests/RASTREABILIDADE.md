@@ -59,7 +59,7 @@ Os testes e as decisões estão na seção 5. Como a sincronização passou a ex
 | Data | Suítes | Testes | Statements | Branches | Funções | Linhas | Responsável |
 |---|---|---|---|---|---|---|---|
 | 2026-11-13 (antes dos testes de cobertura final) | 19 de 19 | 255 de 255 | 96,72% | 91,87% | 96,42% | 98,32% | |
-| | | | | | | | |
+| 2026-11-23 (UC01, UC06 e UC10 juntos; `npx jest --ci --coverage`) | 48 de 48 | 573 de 573 | 99,08% | 97,92% | 96,46% | 99,27% | |
 
 Escopo da cobertura: `src/**/*.{ts,tsx}`, exceto `src/lib/firebase.ts`, `src/db/database.ts`,
 `src/features/receitas/types.ts` (só tipos) e `src/app/index.tsx` (tela inicial sem regra de negócio).
@@ -69,7 +69,7 @@ Métricas: statements, branches, funções e linhas.
 
 | Data | Suítes | Testes | Resultado | Responsável |
 |---|---|---|---|---|
-| | | | | |
+| 2026-11-23 | 2 de 2 | 63 (57 aprovados, 6 ignorados) | Aprovado. Os 6 ignorados são o grupo `perfil: alteração (UC11)` (`describe.skip`) | |
 
 ### 3.3 Manuais (`tests/MANUAL.md`, seção 3)
 
@@ -274,12 +274,14 @@ Preencher com a data e os números de cada execução (data, responsável e link
 
 | Data | Comando | Suítes | Testes | Statements | Branches | Funções | Linhas | Resultado |
 |---|---|---|---|---|---|---|---|---|
-| | `npx jest --ci --coverage` | | | | | | | **Pendente** (testes escritos, ainda não executados) |
-| | `npm run test:rules` | | | – | – | – | – | **Pendente.** Esperado: grupo `perfil: alteração (UC11)` como *skipped* e só as 4 falhas de recorrências do UC01 (5.5) |
-| | `npm run typecheck` | – | – | – | – | – | – | **Pendente** |
-| | `npm run lint` | – | – | – | – | – | – | **Pendente** |
+| 2026-11-23 | `npx jest --ci --coverage` | 48 de 48 | 573 de 573 | 99,08% | 97,92% | 96,46% | 99,27% | **Aprovado** |
+| 2026-11-23 | `npm run test:rules` | 2 de 2 | 57 aprovados, 6 ignorados (de 63) | – | – | – | – | **Aprovado.** Os 6 ignorados são o grupo `perfil: alteração (UC11)`; as 4 falhas de recorrências do UC01 não apareceram |
+| 2026-11-23 | `npm run typecheck` | – | – | – | – | – | – | **Sem apontamentos** |
+| 2026-11-23 | `npm run lint` | – | – | – | – | – | – | **Sem apontamentos** |
 
-Prova manual: roteiros 3.1 a 3.8 do UC10 em `tests/MANUAL.md`. Registro das execuções e evidências na issue do UC10 (data, responsável, aparelho e casos aprovados).
+Responsável e link do CI: preencher. Cobertura dos arquivos do UC10 abaixo de 100%: `app/conta/confirmar-email.tsx` (97,22% das instruções, 81,81% dos ramos), `app/conta/index.tsx` (94,87%), `recuperar-senha.tsx` (95%), `redefinir-senha.tsx` (95,65%), `components/conta/CampoSenha.tsx` (60%), `features/conta/auth.firebase.ts` (98,64%; 86,95% dos ramos), `service.simulado.ts` (95,34%) e `sync.app.ts` (80% dos ramos). O restante de `src/` está em 100%.
+
+Prova manual (ainda não executada): roteiros 3.1 a 3.8 do UC10 em `tests/MANUAL.md`. Registro das execuções e evidências na issue do UC10 (data, responsável, aparelho e casos aprovados).
 
 ### 5.4. Decisões técnicas (23/11/2026)
 
@@ -309,13 +311,14 @@ Texto das decisões para o `decisoes.md`: `DECISOES.uc10.md`.
 
 - **Interface e testes ainda citam 5 minutos** (consequência da decisão 2): `confirmar-email.tsx` (subtítulo e aviso de reenvio), `recuperar-senha.tsx`, `validation.ts` (`PRAZO_LIGACAO_MINUTOS`) e os testes `tests/screens/ConfirmarEmail.test.tsx`, `tests/screens/RecuperarSenha.test.tsx`, `tests/unit/validation-conta.test.ts`. O texto deve dizer apenas que a ligação tem prazo de validade e pode ser reenviada.
 - **Regra de atualização do perfil (UC11):** no Emulator, a regra `allow update` de `usuarios/{uid}` dá erro de avaliação para toda atualização feita pelo próprio dono (a criação, usada no cadastro do UC10, passa). Já foram descartadas a comparação do `criado_em` e o valor do Timestamp usado na preparação do teste. Causa não identificada. O grupo `perfil: alteração (UC11)` de `tests/rules/conta.rules.test.ts` está em `describe.skip` e deve ser reativado quando a regra for corrigida, antes de o UC11 gravar o e-mail novo no perfil (`confirmEmailChange`).
-- **Testes de recorrência de `tests/rules/firestore.rules.test.ts` (UC01):** 4 testes falham (`RNF03 › o mesmo vale para as recorrências` e três de `recorrências (RN19)`), com a criação de série negada por `permission-denied`. Não são do UC10. Ponto a verificar: o `firestore.rules` exige o campo `tipo` nas recorrências e o `sincronizarPendentes()` desta branch envia a série sem `tipo`; se o merge com a `develop` não trouxer o `tipo` no envio, as séries seriam negadas no Firebase real e, como o envio das séries vem antes das receitas, as receitas pendentes também não subiriam.
+- **Testes de recorrência de `tests/rules/firestore.rules.test.ts` (UC01):** as 4 falhas registradas antes (`RNF03 › o mesmo vale para as recorrências` e três de `recorrências (RN19)`) não apareceram na execução de 23/11/2026 (`test:rules`: 57 aprovados, 6 ignorados). Resolvido; o job de rules não deve ficar vermelho por elas.
+- **Campo `tipo` no envio das séries (a verificar):** o `firestore.rules` exige `tipo` nas recorrências e o `sincronizarPendentes()` desta branch envia a série sem `tipo`. Os testes de rules passam porque montam o próprio documento; o envio real não foi coberto por eles. Se o merge com a `develop` não trouxer o `tipo` no envio, as séries seriam negadas no Firebase real e, como o envio das séries vem antes das receitas, as receitas pendentes também não subiriam. Conferir no roteiro 3.8 do UC10.
 - **Política de senha no servidor (RNF04):** as Security Rules não veem a senha. Vale no cliente; no servidor depende de Authentication → Settings → Password policy (pode exigir o Identity Platform).
 - **Mudança em relação à D12/R07:** o cadastro passa a pedir e-mail e senha. Registrar em `decisoes.md` (`DECISOES.uc10.md`), validar com a cliente e as representantes e ajustar RF01, RF31 e RNF32; a política de senha e a confirmação do e-mail entram no catálogo como regras de negócio (texto proposto no mesmo arquivo; os números das regras dependem do catálogo).
 - **Autenticação sem conexão, dados locais ao sair, limite de tentativas:** assumidos no caso de uso (primeira entrada exige conexão; a base local permanece; sem limite próprio).
 - **Restauração em aparelho novo:** `restaurarDaNuvem()` falha se a nuvem tem despesas com categoria e o aparelho ainda não tem categorias ativas (`MENSAGEM_RESTAURACAO_SEM_CATALOGO`). A semeadura das categorias padrão precisa ocorrer antes; se falhar, a tentativa seguinte ocorre na próxima entrada.
 - **Categorias:** ainda não sincronizam (UC06); por isso `sync.app.ts` não as inclui ao marcar pendentes.
 - **Resíduo de teste:** `tests/service/conta/index-conta.test.ts` cria o mock `liberarEnvioAutomatico`, que não existe na porta `SincronizacaoPort`. Inofensivo; pode ser removido.
-- **Execução e fechamento:** rodar a seção 5.3, os roteiros manuais, abrir o PR e atualizar o DoD Nível 1 na issue. O job de rules ficará vermelho pelas 4 falhas de recorrências, que não são do UC10: dizer isso na descrição do PR.
+- **Execução e fechamento:** rodar a seção 5.3, os roteiros manuais, abrir o PR e atualizar o DoD Nível 1 na issue. Anexar o resultado do CI na seção 3.4.
 
 Conferido na branch: `src/app/_layout.tsx` chama `iniciarConta()` e `tests/screens/receita/Layout.test.tsx` mocka `@/features/conta`; o `@ts-expect-error` do `getReactNativePersistence` está em `src/lib/firebase.ts`.
