@@ -6,6 +6,7 @@ import {
 } from '@/features/receitas/service';
 import {
   consumirAcessoNegado,
+  definirEnvioAutomatico,
   FalhaRestauracao,
   restaurarDaNuvem,
   sincronizarPendentes,
@@ -16,7 +17,7 @@ import { input } from '../../helpers/dados';
 
 // Firestore em memória: o que está em mockNuvem é o que "está na nuvem".
 const mockNuvem = new Map<string, any>();
-let mockUsuario: { uid: string } | null = { uid: 'u1' };
+let mockUsuario: { uid: string; emailVerified: boolean } | null = { uid: 'u1', emailVerified: true };
 let mockRedeFora = false;
 let mockCodigoErro = 'unavailable';
 
@@ -62,7 +63,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     banco = instalarBanco();
     fixarHoje('2026-10-16');
     mockNuvem.clear();
-    mockUsuario = { uid: 'u1' };
+    mockUsuario = { uid: 'u1', emailVerified: true };
     mockRedeFora = false;
     mockCodigoErro = 'unavailable';
     consumirAcessoNegado();
@@ -76,6 +77,27 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(await sincronizarPendentes()).toBe(false);
       expect(mockNuvem.size).toBe(0);
       expect(banco.receitas()[0].sync_status).toBe('pendente');
+    });
+
+    it('e-mail não confirmado: nada é enviado, nem em envio manual, e o registro segue pendente', async () => {
+      mockUsuario = { uid: 'u1', emailVerified: false };
+      await registrarReceita(input());
+      expect(await sincronizarPendentes()).toBe(false);
+      expect(await sincronizarPendentes({ manual: true })).toBe(false);
+      expect(mockNuvem.size).toBe(0);
+      expect(banco.receitas()[0].sync_status).toBe('pendente');
+    });
+
+    it('e-mail confirmado depois: o registro pendente é enviado no próximo envio', async () => {
+      mockUsuario = { uid: 'u1', emailVerified: false };
+      await registrarReceita(input());
+      await sincronizarPendentes();
+      expect(mockNuvem.size).toBe(0);
+
+      mockUsuario = { uid: 'u1', emailVerified: true };
+      await sincronizarPendentes();
+      expect(banco.receitas()[0].sync_status).toBe('sincronizado');
+      expect(mockNuvem.size).toBe(1);
     });
 
     it('sem conexão (EX04): a operação já está concluída e o registro fica pendente', async () => {
@@ -321,6 +343,60 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     it('sem conta: não restaura', async () => {
       mockUsuario = null;
       await expect(restaurarDaNuvem()).rejects.toBeInstanceOf(FalhaRestauracao);
+    });
+  });
+
+  describe('envio automático pausado (FA01)', () => {
+    it('com o envio pausado, o envio automático não sobe nada e os registros seguem pendentes', async () => {
+      await registrarReceita(input());
+      await definirEnvioAutomatico(false);
+      expect(await sincronizarPendentes()).toBe(false);
+      expect(mockNuvem.size).toBe(0);
+      expect(banco.receitas()[0].sync_status).toBe('pendente');
+    });
+
+    it('registros feitos depois de recusar também ficam só no aparelho', async () => {
+      await definirEnvioAutomatico(false);
+      await registrarReceita(input({ titulo: 'Depois da recusa' }));
+      await sincronizarPendentes();
+      expect(mockNuvem.size).toBe(0);
+      expect(banco.receitas()[0].sync_status).toBe('pendente');
+    });
+
+    it('a pausa vale depois de reiniciar o app (fica na base local)', async () => {
+      await registrarReceita(input());
+      await definirEnvioAutomatico(false);
+      // "reinício": o estado em memória do módulo não importa, a base local persiste
+      await sincronizarPendentes();
+      await sincronizarPendentes();
+      expect(mockNuvem.size).toBe(0);
+    });
+
+    it('envio manual sobe os pendentes e libera o envio automático dali em diante', async () => {
+      await registrarReceita(input({ titulo: 'Antes' }));
+      await definirEnvioAutomatico(false);
+
+      await sincronizarPendentes({ manual: true });
+      expect(mockNuvem.size).toBe(1);
+      expect(banco.receitas()[0].sync_status).toBe('sincronizado');
+
+      await registrarReceita(input({ titulo: 'Depois do envio manual' }));
+      await sincronizarPendentes(); // automático
+      expect(mockNuvem.size).toBe(2);
+    });
+
+    it('definirEnvioAutomatico(true) libera o envio sem precisar do envio manual', async () => {
+      await registrarReceita(input());
+      await definirEnvioAutomatico(false);
+      await definirEnvioAutomatico(true);
+      await sincronizarPendentes();
+      expect(mockNuvem.size).toBe(1);
+    });
+
+    it('pausar duas vezes não duplica o estado', async () => {
+      await definirEnvioAutomatico(false);
+      await definirEnvioAutomatico(false);
+      expect(banco.sqlite.prepare('SELECT COUNT(*) AS n FROM preferencias').get()).toEqual({ n: 1 });
     });
   });
 
