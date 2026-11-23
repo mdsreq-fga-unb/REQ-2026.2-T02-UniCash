@@ -98,6 +98,78 @@ describe('Recorrência de despesas', () => {
     expect(banco.despesas()).toHaveLength(0);
   });
 
+  describe('RN19: unidades dia e ano, com e sem término', () => {
+    it('gera ocorrências em dias respeitando o intervalo e o término', async () => {
+      await registrarDespesa(
+        inputDespesa({
+          recorrencia: { intervalo: 3, unidade: 'dia', termino: '2026-10-25' },
+        }),
+      );
+
+      expect(banco.despesas().map((d) => d.data)).toEqual([
+        '2026-10-16',
+        '2026-10-19',
+        '2026-10-22',
+        '2026-10-25',
+      ]);
+    });
+
+    it('gera ocorrências em anos respeitando o término', async () => {
+      await registrarDespesa(
+        inputDespesa({
+          recorrencia: { intervalo: 1, unidade: 'ano', termino: '2028-10-16' },
+        }),
+      );
+
+      expect(banco.despesas().map((d) => d.data)).toEqual([
+        '2026-10-16',
+        '2027-10-16',
+        '2028-10-16',
+      ]);
+    });
+
+    it('série diária sem término gera até 12 meses à frente e não duplica ao completar', async () => {
+      await registrarDespesa(
+        inputDespesa({
+          recorrencia: { intervalo: 1, unidade: 'dia', termino: null },
+        }),
+      );
+
+      const datas = banco.despesas().map((d) => d.data);
+
+      expect(datas[0]).toBe('2026-10-16');
+      expect(datas[datas.length - 1]).toBe('2027-10-16');
+      expect(datas).toHaveLength(366);
+
+      await completarRecorrenciasDespesas();
+
+      expect(banco.despesas()).toHaveLength(366);
+    });
+
+    it('série anual sem término gera até 12 meses à frente', async () => {
+      await registrarDespesa(
+        inputDespesa({
+          recorrencia: { intervalo: 1, unidade: 'ano', termino: null },
+        }),
+      );
+
+      expect(banco.despesas().map((d) => d.data)).toEqual([
+        '2026-10-16',
+        '2027-10-16',
+      ]);
+    });
+
+    it('término igual ao início gera uma única ocorrência', async () => {
+      await registrarDespesa(
+        inputDespesa({
+          recorrencia: { intervalo: 1, unidade: 'dia', termino: '2026-10-16' },
+        }),
+      );
+
+      expect(banco.despesas().map((d) => d.data)).toEqual(['2026-10-16']);
+    });
+  });
+
   it('completa ocorrências de uma série sem data final', async () => {
     await registrarDespesa(
       inputDespesa({

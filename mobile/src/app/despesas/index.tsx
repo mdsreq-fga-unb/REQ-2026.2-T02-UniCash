@@ -4,22 +4,32 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { cores, raio } from '@/lib/theme';
 import { FiltroDespesas } from '@/components/despesas/FiltroDespesas';
 import { DespesaItem } from '@/components/despesas/DespesaItem';
 import { formatarBRL } from '@/features/receitas/money';
+import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
+import { nomeCategoriaPorId } from '@/features/despesas/categorias';
 import { useDespesas } from '@/features/despesas/useDespesas';
+import { MSG_DESPESA } from '@/features/despesas/validation';
+import { contarPendentes } from '@/features/receitas/pendencias';
+import {
+  consumirAcessoNegado,
+  FalhaLeituraCatalogoSincronizacao,
+  sincronizarPendentes,
+} from '@/features/receitas/sync';
 import {
   consumirFeedback,
   type Feedback,
-} from '@/features/receitas/feedback';
+} from '@/lib/feedback';
 import type { FiltroDespesa } from '@/features/despesas/types';
 
 function filtroMesCorrente(): FiltroDespesa {
@@ -33,8 +43,29 @@ function filtroMesCorrente(): FiltroDespesa {
 }
 
 export default function ListaDespesas() {
+  const params = useLocalSearchParams<{ categoriaId?: string }>();
+  const categoriaParam =
+    typeof params.categoriaId === 'string' && params.categoriaId.length > 0
+      ? params.categoriaId
+      : null;
+
   const [filtro, setFiltro] = useState<FiltroDespesa>(filtroMesCorrente);
+  const [categoria, setCategoria] = useState<string | null>(categoriaParam);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const parametroAplicado = useRef<string | null>(categoriaParam);
+
+  const {
+    itens: categorias,
+    carregando: carregandoCategorias,
+    erro: erroCategorias,
+    recarregar: recarregarCategorias,
+  } = useCategoriasAtivas();
+
+  // Categoria derivada: se a lista bem-sucedida mais recente não contém o ID
+  // selecionado, a tela volta a "Todas" sem sincronizar estado dentro de efeito.
+  // O hook preserva a última lista válida durante recarga e falha de leitura.
+  const categoriaSelecionada =
+    categoria && categorias.some((c) => c.id === categoria) ? categoria : null;
 
   const {
     itens,
@@ -42,27 +73,91 @@ export default function ListaDespesas() {
     carregando,
     erroLeitura,
     recarregar,
-  } = useDespesas(filtro);
+  } = useDespesas(filtro, categoriaSelecionada);
 
+  const [pendentes, setPendentes] = useState(0);
   const primeiraFocada = useRef(true);
 
-useFocusEffect(
-  useCallback(() => {
-    setFeedback(consumirFeedback());
-
-    if (primeiraFocada.current) {
-      primeiraFocada.current = false;
-      return;
+  const atualizarPendentes = useCallback(async () => {
+    try {
+      setPendentes(await contarPendentes());
+    } catch {
+      // indicador é informativo
     }
+  }, []);
 
-    void recarregar();
-  }, [recarregar]),
-);
+  // Ao focar: mostra mensagem pendente, recarrega e tenta sincronizar (EX03).
+  useFocusEffect(
+    useCallback(() => {
+      let ativo = true;
+
+      // Atalho do UC06: aplica a categoria recebida por parâmetro uma única vez.
+      if (categoriaParam && parametroAplicado.current !== categoriaParam) {
+        parametroAplicado.current = categoriaParam;
+        setCategoria(categoriaParam);
+      }
+
+      setFeedback(consumirFeedback());
+      void atualizarPendentes();
+
+      if (primeiraFocada.current) {
+        primeiraFocada.current = false;
+      } else {
+        void recarregar();
+        void recarregarCategorias();
+      }
+
+      void sincronizarPendentes()
+        .then((mudou) => {
+          if (!ativo) return;
+
+          if (mudou) void recarregar();
+          // EX06: a nuvem negou o acesso; os dados locais seguem intactos.
+          if (consumirAcessoNegado()) {
+            setFeedback({ tipo: 'erro', texto: MSG_DESPESA.semAcesso });
+          }
+        })
+        .catch((erro) => {
+          if (erro instanceof FalhaLeituraCatalogoSincronizacao) {
+            console.warn(
+              'Sincronização em segundo plano: falha ao ler o catálogo local na lista de despesas.',
+              erro,
+            );
+          } else {
+            console.error(
+              'Falha inesperada ao sincronizar pendências na lista de despesas.',
+              erro,
+            );
+          }
+
+          if (!ativo) return;
+
+          // Consome apenas uma negação real anterior; não marca novo acesso negado.
+          if (consumirAcessoNegado()) {
+            setFeedback({ tipo: 'erro', texto: MSG_DESPESA.semAcesso });
+          }
+        })
+        .finally(() => {
+          if (ativo) void atualizarPendentes();
+        });
+
+      return () => {
+        ativo = false;
+      };
+    }, [categoriaParam, recarregar, recarregarCategorias, atualizarPendentes]),
+  );
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <View style={estilos.cabecalho}>
         <Text style={estilos.titulo}>Despesas</Text>
+        {pendentes > 0 ? (
+          <View style={estilos.pendentes}>
+            <Text style={estilos.pendentesTexto}>
+              ↻ {pendentes} {pendentes === 1 ? 'pendente' : 'pendentes'}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <FlatList
@@ -98,6 +193,58 @@ useFocusEffect(
               <FiltroDespesas filtro={filtro} onChange={setFiltro} />
             </View>
 
+            {carregandoCategorias ? (
+              <ActivityIndicator
+                color={cores.primaria}
+                style={estilos.carregandoCategorias}
+              />
+            ) : null}
+
+            {erroCategorias ? (
+              <View style={estilos.avisoCategorias}>
+                <Text style={estilos.erroCategorias} accessibilityRole="alert">
+                  Não foi possível carregar as categorias.
+                </Text>
+                <Pressable
+                  onPress={recarregarCategorias}
+                  style={estilos.tentarCategorias}
+                  accessibilityRole="button"
+                >
+                  <Text style={estilos.tentarTexto}>Tentar novamente</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={estilos.categorias}
+              accessibilityLabel="Filtrar por categoria"
+            >
+              {[{ id: null, nome: 'Todas' }, ...categorias].map((c) => {
+                const ativa = categoriaSelecionada === c.id;
+
+                return (
+                  <Pressable
+                    key={c.id ?? 'todas'}
+                    onPress={() => setCategoria(c.id)}
+                    style={[estilos.categoriaChip, ativa && estilos.categoriaChipAtivo]}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: ativa }}
+                  >
+                    <Text
+                      style={[
+                        estilos.categoriaChipTexto,
+                        ativa && estilos.categoriaChipTextoAtivo,
+                      ]}
+                    >
+                      {c.nome}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
             <View style={estilos.total}>
               <Text style={estilos.totalRotulo}>Total de despesas</Text>
               <Text style={estilos.totalValor}>
@@ -109,6 +256,7 @@ useFocusEffect(
         renderItem={({ item }) => (
           <DespesaItem
             despesa={item}
+            categoriaNome={nomeCategoriaPorId(item.categoria_id, categorias)}
             onPress={() =>
               router.push({
                 pathname: '/despesas/[id]',
@@ -149,11 +297,15 @@ useFocusEffect(
           ) : (
             <View style={estilos.vazio}>
               <Text style={estilos.vazioTitulo}>
-                Nenhuma despesa neste período
+                {categoriaSelecionada
+                  ? 'Nenhum registro'
+                  : 'Nenhuma despesa neste período'}
               </Text>
 
               <Text style={estilos.vazioTexto}>
-                Toque em + para registrar uma despesa.
+                {categoriaSelecionada
+                  ? 'Altere o filtro de categoria ou o período para ver outras despesas.'
+                  : 'Toque em + para registrar uma despesa.'}
               </Text>
             </View>
           )
@@ -190,6 +342,17 @@ const estilos = StyleSheet.create({
     fontWeight: '700',
     color: cores.marinho,
   },
+  pendentes: {
+    backgroundColor: cores.fundoSuave,
+    borderRadius: raio.botao,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  pendentesTexto: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: cores.textoSuave,
+  },
   conteudo: {
     paddingHorizontal: 20,
     paddingBottom: 110,
@@ -200,25 +363,58 @@ const estilos = StyleSheet.create({
     marginBottom: 12,
   },
   feedbackSucesso: {
-    backgroundColor: '#E8F5E9',
+    backgroundColor: cores.primaria,
   },
   feedbackErro: {
-    backgroundColor: '#FDECEA',
+    backgroundColor: cores.erro,
   },
   feedbackTexto: {
     fontSize: 14,
     fontWeight: '600',
   },
   feedbackTextoSucesso: {
-    color: '#256B36',
+    color: cores.branco,
   },
   feedbackTextoErro: {
-    color: cores.erro,
+    color: cores.branco,
   },
   chips: {
     flexDirection: 'row',
     marginBottom: 12,
   },
+  carregandoCategorias: {
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  avisoCategorias: {
+    marginBottom: 8,
+  },
+  erroCategorias: {
+    color: cores.erro,
+    fontSize: 12,
+  },
+  tentarCategorias: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+  },
+  categorias: {
+    marginBottom: 12,
+  },
+  categoriaChip: {
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.campo,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginRight: 8,
+    backgroundColor: cores.branco,
+  },
+  categoriaChipAtivo: {
+    backgroundColor: cores.primaria,
+    borderColor: cores.primaria,
+  },
+  categoriaChipTexto: { fontSize: 12, color: cores.marinho },
+  categoriaChipTextoAtivo: { color: cores.branco, fontWeight: '600' },
   total: {
     backgroundColor: cores.fundoSuave,
     borderRadius: raio.cartao,

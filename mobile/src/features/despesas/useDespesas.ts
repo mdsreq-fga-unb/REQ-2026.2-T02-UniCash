@@ -1,17 +1,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
+import { adicionarDias } from '../receitas/dates';
 import { listarDespesas } from './service';
 import type { Despesa, FiltroDespesa } from './types';
-
-/**
- * Acrescenta dias a uma data no formato AAAA-MM-DD.
- * O uso de UTC evita problemas com mudanças de horário de verão.
- */
-function adicionarDias(data: string, quantidade: number): string {
-  const resultado = new Date(`${data}T00:00:00.000Z`);
-  resultado.setUTCDate(resultado.getUTCDate() + quantidade);
-  return resultado.toISOString().slice(0, 10);
-}
 
 /**
  * Calcula o intervalo de datas usado na consulta.
@@ -40,7 +31,7 @@ export function intervaloDoFiltro(filtro: FiltroDespesa) {
   return { inicio, fim };
 }
 
-export function useDespesas(filtro: FiltroDespesa) {
+export function useDespesas(filtro: FiltroDespesa, categoriaId: string | null = null) {
   const [itens, setItens] = useState<Despesa[]>([]);
   const [total, setTotal] = useState(0);
   const [carregando, setCarregando] = useState(true);
@@ -52,7 +43,7 @@ export function useDespesas(filtro: FiltroDespesa) {
 
     const { inicio, fim } = intervaloDoFiltro(filtro);
 
-    listarDespesas(inicio, fim)
+    (categoriaId ? listarDespesas(inicio, fim, categoriaId) : listarDespesas(inicio, fim))
       .then((resultado) => {
         if (cancelado) return;
 
@@ -76,7 +67,7 @@ export function useDespesas(filtro: FiltroDespesa) {
     return () => {
       cancelado = true;
     };
-  }, [filtro, versao]);
+  }, [filtro, categoriaId, versao]);
 
   const recarregar = useCallback(() => {
     setCarregando(true);

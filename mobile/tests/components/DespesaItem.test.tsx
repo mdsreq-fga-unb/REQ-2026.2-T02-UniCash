@@ -30,7 +30,7 @@ const despesaBase: Despesa = {
 describe('DespesaItem', () => {
   it('exibe os dados principais da despesa', async () => {
     await render(
-      <DespesaItem despesa={despesaBase} onPress={jest.fn()} />,
+      <DespesaItem despesa={despesaBase} categoriaNome="Sem categoria" onPress={jest.fn()} />,
     );
 
     expect(screen.getByText('A')).toBeTruthy();
@@ -40,9 +40,65 @@ describe('DespesaItem', () => {
     expect(screen.getByText('›')).toBeTruthy();
   });
 
+  it('exibe categoria padrão com ID real e nome Casa', async () => {
+    await render(
+      <DespesaItem
+        despesa={{ ...despesaBase, categoria_id: 'uuid-casa' }}
+        categoriaNome="Casa"
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('categoria-despesa').props.children).toBe('Casa');
+  });
+
+  it('exibe categoria própria com ID real e nome Mercado', async () => {
+    await render(
+      <DespesaItem
+        despesa={{ ...despesaBase, categoria_id: 'uuid-mercado' }}
+        categoriaNome="Mercado"
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('categoria-despesa').props.children).toBe(
+      'Mercado',
+    );
+  });
+
+  it.each([
+    [null, 'Sem categoria'],
+    ['casa', 'Sem categoria'],
+    ['categoria-removida', 'Sem categoria'],
+  ])('categoria %p aparece como "%s"', async (categoria_id, categoriaNome) => {
+    await render(
+      <DespesaItem
+        despesa={{ ...despesaBase, categoria_id }}
+        categoriaNome={categoriaNome}
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText(categoriaNome)).toBeTruthy();
+  });
+
+  it('exibe exatamente categoriaNome sem resolver slugs por conta própria', async () => {
+    await render(
+      <DespesaItem
+        despesa={{ ...despesaBase, categoria_id: 'casa' }}
+        categoriaNome="Categoria informada"
+        onPress={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('categoria-despesa').props.children).toBe(
+      'Categoria informada',
+    );
+  });
+
   it('exibe classificação fixa e essencial', async () => {
     await render(
-      <DespesaItem despesa={despesaBase} onPress={jest.fn()} />,
+      <DespesaItem despesa={despesaBase} categoriaNome="Sem categoria" onPress={jest.fn()} />,
     );
 
     expect(screen.getByText('Fixa · Essencial')).toBeTruthy();
@@ -56,6 +112,7 @@ describe('DespesaItem', () => {
           fixa_ou_variavel: 'variavel',
           essencial: 0,
         }}
+        categoriaNome="Sem categoria"
         onPress={jest.fn()}
       />,
     );
@@ -70,12 +127,28 @@ describe('DespesaItem', () => {
           ...despesaBase,
           essencial: null,
         }}
+        categoriaNome="Sem categoria"
         onPress={jest.fn()}
       />,
     );
 
     expect(screen.getByText('Fixa')).toBeTruthy();
   });
+
+  it.each([[1, 'Essencial'], [0, 'Não essencial']] as const)(
+    'exibe importância %i sem classificação fixa ou variável',
+    async (essencial, rotulo) => {
+      await render(
+        <DespesaItem
+          despesa={{ ...despesaBase, fixa_ou_variavel: null, essencial }}
+          categoriaNome="Sem categoria"
+          onPress={jest.fn()}
+        />,
+      );
+
+      expect(screen.getByText(rotulo)).toBeTruthy();
+    },
+  );
 
   it('não exibe classificação quando ela não está definida', async () => {
     await render(
@@ -85,6 +158,7 @@ describe('DespesaItem', () => {
           fixa_ou_variavel: null,
           essencial: null,
         }}
+        categoriaNome="Sem categoria"
         onPress={jest.fn()}
       />,
     );
@@ -100,6 +174,7 @@ describe('DespesaItem', () => {
           ...despesaBase,
           recorrencia_id: 'serie-1',
         }}
+        categoriaNome="Sem categoria"
         onPress={jest.fn()}
       />,
     );
@@ -116,6 +191,7 @@ describe('DespesaItem', () => {
           ...despesaBase,
           sync_status: 'pendente',
         }}
+        categoriaNome="Sem categoria"
         onPress={jest.fn()}
       />,
     );
@@ -125,7 +201,7 @@ describe('DespesaItem', () => {
 
   it('não exibe aviso quando já está sincronizada', async () => {
     await render(
-      <DespesaItem despesa={despesaBase} onPress={jest.fn()} />,
+      <DespesaItem despesa={despesaBase} categoriaNome="Sem categoria" onPress={jest.fn()} />,
     );
 
     expect(
@@ -137,7 +213,7 @@ describe('DespesaItem', () => {
     const onPress = jest.fn();
 
     await render(
-      <DespesaItem despesa={despesaBase} onPress={onPress} />,
+      <DespesaItem despesa={despesaBase} categoriaNome="Sem categoria" onPress={onPress} />,
     );
 
     fireEvent.press(screen.getByRole('button'));
@@ -149,6 +225,7 @@ describe('DespesaItem', () => {
     await render(
       <DespesaItem
         despesa={{ ...despesaBase, titulo: 'mercado' }}
+        categoriaNome="Sem categoria"
         onPress={jest.fn()}
       />,
     );

@@ -3,7 +3,9 @@ import {
   registrarDespesa,
   editarDespesa,
   excluirDespesa,
+  listarDespesas,
   DespesaIndisponivel,
+  FalhaPersistencia,
 } from '@/features/despesas/service';
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
@@ -61,6 +63,29 @@ describe('Editar e excluir despesas', () => {
     });
   });
 
+  it('FA06/RN20: atualiza os totais dos meses e categorias envolvidos após editar e excluir', async () => {
+    await registrarDespesa(inputDespesa({ categoriaId: 'casa' }));
+    const origem = () => listarDespesas('2026-10-01', '2026-11-01', 'casa');
+    const destino = () => listarDespesas('2026-11-01', '2026-12-01', 'lazer');
+    const [{ id }] = (await origem()).itens;
+
+    expect((await origem()).total).toBe(150000);
+    expect((await destino()).total).toBe(0);
+
+    await editarDespesa(id, inputDespesa({
+      data: '2026-11-16',
+      categoriaId: 'lazer',
+      valorCentavos: 180000,
+    }));
+
+    expect(await origem()).toEqual({ itens: [], total: 0 });
+    expect((await destino()).total).toBe(180000);
+
+    await excluirDespesa(id);
+
+    expect(await destino()).toEqual({ itens: [], total: 0 });
+  });
+
   it('não altera outras despesas ao editar uma despesa', async () => {
     await registrarDespesa(inputDespesa());
     await registrarDespesa(
@@ -101,6 +126,21 @@ describe('Editar e excluir despesas', () => {
     await expect(
       excluirDespesa('id-inexistente'),
     ).rejects.toBeInstanceOf(DespesaIndisponivel);
+  });
+
+  it('RN11/EX02: falha ao excluir não altera a despesa e lança FalhaPersistencia', async () => {
+    await registrarDespesa(inputDespesa());
+
+    const antes = { ...banco.despesas()[0] };
+
+    banco.falharNaOperacao(1);
+
+    await expect(excluirDespesa(antes.id)).rejects.toBeInstanceOf(
+      FalhaPersistencia,
+    );
+
+    expect(banco.despesas()[0]).toEqual(antes);
+    expect(banco.despesas()[0].excluido_em).toBeNull();
   });
 
   it('reverte a edição quando ocorre falha na gravação', async () => {

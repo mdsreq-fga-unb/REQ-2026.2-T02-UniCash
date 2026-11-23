@@ -158,7 +158,7 @@ describe('Tela de resumo financeiro (UC03)', () => {
     expect(calcular).toHaveBeenLastCalledWith(atual.ano, atual.mes);
   });
 
-  it('atalhos levam às listas de receitas e despesas', async () => {
+  it('atalhos levam às listas de receitas, despesas e categorias', async () => {
     calcular.mockResolvedValue(resumo());
     await render(<ResumoFinanceiro />);
     await screen.findByTestId('saldo');
@@ -166,5 +166,7 @@ describe('Tela de resumo financeiro (UC03)', () => {
     expect(router.push).toHaveBeenCalledWith('/receitas');
     await fireEvent.press(screen.getByRole('button', { name: 'Despesas' }));
     expect(router.push).toHaveBeenCalledWith('/despesas');
+    await fireEvent.press(screen.getByRole('button', { name: 'Categorias' }));
+    expect(router.push).toHaveBeenCalledWith('/categorias');
   });
 });

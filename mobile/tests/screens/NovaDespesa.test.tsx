@@ -9,7 +9,8 @@ import {
 import NovaDespesa from '@/app/despesas/nova';
 import { registrarDespesa } from '@/features/despesas/service';
 import { MSG_DESPESA } from '@/features/despesas/validation';
-import { setFeedback } from '@/features/receitas/feedback';
+import { setFeedback } from '@/lib/feedback';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 
 import { router } from '../helpers/expoRouterMock';
 
@@ -23,8 +24,14 @@ jest.mock('@/features/despesas/service', () => ({
   registrarDespesa: jest.fn(),
 }));
 
-jest.mock('@/features/receitas/feedback', () => ({
+jest.mock('@/lib/feedback', () => ({
   setFeedback: jest.fn(),
+}));
+
+jest.mock('@/features/receitas/sync', () => ({
+  sincronizarPendentes: jest.fn().mockResolvedValue(false),
+  sincronizarEmSegundoPlano: jest.fn(),
+  consumirAcessoNegado: jest.fn().mockReturnValue(false),
 }));
 
 jest.mock('@/components/despesas/DespesaForm', () => {
@@ -112,6 +119,30 @@ describe('Tela de nova despesa', () => {
     fireEvent.press(screen.getByText('Cancelar'));
 
     expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  it('dispara a sincronização em segundo plano depois de gravar (A7)', async () => {
+    registrar.mockResolvedValue(undefined);
+
+    await render(<NovaDespesa />);
+    fireEvent.press(screen.getByText('Salvar despesa'));
+
+    await waitFor(() => {
+      expect(sincronizarEmSegundoPlano).toHaveBeenCalledTimes(1);
+    });
+    expect(registrar.mock.invocationCallOrder[0]).toBeLessThan(
+      (sincronizarEmSegundoPlano as jest.Mock).mock.invocationCallOrder[0],
+    );
+  });
+
+  it('não sincroniza quando a gravação falha', async () => {
+    registrar.mockRejectedValue(new Error('disco'));
+
+    await render(<NovaDespesa />);
+    fireEvent.press(screen.getByText('Salvar despesa'));
+
+    expect(await screen.findByText(MSG_DESPESA.falhaSalvar)).toBeTruthy();
+    expect(sincronizarEmSegundoPlano).not.toHaveBeenCalled();
   });
 
   it('cadastra a despesa e apresenta feedback de sucesso', async () => {

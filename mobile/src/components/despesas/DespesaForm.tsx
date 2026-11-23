@@ -20,6 +20,7 @@ import {
   formatarBR,
   mascararData,
 } from '@/features/receitas/dates';
+import { mascararValor } from '@/features/receitas/money';
 import {
   validarFormularioDespesa,
   type ErrosFormDespesa,
@@ -30,9 +31,12 @@ import type {
   UnidadeRecorrencia,
 } from '@/features/despesas/types';
 
-export const FORM_DESPESA_VAZIO: FormValoresDespesa = {
+import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
+import { ROTULO_SEM_CATEGORIA } from '@/features/despesas/categorias';
+
+const FORM_DESPESA_VAZIO: FormValoresDespesa = {
   valor: '',
-  data: formatarBR(hojeISO()),
+  data: '',
   titulo: '',
   descricao: '',
   categoriaId: '',
@@ -89,10 +93,33 @@ export function DespesaForm({
   onExcluir,
 }: Props) {
   const [v, setV] = useState<FormValoresDespesa>(
-    inicial ?? FORM_DESPESA_VAZIO,
+    () => inicial ?? { ...FORM_DESPESA_VAZIO, data: formatarBR(hojeISO()) },
   );
   const [erros, setErros] = useState<ErrosFormDespesa>({});
   const [repeticaoAberta, setRepeticaoAberta] = useState(false);
+
+  const {
+    itens: categorias,
+    carregando: carregandoCategorias,
+    erro: erroCategorias,
+    recarregar: recarregarCategorias,
+  } = useCategoriasAtivas();
+
+  const categoriaInicial = inicial?.categoriaId ?? '';
+  const categoriaInicialForaDaLista =
+    !!categoriaInicial &&
+    !categorias.some((c) => c.id === categoriaInicial) &&
+    (!carregandoCategorias || categorias.length > 0);
+  const categoriaAtualPreservada =
+    categoriaInicialForaDaLista && v.categoriaId === categoriaInicial;
+
+  const opcoesCategoria = [
+    { id: '', nome: ROTULO_SEM_CATEGORIA },
+    ...(categoriaAtualPreservada
+      ? [{ id: categoriaInicial, nome: 'Categoria atual (indisponível)' }]
+      : []),
+    ...categorias.map(({ id, nome }) => ({ id, nome })),
+  ];
 
   function set<K extends keyof FormValoresDespesa>(
     campo: K,
@@ -155,7 +182,7 @@ export function DespesaForm({
           rotulo="Valor"
           prefixo="R$"
           value={v.valor}
-          onChangeText={(texto) => set('valor', texto)}
+          onChangeText={(texto) => set('valor', mascararValor(texto))}
           placeholder="0,00"
           keyboardType="decimal-pad"
           erro={erros.valor}
@@ -219,19 +246,56 @@ export function DespesaForm({
 
         <View style={estilos.bloco}>
           <Text style={estilos.rotulo}>Categoria</Text>
-          <View
-            style={estilos.categoria}
-            accessibilityRole="text"
-            accessibilityLabel="Categoria não selecionada"
-          >
-            <Text style={estilos.categoriaTexto}>
-              Sem categoria
-            </Text>
+
+          {carregandoCategorias ? (
+            <ActivityIndicator
+              color={cores.primaria}
+              style={estilos.carregandoCategorias}
+            />
+          ) : null}
+
+          {erroCategorias ? (
+            <View style={estilos.avisoCategorias}>
+              <Text style={estilos.erro} accessibilityRole="alert">
+                Não foi possível carregar as categorias.
+              </Text>
+              <Pressable
+                onPress={recarregarCategorias}
+                accessibilityRole="button"
+                style={estilos.tentarCategorias}
+              >
+                <Text style={estilos.dica}>Tentar novamente</Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          <View style={estilos.categoriaOpcoes} accessibilityRole="radiogroup">
+            {opcoesCategoria.map((c) => {
+              const ativa = v.categoriaId === c.id;
+
+              return (
+                <Pressable
+                  key={c.id || 'sem-categoria'}
+                  onPress={() => set('categoriaId', c.id)}
+                  style={[
+                    estilos.categoriaChip,
+                    ativa && estilos.categoriaChipAtivo,
+                  ]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: ativa }}
+                >
+                  <Text
+                    style={[
+                      estilos.categoriaChipTexto,
+                      ativa && estilos.categoriaChipTextoAtivo,
+                    ]}
+                  >
+                    {c.nome}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
-          <Text style={estilos.dica}>
-            O cadastro e a seleção de categorias serão disponibilizados
-            quando o gerenciamento de categorias for integrado.
-          </Text>
         </View>
 
         <View style={estilos.bloco}>
@@ -422,15 +486,36 @@ const estilos = StyleSheet.create({
     color: cores.marinho,
     marginBottom: 6,
   },
-  categoria: {
+  categoriaOpcoes: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  carregandoCategorias: {
+    alignSelf: 'flex-start',
+    marginBottom: 8,
+  },
+  avisoCategorias: {
+    marginBottom: 8,
+  },
+  tentarCategorias: {
+    alignSelf: 'flex-start',
+    paddingVertical: 4,
+  },
+  categoriaChip: {
     borderWidth: 1,
     borderColor: cores.borda,
     borderRadius: raio.campo,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     backgroundColor: cores.branco,
   },
-  categoriaTexto: { fontSize: 15, color: cores.textoSuave },
+  categoriaChipAtivo: {
+    backgroundColor: cores.primaria,
+    borderColor: cores.primaria,
+  },
+  categoriaChipTexto: { fontSize: 13, color: cores.marinho },
+  categoriaChipTextoAtivo: { color: cores.branco, fontWeight: '600' },
   seletor: {
     flexDirection: 'row',
     alignItems: 'center',

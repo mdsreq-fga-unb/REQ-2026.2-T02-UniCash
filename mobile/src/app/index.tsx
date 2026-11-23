@@ -153,6 +153,9 @@ function Conteudo({ resumo }: { resumo: ResumoMensal }) {
         <Pressable onPress={() => router.push('/despesas')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Despesas</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Categorias</Text>
+        </Pressable>
       </View>
     </View>
   );

@@ -92,6 +92,21 @@ describe('Registrar despesa', () => {
     });
   });
 
+  it.each([
+    ['casa', 'Casa'],
+    ['alimentacao', 'Alimentação'],
+    ['mobilidade', 'Mobilidade'],
+    ['estudos', 'Estudos'],
+    ['saude', 'Saúde'],
+    ['lazer', 'Lazer'],
+    ['reserva_financeira', 'Reserva financeira'],
+  ])('RN13: persiste a categoria padrão %s (%s)', async (categoriaId) => {
+    await registrarDespesa(inputDespesa({ categoriaId }));
+
+    expect(banco.despesas()).toHaveLength(1);
+    expect(banco.despesas()[0].categoria_id).toBe(categoriaId);
+  });
+
   it('falha na gravação sem deixar despesa registrada', async () => {
     banco.falharNaOperacao(1);
 

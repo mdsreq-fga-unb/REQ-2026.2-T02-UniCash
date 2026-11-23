@@ -56,6 +56,7 @@ export function serieLinha(extra: Partial<Recorrencia> = {}): Recorrencia {
     descricao: null,
     sync_status: 'sincronizado',
     atualizado_em: '2026-10-16T12:00:00.000Z',
+    excluido_em: null,
     ...extra,
   };
 }

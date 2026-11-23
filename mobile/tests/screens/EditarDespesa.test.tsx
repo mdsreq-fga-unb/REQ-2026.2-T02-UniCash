@@ -1,15 +1,18 @@
 
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import EditarDespesa from '@/app/despesas/[id]/editar';
+import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
 import {
   buscarDespesa,
   editarDespesa,
   DespesaIndisponivel,
 } from '@/features/despesas/service';
-import { consumirFeedback } from '@/features/receitas/feedback';
+import { consumirFeedback } from '@/lib/feedback';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG_DESPESA } from '@/features/despesas/validation';
 import { router } from '../helpers/expoRouterMock';
 import { despesaLinha } from '../helpers/dados';
+import { categoriaLinha } from '../helpers/categorias';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () =>
@@ -21,12 +24,28 @@ jest.mock('@/features/despesas/service', () => ({
   editarDespesa: jest.fn(),
 }));
 
+jest.mock('@/features/receitas/sync', () => ({
+  sincronizarPendentes: jest.fn().mockResolvedValue(false),
+  sincronizarEmSegundoPlano: jest.fn(),
+  consumirAcessoNegado: jest.fn().mockReturnValue(false),
+}));
+
+jest.mock('@/features/categorias/useCategoriasAtivas', () => ({
+  useCategoriasAtivas: jest.fn(),
+}));
+
 
 const buscar = buscarDespesa as jest.Mock;
 const editar = editarDespesa as jest.Mock;
+const mockCategorias = useCategoriasAtivas as jest.Mock;
 
 const unica = () => ({
   despesa: despesaLinha(),
+  recorrencia: null,
+});
+
+const comCategoria = (categoria_id: string) => ({
+  despesa: despesaLinha({ categoria_id }),
   recorrencia: null,
 });
 
@@ -55,6 +74,20 @@ describe('Editar despesa', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     consumirFeedback();
+    mockCategorias.mockReturnValue({
+      itens: [
+        categoriaLinha({ id: 'uuid-casa', nome: 'Casa' }),
+        categoriaLinha({
+          id: 'uuid-mercado',
+          nome: 'Mercado',
+          nome_normalizado: 'mercado',
+          padrao: 0,
+        }),
+      ],
+      carregando: false,
+      erro: false,
+      recarregar: jest.fn(),
+    });
   });
 
   it('apresenta o formulário preenchido com os dados atuais', async () => {
@@ -71,12 +104,107 @@ describe('Editar despesa', () => {
     );
   });
 
+  describe('categoria (UC06)', () => {
+    it('preserva o ID real ao editar um campo não relacionado', async () => {
+      buscar.mockResolvedValue(comCategoria('uuid-casa'));
+      editar.mockResolvedValue(undefined);
+
+      await render(<EditarDespesa />);
+      await screen.findByText('Editar despesa');
+
+      expect(
+        screen.getByRole('radio', { name: 'Casa', selected: true }),
+      ).toBeTruthy();
+
+      await fireEvent.changeText(screen.getByLabelText('Valor'), '2.000,00');
+      await fireEvent.press(screen.getByText('Salvar alterações'));
+
+      await waitFor(() =>
+        expect(editar).toHaveBeenCalledWith(
+          'abc',
+          expect.objectContaining({ categoriaId: 'uuid-casa' }),
+          'esta',
+        ),
+      );
+    });
+
+    it.each(['casa', 'id-desconhecido'])(
+      'preserva o vínculo %s enquanto a categoria não está disponível',
+      async (categoriaId) => {
+        buscar.mockResolvedValue(comCategoria(categoriaId));
+        editar.mockResolvedValue(undefined);
+
+        await render(<EditarDespesa />);
+        await screen.findByText('Editar despesa');
+
+        expect(
+          screen.getByRole('radio', {
+            name: 'Categoria atual (indisponível)',
+            selected: true,
+          }),
+        ).toBeTruthy();
+
+        await fireEvent.press(screen.getByText('Salvar alterações'));
+
+        await waitFor(() =>
+          expect(editar).toHaveBeenCalledWith(
+            'abc',
+            expect.objectContaining({ categoriaId }),
+            'esta',
+          ),
+        );
+      },
+    );
+
+    it('substitui o vínculo ao selecionar uma categoria própria', async () => {
+      buscar.mockResolvedValue(comCategoria('casa'));
+      editar.mockResolvedValue(undefined);
+
+      await render(<EditarDespesa />);
+      await screen.findByText('Editar despesa');
+
+      await fireEvent.press(screen.getByText('Mercado'));
+      await fireEvent.press(screen.getByText('Salvar alterações'));
+
+      await waitFor(() =>
+        expect(editar).toHaveBeenCalledWith(
+          'abc',
+          expect.objectContaining({ categoriaId: 'uuid-mercado' }),
+          'esta',
+        ),
+      );
+      expect(
+        screen.queryByText('Categoria atual (indisponível)'),
+      ).toBeNull();
+    });
+
+    it('remove o vínculo ao selecionar "Sem categoria"', async () => {
+      buscar.mockResolvedValue(comCategoria('uuid-casa'));
+      editar.mockResolvedValue(undefined);
+
+      await render(<EditarDespesa />);
+      await screen.findByText('Editar despesa');
+
+      await fireEvent.press(screen.getByText('Sem categoria'));
+      await fireEvent.press(screen.getByText('Salvar alterações'));
+
+      await waitFor(() =>
+        expect(editar).toHaveBeenCalledWith(
+          'abc',
+          expect.objectContaining({ categoriaId: null }),
+          'esta',
+        ),
+      );
+    });
+  });
+
   it('despesa recorrente apresenta os dados da repetição', async () => {
     buscar.mockResolvedValue(emSerie());
 
     await render(<EditarDespesa />);
 
     expect(await screen.findByText('A cada 1 mês')).toBeTruthy();
+    expect(screen.getByText(/Despesa de uma série/)).toBeTruthy();
   });
 
   it('despesa única salva sem perguntar alcance, confirma e volta à lista', async () => {
@@ -105,6 +233,7 @@ describe('Editar despesa', () => {
     );
 
     expect(consumirFeedback()?.tipo).toBe('sucesso');
+    expect(sincronizarEmSegundoPlano).toHaveBeenCalledTimes(1);
   });
 
   it('dados inválidos não são gravados', async () => {
@@ -193,7 +322,7 @@ describe('Editar despesa', () => {
   });
 
   describe('despesa indisponível', () => {
-    it('ao abrir uma despesa inexistente, volta à lista', async () => {
+    it('ao abrir uma despesa inexistente, avisa (EX05) e volta à lista', async () => {
       buscar.mockResolvedValue(null);
 
       await render(<EditarDespesa />);
@@ -201,9 +330,13 @@ describe('Editar despesa', () => {
       await waitFor(() =>
         expect(router.replace).toHaveBeenCalledWith('/despesas'),
       );
+      expect(consumirFeedback()).toEqual({
+        tipo: 'erro',
+        texto: 'Esta despesa não está mais disponível.',
+      });
     });
 
-    it('despesa excluída entre abrir e salvar volta à lista', async () => {
+    it('despesa excluída entre abrir e salvar avisa (EX05) e volta à lista', async () => {
       buscar.mockResolvedValue(unica());
       editar.mockRejectedValue(new DespesaIndisponivel());
 
@@ -215,6 +348,11 @@ describe('Editar despesa', () => {
       await waitFor(() =>
         expect(router.replace).toHaveBeenCalledWith('/despesas'),
       );
+      expect(consumirFeedback()).toEqual({
+        tipo: 'erro',
+        texto: MSG_DESPESA.indisponivel,
+      });
+      expect(sincronizarEmSegundoPlano).not.toHaveBeenCalled();
     });
   });
 

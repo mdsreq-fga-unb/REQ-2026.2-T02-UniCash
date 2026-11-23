@@ -3,17 +3,15 @@ import { getDb } from '@/db/database';
 import {
   adicionarDias,
   adicionarIntervalo,
-  adicionarMeses,
-  hojeISO,
 } from '../receitas/dates';
 import type {
   Despesa,
   DespesaInput,
   EscopoSerie,
 } from './types';
+import { horizonteRecorrenciasDespesas, MAX_OCORRENCIAS_SERIE } from './validation';
 
-const MAX_OCORRENCIAS = 3700;
-const HORIZONTE_MESES = 12;
+const MAX_OCORRENCIAS = MAX_OCORRENCIAS_SERIE;
 
 /** Falha ao gravar ou recalcular: a transação é revertida. */
 export class FalhaPersistencia extends Error {}
@@ -65,25 +63,27 @@ async function leitura<T>(
 }
 // ---------------------------------------------------------------- consultas
 
-/** Lista despesas de um intervalo [inicio, fim), mais recentes primeiro. */
-export function listarDespesas(inicio: string, fim: string) {
+/**
+ * Lista despesas de um intervalo [inicio, fim), mais recentes primeiro.
+ * Com categoriaId, restringe a lista e o total a essa categoria (filtro por categoria, B/FA04).
+ */
+export function listarDespesas(
+  inicio: string,
+  fim: string,
+  categoriaId: string | null = null,
+) {
   return leitura(async (db) => {
     const itens = await db.getAllAsync<Despesa>(
       `SELECT * FROM despesas
        WHERE excluido_em IS NULL AND data >= ? AND data < ?
+         AND (? IS NULL OR categoria_id = ?)
        ORDER BY data DESC, criado_em DESC`,
-      [inicio, fim],
-    );
-
-    const total = await db.getFirstAsync<{ total: number | null }>(
-      `SELECT SUM(valor_centavos) AS total FROM despesas
-       WHERE excluido_em IS NULL AND data >= ? AND data < ?`,
-      [inicio, fim],
+      [inicio, fim, categoriaId, categoriaId],
     );
 
     return {
       itens,
-      total: total?.total ?? 0,
+      total: itens.reduce((total, despesa) => total + despesa.valor_centavos, 0),
     };
   });
 }
@@ -132,10 +132,11 @@ export function completarRecorrenciasDespesas() {
       `SELECT * FROM recorrencias
        WHERE ativa = 1
          AND termino IS NULL
+         AND excluido_em IS NULL
          AND tipo = 'despesa'`,
     );
 
-    const limite = adicionarMeses(hojeISO(), HORIZONTE_MESES);
+    const limite = horizonteRecorrenciasDespesas();
 
     for (const serie of series) {
       await gerarOcorrencias(tx, serie, limite);
@@ -222,9 +223,10 @@ async function criarSerie(
     essencial: d.essencial,
     sync_status: 'pendente',
     atualizado_em: ts,
+    excluido_em: null,
   };
 
-    await tx.runAsync(
+  await tx.runAsync(
     `INSERT INTO recorrencias
       (id, tipo, intervalo, unidade, inicio, termino, ativa,
        valor_centavos, titulo, descricao, categoria_id,
@@ -247,7 +249,7 @@ async function criarSerie(
   );
 
   const horizonte =
-    rec.termino ?? adicionarMeses(hojeISO(), HORIZONTE_MESES);
+    rec.termino ?? horizonteRecorrenciasDespesas();
 
   await gerarOcorrencias(
     tx,
@@ -307,6 +309,7 @@ type RecorrenciaDespesa = {
   categoria_id: string | null;
   fixa_ou_variavel: 'fixa' | 'variavel' | null;
   essencial: 0 | 1 | null;
+  excluido_em: string | null;
 };
 
 async function encerrarSerieAntes(
@@ -344,6 +347,20 @@ async function desativarSerie(
      SET ativa = 0, sync_status = 'pendente', atualizado_em = ?
      WHERE id = ?`,
     [ts, recId],
+  );
+}
+
+async function excluirSerie(
+  tx: SQLiteDatabase,
+  recId: string,
+  ts: string,
+) {
+  await tx.runAsync(
+    `UPDATE recorrencias
+     SET excluido_em = ?, ativa = 0, sync_status = 'pendente',
+         atualizado_em = ?
+     WHERE id = ?`,
+    [ts, ts, recId],
   );
 }
 
@@ -471,9 +488,9 @@ export function editarDespesa(
 
         await tx.runAsync(
           `${LAPIDE}
-           WHERE recorrencia_id = ? AND data > ?
+           WHERE recorrencia_id = ? AND data > ? AND id <> ?
              AND excluido_em IS NULL`,
-          [ts, ts, rec.id, atual.data],
+          [ts, ts, rec.id, atual.data, id],
         );
 
         const fim =
@@ -565,7 +582,7 @@ export function excluirDespesa(
         [ts, ts, atual.recorrencia_id],
       );
 
-      await desativarSerie(tx, atual.recorrencia_id, ts);
+      await excluirSerie(tx, atual.recorrencia_id, ts);
       return;
     }
 

@@ -1,6 +1,8 @@
 import {
+  completarRecorrenciasDespesas,
   editarDespesa,
   excluirDespesa,
+  FalhaPersistencia,
   registrarDespesa,
 } from '@/features/despesas/service';
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
@@ -132,16 +134,75 @@ describe('Edição e exclusão de despesas recorrentes', () => {
       .toBe('2026-11-15');
   });
 
-  it('exclui todas as ocorrências e desativa a série', async () => {
+  it('exclui todas as ocorrências e marca a série como excluída sem apagar o histórico', async () => {
     const { despesas, serie } = await criarSerie();
+    const antes = banco.despesas();
 
     await excluirDespesa(despesas[1].id, 'todas');
 
     expect(banco.despesas().filter((d) => !d.excluido_em)).toHaveLength(0);
 
-    expect(banco.recorrencias().find((r) => r.id === serie.id)?.ativa)
-      .toBe(0);
+    expect(banco.recorrencias().find((r) => r.id === serie.id)).toMatchObject({
+      ativa: 0,
+      excluido_em: expect.any(String),
+    });
+
+    for (const original of antes) {
+      expect(banco.despesas().find((d) => d.id === original.id)).toMatchObject({
+        valor_centavos: original.valor_centavos,
+        data: original.data,
+        titulo: original.titulo,
+        descricao: original.descricao,
+        recorrencia_id: original.recorrencia_id,
+        excluido_em: expect.any(String),
+      });
+    }
   });
+
+  it('encerrar a série não gera tombstone', async () => {
+    const { despesas, serie } = await criarSerie();
+
+    await excluirDespesa(despesas[1].id, 'proximas');
+
+    expect(banco.recorrencias().find((r) => r.id === serie.id)).toMatchObject({
+      termino: '2026-11-15',
+      excluido_em: null,
+    });
+  });
+
+  it('série excluída não gera novas ocorrências ao abrir o app', async () => {
+    await registrarDespesa(
+      inputDespesa({
+        recorrencia: { intervalo: 1, unidade: 'mes', termino: null },
+      }),
+    );
+    const primeira = banco.despesas()[0];
+
+    await excluirDespesa(primeira.id, 'todas');
+    const total = banco.despesas().length;
+
+    fixarHoje('2027-06-01');
+    await completarRecorrenciasDespesas();
+
+    expect(banco.despesas()).toHaveLength(total);
+    expect(banco.despesas().every((d) => d.excluido_em !== null)).toBe(true);
+  });
+
+  it.each(['proximas', 'todas'] as const)(
+    'RN11: falha no meio da exclusão com alcance "%s" reverte tudo',
+    async (escopo) => {
+      const { despesas } = await criarSerie();
+      const antes = banco.instantaneo();
+
+      banco.falharNaOperacao(2); // a 2ª gravação falha (depois da lápide das ocorrências)
+
+      await expect(excluirDespesa(despesas[1].id, escopo)).rejects.toBeInstanceOf(
+        FalhaPersistencia,
+      );
+
+      expect(banco.instantaneo()).toEqual(antes);
+    },
+  );
 
   it('remove a repetição e edita esta e as próximas ocorrências', async () => {
     const { despesas, serie } = await criarSerie();
@@ -165,6 +226,31 @@ describe('Edição e exclusão de despesas recorrentes', () => {
       .toBe('Aluguel sem repetição');
     expect(ativas.some((d) => d.id === despesas[2].id)).toBe(false);
     expect(serieAtualizada?.termino).toBe(despesas[1].data);
+  });
+
+  it('preserva a despesa adiada ao remover a repetição desta e das próximas', async () => {
+    const { despesas, serie } = await criarSerie();
+    const [anterior, selecionada, ...seguintes] = despesas;
+    const novaData = '2026-11-20';
+
+    await editarDespesa(
+      selecionada.id,
+      inputDespesa({ data: novaData, recorrencia: null }),
+      'proximas',
+    );
+
+    expect(banco.recorrencias().find((r) => r.id === serie.id)?.termino).toBe(novaData);
+
+    const ocorrencias = banco.despesas();
+    expect(ocorrencias.find((d) => d.id === selecionada.id)).toMatchObject({
+      data: novaData,
+      excluido_em: null,
+    });
+    expect(ocorrencias.filter((d) => !d.excluido_em).map((d) => d.id).sort())
+      .toEqual([anterior.id, selecionada.id].sort());
+    for (const seguinte of seguintes) {
+      expect(ocorrencias.find((d) => d.id === seguinte.id)?.excluido_em).toEqual(expect.any(String));
+    }
   });
 
   it('remove a repetição e edita todas as ocorrências', async () => {
@@ -249,7 +335,7 @@ describe('Edição e exclusão de despesas recorrentes', () => {
     expect(novaSerie?.inicio).toBe(serie.inicio);
 
     const ativas = banco.despesas().filter((d) => !d.excluido_em);
-    expect(ativas.length).toBeGreaterThan(0);
+    expect(ativas.map((d) => d.data).sort()).toEqual(['2026-10-16', '2026-12-16', '2027-02-16']);
     expect(ativas.every((d) => d.recorrencia_id === novaSerie?.id)).toBe(true);
   });
 
@@ -320,20 +406,6 @@ describe('Edição e exclusão de despesas recorrentes', () => {
 
     expect(ativas.length).toBeGreaterThan(0);
     expect(ativas.every((d) => d.recorrencia_id === novaSerie?.id)).toBe(true);
-  });
-    it('reverte a transação quando ocorre uma falha na gravação', async () => {
-    banco.falharNaOperacao(1);
-
-    await expect(
-      registrarDespesa(
-        inputDespesa({
-          recorrencia: null,
-        }),
-      ),
-    ).rejects.toThrow('Falha simulada na gravação');
-
-    expect(banco.despesas()).toHaveLength(0);
-    expect(banco.recorrencias()).toHaveLength(0);
   });
   it('altera somente a data final da recorrência nas próximas ocorrências', async () => {
   const { despesas, serie } = await criarSerie();

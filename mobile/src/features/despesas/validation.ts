@@ -1,11 +1,18 @@
 
 import { parseValor } from '../receitas/money';
-import { parseBR } from '../receitas/dates';
+import { adicionarIntervalo, adicionarMeses, hojeISO, parseBR } from '../receitas/dates';
 import type {
   CampoFormDespesa,
   FormValoresDespesa,
   DespesaInput,
 } from './types';
+
+/** Máximo de ocorrências por geração de série (FA07). */
+export const MAX_OCORRENCIAS_SERIE = 3700;
+
+export function horizonteRecorrenciasDespesas(): string {
+  return adicionarMeses(hojeISO(), 12);
+}
 
 /** Mensagens previstas no UC02 (EX01 a EX09). */
 export const MSG_DESPESA = {
@@ -22,6 +29,8 @@ export const MSG_DESPESA = {
   terminoAnterior:
     'A data de término deve ser igual ou posterior à data de início.',
   terminoInvalido: 'Informe a data de término no formato DD/MM/AAAA.',
+  recorrenciaLonga:
+    'A recorrência gera ocorrências demais. Antecipe a data de término ou aumente o intervalo.',
   periodoInvalido:
     'A data inicial deve ser anterior ou igual à data final.',
   falhaSalvar:
@@ -30,6 +39,22 @@ export const MSG_DESPESA = {
   semAcesso: 'Você não tem acesso a esta despesa.',
   falhaLeitura: 'Não foi possível carregar as despesas. Tente novamente.',
 } as const;
+
+/** Indica se a série de início→término passa do limite de ocorrências permitido. */
+export function excedeLimiteOcorrencias(
+  inicio: string,
+  termino: string,
+  intervalo: number,
+  unidade: 'dia' | 'mes' | 'ano',
+): boolean {
+  for (let k = 0; k <= MAX_OCORRENCIAS_SERIE; k++) {
+    if (adicionarIntervalo(inicio, k * intervalo, unidade) > termino) {
+      return false;
+    }
+  }
+
+  return true;
+}
 
 export type ErrosFormDespesa = Partial<
   Record<CampoFormDespesa, string>
@@ -107,6 +132,13 @@ export function validarFormularioDespesa(
       } else if (data && termino < data) {
         erros.termino = MSG_DESPESA.terminoAnterior;
       }
+    }
+
+    if (
+      data && !erros.intervalo && !erros.termino &&
+      excedeLimiteOcorrencias(data, termino ?? horizonteRecorrenciasDespesas(), intervalo, v.unidade)
+    ) {
+      erros.termino = MSG_DESPESA.recorrenciaLonga;
     }
 
     if (!erros.intervalo && !erros.termino) {

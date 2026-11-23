@@ -1,5 +1,5 @@
 
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -19,6 +19,8 @@ import { buscarDespesa } from '@/features/despesas/service';
 import { formatarBR, formatarDataHora } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { MSG_DESPESA } from '@/features/despesas/validation';
+import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
+import { nomeCategoriaPorId } from '@/features/despesas/categorias';
 import type { Despesa } from '@/features/despesas/types';
 import { useExclusaoDespesas } from '@/components/despesas/useExclusaoDespesas';
 import { cores, raio } from '@/lib/theme';
@@ -45,6 +47,15 @@ export default function DetalheDespesa() {
   const [erroLeitura, setErroLeitura] = useState(false);
   const [indisponivel, setIndisponivel] = useState(false);
 
+  const {
+    itens: categorias,
+    carregando: carregandoCategorias,
+    erro: erroCategorias,
+    recarregar: recarregarCategorias,
+  } = useCategoriasAtivas();
+
+  const primeiraFocada = useRef(true);
+
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErroLeitura(false);
@@ -69,7 +80,13 @@ export default function DetalheDespesa() {
   useFocusEffect(
     useCallback(() => {
       void carregar();
-    }, [carregar]),
+
+      if (primeiraFocada.current) {
+        primeiraFocada.current = false;
+      } else {
+        void recarregarCategorias();
+      }
+    }, [carregar, recarregarCategorias]),
   );
 
   const alvoExclusao = dados
@@ -131,6 +148,17 @@ export default function DetalheDespesa() {
   }
 
   const { despesa, recorrencia } = dados;
+  const nomeCategoria = nomeCategoriaPorId(despesa.categoria_id, categorias);
+  const categoriaIndisponivel =
+    !!despesa.categoria_id &&
+    !categorias.some(
+      (c) => c.id === despesa.categoria_id && c.excluido_em === null,
+    );
+  const valorCategoria = carregandoCategorias
+    ? 'Carregando...'
+    : erroCategorias && categoriaIndisponivel
+      ? 'Categoria indisponível'
+      : nomeCategoria;
   const [un1, unN] = recorrencia
     ? UNIDADE[recorrencia.unidade]
     : ['', ''];
@@ -173,8 +201,19 @@ export default function DetalheDespesa() {
           <Linha rotulo="Descrição" valor={despesa.descricao ?? '—'} />
           <Linha
             rotulo="Categoria"
-            valor={despesa.categoria_id ?? 'Sem categoria'}
+            valor={valorCategoria}
           />
+          {erroCategorias ? (
+            <Pressable
+              onPress={recarregarCategorias}
+              accessibilityRole="button"
+              style={estilos.tentarCategoria}
+            >
+              <Text style={estilos.tentarCategoriaTexto}>
+                Tentar novamente
+              </Text>
+            </Pressable>
+          ) : null}
 
           <Linha
             rotulo="Classificação"
@@ -356,6 +395,15 @@ const estilos = StyleSheet.create({
     fontWeight: '700',
     color: cores.marinho,
     textAlign: 'right',
+  },
+  tentarCategoria: {
+    alignSelf: 'flex-end',
+    paddingVertical: 4,
+  },
+  tentarCategoriaTexto: {
+    color: cores.primaria,
+    fontSize: 12,
+    fontWeight: '700',
   },
   primario: {
     backgroundColor: cores.primaria,

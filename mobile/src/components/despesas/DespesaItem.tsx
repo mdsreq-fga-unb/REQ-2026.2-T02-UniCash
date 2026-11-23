@@ -6,11 +6,19 @@ import type { Despesa } from '@/features/despesas/types';
 
 export function DespesaItem({
   despesa,
+  categoriaNome,
   onPress,
 }: {
   despesa: Despesa;
+  categoriaNome: string;
   onPress: () => void;
 }) {
+  const tipo = despesa.fixa_ou_variavel && (despesa.fixa_ou_variavel === 'fixa' ? 'Fixa' : 'Variável');
+  const importancia = despesa.essencial === null
+    ? null
+    : (despesa.essencial === 1 ? 'Essencial' : 'Não essencial');
+  const classificacao = [tipo, importancia].filter(Boolean).join(' · ');
+
   return (
     <Pressable onPress={onPress} style={estilos.linha} accessibilityRole="button">
       <View style={estilos.avatar}>
@@ -29,15 +37,12 @@ export function DespesaItem({
           {despesa.recorrencia_id ? ' · Recorrente' : ''}
         </Text>
 
-        {despesa.fixa_ou_variavel ? (
-          <Text style={estilos.classificacao}>
-            {despesa.fixa_ou_variavel === 'fixa' ? 'Fixa' : 'Variável'}
-            {despesa.essencial !== null
-              ? despesa.essencial === 1
-                ? ' · Essencial'
-                : ' · Não essencial'
-              : ''}
-          </Text>
+        <Text style={estilos.sub} testID="categoria-despesa">
+          {categoriaNome}
+        </Text>
+
+        {classificacao ? (
+          <Text style={estilos.classificacao}>{classificacao}</Text>
         ) : null}
 
         {despesa.sync_status === 'pendente' ? (

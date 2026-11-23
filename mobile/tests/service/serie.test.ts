@@ -146,6 +146,7 @@ describe('Série recorrente: editar e excluir nos três alcances (FA08)', () => 
       await excluirReceita(idDe('2026-11-16'), 'proximas');
       expect(ativas().map((r) => r.data)).toEqual(['2026-10-16']);
       expect(banco.recorrencias()[0].termino).toBe('2026-11-15');
+      expect(banco.recorrencias()[0].excluido_em).toBeNull();
       expect(await total()).toBe(10000);
     });
 
@@ -155,11 +156,27 @@ describe('Série recorrente: editar e excluir nos três alcances (FA08)', () => 
       expect(banco.recorrencias()[0].ativa).toBe(0);
     });
 
-    it('todas: remove a série inteira e a desativa', async () => {
+    it('todas: remove a série inteira, marca o tombstone e preserva as ocorrências', async () => {
+      const antes = banco.receitas();
+
       await excluirReceita(idDe('2026-12-16'), 'todas');
+
       expect(ativas()).toHaveLength(0);
-      expect(banco.recorrencias()[0].ativa).toBe(0);
+      expect(banco.recorrencias()[0]).toMatchObject({
+        ativa: 0,
+        excluido_em: expect.any(String),
+      });
       expect(await total()).toBe(0);
+
+      for (const original of antes) {
+        expect(banco.receitas().find((r) => r.id === original.id)).toMatchObject({
+          valor_centavos: original.valor_centavos,
+          data: original.data,
+          titulo: original.titulo,
+          recorrencia_id: original.recorrencia_id,
+          excluido_em: expect.any(String),
+        });
+      }
     });
 
     it('depois de excluir, a conclusão ao abrir o app não recria nada', async () => {

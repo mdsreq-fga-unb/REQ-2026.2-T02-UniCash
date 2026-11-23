@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import Nova from '@/app/receitas/nova';
 import { FalhaPersistencia, registrarReceita } from '@/features/receitas/service';
-import { consumirFeedback } from '@/features/receitas/feedback';
+import { consumirFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
 import { router } from '../helpers/expoRouterMock';
