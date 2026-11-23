@@ -3,6 +3,9 @@ import { auth, db as firestore } from '@/lib/firebase';
 import { getDb } from '@/db/database';
 import type { Receita, Recorrencia } from './types';
 
+/** Chave em `preferencias`: existe quando o envio automático está pausado (FA01). */
+const ENVIO_PAUSADO = 'envio_automatico_pausado';
+
 let emAndamento = false;
 let acessoNegado = false;
 
@@ -24,18 +27,47 @@ export function consumirAcessoNegado(): boolean {
 }
 
 /**
+ * FA01: pausa (ligado = false) ou libera (ligado = true) o envio automático. Com o envio pausado,
+ * os registros continuam pendentes no aparelho e só sobem quando a pessoa pedir (envio manual).
+ * O estado fica na base local, então vale também depois de reiniciar o app.
+ */
+export async function definirEnvioAutomatico(ligado: boolean): Promise<void> {
+  const sqlite = await getDb();
+  if (ligado) await sqlite.runAsync('DELETE FROM preferencias WHERE chave = ?', [ENVIO_PAUSADO]);
+  else await sqlite.runAsync("INSERT OR REPLACE INTO preferencias (chave, valor) VALUES (?, '1')", [ENVIO_PAUSADO]);
+}
+
+async function envioPausado(sqlite: Awaited<ReturnType<typeof getDb>>): Promise<boolean> {
+  const linhas = await sqlite.getAllAsync<{ valor: string }>('SELECT valor FROM preferencias WHERE chave = ?', [
+    ENVIO_PAUSADO,
+  ]);
+  return linhas.length > 0;
+}
+
+export interface OpcoesSincronizacao {
+  /** true quando a pessoa pediu o envio (botão). Libera o envio automático se estava pausado (FA01). */
+  manual?: boolean;
+}
+
+/**
  * Envia a fila de pendências ao Firestore (usuarios/{uid}/receitas/{id}).
- * Sem conta, sem conexão, sessão expirada ou servidor fora do ar: só suspende (EX04).
+ * Sem conta, e-mail não confirmado, sem conexão, sessão expirada ou servidor fora do ar: só suspende (EX04).
+ * Com o envio automático pausado (FA01), só envia se a chamada for manual.
  * Retorna true se algum registro local foi atualizado a partir da nuvem (EX05).
  */
-export async function sincronizarPendentes(): Promise<boolean> {
+export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Promise<boolean> {
   const user = auth.currentUser;
-  if (!user || emAndamento) return false;
+  if (!user || !user.emailVerified || emAndamento) return false;
   emAndamento = true;
   let mudouLocal = false;
   try {
     const sqlite = await getDb();
     const uid = user.uid;
+
+    if (await envioPausado(sqlite)) {
+      if (!opcoes.manual) return false;
+      await definirEnvioAutomatico(true); // a pessoa pediu: daqui em diante os registros sincronizam
+    }
 
     const series = await sqlite.getAllAsync<Recorrencia>(
       "SELECT * FROM recorrencias WHERE sync_status = 'pendente'",

@@ -1,7 +1,7 @@
 import { getDb } from '@/db/database';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 
-let mockUsuario: { uid: string } | null = null;
+let mockUsuario: { uid: string; emailVerified: boolean } | null = null;
 
 jest.mock('@/lib/firebase', () => ({
   auth: {
@@ -31,8 +31,15 @@ describe('sincronizarEmSegundoPlano', () => {
     expect(getDb).not.toHaveBeenCalled();
   });
 
+  it('com e-mail não confirmado, não faz nada', async () => {
+    mockUsuario = { uid: 'u1', emailVerified: false };
+    sincronizarEmSegundoPlano();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(getDb).not.toHaveBeenCalled();
+  });
+
   it('com conta, dispara a sincronização sem esperar por ela', async () => {
-    mockUsuario = { uid: 'u1' };
+    mockUsuario = { uid: 'u1', emailVerified: true };
     (getDb as jest.Mock).mockResolvedValue({ getAllAsync: jest.fn().mockResolvedValue([]) });
 
     sincronizarEmSegundoPlano();

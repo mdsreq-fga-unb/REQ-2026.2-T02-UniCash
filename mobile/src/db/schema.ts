@@ -33,4 +33,9 @@ export const ESQUEMA_SQL = `
     CREATE INDEX IF NOT EXISTS idx_receitas_data ON receitas(data);
     CREATE INDEX IF NOT EXISTS idx_receitas_recorrencia ON receitas(recorrencia_id);
     CREATE INDEX IF NOT EXISTS idx_receitas_sync ON receitas(sync_status);
+
+    CREATE TABLE IF NOT EXISTS preferencias (
+      chave TEXT PRIMARY KEY NOT NULL,
+      valor TEXT NOT NULL
+    );
   `;

@@ -7,7 +7,7 @@ import { input } from '../../helpers/dados';
 const mockNuvem = new Map<string, any>();
 
 jest.mock('@/lib/firebase', () => ({
-  auth: { currentUser: { uid: 'u1' } },
+  auth: { currentUser: { uid: 'u1', emailVerified: true } },
   db: {},
 }));
 jest.mock('firebase/firestore', () => ({
