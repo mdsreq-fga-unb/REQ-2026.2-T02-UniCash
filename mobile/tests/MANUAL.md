@@ -149,17 +149,3 @@ Percorra cadastro, entrada, confirmação, recuperação e conta com TalkBack (A
 - Séries (`recorrencias`): se alguma série ficar pendente com "permission-denied" (aviso de acesso negado na lista), registre na issue; é o ponto sobre o campo `tipo` descrito na pendência 5.5 da rastreabilidade.
 - Uma chamada direta à API com senha de 7 caracteres é recusada, se a política de senha do servidor estiver ativa.
 
-## 4. Registro de execução do UC10
-
-Preencher a cada rodada, com a data, o responsável, o aparelho e a versão e os casos aprovados. Anexar as capturas de tela na issue e colocar o link aqui.
-
-| Roteiro | Data | Responsável | Aparelho / versão | Casos aprovados | Evidências (link na issue) |
-|---|---|---|---|---|---|
-| 3.1 Cadastro e confirmação do e-mail | | | | | |
-| 3.2 Entrar, reabrir o app e uso sem conta | | | | | |
-| 3.3 Sair e dados locais | | | | | |
-| 3.4 Sem conexão | | | | | |
-| 3.5 Recuperar a senha | | | | | |
-| 3.6 Envio inicial, recusa do envio (FA01) e restauração | | | | | |
-| 3.7 Acessibilidade e identidade visual | | | | | |
-| 3.8 Verificações no Console | | | | | |
