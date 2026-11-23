@@ -2,6 +2,9 @@ import { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { completarRecorrencias } from '@/features/receitas/service';
 import { sincronizarPendentes } from '@/features/receitas/sync';
+import { iniciarConta } from '@/features/conta';
+
+iniciarConta();
 
 export default function RootLayout() {
   useEffect(() => {

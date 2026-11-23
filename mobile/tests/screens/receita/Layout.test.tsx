@@ -14,6 +14,9 @@ jest.mock('@/features/receitas/service', () => ({
 jest.mock('@/features/receitas/sync', () => ({
   sincronizarPendentes: jest.fn(),
 }));
+jest.mock('@/features/conta', () => 
+  ({ iniciarConta: jest.fn() 
+}));
 
 const completar = completarRecorrencias as jest.Mock;
 const sincronizar = sincronizarPendentes as jest.Mock;
