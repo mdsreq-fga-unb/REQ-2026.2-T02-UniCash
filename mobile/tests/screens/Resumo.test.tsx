@@ -158,14 +158,31 @@ describe('Tela de resumo financeiro (UC03)', () => {
     expect(calcular).toHaveBeenLastCalledWith(atual.ano, atual.mes);
   });
 
+  it('atalhos abrem as listas no mês selecionado no resumo', async () => {
+    calcular.mockImplementation(async (ano: number, mes: number) => resumo({ ano, mes }));
+    await render(<ResumoFinanceiro />);
+    await screen.findByTestId('saldo');
+
+    await fireEvent.press(screen.getByLabelText('Mês anterior'));
+    const anterior = mesAnterior(atual.ano, atual.mes);
+    await waitFor(() => expect(screen.getByTestId('mes-selecionado')).toHaveTextContent(nomeMes(anterior.ano, anterior.mes)));
+    await screen.findByTestId('saldo');
+
+    const params = { ano: String(anterior.ano), mes: String(anterior.mes) };
+    await fireEvent.press(screen.getByRole('button', { name: 'Receitas' }));
+    expect(router.push).toHaveBeenLastCalledWith({ pathname: '/receitas', params });
+    await fireEvent.press(screen.getByRole('button', { name: 'Despesas' }));
+    expect(router.push).toHaveBeenLastCalledWith({ pathname: '/despesas', params });
+  });
+
   it('atalhos levam às listas de receitas, despesas e categorias', async () => {
     calcular.mockResolvedValue(resumo());
     await render(<ResumoFinanceiro />);
     await screen.findByTestId('saldo');
     await fireEvent.press(screen.getByRole('button', { name: 'Receitas' }));
-    expect(router.push).toHaveBeenCalledWith('/receitas');
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/receitas', params: { ano: String(atual.ano), mes: String(atual.mes) } });
     await fireEvent.press(screen.getByRole('button', { name: 'Despesas' }));
-    expect(router.push).toHaveBeenCalledWith('/despesas');
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/despesas', params: { ano: String(atual.ano), mes: String(atual.mes) } });
     await fireEvent.press(screen.getByRole('button', { name: 'Categorias' }));
     expect(router.push).toHaveBeenCalledWith('/categorias');
   });

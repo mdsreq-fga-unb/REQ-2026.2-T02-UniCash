@@ -28,7 +28,7 @@ it('RNF27: permite abrir a lista de despesas diretamente da tela inicial', async
 
   await fireEvent.press(await screen.findByRole('button', { name: 'Despesas' }));
 
-  expect(router.push).toHaveBeenCalledWith('/despesas');
+  expect(router.push).toHaveBeenCalledWith({ pathname: '/despesas', params: { ano: String(hoje.getFullYear()), mes: String(hoje.getMonth() + 1) } });
 });
 
 it('RNF27: sem lançamentos, a tela inicial leva direto ao registro de despesa', async () => {

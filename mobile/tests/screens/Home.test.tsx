@@ -41,6 +41,6 @@ describe('Home (navegação da UC06)', () => {
 
     expect(await screen.findByRole('button', { name: 'Receitas' })).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Receitas' }));
-    expect(router.push).toHaveBeenCalledWith('/receitas');
+    expect(router.push).toHaveBeenCalledWith({ pathname: '/receitas', params: { ano: String(hoje.getFullYear()), mes: String(hoje.getMonth() + 1) } });
   });
 });
