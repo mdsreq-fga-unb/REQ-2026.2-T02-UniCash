@@ -114,3 +114,6 @@ export function inicioAoMoverOcorrencia(
   }
   return dataNova;
 }
+
+/** Intervalo [inicio, fim) que cobre qualquer data: filtro "Todo o período" das listas. */
+export const TODO_O_PERIODO = { inicio: '0000-01-01', fim: '9999-12-31' } as const;
