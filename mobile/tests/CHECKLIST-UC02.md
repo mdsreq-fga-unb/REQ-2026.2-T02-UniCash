@@ -1,7 +1,7 @@
 # Checklist técnico e DoD (Nível 1) – UC02 Gerenciar despesas
 
 Legenda: ✅ feito e verificável · ⚠️ parcial ou dependente de outro caso de uso · ⏳ pendente (precisa de ação humana).
-O resultado do commit atual está nos [checks do PR #55](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/55/checks).
+O [CI do commit `7ac15918`](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44637511345) passou no PR #55, antes da integração com o UC06.
 
 ## DoD – Nível 1
 
@@ -9,14 +9,14 @@ O resultado do commit atual está nos [checks do PR #55](https://github.com/mdsr
 |---|---|---|
 | Fluxos 100% implementados | ⚠️ | Principal, A, B, C e D implementados, incluindo o catálogo de categorias próprias da [UC06, #43](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/43). Faltam por dependência: recálculo de saldo, totais, limites e alertas (UC04, UC05, UC09). Ver `RASTREABILIDADE-UC02.md`, seções 4 e 5. |
 | Exceções com feedback amigável | ✅ | EX01 a EX07 e EX09 com a mensagem do caso de uso; EX05 em editar e EX06 na lista incluídos. |
-| CI verde (build, testes, lint) | ✅ local | Em 20/11/2026: lint e typecheck aprovados, 1153 testes com cobertura e 57 testes de Rules no Emulator. O CI remoto deve confirmar no PR. |
+| CI verde (build, testes, lint) | ✅ local | Em 20/11/2026: lint e typecheck aprovados, 1153 testes com cobertura e 57 testes de Rules no Emulator. O CI remoto do PR #55 está vinculado acima como evidência histórica. |
 | Tabela fluxo/RN → teste, sem item sem teste | ✅ | `tests/RASTREABILIDADE-UC02.md`. Os itens ⏳ da tabela são dependências declaradas, não lacunas de teste. |
 | RN com teste válido, inválido e valor-limite | ✅ | RN09, RN10, RN12, RN13, RN19 em `unit/despesas.validation.test.ts`, `service/despesas.*.test.ts`. |
 | Checklists técnicos preenchidos | ✅ | Este documento e a seção "Mapa" da matriz. |
 | Evidência de precisão e isolamento (`test:rules`) | ✅ | 57/57 no Firebase Emulator local em 20/11/2026. Histórico do PR #55: [testes e cobertura](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44630861300/job/135936792573) e [regras no emulador](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44630861300/job/135936792234). |
 | Evidência de persistência e sincronização | ⚠️ | Automatizada: ✅ (`service/sync.test.ts`, `db/migrations.test.ts`, tombstones e retry). Manual no Expo Go/APK: ⏳ (`MANUAL-UC02.md`, 2.1 a 2.3). Sincronização real: depende da [autenticação, #61](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/61) (2.4). |
 | Rastreabilidade na ferramenta de gestão | ⏳ | Copiar a matriz para a ferramenta da equipe. |
-| Documentação técnica no GitPages | ⏳ | Fora do repositório; atualizar com o UC02 e a integração UC06 (esquema de despesas, sincronização e catálogo de categorias). |
+| Documentação técnica no GitPages | ⏳ | [Implementação técnica e evidências do UC02](https://mdsreq-fga-unb.github.io/REQ-2026.2-T02-UniCash/casos_de_uso/#implementacao-tecnica-e-evidencias-da-uc02) publicadas. Falta refletir nessa seção a integração com o catálogo do UC06. |
 
 ## Checklist técnico
 
@@ -33,7 +33,7 @@ O resultado do commit atual está nos [checks do PR #55](https://github.com/mdsr
 ### Sincronização
 - [x] Disparo em segundo plano após registrar, editar e excluir, e no foco da lista.
 - [x] Falha de sincronização não desfaz a operação local (EX03).
-- [x] Payload sem campos opcionais nulos; falha em um registro não bloqueia os demais.
+- [x] Payload sem campos opcionais nulos. Falha de rede interrompe a fila e preserva as pendências. `permission-denied` mantém o registro rejeitado pendente e permite processar registros independentes.
 - [x] Contador de pendentes inclui despesas.
 - [x] `restaurarDaNuvem` restaura despesas avulsas e séries, é idempotente e não ressuscita exclusões locais.
 - [x] Categoria indisponível no catálogo vira `NULL` ao restaurar ou aplicar uma edição remota (EX08).
