@@ -5,7 +5,14 @@ import { criarAuthFirebase, iniciarObservadorDeSessao } from '@/features/conta/a
 import { definirSessao, obterSessao } from '@/features/conta/sessao';
 import type { CodigoErro } from '@/features/conta/types';
 
-jest.mock('@/lib/firebase', () => ({ auth: { currentUser: null }, db: { __db: true } }));
+let mockFirebaseConfigurado = true;
+jest.mock('@/lib/firebase', () => ({
+  auth: { currentUser: null },
+  db: { __db: true },
+  get firebaseConfigurado() {
+    return mockFirebaseConfigurado;
+  },
+}));
 
 jest.mock('firebase/auth', () => ({
   applyActionCode: jest.fn(),
@@ -207,6 +214,18 @@ describe('signIn (fluxo B)', () => {
 });
 
 describe('observador de sessão', () => {
+  afterEach(() => {
+    mockFirebaseConfigurado = true;
+  });
+
+  it('sem Firebase configurado (modo offline) não registra o observador e a sessão segue vazia', () => {
+    mockFirebaseConfigurado = false;
+    const cancelar = iniciarObservadorDeSessao();
+    expect(m(fa.onAuthStateChanged)).not.toHaveBeenCalled();
+    expect(() => cancelar()).not.toThrow();
+    expect(obterSessao().status).toBe('sem-sessao');
+  });
+
   function ouvinte() {
     iniciarObservadorDeSessao();
     return m(fa.onAuthStateChanged).mock.calls[0][1] as (u: unknown) => void;

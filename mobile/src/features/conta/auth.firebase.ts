@@ -16,7 +16,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { auth, db, firebaseConfigurado } from '@/lib/firebase';
 import { comTimeout, traduzirErroFirebase } from './firebase-erros';
 import { definirSessao, obterSessao } from './sessao';
 import { ErroConta, type AuthService, type SessionState } from './types';
@@ -35,6 +35,8 @@ function sessaoDe(u: User | null): SessionState {
 
 /** Mantém SessionState em dia com o Firebase (restaura a sessão ao abrir o app). Retorna o cancelamento. */
 export function iniciarObservadorDeSessao(): () => void {
+  // Sem as variáveis EXPO_PUBLIC_FIREBASE_*, `auth` é um stub offline sem observador: a sessão fica "sem-sessao".
+  if (!firebaseConfigurado) return () => {};
   return onAuthStateChanged(auth, (u) => definirSessao(sessaoDe(u)));
 }
 
