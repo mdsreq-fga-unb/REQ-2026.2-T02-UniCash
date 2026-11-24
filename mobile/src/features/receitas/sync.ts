@@ -117,7 +117,7 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
     const sqlite = await getDb();
     const uid = user.uid;
 
-    if (auth.currentUser?.uid !== uid) return false;
+    if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) return false;
 
     // Categorias primeiro: séries/despesas dependem do catálogo reconciliado.
     const categoriasSync = await sincronizarCategoriasPendentes(sqlite, uid);
@@ -174,7 +174,7 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
     );
 
     for (const s of series) {
-      if (auth.currentUser?.uid !== uid) throw new Error('conta alterada durante a sincronização');
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) throw new Error('conta alterada durante a sincronização');
       try {
         let categoriaSerie: string | null = null;
 
@@ -312,7 +312,7 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
     );
 
     for (const r of receitas) {
-      if (auth.currentUser?.uid !== uid) throw new Error('conta alterada durante a sincronização');
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) throw new Error('conta alterada durante a sincronização');
       try {
         const ref = doc(firestore, 'usuarios', uid, 'receitas', r.id);
 
@@ -476,7 +476,7 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
     };
 
     for (const d of despesas) {
-      if (auth.currentUser?.uid !== uid) throw new Error('conta alterada durante a sincronização');
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) throw new Error('conta alterada durante a sincronização');
       try {
         const ref = doc(firestore, 'usuarios', uid, 'despesas', d.id);
 
@@ -670,7 +670,7 @@ async function aguardarAuthResolvida(): Promise<void> {
 export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
   await aguardarAuthResolvida();
   const user = auth.currentUser;
-  if (!user) throw new FalhaRestauracao('sem conta');
+  if (!user?.emailVerified) throw new FalhaRestauracao('sem conta confirmada');
   const uid = user.uid;
 
   try {
@@ -684,7 +684,7 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
     const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0 };
 
     await sqlite.withExclusiveTransactionAsync(async (tx) => {
-      if (auth.currentUser?.uid !== uid) {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) {
         throw new FalhaRestauracao('conta alterada durante a restauração');
       }
 
