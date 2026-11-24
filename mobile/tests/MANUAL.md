@@ -87,3 +87,9 @@ Abra o resumo num aparelho pequeno (≈ 360 dp de largura) e num grande, ou aume
 Registre receitas de R$ 0,10 e R$ 0,20 no mesmo dia. **Esperado:** o dia e o total mostram exatamente R$ 0,30.
 
 O EX01 (falha no cálculo) não é provocável no aparelho sem alterar o código; fica coberto pelos testes automatizados.
+
+### 4.5 – Geração de recorrências na abertura do resumo
+
+1. Em um aparelho de teste, no primeiro dia de um mês, registre uma receita de R$ 100,10 e uma despesa de R$ 40,20, ambas com repetição mensal, sem término e com a data de início nesse dia. Nas listas de receitas e despesas, confirme que o mês 13 meses à frente ainda não tem ocorrências dessas séries.
+2. Encerre o app, avance a data do aparelho para o primeiro dia do mês seguinte e reabra no Expo Go. Confira que o resumo do mês corrente abre sem erro e navegue até o mês que estava vazio no passo anterior.
+3. Confira nesse mês uma ocorrência de cada série, receitas de R$ 100,10, despesas de R$ 40,20 e saldo de R$ 59,90. Encerre e abra o app novamente e confirme que as ocorrências e os totais permanecem iguais. Restaure a data automática do aparelho após o teste.
