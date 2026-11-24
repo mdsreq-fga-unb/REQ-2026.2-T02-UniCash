@@ -36,6 +36,7 @@ export default function NovaReceita() {
         erroGeral={erro}
         onSalvar={salvar}
         onCancelar={() => router.back()}
+        onTrocarTipo={() => router.replace('/despesas/nova')}
       />
     </SafeAreaView>
   );

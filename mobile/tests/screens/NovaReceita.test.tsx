@@ -109,4 +109,10 @@ describe('Nova receita (fluxo A, protótipo F4)', () => {
     expect(router.back).toHaveBeenCalledTimes(1);
     expect(registrar).not.toHaveBeenCalled();
   });
+
+  it('tocar em "Despesa" troca para o formulário de nova despesa', async () => {
+    await render(<Nova />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Despesa' }));
+    expect(router.replace).toHaveBeenCalledWith('/despesas/nova');
+  });
 });
