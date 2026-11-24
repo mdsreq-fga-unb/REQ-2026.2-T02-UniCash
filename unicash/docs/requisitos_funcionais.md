@@ -56,8 +56,8 @@ A tabela está ordenada por Característica de Produto.
 | <span id="rf19"></span>**RF19** | **Criar categoria de despesas:** Permitir cadastrar uma categoria para classificar despesas e, quando aplicável, definir seu limite de gasto. | CP2 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
 | <span id="rf47"></span>**RF47** | **Classificar lançamentos importados:** Sugerir a categoria de cada registro importado a partir de palavras-chave da descrição associadas às categorias do usuário e de lançamentos anteriores com a mesma descrição, permitindo revisão antes da confirmação; quando não houver correspondência, deixar o registro sem categoria sugerida. | CP2 | [R03](atas/posts/r03.md), [D23](decisoes.md#d23) | Retirado |
 | <span id="rf65"></span>**RF65** | **Consultar categorias:** Exibir ao usuário a lista de categorias disponíveis (padrão e próprias), identificando as categorias padrão e o limite de gasto de cada uma, quando definido, com a opção de ver os lançamentos classificados em cada categoria. | CP2 | [D16](decisoes.md#d16) | Proposto |
-| <span id="rf66"></span>**RF66** | **Editar categoria:** Permitir alterar o nome e o limite de gasto de uma categoria própria, validar a unicidade do nome (RN13), salvar as mudanças e recalcular os indicadores e alertas de limite afetados (RF37, RF38 e RF39). As categorias padrão não podem ser editadas (RN13). | CP2 | [D16](decisoes.md#d16) | Proposto |
-| <span id="rf67"></span>**RF67** | **Excluir categoria:** Permitir remover uma categoria própria mediante confirmação (RN11), mantendo os lançamentos associados, que passam a constar como “Sem categoria” (RN13), e atualizar os indicadores e alertas dependentes. As categorias padrão não podem ser excluídas (RN13). | CP2 | [D16](decisoes.md#d16) | Proposto |
+| <span id="rf66"></span>**RF66** | **Editar categoria:** Permitir alterar o nome e o limite de gasto de uma categoria própria, validar a unicidade do nome (RN13), salvar as mudanças e recalcular os indicadores e alertas de limite afetados (RF37, RF38 e RF39). Nas categorias padrão, o nome não pode ser alterado; o limite pode ser definido, alterado ou removido (RN13). | CP2 | [D16](decisoes.md#d16), [D24](decisoes.md#d24) | Proposto |
+| <span id="rf67"></span>**RF67** | **Excluir categoria:** Permitir remover uma categoria própria mediante confirmação (RN11), mantendo os lançamentos associados, que passam a constar como “Sem categoria” (RN13), e atualizar os indicadores e alertas dependentes. As categorias padrão não podem ser excluídas (RN13). | CP2 | [D16](decisoes.md#d16), [D24](decisoes.md#d24) | Proposto |
 | <span id="rf12"></span>**RF12** | **Criar meta financeira:** Permitir definir objetivo, valor alvo, prazo e tipo de meta de gasto ou investimento. | CP3 | [R05](atas/posts/r05.md) | Vigente |
 | <span id="rf13"></span>**RF13** | **Editar meta financeira:** Permitir alterar os parâmetros de uma meta existente e salvar as mudanças após a validação. | CP3 | [R04](atas/posts/r04.md) | Vigente |
 | <span id="rf14"></span>**RF14** | **Excluir meta financeira:** Permitir remover uma meta mediante confirmação, sem excluir os lançamentos financeiros associados. | CP3 | [R04](atas/posts/r04.md) | Vigente |
@@ -206,12 +206,12 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 - **Filtros:** permite consulta por data única ou período, com data inicial menor ou igual à data final.
 - **Ordenação:** da data mais recente para a mais antiga.
 - **Datas futuras:** são aceitas e contabilizadas no mês correspondente à própria data do lançamento.
-- **Gráfico de evolução mensal:** mostra no máximo 6 meses.
+- **Gráfico de evolução mensal:** mostra no máximo 6 meses consecutivos. Ao abrir, mostra o mês selecionado (o mês corrente) e os 5 anteriores. Selecionar um mês que já está entre os 6 exibidos não altera o gráfico; selecionar um mês fora deles faz o gráfico passar a mostrar esse mês e os 5 anteriores.
 
 ### RN13: Categorias
 
 - **Categorias padrão:** Casa, Alimentação, Mobilidade, Estudos, Saúde, Lazer e Reserva financeira.
-- **Proteção:** as categorias padrão não podem ser renomeadas nem excluídas; é permitido definir e alterar o limite delas (RN14).
+- **Proteção:** as categorias padrão não podem ser renomeadas nem excluídas; é permitido definir, alterar e remover o limite delas (RN14).
 - **Categorias próprias:** o usuário pode criar e editar categorias próprias, com nome único por usuário, sem diferenciar letras maiúsculas de minúsculas, e com no máximo 30 caracteres.
 - **Categoria opcional:** uma despesa pode não possuir categoria. Nesse caso, aparece como “Sem categoria” e não entra no cálculo dos limites por categoria. Receitas não possuem categoria.
 - **Classificação de despesas:** despesas podem ser classificadas como fixas ou variáveis e essenciais ou não essenciais; esses campos são opcionais.
@@ -221,6 +221,7 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 ### RN14: Limite por categoria e renda
 
 - **Limite opcional:** definido por categoria, inclusive nas categorias padrão, em valor monetário (R$) ou percentual da renda mensal.
+- **Percentual:** de 1% a 100%, com até duas casas decimais.
 - **Renda mensal:** soma das receitas com data no mês consultado.
 - **Consumo:** corresponde às despesas da categoria no mês divididas pelo limite efetivo.
 - **Categorias sem limite:** não geram alertas nem indicadores de consumo.

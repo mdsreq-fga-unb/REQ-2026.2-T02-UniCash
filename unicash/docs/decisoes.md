@@ -31,6 +31,7 @@ Esta página reúne as decisões que mudaram o escopo, os requisitos, o processo
 | [D21](#d21) | 07/11/2026 | Ajuste dos RNFs ao modelo local-first | [Issue #21](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/21) | Proposta |
 | <span id="d22"></span>[D22](#d22) | 10/11/2026 | Validado com a cliente das regras de limites, retenção, uso offline e gamificação | Documento validado com Leinad e Maria | Vigente, com RF57 pendente |
 | <span id="d23"></span>[D23](#d23) | 10/11/2026 | Retirada dos fluxos de importação, extração de comprovantes, anexos e backup por arquivo do escopo atual | Atualização do catálogo de requisitos pela equipe | Vigente |
+| [D24](#d24) | 20/11/2026 | Faixa percentual de 1% a 100% e proteção das categorias padrão | Issues #71 e #72 | Vigente |
 
 A situação **Proposta** indica uma decisão da equipe que ainda depende de confirmação da cliente.
 
@@ -284,6 +285,18 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | **Requisitos afetados** | RF21, RF47, RF48, RF49, RF50, RF60, RF63 e RF64; RN04, RN05 e RN06. |
 | **Comunicação** | Registrada na documentação pela equipe. Não há registro, no histórico consultado, de validação ou comunicação à cliente. |
 
+### D24 — Faixa percentual de 1% a 100% e proteção das categorias padrão { #d24 }
+
+| Campo | Registro |
+| :--- | :--- |
+| **Data** | 20/11/2026 |
+| **Origem** | Issues #71 e #72 (decisões da equipe). |
+| **Decisão** | Limites percentuais de categorias padrão e próprias passam a usar a faixa de 1% a 100%, com até duas casas decimais. Dados legados são normalizados de forma idempotente: abaixo de 1% viram 1%, acima de 100% viram 100% e casas excedentes são arredondadas. Nas categorias padrão, o nome é imutável, os limites podem ser definidos, alterados ou removidos e a exclusão é proibida. Categorias próprias podem ter nome e limites alterados e podem ser excluídas, mantendo os lançamentos como “Sem categoria”. |
+| **Motivo** | Remover a contradição entre RF66 e RN13 e substituir a faixa percentual provisória de 0,01%–100% pela faixa definitiva definida nas issues. |
+| **Alternativas descartadas** | Manter a faixa provisória e permitir edição do nome de categorias padrão; ambas foram rejeitadas pelas decisões #71 e #72. |
+| **Requisitos afetados** | RF66, RF67, RN13, RN14 |
+| **Comunicação** | Decisões registradas nas issues #71 e #72. Não há novo registro de comunicação ou validação da cliente nesta etapa. |
+
 ## Pendências do registro
 
 - Registrar o motivo da escolha da paleta na [D17](#d17);
@@ -298,3 +311,4 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | 1.1 | 05/11/2026 | Registra a decisão D20 sobre a arquitetura local-first com suporte offline-first | Equipe UniCash |
 | 1.2 | 07/11/2026 | Registra a decisão D21 sobre o ajuste dos RNFs ao modelo local-first (issue #21) | Dante Scarpati |
 | 1.3 | 10/11/2026 | Registra a decisão D23 sobre a retirada dos fluxos de importação, comprovantes e backup por arquivo | Equipe UniCash |
+| 1.4 | 20/11/2026 | Registra a decisão D24 sobre a faixa percentual definitiva e a proteção das categorias padrão | Equipe UniCash |
