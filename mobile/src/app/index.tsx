@@ -109,7 +109,7 @@ export default function ResumoFinanceiro() {
           />
         )}
 
-        <Atalhos ano={periodo.ano} mes={periodo.mes} />
+        <Atalhos ano={periodo.ano} mes={periodo.mes} mostrarNovos={!resumoDoPeriodo?.semLancamentos} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -235,27 +235,51 @@ function SecaoEvolucao({
  * estado vazio e EX01), como na tela inicial anterior. Receitas e Despesas abrem no mês selecionado,
  * para o usuário achar (e editar ou excluir) os lançamentos dele.
  */
-function Atalhos({ ano, mes }: { ano: number; mes: number }) {
+function Atalhos({ ano, mes, mostrarNovos }: { ano: number; mes: number; mostrarNovos: boolean }) {
   const doMes = { ano: String(ano), mes: String(mes) };
   return (
-    <View style={estilos.linha}>
-      <Pressable
-        onPress={() => router.push({ pathname: '/receitas', params: doMes })}
-        style={estilos.botao}
-        accessibilityRole="button"
-      >
-        <Text style={estilos.botaoTexto}>Receitas</Text>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push({ pathname: '/despesas', params: doMes })}
-        style={estilos.botao}
-        accessibilityRole="button"
-      >
-        <Text style={estilos.botaoTexto}>Despesas</Text>
-      </Pressable>
-      <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
-        <Text style={estilos.botaoTexto}>Categorias</Text>
-      </Pressable>
+    <View>
+      {/* Registro direto da tela inicial, sem abrir a lista antes. No estado vazio (FA02), os botões
+          "Registrar receita" e "Registrar despesa" já cumprem esse papel. */}
+      {mostrarNovos ? (
+        <View style={estilos.linha}>
+          <Pressable
+            onPress={() => router.push('/receitas/nova')}
+            style={estilos.botaoContorno}
+            accessibilityRole="button"
+            accessibilityLabel="Nova receita"
+          >
+            <Text style={estilos.botaoContornoTexto}>+ Nova receita</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/despesas/nova')}
+            style={estilos.botaoContorno}
+            accessibilityRole="button"
+            accessibilityLabel="Nova despesa"
+          >
+            <Text style={estilos.botaoContornoTexto}>+ Nova despesa</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <View style={estilos.linha}>
+        <Pressable
+          onPress={() => router.push({ pathname: '/receitas', params: doMes })}
+          style={estilos.botao}
+          accessibilityRole="button"
+        >
+          <Text style={estilos.botaoTexto}>Receitas</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push({ pathname: '/despesas', params: doMes })}
+          style={estilos.botao}
+          accessibilityRole="button"
+        >
+          <Text style={estilos.botaoTexto}>Despesas</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Categorias</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
