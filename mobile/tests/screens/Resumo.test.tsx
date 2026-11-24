@@ -237,7 +237,7 @@ describe('Tela de resumo financeiro (UC03)', () => {
       calcular.mockResolvedValueOnce(resumo());
       await act(async () => avisarBaseAtualizada());
 
-      expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+      await waitFor(() => expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65'));
       expect(screen.queryByText('Nenhum lançamento ainda')).toBeNull();
     });
 
@@ -249,7 +249,7 @@ describe('Tela de resumo financeiro (UC03)', () => {
       calcular.mockResolvedValueOnce(resumo());
       await act(async () => avisarBaseAtualizada());
 
-      expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+      await waitFor(() => expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65'));
       expect(screen.queryByText(MSG_FALHA_CALCULO)).toBeNull();
     });
 
