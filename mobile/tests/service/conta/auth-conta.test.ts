@@ -32,6 +32,8 @@ jest.mock('firebase/auth', () => ({
 
 jest.mock('firebase/firestore', () => ({
   doc: jest.fn(),
+  getDoc: jest.fn(),
+  deleteDoc: jest.fn(),
   serverTimestamp: jest.fn(),
   setDoc: jest.fn(),
   updateDoc: jest.fn(),
@@ -68,6 +70,8 @@ beforeEach(() => {
   m(ff.serverTimestamp).mockReturnValue('TS');
   m(fa.EmailAuthProvider.credential).mockImplementation((email: string, senha: string) => ({ email, senha }));
   m(ff.setDoc).mockResolvedValue(undefined);
+  m(ff.getDoc).mockResolvedValue({ exists: () => false });
+  m(ff.deleteDoc).mockResolvedValue(undefined);
   m(ff.updateDoc).mockResolvedValue(undefined);
   m(fa.sendEmailVerification).mockResolvedValue(undefined);
   m(fa.deleteUser).mockResolvedValue(undefined);

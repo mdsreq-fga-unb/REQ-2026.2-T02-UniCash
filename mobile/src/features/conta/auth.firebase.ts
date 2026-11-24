@@ -15,7 +15,7 @@ import {
   type ActionCodeSettings,
   type User,
 } from 'firebase/auth';
-import { doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, firebaseConfigurado } from '@/lib/firebase';
 import { comTimeout, traduzirErroFirebase } from './firebase-erros';
 import { definirSessao, obterSessao } from './sessao';
@@ -60,7 +60,17 @@ export function criarAuthFirebase(): AuthService {
       try {
         u = (await createUserWithEmailAndPassword(auth, email.trim(), senha)).user;
       } catch (e) {
-        throw traduzirErroFirebase(e); // EX02, EX03, EX07
+        if ((e as { code?: string })?.code !== 'auth/email-already-in-use') {
+          throw traduzirErroFirebase(e);
+        }
+        // Retomada somente com prova de posse das credenciais e conta não confirmada.
+        try {
+          u = (await signInWithEmailAndPassword(auth, email.trim(), senha)).user;
+          if (u.emailVerified) throw new ErroConta('email-em-uso');
+        } catch {
+          await fbSignOut(auth).catch(() => {});
+          throw traduzirErroFirebase(e);
+        }
       }
       try {
         const perfil: Record<string, unknown> = {
@@ -68,11 +78,19 @@ export function criarAuthFirebase(): AuthService {
           criado_em: serverTimestamp(),
         };
         if (nome?.trim()) perfil.nome = nome.trim();
-        await comTimeout(setDoc(doc(db, 'usuarios', u.uid), perfil)); // sem CPF
+        const ref = doc(db, 'usuarios', u.uid);
+        const existente = await comTimeout(getDoc(ref));
+        if (!existente.exists()) await comTimeout(setDoc(ref, perfil)); // sem CPF
         await sendEmailVerification(u, configAcao); // A6
       } catch (e) {
         // Desfaz: nenhuma conta ou perfil parcial (EX07, EX10).
-        await deleteUser(u).catch(() => fbSignOut(auth).catch(() => {}));
+        try {
+          // Não apagar Auth se não foi possível limpar o perfil: permite retomar o cadastro.
+          await deleteDoc(doc(db, 'usuarios', u.uid));
+          await deleteUser(u);
+        } catch {
+          await fbSignOut(auth).catch(() => {});
+        }
         throw traduzirErroFirebase(e);
       }
       // O usuário continua autenticado internamente só para o fluxo E; SessionState segue "sem-sessao".
