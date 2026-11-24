@@ -67,7 +67,7 @@ Resultados em `tests/RASTREABILIDADE.md`, seção do UC03.
 
 ### 4.1 Fluxo principal e alternativos no aparelho
 1. **FA02 – sem lançamentos:** com a base vazia (limpe os dados do Expo Go), abra o app.
-   **Esperado:** "Nenhum lançamento ainda", com "Ver tutorial" (abre "Tutorial em breve") e atalhos para registrar receita e despesa.
+   **Esperado:** "Nenhum lançamento ainda", com "Ver tutorial" (abre "Tutorial em breve") e atalhos para registrar receita e despesa; os botões Receitas, Despesas e Categorias continuam no fim da tela (Categorias deve abrir mesmo sem lançamentos).
 2. **Passos 3 e 4:** registre no mês atual duas receitas no mesmo dia (ex.: R$ 100,10 e R$ 50,20), uma em outro dia e duas despesas. Volte ao resumo.
    **Esperado:** saldo, total de receitas e total de despesas batem com a conta feita à mão; "Receitas por dia" mostra só os dias com lançamento, e o dia com duas receitas aparece somado (R$ 150,30).
 3. **Passos 5 e 6 / FA04:** use as setas para ir a meses anteriores e futuros, passando pela virada do ano. Registre uma receita com data num mês futuro.
@@ -91,5 +91,5 @@ O EX01 (falha no cálculo) não é provocável no aparelho sem alterar o código
 ### 4.5 – Geração de recorrências na abertura do resumo
 
 1. Em um aparelho de teste, no primeiro dia de um mês, registre uma receita de R$ 100,10 e uma despesa de R$ 40,20, ambas com repetição mensal, sem término e com a data de início nesse dia. Nas listas de receitas e despesas, confirme que o mês 13 meses à frente ainda não tem ocorrências dessas séries.
-2. Encerre o app, avance a data do aparelho para o primeiro dia do mês seguinte e reabra no Expo Go. Confira que o resumo do mês corrente abre sem erro e navegue até o mês que estava vazio no passo anterior.
+2. Encerre o app, avance a data do aparelho para o primeiro dia do mês seguinte e reabra no Expo Go. **Sem tocar nas setas de mês**, assim que a camada "Preparando seus dados locais…" sumir, confira que o resumo do mês corrente já mostra receitas de R$ 100,10, despesas de R$ 40,20 e saldo de R$ 59,90 (e não o estado vazio nem a mensagem de falha). Só então navegue até o mês que estava vazio no passo anterior.
 3. Confira nesse mês uma ocorrência de cada série, receitas de R$ 100,10, despesas de R$ 40,20 e saldo de R$ 59,90. Encerre e abra o app novamente e confirme que as ocorrências e os totais permanecem iguais. Restaure a data automática do aparelho após o teste.

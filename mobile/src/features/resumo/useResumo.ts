@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { calcularResumo, type ResumoMensal } from './service';
 
 /** Calcula o resumo do mês informado; `recarregar` refaz o cálculo (passo 6, FA05, EX01). */
@@ -25,6 +26,10 @@ export function useResumo(ano: number, mes: number) {
       if (meu === pedido.current) setCarregando(false);
     }
   }, [ano, mes]);
+
+  // Recalcula quando a preparação do app termina ou a base muda por fora da tela
+  // (ex.: restauração da nuvem), sem depender de sair da tela e voltar.
+  useEffect(() => ouvirBaseAtualizada(() => void recarregar()), [recarregar]);
 
   return { resumo, carregando, falhou, recarregar };
 }
