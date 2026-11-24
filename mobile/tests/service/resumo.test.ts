@@ -1,6 +1,6 @@
 import { getDb } from '@/db/database';
-import { editarReceita, excluirReceita, registrarReceita } from '@/features/receitas/service';
-import { editarDespesa, excluirDespesa, registrarDespesa } from '@/features/despesas/service';
+import { completarRecorrencias, editarReceita, excluirReceita, registrarReceita } from '@/features/receitas/service';
+import { completarRecorrenciasDespesas, editarDespesa, excluirDespesa, registrarDespesa } from '@/features/despesas/service';
 import type { DespesaInput } from '@/features/despesas/types';
 import {
   calcularResumo,
@@ -253,12 +253,28 @@ describe('Resumo financeiro (UC03)', () => {
   });
 
   it('gravações durante a abertura do app não falham por causa do resumo', async () => {
-    // ao abrir o app, o resumo é calculado enquanto as recorrências são geradas (_layout.tsx)
-    await Promise.all([calcularResumo(2026, 10), registrarReceita(input({ data: '2026-10-05', valorCentavos: 10000 }))]);
-    await Promise.all([calcularResumo(2026, 10), registrarDespesa(despesa({ data: '2026-10-06', valorCentavos: 4000 }))]);
-    expect(banco.receitas()).toHaveLength(1);
-    expect(banco.despesas()).toHaveLength(1);
-    expect((await calcularResumo(2026, 10)).saldoCentavos).toBe(6000);
+    const recorrencia = { intervalo: 1, unidade: 'mes', termino: null } as const;
+    await registrarReceita(input({ data: '2026-10-16', valorCentavos: 10010, recorrencia }));
+    await registrarDespesa(despesa({ valorCentavos: 4020, recorrencia }));
+    const dataEsperada = '2027-11-16';
+    expect(banco.receitas().some(({ data }) => data === dataEsperada)).toBe(false);
+    expect(banco.despesas().some(({ data }) => data === dataEsperada)).toBe(false);
+
+    fixarHoje('2026-11-16');
+    const completarSeries = async () => {
+      await completarRecorrencias();
+      await completarRecorrenciasDespesas();
+    };
+    await Promise.all([completarSeries(), calcularResumo(2026, 11)]);
+    await Promise.all([completarSeries(), calcularResumo(2026, 11)]);
+
+    expect(banco.receitas().filter(({ data }) => data === dataEsperada)).toHaveLength(1);
+    expect(banco.despesas().filter(({ data }) => data === dataEsperada)).toHaveLength(1);
+    expect(await calcularResumo(2027, 11)).toMatchObject({
+      totalReceitasCentavos: 10010,
+      totalDespesasCentavos: 4020,
+      saldoCentavos: 5990,
+    });
   });
 
   it('pós-condição: calcular e navegar pelo resumo não altera nenhum dado', async () => {
