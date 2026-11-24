@@ -3,6 +3,7 @@ import { getDb } from '@/db/database';
 import {
   adicionarDias,
   adicionarIntervalo,
+  inicioAoMoverOcorrencia,
 } from '../receitas/dates';
 import type {
   Despesa,
@@ -428,8 +429,12 @@ export function editarDespesa(
       r.unidade !== rec.unidade ||
       (r.termino ?? null) !== (rec.termino ?? null);
 
+    // Mudar a data de uma ocorrência com alcance "próximas" ou "todas" também refaz a série a partir
+    // da nova data; senão, os meses entre a data antiga e a nova ficariam sem ocorrência.
+    const mudouData = input.data !== atual.data;
+
     // Edita somente esta ocorrência ou mantém a repetição atual.
-    if (escopo === 'esta' || !mudouRecorrencia) {
+    if (escopo === 'esta' || (!mudouRecorrencia && !mudouData)) {
       await atualizarSelecionada();
 
       if (escopo === 'esta') return;
@@ -539,9 +544,13 @@ export function editarDespesa(
 
       await desativarSerie(tx, rec.id, ts);
 
+      const inicio = mudouData
+        ? inicioAoMoverOcorrencia(rec, atual.data, input.data)
+        : rec.inicio;
+
       await criarSerie(
         tx,
-        { ...input, data: rec.inicio, recorrencia: r },
+        { ...input, data: inicio, recorrencia: r },
         ts,
       );
     }
