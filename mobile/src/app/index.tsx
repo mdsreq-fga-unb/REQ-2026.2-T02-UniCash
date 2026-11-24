@@ -75,6 +75,8 @@ export default function ResumoFinanceiro() {
         ) : (
           <Conteudo resumo={resumoDoPeriodo} />
         )}
+
+        <Atalhos ano={periodo.ano} mes={periodo.mes} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -82,8 +84,6 @@ export default function ResumoFinanceiro() {
 
 function Conteudo({ resumo }: { resumo: ResumoMensal }) {
   const saldoNegativo = resumo.saldoCentavos < 0;
-  // As listas abrem no mês que está no resumo, para o usuário achar (e editar ou excluir) os lançamentos dele.
-  const doMes = { ano: String(resumo.ano), mes: String(resumo.mes) };
   return (
     <View>
       <View style={estilos.cartaoSaldo}>
@@ -148,25 +148,36 @@ function Conteudo({ resumo }: { resumo: ResumoMensal }) {
         )}
       </View>
 
-      <View style={estilos.linha}>
-        <Pressable
-          onPress={() => router.push({ pathname: '/receitas', params: doMes })}
-          style={estilos.botao}
-          accessibilityRole="button"
-        >
-          <Text style={estilos.botaoTexto}>Receitas</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push({ pathname: '/despesas', params: doMes })}
-          style={estilos.botao}
-          accessibilityRole="button"
-        >
-          <Text style={estilos.botaoTexto}>Despesas</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
-          <Text style={estilos.botaoTexto}>Categorias</Text>
-        </Pressable>
-      </View>
+    </View>
+  );
+}
+
+/**
+ * Atalhos para as listas e categorias, visíveis em todos os estados da tela (carregando, resumo,
+ * estado vazio e EX01), como na tela inicial anterior. Receitas e Despesas abrem no mês selecionado,
+ * para o usuário achar (e editar ou excluir) os lançamentos dele.
+ */
+function Atalhos({ ano, mes }: { ano: number; mes: number }) {
+  const doMes = { ano: String(ano), mes: String(mes) };
+  return (
+    <View style={estilos.linha}>
+      <Pressable
+        onPress={() => router.push({ pathname: '/receitas', params: doMes })}
+        style={estilos.botao}
+        accessibilityRole="button"
+      >
+        <Text style={estilos.botaoTexto}>Receitas</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push({ pathname: '/despesas', params: doMes })}
+        style={estilos.botao}
+        accessibilityRole="button"
+      >
+        <Text style={estilos.botaoTexto}>Despesas</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
+        <Text style={estilos.botaoTexto}>Categorias</Text>
+      </Pressable>
     </View>
   );
 }

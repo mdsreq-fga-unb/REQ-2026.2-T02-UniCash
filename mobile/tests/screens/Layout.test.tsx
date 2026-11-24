@@ -5,6 +5,7 @@ import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { completarRecorrencias } from '@/features/receitas/service';
 import { completarRecorrenciasDespesas } from '@/features/despesas/service';
 import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync';
+import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 
 /** Mesma lista de produção; o teste falha se uma rota com SQLite ficar desprotegida. */
 const ROTAS_COM_BANCO = [
@@ -460,5 +461,55 @@ describe('Layout raiz: gate de inicialização', () => {
     await waitFor(() =>
       expect(screen.getByTestId('tela:despesas/index')).toBeTruthy(),
     );
+  });
+
+  // ---------------------------------------------------------------- sinal para a Home (UC03)
+
+  describe('sinal de base atualizada', () => {
+    let sinais: number;
+    let parar: () => void;
+
+    beforeEach(() => {
+      sinais = 0;
+      parar = ouvirBaseAtualizada(() => {
+        sinais += 1;
+      });
+    });
+    afterEach(() => parar());
+
+    it('avisa ao liberar o guard e de novo ao terminar as rotinas posteriores', async () => {
+      const restauracao = adiar();
+      mockRestaurar.mockReturnValue(restauracao.promessa);
+
+      await render(<RootLayout />);
+
+      await waitFor(() => expect(sinais).toBe(1));
+      expect(todasOcultas()).toBe(false);
+      expect(mockSincronizar).not.toHaveBeenCalled();
+
+      restauracao.resolver({ receitas: 3, despesas: 1, recorrencias: 0 });
+      await waitFor(() => expect(sinais).toBe(2));
+      expect(mockSincronizar).toHaveBeenCalledTimes(1);
+    });
+
+    it('avisa ao terminar as rotinas mesmo quando alguma delas falha', async () => {
+      mockRestaurar.mockRejectedValue(new Error('sem rede'));
+
+      await render(<RootLayout />);
+
+      await waitFor(() => expect(sinais).toBe(2));
+    });
+
+    it('não avisa enquanto a preparação falha, e avisa quando o "Tentar novamente" dá certo', async () => {
+      mockGetDb.mockRejectedValueOnce(new Error('falha ao abrir'));
+
+      await render(<RootLayout />);
+
+      expect(await screen.findByText('Não foi possível preparar os dados locais.')).toBeTruthy();
+      expect(sinais).toBe(0);
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Tentar novamente' }));
+      await waitFor(() => expect(sinais).toBeGreaterThanOrEqual(1));
+    });
   });
 });

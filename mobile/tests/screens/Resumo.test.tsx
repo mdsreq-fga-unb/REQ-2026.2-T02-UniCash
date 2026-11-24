@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import ResumoFinanceiro from '@/app/index';
 import { calcularResumo, FalhaCalculo, MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
+import { act } from '@testing-library/react-native';
+import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { router } from '../helpers/expoRouterMock';
 import { mesAnterior, nomeMes, proximoMes } from '@/features/receitas/dates';
 
@@ -185,5 +187,94 @@ describe('Tela de resumo financeiro (UC03)', () => {
     expect(router.push).toHaveBeenCalledWith({ pathname: '/despesas', params: { ano: String(atual.ano), mes: String(atual.mes) } });
     await fireEvent.press(screen.getByRole('button', { name: 'Categorias' }));
     expect(router.push).toHaveBeenCalledWith('/categorias');
+  });
+
+  describe('atalhos em todos os estados', () => {
+    const vazio = () =>
+      resumo({ totalReceitasCentavos: 0, totalDespesasCentavos: 0, saldoCentavos: 0, receitasPorDia: [], semLancamentos: true });
+
+    it('FA02: no estado vazio, Categorias continua acessível', async () => {
+      calcular.mockResolvedValue(vazio());
+      await render(<ResumoFinanceiro />);
+      expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Categorias' }));
+      expect(router.push).toHaveBeenCalledWith('/categorias');
+    });
+
+    it('EX01: na falha, os atalhos continuam disponíveis', async () => {
+      calcular.mockRejectedValue(new FalhaCalculo('boom'));
+      await render(<ResumoFinanceiro />);
+      expect(await screen.findByText(MSG_FALHA_CALCULO)).toBeTruthy();
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Receitas' }));
+      expect(router.push).toHaveBeenCalledWith({
+        pathname: '/receitas',
+        params: { ano: String(atual.ano), mes: String(atual.mes) },
+      });
+      expect(screen.getByRole('button', { name: 'Despesas' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Categorias' })).toBeTruthy();
+    });
+
+    it('enquanto calcula, os atalhos já estão disponíveis', async () => {
+      calcular.mockReturnValue(new Promise(() => {}));
+      await render(<ResumoFinanceiro />);
+      expect(screen.getByTestId('carregando')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Categorias' })).toBeTruthy();
+    });
+  });
+
+  describe('recálculo quando a base muda por fora da tela', () => {
+    it('restauração da nuvem: montado com base vazia, mostra os totais após o sinal', async () => {
+      calcular.mockResolvedValueOnce(
+        resumo({ totalReceitasCentavos: 0, totalDespesasCentavos: 0, saldoCentavos: 0, receitasPorDia: [], semLancamentos: true }),
+      );
+      await render(<ResumoFinanceiro />);
+      expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
+
+      // a restauração preencheu a base; o layout avisa ao terminar as rotinas
+      calcular.mockResolvedValueOnce(resumo());
+      await act(async () => avisarBaseAtualizada());
+
+      expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+      expect(screen.queryByText('Nenhum lançamento ainda')).toBeNull();
+    });
+
+    it('EX01 durante a preparação: recalcula ao receber o sinal de pronto, sem tocar em "Tentar novamente"', async () => {
+      calcular.mockRejectedValueOnce(new FalhaCalculo('base ainda não preparada'));
+      await render(<ResumoFinanceiro />);
+      expect(await screen.findByText(MSG_FALHA_CALCULO)).toBeTruthy();
+
+      calcular.mockResolvedValueOnce(resumo());
+      await act(async () => avisarBaseAtualizada());
+
+      expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+      expect(screen.queryByText(MSG_FALHA_CALCULO)).toBeNull();
+    });
+
+    it('recalcula o mês selecionado, não o mês inicial', async () => {
+      calcular.mockImplementation(async (ano: number, mes: number) => resumo({ ano, mes }));
+      await render(<ResumoFinanceiro />);
+      await screen.findByTestId('saldo');
+      await fireEvent.press(screen.getByLabelText('Próximo mês'));
+      const seguinte = proximoMes(atual.ano, atual.mes);
+      await waitFor(() => expect(calcular).toHaveBeenLastCalledWith(seguinte.ano, seguinte.mes));
+
+      calcular.mockClear();
+      await act(async () => avisarBaseAtualizada());
+      expect(calcular).toHaveBeenCalledWith(seguinte.ano, seguinte.mes);
+      expect(calcular).not.toHaveBeenCalledWith(atual.ano, atual.mes);
+    });
+
+    it('deixa de ouvir o sinal ao sair da tela', async () => {
+      calcular.mockResolvedValue(resumo());
+      const { unmount } = await render(<ResumoFinanceiro />);
+      await screen.findByTestId('saldo');
+      await unmount();
+
+      calcular.mockClear();
+      avisarBaseAtualizada();
+      expect(calcular).not.toHaveBeenCalled();
+    });
   });
 });

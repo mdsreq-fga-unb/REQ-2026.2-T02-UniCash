@@ -7,6 +7,7 @@ import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { completarRecorrencias } from '@/features/receitas/service';
 import { completarRecorrenciasDespesas } from '@/features/despesas/service';
 import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync';
+import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { cores, raio } from '@/lib/theme';
 
 type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
@@ -57,7 +58,10 @@ export default function RootLayout() {
 
         if (montado.current) {
           setEstado('pronto');
-          void rotinasPosInicializacao();
+          // A Home fica montada atrás da camada durante a preparação; ao liberar o guard e
+          // depois das rotinas (recorrências, restauração, sincronização), ela recalcula.
+          avisarBaseAtualizada();
+          void rotinasPosInicializacao().then(avisarBaseAtualizada);
         }
       } catch (erro) {
         console.warn('Falha na preparação inicial do banco local.', erro);
