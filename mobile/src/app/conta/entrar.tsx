@@ -12,6 +12,7 @@ import { mensagemDoErro } from '@/features/conta/erros';
 import { obterServicoConta } from '@/features/conta/service';
 import { ErroConta } from '@/features/conta/types';
 import { validarEntrada, type ErrosConta } from '@/features/conta/validation';
+import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { cores } from '@/lib/theme';
 
 /** [A1] Login · acesso opcional — fluxo B (RF02). */
@@ -56,7 +57,11 @@ export default function Entrar() {
         <Aviso tipo="sucesso" texto="Senha redefinida. Entre com a nova senha." />
       ) : null}
 
-      <CartaoSemConta onContinuar={() => router.replace('/')} />
+      <CartaoSemConta
+        onContinuar={() => {
+          void salvarContinuidadeSemConta().finally(() => router.replace('/'));
+        }}
+      />
 
       <Text style={estilos.secao}>OU ENTRE NA SUA CONTA</Text>
       <Campo

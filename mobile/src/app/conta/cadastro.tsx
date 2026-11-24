@@ -12,6 +12,7 @@ import { mensagemDoErro } from '@/features/conta/erros';
 import { obterServicoConta } from '@/features/conta/service';
 import { ErroConta } from '@/features/conta/types';
 import { validarCadastro, type ErrosConta } from '@/features/conta/validation';
+import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { cores } from '@/lib/theme';
 
 /** [A2] Cadastro · acesso opcional — fluxo A (RF01). */
@@ -54,7 +55,11 @@ export default function Cadastro() {
       subtitulo="Criar conta é opcional. Comece a organizar seu dinheiro sem cadastro."
       rodape={<RodapeSemConta />}
     >
-      <CartaoSemConta onContinuar={() => router.replace('/')} />
+      <CartaoSemConta
+        onContinuar={() => {
+          void salvarContinuidadeSemConta().finally(() => router.replace('/'));
+        }}
+      />
 
       <Text style={estilos.secao}>OU CRIE UMA CONTA</Text>
       <Campo

@@ -1,8 +1,34 @@
-import { Link } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Link, Redirect } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { useSessao } from '@/features/conta/sessao';
+import { decidirContinuarSemConta } from '@/features/conta/onboarding';
 import { cores } from '@/lib/theme';
 
 export default function Home() {
+  const sessao = useSessao();
+  const [estado, setEstado] = useState<'verificando' | 'cadastro' | 'inicio'>('verificando');
+
+  useEffect(() => {
+    let ativo = true;
+
+    if (sessao.status === 'ativa') {
+      setEstado('inicio');
+      return;
+    }
+
+    void decidirContinuarSemConta().then((continuarSemConta) => {
+      if (ativo) setEstado(continuarSemConta ? 'inicio' : 'cadastro');
+    });
+
+    return () => {
+      ativo = false;
+    };
+  }, [sessao.status]);
+
+  if (estado === 'verificando') return null;
+  if (estado === 'cadastro') return <Redirect href="/conta/cadastro" />;
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>UniCash</Text>

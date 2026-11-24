@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Home from '@/app/index';
 import { router } from '../helpers/expoRouterMock';
 
@@ -9,6 +10,8 @@ jest.mock('expo-router', () => {
   const { Pressable, Text } = require('react-native');
   return {
     ...atual,
+    Redirect: ({ href }: { href: string }) =>
+      React.createElement(Text, null, `redirect:${href}`),
     // O Link real exige o contexto de navegação; este mock preserva o href e
     // encaminha o toque ao router, como o Link do Expo Router faria.
     Link: ({ href, children }: { href: string; children: ReactNode }) =>
@@ -23,6 +26,13 @@ jest.mock('expo-router', () => {
 describe('Home (navegação da UC06)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue('1');
+  });
+
+  it('abre o cadastro na primeira inicialização sem sessão', async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    await render(<Home />);
+    expect(await screen.findByText('redirect:/conta/cadastro')).toBeTruthy();
   });
 
   it('oferece acesso a Categorias e navega para /categorias', async () => {
