@@ -4,7 +4,7 @@ import { FalhaPersistencia, registrarReceita } from '@/features/receitas/service
 import { consumirFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
-import { router } from '../helpers/expoRouterMock';
+import { router, useLocalSearchParams } from '../helpers/expoRouterMock';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
@@ -113,6 +113,21 @@ describe('Nova receita (fluxo A, protótipo F4)', () => {
   it('tocar em "Despesa" troca para o formulário de nova despesa', async () => {
     await render(<Nova />);
     await fireEvent.press(screen.getByRole('button', { name: 'Despesa' }));
-    expect(router.replace).toHaveBeenCalledWith('/despesas/nova');
+    expect(router.replace).toHaveBeenCalledWith({ pathname: '/despesas/nova', params: { trocouTipo: '1' } });
+  });
+
+  it('depois de trocar o tipo (veio de "Nova despesa"), salvar leva à lista de receitas', async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ trocouTipo: '1' });
+    try {
+      registrar.mockResolvedValue(undefined);
+      await render(<Nova />);
+      await preencherValido();
+      await salvar();
+
+      await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/receitas'));
+      expect(router.back).not.toHaveBeenCalled();
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'abc' });
+    }
   });
 });

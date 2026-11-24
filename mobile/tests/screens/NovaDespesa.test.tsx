@@ -12,7 +12,7 @@ import { MSG_DESPESA } from '@/features/despesas/validation';
 import { setFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 
-import { router } from '../helpers/expoRouterMock';
+import { router, useLocalSearchParams } from '../helpers/expoRouterMock';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 
@@ -202,6 +202,29 @@ describe('Tela de nova despesa', () => {
   it('tocar em "Receita" troca para o formulário de nova receita', async () => {
     await render(<NovaDespesa />);
     await fireEvent.press(screen.getByRole('button', { name: 'Receita' }));
-    expect(router.replace).toHaveBeenCalledWith('/receitas/nova');
+    expect(router.replace).toHaveBeenCalledWith({ pathname: '/receitas/nova', params: { trocouTipo: '1' } });
+  });
+
+  it('depois de trocar o tipo (veio de "Nova receita"), salvar leva à lista de despesas', async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ trocouTipo: '1' });
+    try {
+      registrar.mockResolvedValue(undefined);
+      await render(<NovaDespesa />);
+      await fireEvent.press(screen.getByText('Salvar despesa'));
+
+      await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/despesas'));
+      expect(router.back).not.toHaveBeenCalled();
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'abc' });
+    }
+  });
+
+  it('sem trocar o tipo, salvar volta para a tela anterior', async () => {
+    registrar.mockResolvedValue(undefined);
+    await render(<NovaDespesa />);
+    await fireEvent.press(screen.getByText('Salvar despesa'));
+
+    await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
+    expect(router.replace).not.toHaveBeenCalled();
   });
 });
