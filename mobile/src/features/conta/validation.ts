@@ -1,5 +1,5 @@
 /** Prazo das ligações enviadas por e-mail (RF01, RF31). Constante única. */
-export const PRAZO_LIGACAO_MINUTOS = 5;
+
 
 /** Textos literais do casos_de_uso.md (UC10). */
 export const MSG = {

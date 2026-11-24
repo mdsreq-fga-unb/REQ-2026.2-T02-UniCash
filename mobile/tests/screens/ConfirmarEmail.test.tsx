@@ -11,10 +11,10 @@ const jaConfirmei = () => fireEvent.press(screen.getByTestId('ja-confirmei'));
 beforeEach(() => reiniciar({ email: 'ana@exemplo.com' }));
 
 describe('Confirmação do e-mail (fluxo E)', () => {
-  it('informa o e-mail e o prazo de 5 minutos (A6)', async () => {
+  it('informa o e-mail e o prazo de validade (A6)', async () => {
     await render(<ConfirmarEmail />);
     expect(screen.getByText(/ana@exemplo\.com/)).toBeTruthy();
-    expect(screen.getByText(/A ligação vale por 5 minutos/)).toBeTruthy();
+    expect(screen.getByText(/A ligação tem prazo de validade/)).toBeTruthy();
   });
 
   it('E4-E5: confirmado, pergunta se envia os dados do aparelho', async () => {
@@ -85,7 +85,7 @@ describe('Confirmação do e-mail (fluxo E)', () => {
   it('FA07: reenviar manda nova ligação e informa o prazo', async () => {
     await render(<ConfirmarEmail />);
     await fireEvent.press(screen.getByTestId('reenviar'));
-    expect(await screen.findByText(/Enviamos uma nova ligação para ana@exemplo\.com\. Ela vale por 5 minutos\./)).toBeTruthy();
+    expect(await screen.findByText(/Enviamos uma nova ligação para ana@exemplo\.com\. Ela tem prazo de validade\./)).toBeTruthy();
     expect(servico.reenviarConfirmacao).toHaveBeenCalledWith('ana@exemplo.com');
   });
 

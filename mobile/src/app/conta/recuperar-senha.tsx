@@ -6,7 +6,7 @@ import { Botao } from '@/components/conta/Botao';
 import { TelaConta } from '@/components/conta/TelaConta';
 import { mensagemDoErro } from '@/features/conta/erros';
 import { obterServicoConta } from '@/features/conta/service';
-import { PRAZO_LIGACAO_MINUTOS, validarEmail } from '@/features/conta/validation';
+import { validarEmail } from '@/features/conta/validation';
 
 /** Fluxo C, passos 1-2 (RF31): pedir a ligação temporária de redefinição. */
 export default function RecuperarSenha() {
@@ -43,7 +43,7 @@ export default function RecuperarSenha() {
         <>
           <Aviso
             tipo="sucesso"
-            texto={`Se existir uma conta com esse e-mail, a ligação foi enviada. Ela vale por ${PRAZO_LIGACAO_MINUTOS} minutos e só pode ser usada uma vez.`}
+            texto={`Se existir uma conta com esse e-mail, a ligação foi enviada. Ela tem prazo de validade e só pode ser usada uma vez.`}
           />
           <Botao rotulo="Voltar para entrar" onPress={() => router.replace('/conta/entrar')} />
         </>

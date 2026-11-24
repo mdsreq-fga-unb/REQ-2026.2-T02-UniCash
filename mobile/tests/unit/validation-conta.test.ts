@@ -1,6 +1,5 @@
 import {
   MSG,
-  PRAZO_LIGACAO_MINUTOS,
   senhaNaPolitica,
   validarCadastro,
   validarEmail,
@@ -98,9 +97,6 @@ describe('validarEntrada (B2)', () => {
 });
 
 describe('constantes', () => {
-  it('prazo das ligações é de 5 minutos', () => {
-    expect(PRAZO_LIGACAO_MINUTOS).toBe(5);
-  });
   it('textos literais do caso de uso', () => {
     expect(MSG.emailEmUso).toBe('Este e-mail já está em uso.');
     expect(MSG.credenciaisRejeitadas).toBe('E-mail ou senha incorretos. Confira e tente novamente.');

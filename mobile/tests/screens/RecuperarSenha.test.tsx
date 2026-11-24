@@ -27,12 +27,12 @@ describe('Recuperar senha (fluxo C, passos 1-2)', () => {
     expect(servico.enviarRecuperacao).not.toHaveBeenCalled();
   });
 
-  it('C2: envia e responde de forma neutra, com o prazo de 5 minutos', async () => {
+  it('C2: envia e responde de forma neutra, com o prazo de validade', async () => {
     await render(<RecuperarSenha />);
     await fireEvent.changeText(email(), '  ana@exemplo.com ');
     await enviar();
     expect(await screen.findByText(/Se existir uma conta com esse e-mail, a ligação foi enviada\./)).toBeTruthy();
-    expect(screen.getByText(/vale por 5 minutos e só pode ser usada uma vez/)).toBeTruthy();
+    expect(screen.getByText(/tem prazo de validade e só pode ser usada uma vez/)).toBeTruthy();
     expect(servico.enviarRecuperacao).toHaveBeenCalledWith('ana@exemplo.com');
   });
 

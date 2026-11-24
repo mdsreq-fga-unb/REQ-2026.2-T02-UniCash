@@ -7,7 +7,7 @@ import { TelaConta } from '@/components/conta/TelaConta';
 import { mensagemDoErro } from '@/features/conta/erros';
 import { obterServicoConta } from '@/features/conta/service';
 import { ErroConta } from '@/features/conta/types';
-import { MSG, PRAZO_LIGACAO_MINUTOS } from '@/features/conta/validation';
+import { MSG } from '@/features/conta/validation';
 
 /** Fluxo E (RF01): confirmar o e-mail, reenviar a ligação (FA07) e decidir sobre os dados do aparelho (E5). */
 export default function ConfirmarEmail() {
@@ -40,7 +40,7 @@ export default function ConfirmarEmail() {
     setReenviando(true);
     try {
       await obterServicoConta().reenviarConfirmacao(email);
-      setInfo(`Enviamos uma nova ligação para ${email}. Ela vale por ${PRAZO_LIGACAO_MINUTOS} minutos.`);
+      setInfo(`Enviamos uma nova ligação para ${email}. Ela tem prazo de validade.`);
     } catch (e) {
       setErro(mensagemDoErro(e));
     } finally {
@@ -69,7 +69,7 @@ export default function ConfirmarEmail() {
   return (
     <TelaConta
       titulo="Confirme seu e-mail"
-      subtitulo={`Enviamos uma ligação de confirmação para ${email}. Confirme o e-mail para ativar a conta. A ligação vale por ${PRAZO_LIGACAO_MINUTOS} minutos.`}
+      subtitulo={`Enviamos uma ligação de confirmação para ${email}. Confirme o e-mail para ativar a conta. A ligação tem prazo de validade.`}
       onVoltar={() => router.replace('/conta/entrar')}
     >
       {info ? <Aviso tipo="sucesso" texto={info} /> : null}
