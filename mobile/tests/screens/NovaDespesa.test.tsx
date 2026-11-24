@@ -57,6 +57,7 @@ jest.mock('@/components/despesas/DespesaForm', () => {
       erroGeral,
       onSalvar,
       onCancelar,
+      onTrocarTipo,
     }: {
       titulo: string;
       textoSalvar: string;
@@ -64,6 +65,7 @@ jest.mock('@/components/despesas/DespesaForm', () => {
       erroGeral?: string | null;
       onSalvar: (valores: typeof dados) => void;
       onCancelar: () => void;
+      onTrocarTipo?: () => void;
     }) =>
       React.createElement(
         View,
@@ -93,6 +95,15 @@ jest.mock('@/components/despesas/DespesaForm', () => {
             onPress: onCancelar,
           },
           React.createElement(Text, null, 'Cancelar'),
+        ),
+        React.createElement(
+          Pressable,
+          {
+            accessibilityRole: 'button',
+            disabled: !onTrocarTipo,
+            onPress: onTrocarTipo,
+          },
+          React.createElement(Text, null, 'Receita'),
         ),
       ),
   };
@@ -186,5 +197,11 @@ describe('Tela de nova despesa', () => {
 
     expect(router.back).not.toHaveBeenCalled();
     expect(setFeedback).not.toHaveBeenCalled();
+  });
+
+  it('tocar em "Receita" troca para o formulário de nova receita', async () => {
+    await render(<NovaDespesa />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Receita' }));
+    expect(router.replace).toHaveBeenCalledWith('/receitas/nova');
   });
 });

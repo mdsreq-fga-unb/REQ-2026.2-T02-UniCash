@@ -4,7 +4,7 @@ Cadeia: **requisito → caso de uso (fluxo) → código → teste → resultado.
 Os caminhos são relativos a `mobile/`. As siglas de requisitos vêm dos comentários do código
 (`src/**`) e do `tests/MANUAL.md`; os textos completos estão em `engenharia_de_requisitos`.
 
-As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 registra o **UC06 — Gerenciar categorias**.
+As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 registra o **UC06 — Gerenciar categorias**; a seção 5 registra o **UC03 — Consultar resumo financeiro**.
 
 ## 1. Regras de negócio e requisitos não funcionais
 
@@ -267,3 +267,66 @@ O problema B3 conhecido é que `PRAGMA foreign_keys = ON` não é herdado pela c
 - a UC06 cria/edita/ tombstoneia apenas `categorias` e atualiza `categoria_id` para `NULL` em despesas/séries; não insere nem exclui `recorrencias` e não altera `recorrencia_id`.
 
 Portanto, não há impacto demonstrado na funcionalidade da UC06 e nenhuma correção de arquitetura foi feita nesta etapa.
+
+## 5. UC03 — Consultar resumo financeiro
+
+Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
+
+### 5.1. Requisitos e regras
+
+| Requisito | Fluxo do UC03 | Código | Teste automatizado | Teste manual |
+|---|---|---|---|---|
+| RF11 – total de receitas do mês e por dia | passos 3 e 4 | `src/features/resumo/service.ts` (`totalReceitasDoMes`, `receitasPorDia`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF11"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…") | 4.1 (passo 2) |
+| RF40 – saldo, receitas, despesas e metas do período | passos 3 e 4 | `service.ts` (`totalDespesasDoMes`, `saldoDoMes`, `progressoMetasDoMes`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF40"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…", "mostra o progresso das metas…") | 4.1 (passo 2) |
+| RF55 – atalho para o tutorial (placeholder) | FA02 | `src/app/index.tsx` (`EstadoVazio`), `src/app/tutorial.tsx` | `tests/screens/Resumo.test.tsx` ("FA02…"), `tests/screens/Tutorial.test.tsx` | 4.1 (passo 1) |
+| RF61 – usar sem conta | FA03 | `service.ts` (só SQLite; não importa o Firebase) | `tests/service/resumo.test.ts` ("FA03…"; o Firebase é mockado para quebrar se for importado) | 4.2 |
+| RN06 – base local | todos | `service.ts`, `src/db/schema.ts` | `tests/service/resumo.test.ts` (SQLite em memória) | 4.2 |
+| RN07 – sem contadores persistidos; exclusão lógica | passos 3 e 6, FA05 | `service.ts` (`excluido_em IS NULL`, cálculo na hora) | `tests/service/resumo.test.ts` ("ignora receitas excluídas", "ignora despesas excluídas", "FA02: lançamentos só excluídos…", "pós-condição…") | 4.1 (passo 5) |
+| RN12 – mês corrente como padrão; datas futuras no mês | passo 2, FA04 | `src/app/index.tsx` (`mesCorrente`), `service.ts` (`intervaloDoMes`) | `tests/screens/Resumo.test.tsx` ("abre no mês corrente…"), `tests/service/resumo.test.ts` ("intervalo do mês…", "FA04…") | 4.1 (passo 3) |
+| RN15 – saldo do mês = receitas − despesas | passos 3 e 4 | `service.ts` (`saldoDoMes`, `calcularResumo`) | `tests/service/resumo.test.ts` ("total de despesas e saldo…", "saldo negativo…"), `tests/screens/Resumo.test.tsx` ("saldo negativo…") | 4.1 (passo 2) |
+| RNF07 – inteiros em centavos, 2 casas na exibição | passos 3 e 4 | `service.ts` (`SUM(valor_centavos)`), `src/features/resumo/format.ts` | `tests/service/resumo.test.ts` ("RNF07…"), `tests/unit/resumo.format.test.ts` | 4.4 |
+| RNF20 – telas adaptadas a tamanhos de celular | passo 4 | `src/app/index.tsx` (estilos com `flexWrap`/`flexBasis`, comentário RNF20) | – (layout não é renderizado no Jest) | 4.3 |
+| RNF03 – Security Rules | – | não se aplica: o resumo não lê nem grava na nuvem | – | – |
+
+### 5.2. Fluxos e exceções
+
+| Fluxo / exceção | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| Passos 1–4 – abrir e calcular o mês corrente | `src/app/index.tsx`, `src/features/resumo/useResumo.ts`, `service.ts` (`calcularResumo`, numa única consulta SQL) | `tests/screens/Resumo.test.tsx` ("abre no mês corrente…"), `tests/service/resumo.test.ts` ("calcularResumo reúne…", "lê todos os totais numa única consulta…", "gravações durante a abertura do app…") | 4.1 (passo 2) |
+| Passos 5–6 – seletor de mês e recálculo | `src/app/index.tsx`, `useResumo.ts` (descarta respostas atrasadas) | `tests/screens/Resumo.test.tsx` ("seletor navega…", "ao trocar de mês, não mostra os valores do mês anterior…"), `tests/unit/useResumo.test.ts` | 4.1 (passo 3) |
+| FA01 – mês sem receitas | `service.ts`, `src/app/index.tsx` | `tests/service/resumo.test.ts` ("FA01…"), `tests/screens/Resumo.test.tsx` ("FA01…") | 4.1 (passo 4) |
+| FA02 – sem nenhum lançamento | `service.ts` (`existeLancamento`), `src/app/index.tsx` (`EstadoVazio`) | `tests/service/resumo.test.ts` ("FA02…", "mês vazio com lançamentos em outros meses…"), `tests/screens/Resumo.test.tsx` ("FA02…") | 4.1 (passo 1) |
+| FA03 – consulta offline | `service.ts` | `tests/service/resumo.test.ts` ("FA03…") | 4.2 |
+| FA04 – mês futuro | `service.ts` (`intervaloDoMes`) | `tests/service/resumo.test.ts` ("FA04…") | 4.1 (passo 3) |
+| FA05 – lançamento alterado ou excluído | `src/app/index.tsx` (`useFocusEffect`), `service.ts` | `tests/service/resumo.test.ts` ("FA05…") | 4.1 (passo 5) |
+| EX01 – falha na leitura ou no cálculo | `service.ts` (`FalhaCalculo`, `MSG_FALHA_CALCULO`), `useResumo.ts`, `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "EX01"), `tests/screens/Resumo.test.tsx` ("EX01…"), `tests/unit/useResumo.test.ts` ("EX01…") | – |
+| Pós-condição – nenhum dado alterado | `service.ts` (somente leitura) | `tests/service/resumo.test.ts` ("pós-condição…") | 4.1 (passo 6) |
+| Abertura com recorrências a completar | `src/app/_layout.tsx` (geração de receitas e despesas), `service.ts` (`calcularResumo`) | `tests/service/resumo.test.ts` ("gravações durante a abertura do app…") | 4.5 |
+| Abertura: recálculo depois da preparação e da restauração da nuvem | `src/lib/baseAtualizada.ts`, `src/app/_layout.tsx` (sinal ao liberar o guard e ao terminar as rotinas), `useResumo.ts` (recalcula ao receber o sinal) | `tests/screens/Layout.test.tsx` (bloco "sinal de base atualizada"), `tests/screens/Resumo.test.tsx` (bloco "recálculo quando a base muda por fora da tela") | 4.5 (passo 2) |
+| Atalhos Receitas, Despesas e Categorias em todos os estados | `src/app/index.tsx` (`Atalhos`; Receitas e Despesas abrem no mês selecionado) | `tests/screens/Resumo.test.tsx` (bloco "atalhos em todos os estados", "atalhos abrem as listas no mês selecionado…"), `tests/screens/Home.test.tsx`, `tests/screens/HomeDespesas.test.tsx` | 4.1 (passo 1) |
+
+**Placeholders:** metas (RF12) e tutorial (RF55) ainda não existem. `progressoMetasDoMes` retorna vazio e
+`/tutorial` mostra "Tutorial em breve"; ligar quando os casos de uso de metas e tutorial forem entregues.
+A visão por dia está em lista, provisória até a escolha entre lista e calendário com a cliente.
+
+### 5.3. Resultados de validação
+
+#### 5.3.1. Automatizados (`npm test -- --ci --coverage`)
+
+| Data | Suítes | Testes | `features/resumo` (statements / branches / funções / linhas) | `src/app/index.tsx` | Responsável |
+|---|---|---|---|---|---|
+| 2026-11-19 | 54 de 54 | 525 de 525 | 100% / 100% / 100% / 100% | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-23 (resumo em consulta única) | 54 de 54 | 527 de 527 | 100% / 100% / 100% / 100% | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-23 (após integrar a `develop` com UC02 e UC06) | 73 de 73 | 1295 de 1295 | 100% / 100% / 100% / 100% | 100% / 100% / 100% / 100% | dantescarpati |
+
+Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.tsx`: 90% statements, 70% branches, 85% funções, 90% linhas.
+
+#### 5.3.2. Manuais (`tests/MANUAL.md`, seção 4)
+
+| Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
+|---|---|---|---|---|---|
+| 4.1 Fluxo principal e alternativos | | | | | |
+| 4.2 Offline e sem conta | | | | | |
+| 4.3 RNF20 – tamanhos de tela | | | | | |
+| 4.4 RNF07 – precisão | | | | | |
+| 4.5 Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |

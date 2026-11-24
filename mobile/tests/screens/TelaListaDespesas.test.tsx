@@ -827,4 +827,24 @@ describe('Lista de despesas', () => {
       });
     });
   });
+
+  it('vindo do resumo (UC03), abre no mês selecionado lá', async () => {
+    mockParams.mockReturnValue({ ano: '2025', mes: '12' });
+    listar.mockResolvedValue({ itens: [], total: 0 });
+
+    await render(<ListaDespesas />);
+
+    await waitFor(() => expect(listar).toHaveBeenCalledWith('2025-12-01', '2026-01-01'));
+  });
+
+  it('parâmetros de mês inválidos caem no mês corrente', async () => {
+    mockParams.mockReturnValue({ ano: '2025', mes: '13' });
+    listar.mockResolvedValue({ itens: [], total: 0 });
+    const hoje = new Date();
+    const inicio = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-01`;
+
+    await render(<ListaDespesas />);
+
+    await waitFor(() => expect(listar).toHaveBeenCalledWith(inicio, expect.any(String)));
+  });
 });
