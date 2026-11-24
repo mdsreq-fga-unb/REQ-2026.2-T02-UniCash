@@ -5,7 +5,6 @@ import { router } from 'expo-router';
 import Cadastro from '@/app/conta/cadastro';
 import { ErroConta } from '@/features/conta/types';
 import { MSG } from '@/features/conta/validation';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const EMAIL = 'voce@exemplo.com';
 const SENHA = 'Crie uma senha (mín. 8 caracteres)';
@@ -137,9 +136,6 @@ describe('Cadastro (fluxo A)', () => {
   it('FA05: "Continuar sem conta" não cria nada', async () => {
     await render(<Cadastro />);
     await fireEvent.press(screen.getByTestId('continuar-sem-conta'));
-    await waitFor(() =>
-      expect(AsyncStorage.setItem).toHaveBeenCalledWith('unicash:continuar-sem-conta', '1'),
-    );
     expect(router.replace).toHaveBeenCalledWith('/');
     expect(servico.cadastrar).not.toHaveBeenCalled();
   });

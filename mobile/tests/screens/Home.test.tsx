@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Home from '@/app/index';
+import { definirSessao } from '@/features/conta/sessao';
+import { resetarContinuidadeSemConta, salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { router } from '../helpers/expoRouterMock';
 
 jest.mock('expo-router', () => {
@@ -26,16 +27,17 @@ jest.mock('expo-router', () => {
 describe('Home (navegação da UC06)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue('1');
+    definirSessao({ status: 'sem-sessao' });
+    resetarContinuidadeSemConta();
   });
 
   it('abre o cadastro na primeira inicialização sem sessão', async () => {
-    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
     await render(<Home />);
     expect(await screen.findByText('redirect:/conta/cadastro')).toBeTruthy();
   });
 
   it('oferece acesso a Categorias e navega para /categorias', async () => {
+    await salvarContinuidadeSemConta();
     await render(<Home />);
 
     expect(screen.getByText('Categorias')).toBeTruthy();
@@ -44,6 +46,7 @@ describe('Home (navegação da UC06)', () => {
   });
 
   it('mantém o acesso a Receitas', async () => {
+    await salvarContinuidadeSemConta();
     await render(<Home />);
 
     expect(screen.getByText('Receitas')).toBeTruthy();

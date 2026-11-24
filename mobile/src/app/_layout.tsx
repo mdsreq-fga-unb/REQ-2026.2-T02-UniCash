@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 
 import { getDb } from '@/db/database';
 import { iniciarConta } from '@/features/conta';
+import { resetarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { completarRecorrencias } from '@/features/receitas/service';
 import { completarRecorrenciasDespesas } from '@/features/despesas/service';
@@ -11,6 +12,7 @@ import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync
 import { cores, raio } from '@/lib/theme';
 
 iniciarConta();
+resetarContinuidadeSemConta();
 
 type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
 

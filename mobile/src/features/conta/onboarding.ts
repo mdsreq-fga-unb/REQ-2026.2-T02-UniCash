@@ -1,11 +1,13 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+let continuidadeSemContaNestaSessao = false;
 
-const CHAVE_CONTINUAR_SEM_CONTA = 'unicash:continuar-sem-conta';
+export function continuarSemContaNestaSessao(): boolean {
+  return continuidadeSemContaNestaSessao;
+}
 
-export async function decidirContinuarSemConta(): Promise<boolean> {
-  return (await AsyncStorage.getItem(CHAVE_CONTINUAR_SEM_CONTA)) === '1';
+export function resetarContinuidadeSemConta(): void {
+  continuidadeSemContaNestaSessao = false;
 }
 
 export async function salvarContinuidadeSemConta(): Promise<void> {
-  await AsyncStorage.setItem(CHAVE_CONTINUAR_SEM_CONTA, '1');
+  continuidadeSemContaNestaSessao = true;
 }

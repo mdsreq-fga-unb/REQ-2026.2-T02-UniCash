@@ -57,7 +57,8 @@ export default function Cadastro() {
     >
       <CartaoSemConta
         onContinuar={() => {
-          void salvarContinuidadeSemConta().finally(() => router.replace('/'));
+          void salvarContinuidadeSemConta();
+          router.replace('/');
         }}
       />
 
