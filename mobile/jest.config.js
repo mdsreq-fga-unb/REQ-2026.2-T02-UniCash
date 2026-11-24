@@ -25,6 +25,8 @@ module.exports = {
   coverageReporters: ['text', 'text-summary', 'lcov'],
 
   coverageThreshold: {
+    'src/features/consumo/**/*.ts': { statements: 100, branches: 100, functions: 100, lines: 100 },
+    'src/components/consumo/**/*.tsx': { statements: 100, branches: 100, functions: 100, lines: 100 },
     'src/**/despesas/**/*.{ts,tsx}': {
       statements: 90,
       branches: 72,
