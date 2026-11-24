@@ -65,12 +65,36 @@ describe('Lista de categorias (fluxo A do UC06)', () => {
     expect(screen.getByText('Limite: 12,5% da renda')).toBeTruthy();
   });
 
-  it('não exibe contagem de lançamentos nem indicador de sincronização', async () => {
+  it('exibe a contagem real e o atalho para as despesas filtradas', async () => {
+    listar.mockResolvedValue([
+      categoriaLinha({ id: 'xyz', nome: 'Casa', total_lancamentos: 2 }),
+    ]);
+    await render(<ListaCategorias />);
+
+    expect(await screen.findByText('2 lançamentos')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Ver despesas da categoria Casa'));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/despesas',
+      params: { categoriaId: 'xyz' },
+    });
+  });
+
+  it('exibe zero lançamentos e mantém o atalho para o estado vazio', async () => {
+    listar.mockResolvedValue([
+      categoriaLinha({ id: 'xyz', nome: 'Casa', total_lancamentos: 0 }),
+    ]);
+    await render(<ListaCategorias />);
+
+    expect(await screen.findByText('Nenhum lançamento')).toBeTruthy();
+    expect(screen.getByLabelText('Ver despesas da categoria Casa')).toBeTruthy();
+  });
+
+  it('não exibe indicador de sincronização', async () => {
     listar.mockResolvedValue([categoriaLinha({ id: '1', sync_status: 'pendente' })]);
     await render(<ListaCategorias />);
 
     await screen.findByText('Casa');
-    expect(screen.queryByText(/lançamento/i)).toBeNull();
     expect(screen.queryByText('Sincronização pendente')).toBeNull();
   });
 

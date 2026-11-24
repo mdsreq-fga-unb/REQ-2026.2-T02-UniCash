@@ -44,6 +44,9 @@ jest.mock('@/features/categorias/service', () => ({
 jest.mock('@/features/categorias/semeaduraPendente', () => ({
   solicitarSemeaduraAposExclusao: jest.fn(),
 }));
+jest.mock('@/features/receitas/sync', () => ({
+  sincronizarEmSegundoPlano: jest.fn(),
+}));
 
 const buscar = buscarCategoria as jest.Mock;
 const editar = editarCategoria as jest.Mock;
@@ -266,7 +269,7 @@ describe('Editar categoria (fluxos C e D do UC06)', () => {
       const campoNome = screen.getByLabelText('Nome');
       expect(campoNome.props.value).toBe('Casa');
       expect(campoNome.props.editable).toBe(false);
-      expect(screen.getByText('Categorias padrão não podem ser renomeadas nem excluídas.')).toBeTruthy();
+      expect(screen.getByText('Categorias padrão não podem ser renomeadas nem excluídas. O limite pode ser definido, alterado ou removido.')).toBeTruthy();
       expect(screen.queryByLabelText('Excluir categoria')).toBeNull(); // sem exclusão para padrões
 
       await apertar('Valor fixo');
@@ -303,7 +306,12 @@ describe('Editar categoria (fluxos C e D do UC06)', () => {
       expect(screen.getByText('Excluir categoria?')).toBeTruthy();
       expect(screen.getByText(/A categoria “Mercado” será excluída/)).toBeTruthy();
       expect(screen.getByText(/limite de gastos associado será perdido/)).toBeTruthy();
-      expect(screen.getByText(/UC02.*Sem categoria/)).toBeTruthy();
+      expect(
+        screen.getByText(
+          /As despesas relacionadas serão mantidas e ficarão como “Sem categoria”/,
+        ),
+      ).toBeTruthy();
+      expect(screen.queryByText(/UC02/)).toBeNull();
       expect(screen.getByText(/Esta ação não pode ser desfeita/)).toBeTruthy();
 
       await fireEvent.press(screen.getByText('Excluir')); // opção destrutiva do diálogo

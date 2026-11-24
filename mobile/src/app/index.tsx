@@ -1,156 +1,265 @@
 import { useCallback, useState } from 'react';
-import { Link, useFocusEffect } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { adicionarMeses, hojeISO, nomeMes } from '@/features/receitas/dates';
-import { formatarBRL } from '@/features/receitas/money';
-import { consultarResumoMensal } from '@/features/saldo/service';
-import { FormularioSaldo } from '@/components/saldo/FormularioSaldo';
-import { consultarAlertas, dispensarAlerta, type AlertaSaldo } from '@/features/saldo/alertas';
+import { router, useFocusEffect } from 'expo-router';
 import { cores, raio } from '@/lib/theme';
+import { mesAnterior, nomeMes, primeiroDiaDoMes, proximoMes } from '@/features/receitas/dates';
+import { formatarBRL } from '@/features/receitas/money';
+import { MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
+import { percentualMeta, rotuloDia } from '@/features/resumo/format';
+import { useResumo } from '@/features/resumo/useResumo';
+import { PainelSaldo } from '@/components/saldo/PainelSaldo';
 
-type Resumo = Awaited<ReturnType<typeof consultarResumoMensal>>;
+function mesCorrente() {
+  const n = new Date();
+  return { ano: n.getFullYear(), mes: n.getMonth() + 1 };
+}
 
-export default function Home() {
-  const [consulta, setConsulta] = useState(() => ({ inicio: `${hojeISO().slice(0, 7)}-01` }));
-  const [resumo, setResumo] = useState<Resumo | null>(null);
-  const [alertas, setAlertas] = useState<AlertaSaldo[]>([]);
-  const [erroAlerta, setErroAlerta] = useState(false);
-  const [editandoInicial, setEditandoInicial] = useState(false);
-  const [erro, setErro] = useState(false);
-  const [ano, mes] = consulta.inicio.split('-').map(Number);
+/** Resumo financeiro inicial (UC03, RF11, RF40). Somente leitura; calculado na base local. */
+export default function ResumoFinanceiro() {
+  // Passo 2: o mês corrente é o período padrão (RN12).
+  const [periodo, setPeriodo] = useState(mesCorrente);
+  const inicio = primeiroDiaDoMes(periodo.ano, periodo.mes);
+  const { resumo, falhou, recarregar } = useResumo(periodo.ano, periodo.mes);
+  // Só exibe valores calculados para o mês selecionado: ao trocar de mês, os do mês anterior
+  // não podem aparecer sob o título novo enquanto o recálculo não termina.
+  const resumoDoPeriodo = resumo && resumo.ano === periodo.ano && resumo.mes === periodo.mes ? resumo : null;
 
+  // Passos 3 e 6, FA05: recalcula ao abrir, ao voltar de outra tela e ao trocar de mês.
   useFocusEffect(
     useCallback(() => {
-      let ativo = true;
-      setResumo(null);
-      setErro(false);
-      setErroAlerta(false);
-      consultarAlertas().then(
-        (resultado) => { if (ativo) setAlertas(resultado); },
-        () => { if (ativo) setErroAlerta(true); },
-      );
-      consultarResumoMensal(consulta.inicio).then(
-        (resultado) => { if (ativo) setResumo(resultado); },
-        () => { if (ativo) setErro(true); },
-      );
-      return () => { ativo = false; };
-    }, [consulta]),
+      void recarregar();
+    }, [recarregar]),
   );
 
-  async function fecharAlerta(id: string) {
-    try {
-      await dispensarAlerta(id);
-      setAlertas((atuais) => atuais.filter((alerta) => alerta.id !== id));
-      setErroAlerta(false);
-    } catch {
-      setErroAlerta(true);
-    }
-  }
-
-  function recarregar() {
-    setConsulta((atual) => ({ ...atual }));
-  }
-
-  function concluirFormulario() {
-    setEditandoInicial(false);
-    recarregar();
-  }
-
-  function mudarMes(direcao: number) {
-    setResumo(null);
-    setErro(false);
-    setConsulta(({ inicio }) => ({ inicio: adicionarMeses(inicio, direcao) }));
-  }
-
   return (
-    <SafeAreaView style={styles.pagina}>
-      <ScrollView contentContainerStyle={styles.conteudo}>
-        <Text accessibilityRole="header" style={styles.titulo}>Resumo financeiro</Text>
-        {alertas.slice(0, 1).map((alerta) => (
-          <View key={alerta.id} style={styles.cartao}>
-            <Text style={styles.rotulo}>{nomeMes(Number(alerta.mes.slice(0, 4)), Number(alerta.mes.slice(5)))}</Text>
-            {alertas.length > 1 && <Text style={styles.rotulo}>{alertas.length} avisos pendentes</Text>}
-            <Text accessibilityRole="alert" style={styles.total}>
-              {formatarBRL(alerta.anterior_centavos)} → {formatarBRL(alerta.saldo_centavos)}
-            </Text>
-            <Pressable accessibilityRole="button" onPress={() => void fecharAlerta(alerta.id)}>
-              <Text style={styles.acao}>Dispensar aviso</Text>
-            </Pressable>
-          </View>
-        ))}
-        {erroAlerta && (
-          <Pressable accessibilityRole="button" onPress={recarregar}>
-            <Text style={styles.acao}>Atualizar avisos</Text>
+    <SafeAreaView style={estilos.tela} edges={['top']}>
+      <ScrollView contentContainerStyle={estilos.conteudo}>
+        <Text style={estilos.titulo} accessibilityRole="header">
+          Resumo financeiro
+        </Text>
+
+        <View style={estilos.seletor}>
+          <Pressable
+            onPress={() => setPeriodo((p) => mesAnterior(p.ano, p.mes))}
+            accessibilityRole="button"
+            accessibilityLabel="Mês anterior"
+            style={estilos.seta}
+            hitSlop={8}
+          >
+            <Text style={estilos.setaTexto}>‹</Text>
           </Pressable>
-        )}
-        <View style={styles.meses}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Mês anterior" disabled={editandoInicial} onPress={() => mudarMes(-1)} style={styles.botaoMes}>
-            <Text style={styles.acao}>‹</Text>
-          </Pressable>
-          <Text accessibilityLabel="Mês do resumo" style={styles.mes}>{nomeMes(ano, mes)}</Text>
-          <Pressable accessibilityRole="button" accessibilityLabel="Próximo mês" disabled={editandoInicial} onPress={() => mudarMes(1)} style={styles.botaoMes}>
-            <Text style={styles.acao}>›</Text>
+          <Text style={estilos.mes} testID="mes-selecionado">
+            {nomeMes(periodo.ano, periodo.mes)}
+          </Text>
+          <Pressable
+            onPress={() => setPeriodo((p) => proximoMes(p.ano, p.mes))}
+            accessibilityRole="button"
+            accessibilityLabel="Próximo mês"
+            style={estilos.seta}
+            hitSlop={8}
+          >
+            <Text style={estilos.setaTexto}>›</Text>
           </Pressable>
         </View>
-        {resumo && (
-          <View style={styles.cartao}>
-            <Text style={styles.rotulo}>Saldo do mês</Text>
-            <Text style={styles.valor}>{formatarBRL(resumo.saldo)}</Text>
-            <Text style={[styles.indicador, { color: resumo.indicador.cor }]}>{resumo.indicador.texto}</Text>
-            <View style={styles.totais}>
-              <View>
-                <Text style={styles.rotulo}>Receitas</Text>
-                <Text style={styles.total}>{formatarBRL(resumo.receitas)}</Text>
-              </View>
-              <View>
-                <Text style={styles.rotulo}>Despesas</Text>
-                <Text style={styles.total}>{formatarBRL(resumo.despesas)}</Text>
-              </View>
-            </View>
-            <Text style={styles.rotulo}>
-              Saldo anterior {resumo.saldoAnterior === null ? '· sem dados' : `· ${formatarBRL(resumo.saldoAnterior)}`}
-            </Text>
-          </View>
+
+        {resumoDoPeriodo && !falhou && (
+          <PainelSaldo
+            key={inicio}
+            inicio={inicio}
+            receitas={resumoDoPeriodo.totalReceitasCentavos}
+            despesas={resumoDoPeriodo.totalDespesasCentavos}
+          />
         )}
-        {erro && (
-          <View style={styles.cartao}>
-            <Text accessibilityRole="alert" style={styles.rotulo}>Não foi possível calcular o saldo.</Text>
-            <Pressable accessibilityRole="button" onPress={recarregar}>
-              <Text style={styles.acao}>Tentar novamente</Text>
+
+        {falhou ? (
+          <View style={estilos.vazio}>
+            <Text style={estilos.erro}>{MSG_FALHA_CALCULO}</Text>
+            <Pressable onPress={() => void recarregar()} style={estilos.botaoContorno} accessibilityRole="button">
+              <Text style={estilos.botaoContornoTexto}>Tentar novamente</Text>
             </Pressable>
           </View>
-        )}
-        {!resumo && !erro && <ActivityIndicator accessibilityLabel="Calculando saldo" color={cores.primaria} />}
-        {resumo && (editandoInicial ? (
-          <FormularioSaldo inicio={consulta.inicio}
-            valorInicial={resumo.inicial?.mes === consulta.inicio.slice(0, 7) ? resumo.inicial.centavos : undefined}
-            aoSalvar={concluirFormulario} aoCancelar={() => setEditandoInicial(false)} />
+        ) : !resumoDoPeriodo ? (
+          <ActivityIndicator color={cores.primaria} style={{ marginTop: 32 }} testID="carregando" />
+        ) : resumoDoPeriodo.semLancamentos ? (
+          <EstadoVazio />
         ) : (
-          <Pressable accessibilityRole="button" onPress={() => setEditandoInicial(true)}>
-            <Text style={styles.acao}>{resumo.inicial ? 'Alterar saldo inicial' : 'Informar saldo inicial'}</Text>
-          </Pressable>
-        ))}
-        <Link href="/receitas" style={styles.acao}>Receitas</Link>
-        <Link href="/despesas" style={styles.acao}>Despesas</Link>
-        <Link href="/categorias" style={styles.acao}>Categorias</Link>
+          <Conteudo resumo={resumoDoPeriodo} />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  pagina: { flex: 1, backgroundColor: cores.fundo },
-  conteudo: { padding: 20, gap: 20 },
-  titulo: { color: cores.marinho, fontSize: 28, fontWeight: '700' },
-  meses: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  mes: { color: cores.marinho, fontSize: 18, fontWeight: '600' },
-  botaoMes: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  acao: { color: cores.primaria, fontSize: 18, fontWeight: '600' },
-  cartao: { backgroundColor: cores.fundoSuave, borderColor: cores.borda, borderWidth: 1, borderRadius: raio.cartao, padding: 16, gap: 10 },
-  valor: { color: cores.marinho, fontSize: 32, fontWeight: '700' },
-  indicador: { fontSize: 15, fontWeight: '600' },
-  totais: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 28, rowGap: 8, paddingVertical: 10 },
-  total: { color: cores.marinho, fontSize: 17, fontWeight: '600' },
-  rotulo: { color: cores.textoSuave, fontSize: 15 },
+function Conteudo({ resumo }: { resumo: ResumoMensal }) {
+  return (
+    <View>
+      <View style={estilos.linha}>
+        <View style={estilos.cartao}>
+          <Text style={estilos.rotulo}>Receitas</Text>
+          <Text style={[estilos.valor, { color: cores.sucesso }]} testID="total-receitas">
+            {formatarBRL(resumo.totalReceitasCentavos)}
+          </Text>
+        </View>
+        <View style={estilos.cartao}>
+          <Text style={estilos.rotulo}>Despesas</Text>
+          <Text style={[estilos.valor, { color: cores.erro }]} testID="total-despesas">
+            {formatarBRL(resumo.totalDespesasCentavos)}
+          </Text>
+        </View>
+      </View>
+
+      <View style={estilos.secao}>
+        <Text style={estilos.secaoTitulo}>Metas do período</Text>
+        {resumo.metas.length === 0 ? (
+          <Text style={estilos.textoSuave}>Nenhuma meta no período.</Text>
+        ) : (
+          resumo.metas.map((m) => {
+            const pct = percentualMeta(m.realizadoCentavos, m.alvoCentavos);
+            return (
+              <View key={m.id} style={estilos.meta} accessibilityLabel={`${m.titulo}: ${pct}%`}>
+                <View style={estilos.metaTopo}>
+                  <Text style={estilos.metaTitulo}>{m.titulo}</Text>
+                  <Text style={estilos.textoSuave}>{pct}%</Text>
+                </View>
+                <View style={estilos.barra}>
+                  <View style={[estilos.barraCheia, { width: `${pct}%` }]} />
+                </View>
+                <Text style={estilos.textoSuave}>
+                  {formatarBRL(m.realizadoCentavos)} de {formatarBRL(m.alvoCentavos)}
+                </Text>
+              </View>
+            );
+          })
+        )}
+      </View>
+
+      <View style={estilos.secao}>
+        <Text style={estilos.secaoTitulo}>Receitas por dia</Text>
+        {resumo.receitasPorDia.length === 0 ? (
+          <Text style={estilos.textoSuave}>Nenhuma receita neste mês.</Text>
+        ) : (
+          resumo.receitasPorDia.map((d) => (
+            <View key={d.data} style={estilos.dia} testID={`dia-${d.data}`}>
+              <Text style={estilos.diaRotulo}>{rotuloDia(d.data)}</Text>
+              <Text style={estilos.diaValor}>+ {formatarBRL(d.totalCentavos)}</Text>
+            </View>
+          ))
+        )}
+      </View>
+
+      <View style={estilos.linha}>
+        <Pressable onPress={() => router.push('/receitas')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Receitas</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/despesas')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Despesas</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Categorias</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/** FA02: nenhum lançamento na base → estado vazio com atalho para o tutorial (RF55). */
+function EstadoVazio() {
+  return (
+    <View style={estilos.vazio}>
+      <Text style={estilos.vazioTitulo}>Nenhum lançamento ainda</Text>
+      <Text style={estilos.vazioTexto}>
+        Registre receitas e despesas para ver aqui o saldo e os totais do mês.
+      </Text>
+      <Pressable onPress={() => router.push('/tutorial')} style={estilos.botao} accessibilityRole="button">
+        <Text style={estilos.botaoTexto}>Ver tutorial</Text>
+      </Pressable>
+      <View style={estilos.linha}>
+        <Pressable onPress={() => router.push('/receitas/nova')} style={estilos.botaoContorno} accessibilityRole="button">
+          <Text style={estilos.botaoContornoTexto}>Registrar receita</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/despesas/nova')} style={estilos.botaoContorno} accessibilityRole="button">
+          <Text style={estilos.botaoContornoTexto}>Registrar despesa</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+/*
+ * RNF20 (telas adaptadas a diferentes tamanhos de celular): conteúdo em ScrollView; cartões e botões
+ * em linhas com `flexWrap` + `flexBasis: 140`, que viram uma coluna em telas estreitas; o nome do mês
+ * encolhe (`flexShrink`) sem empurrar as setas; setas com área de toque mínima de 44×44.
+ * Verificação manual: tests/MANUAL.md, roteiro do UC03.
+ */
+const estilos = StyleSheet.create({
+  tela: { flex: 1, backgroundColor: cores.fundo },
+  conteudo: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
+  titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
+  seletor: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: cores.fundoSuave,
+    borderRadius: raio.pilula,
+    paddingHorizontal: 6,
+    marginBottom: 16,
+  },
+  seta: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  setaTexto: { fontSize: 26, color: cores.primaria, fontWeight: '700' },
+  mes: { fontSize: 16, fontWeight: '700', color: cores.marinho, flexShrink: 1, textAlign: 'center' },
+  linha: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
+  cartao: {
+    flexGrow: 1,
+    flexBasis: 140,
+    backgroundColor: cores.fundoSuave,
+    borderRadius: raio.cartao,
+    padding: 14,
+  },
+  rotulo: { fontSize: 12, color: cores.textoSuave },
+  valor: { fontSize: 18, fontWeight: '800', marginTop: 2 },
+  secao: { borderWidth: 1, borderColor: cores.borda, borderRadius: raio.cartao, padding: 14, marginBottom: 12, gap: 8 },
+  secaoTitulo: { fontSize: 15, fontWeight: '700', color: cores.marinho },
+  textoSuave: { fontSize: 13, color: cores.textoSuave },
+  meta: { gap: 4 },
+  metaTopo: { flexDirection: 'row', justifyContent: 'space-between' },
+  metaTitulo: { fontSize: 14, fontWeight: '600', color: cores.marinho, flexShrink: 1 },
+  barra: { height: 8, borderRadius: raio.pilula, backgroundColor: cores.fundoSuave, overflow: 'hidden' },
+  barraCheia: { height: 8, backgroundColor: cores.primaria },
+  dia: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: cores.borda,
+  },
+  diaRotulo: { fontSize: 14, color: cores.marinho },
+  diaValor: { fontSize: 14, fontWeight: '700', color: cores.sucesso },
+  botao: {
+    flexGrow: 1,
+    flexBasis: 140,
+    backgroundColor: cores.primaria,
+    borderRadius: raio.botao,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  botaoTexto: { color: cores.branco, fontWeight: '700', fontSize: 15 },
+  botaoContorno: {
+    flexGrow: 1,
+    flexBasis: 140,
+    borderWidth: 1.5,
+    borderColor: cores.primaria,
+    borderRadius: raio.botao,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  botaoContornoTexto: { color: cores.primaria, fontWeight: '700' },
+  vazio: { alignItems: 'stretch', paddingVertical: 32 },
+  vazioTitulo: { fontSize: 16, fontWeight: '700', color: cores.marinho, textAlign: 'center' },
+  vazioTexto: { fontSize: 14, color: cores.textoSuave, marginTop: 6, textAlign: 'center' },
+  erro: { color: cores.erro, fontSize: 14, textAlign: 'center' },
 });

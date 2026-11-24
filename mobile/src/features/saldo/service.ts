@@ -4,11 +4,14 @@ import { VALOR_MAXIMO_CENTAVOS } from '@/features/receitas/money';
 import { registrarTransicoes } from './alertas';
 import { calcularSaldo, calcularSaldoAnterior, indicadorSaldo } from './calculo';
 
+export type TotaisDoMes = { receitas: number; despesas: number };
+
 type SaldoInicial = { mes: string; centavos: number };
 
-export async function consultarResumoMensal(inicio: string) {
+export async function consultarResumoMensal(inicio: string, totaisDoMes?: TotaisDoMes) {
   const anterior = adicionarMeses(inicio, -1);
-  const fim = adicionarMeses(inicio, 1);
+  // O resumo da tela já leu os totais do mês junto com as receitas por dia.
+  const fim = totaisDoMes ? inicio : adicionarMeses(inicio, 1);
   const db = await getDb();
   const linhas = await db.getAllAsync<{
     mes: string | null;
@@ -36,7 +39,7 @@ export async function consultarResumoMensal(inicio: string) {
   );
 
   const mes = inicio.slice(0, 7);
-  const { receitas, despesas } = linhas.find((linha) => linha.mes === mes) ?? { receitas: 0, despesas: 0 };
+  const { receitas, despesas } = totaisDoMes ?? linhas.find((linha) => linha.mes === mes) ?? { receitas: 0, despesas: 0 };
   const referencia = linhas.find((linha) => linha.referencia !== null);
   const inicial = referencia?.referencia && referencia.inicial !== null
     ? { mes: referencia.referencia, centavos: referencia.inicial }

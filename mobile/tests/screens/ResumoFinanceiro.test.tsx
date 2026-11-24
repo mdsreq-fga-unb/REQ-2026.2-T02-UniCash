@@ -46,12 +46,13 @@ describe('Resumo financeiro', () => {
     expect(screen.getByLabelText('Saldo inicial do mês selecionado').props.value).toBe('-35,10');
   });
   it('recupera o resumo e os avisos após falha de leitura', async () => {
-    (getDb as jest.Mock).mockRejectedValueOnce(new Error('Falha de leitura'))
+    (getDb as jest.Mock).mockResolvedValueOnce(await getDb())
+      .mockRejectedValueOnce(new Error('Falha de leitura'))
       .mockRejectedValueOnce(new Error('Falha de leitura'));
     await render(<Home />);
     expect(await screen.findByText('Não foi possível calcular o saldo.')).toBeTruthy();
     expect(screen.getByText('Atualizar avisos')).toBeTruthy();
-    await fireEvent.press(screen.getByText('Tentar novamente'));
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar calcular o saldo novamente' }));
     expect(await screen.findByText('Saldo do mês')).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Próximo mês'));
     expect(await screen.findByText('Dezembro/2026')).toBeTruthy();
@@ -87,9 +88,11 @@ describe('Resumo financeiro', () => {
       concluir = resolve;
       rejeitar = reject;
     });
-    (getDb as jest.Mock).mockReturnValueOnce(leituraAntiga)
+    (getDb as jest.Mock).mockResolvedValueOnce(db)
+      .mockReturnValueOnce(leituraAntiga)
       .mockReturnValueOnce(leituraAntiga);
     await render(<Home />);
+    await screen.findByLabelText('Calculando saldo');
     await fireEvent.press(screen.getByLabelText('Próximo mês'));
     await screen.findByText('Saldo do mês');
 

@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { cores, raio } from '@/lib/theme';
 import { FiltroDespesas } from '@/components/despesas/FiltroDespesas';
@@ -43,9 +43,16 @@ function filtroMesCorrente(): FiltroDespesa {
 }
 
 export default function ListaDespesas() {
+  const params = useLocalSearchParams<{ categoriaId?: string }>();
+  const categoriaParam =
+    typeof params.categoriaId === 'string' && params.categoriaId.length > 0
+      ? params.categoriaId
+      : null;
+
   const [filtro, setFiltro] = useState<FiltroDespesa>(filtroMesCorrente);
-  const [categoria, setCategoria] = useState<string | null>(null);
+  const [categoria, setCategoria] = useState<string | null>(categoriaParam);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const parametroAplicado = useRef<string | null>(categoriaParam);
 
   const {
     itens: categorias,
@@ -83,6 +90,12 @@ export default function ListaDespesas() {
   useFocusEffect(
     useCallback(() => {
       let ativo = true;
+
+      // Atalho do UC06: aplica a categoria recebida por parâmetro uma única vez.
+      if (categoriaParam && parametroAplicado.current !== categoriaParam) {
+        parametroAplicado.current = categoriaParam;
+        setCategoria(categoriaParam);
+      }
 
       setFeedback(consumirFeedback());
       void atualizarPendentes();
@@ -131,7 +144,7 @@ export default function ListaDespesas() {
       return () => {
         ativo = false;
       };
-    }, [recarregar, recarregarCategorias, atualizarPendentes]),
+    }, [categoriaParam, recarregar, recarregarCategorias, atualizarPendentes]),
   );
 
   return (

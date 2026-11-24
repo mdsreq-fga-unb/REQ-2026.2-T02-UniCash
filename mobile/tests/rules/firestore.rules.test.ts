@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 /**
  * Security Rules no Firebase Emulator Suite.
@@ -56,6 +56,31 @@ const serie = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 
+const categoria = (extra: Record<string, unknown> = {}) => ({
+  padrao: false,
+  chave: null,
+  nome: 'Mercado',
+  nome_normalizado: 'mercado',
+  limite_tipo: null,
+  limite_centavos: null,
+  limite_percentual_centesimos: null,
+  excluido_em: null,
+  criado_em: '2026-10-16T12:00:00.000Z',
+  atualizado_em: '2026-10-16T12:00:00.000Z',
+  aliases: [],
+  ...extra,
+});
+
+const categoriaPadrao = (extra: Record<string, unknown> = {}) =>
+  categoria({
+    padrao: true,
+    chave: 'casa',
+    nome: 'Casa',
+    nome_normalizado: 'casa',
+    aliases: ['uuid-casa-a'],
+    ...extra,
+  });
+
 let env: RulesTestEnvironment;
 
 /**
@@ -86,6 +111,8 @@ const anonimo = () => env.unauthenticatedContext().firestore();
 const rec = (d: any, uid = 'u1', id = 'r1') => doc(d, 'usuarios', uid, 'receitas', id);
 const desp = (d: any, uid = 'u1', id = 'd1') => doc(d, 'usuarios', uid, 'despesas', id);
 const ser = (d: any, uid = 'u1', id = 's1') => doc(d, 'usuarios', uid, 'recorrencias', id);
+const cat = (d: any, uid = 'u1', id = 'uuid-cat') =>
+  doc(d, 'usuarios', uid, 'categorias', id);
 
 describe('RNF03: acesso só ao próprio uid', () => {
   it('o dono grava, lê e exclui as próprias receitas', async () => {
@@ -417,5 +444,235 @@ describe('UC04: alertas emitidos', () => {
     await assertFails(getDoc(ref(anonimo())));
     await assertSucceeds(setDoc(ref(db('u1')), alerta));
     await assertFails(getDoc(ref(db('u2'))));
+  });
+});
+describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
+  it('o dono cria, lê e atualiza categoria própria', async () => {
+    const ref = cat(db('u1'));
+    await assertSucceeds(setDoc(ref, categoria()));
+    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(
+      setDoc(ref, categoria({ nome: 'Mercado novo', nome_normalizado: 'mercado novo' })),
+    );
+    await assertFails(
+      setDoc(ref, categoria({ criado_em: '2027-01-01T00:00:00.000Z' })),
+    );
+  });
+
+  it('outro usuário e anônimo não acessam a categoria', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(cat(ctx.firestore()), categoria());
+    });
+    await assertFails(getDoc(cat(db('u2'))));
+    await assertFails(setDoc(cat(db('u2')), categoria()));
+    await assertFails(getDoc(cat(anonimo())));
+    await assertFails(setDoc(cat(anonimo()), categoria()));
+  });
+
+  it('aceita documento canônico de padrão e rejeita nome/chave/docId divergentes', async () => {
+    await assertSucceeds(setDoc(cat(db('u1'), 'u1', 'padrao_casa'), categoriaPadrao()));
+    await assertFails(
+      setDoc(
+        cat(db('u1'), 'u1', 'padrao_casa'),
+        categoriaPadrao({ nome: 'Outra', nome_normalizado: 'outra' }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        cat(db('u1'), 'u1', 'padrao_casa'),
+        categoriaPadrao({ chave: 'lazer', nome: 'Lazer', nome_normalizado: 'lazer' }),
+      ),
+    );
+    await assertFails(
+      setDoc(cat(db('u1'), 'u1', 'padrao_lazer'), categoriaPadrao()),
+    );
+  });
+
+  it('padrão pode alterar limite e adicionar alias, mas não identidade nem remover alias', async () => {
+    const ref = cat(db('u1'), 'u1', 'padrao_casa');
+    await assertSucceeds(setDoc(ref, categoriaPadrao()));
+    await assertSucceeds(
+      setDoc(
+        ref,
+        categoriaPadrao({
+          limite_tipo: 'valor',
+          limite_centavos: 5000,
+          aliases: ['uuid-casa-a', 'uuid-casa-b'],
+        }),
+      ),
+    );
+    // A remoção do limite é permitida em categoria padrão (issue #72).
+    await assertSucceeds(
+      setDoc(
+        ref,
+        categoriaPadrao({
+          limite_tipo: null,
+          limite_centavos: null,
+          limite_percentual_centesimos: null,
+          aliases: ['uuid-casa-a', 'uuid-casa-b'],
+        }),
+      ),
+    );
+    await assertFails(
+      setDoc(ref, categoriaPadrao({ aliases: ['uuid-casa-b'] })),
+    );
+    await assertFails(
+      setDoc(ref, categoriaPadrao({ nome: 'Casa nova', nome_normalizado: 'casa nova' })),
+    );
+  });
+
+  it('atualização parcial apenas do limite passa nas Rules (varredura da issue #71)', async () => {
+    const ref = cat(db('u1'), 'u1', 'padrao_casa');
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        cat(ctx.firestore(), 'u1', 'padrao_casa'),
+        categoriaPadrao({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 50,
+        }),
+      );
+    });
+
+    await assertSucceeds(
+      updateDoc(ref, { limite_percentual_centesimos: 100 }),
+    );
+  });
+
+  it('atualização parcial de própria ativa normaliza percentual legado', async () => {
+    const ref = cat(db('u1'), 'u1', 'uuid-propria');
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        cat(ctx.firestore(), 'u1', 'uuid-propria'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 50,
+        }),
+      );
+    });
+
+    await assertSucceeds(
+      updateDoc(ref, { limite_percentual_centesimos: 100 }),
+    );
+  });
+
+  it('atualização parcial de tombstone limpa limites legados sem ressuscitar', async () => {
+    const ref = cat(db('u1'), 'u1', 'uuid-tombstone');
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        cat(ctx.firestore(), 'u1', 'uuid-tombstone'),
+        categoria({
+          excluido_em: '2026-10-16T12:00:00.000Z',
+          limite_tipo: 'valor',
+          limite_centavos: 5000,
+        }),
+      );
+    });
+
+    await assertSucceeds(
+      updateDoc(ref, {
+        limite_tipo: null,
+        limite_centavos: null,
+        limite_percentual_centesimos: null,
+      }),
+    );
+    await assertFails(
+      updateDoc(ref, { excluido_em: null }),
+    );
+  });
+
+  it('padrão não pode virar tombstone', async () => {
+    const ref = cat(db('u1'), 'u1', 'padrao_casa');
+    await assertSucceeds(setDoc(ref, categoriaPadrao()));
+    await assertFails(
+      setDoc(
+        ref,
+        categoriaPadrao({
+          excluido_em: '2026-10-16T12:00:00.000Z',
+          limite_tipo: null,
+          limite_centavos: null,
+          limite_percentual_centesimos: null,
+        }),
+      ),
+    );
+  });
+
+  it('própria aceita tombstone uma vez e não ressuscita', async () => {
+    const ref = cat(db('u1'));
+    await assertSucceeds(setDoc(ref, categoria()));
+    const excluido = categoria({ excluido_em: '2026-10-16T12:00:00.000Z' });
+    await assertSucceeds(setDoc(ref, excluido));
+    await assertFails(setDoc(ref, categoria()));
+  });
+
+  it('própria não pode usar prefixo de documento padrão', async () => {
+    await assertFails(
+      setDoc(cat(db('u1'), 'u1', 'padrao_mercado'), categoria()),
+    );
+  });
+
+  it('rejeita limite incoerente, nome longo e alias inválido', async () => {
+    await assertFails(
+      setDoc(cat(db('u1'), 'u1', 'limite'), categoria({
+        limite_tipo: 'valor',
+        limite_percentual_centesimos: 100,
+      })),
+    );
+    await assertFails(
+      setDoc(cat(db('u1'), 'u1', 'nome'), categoria({ nome: 'x'.repeat(31), nome_normalizado: 'x'.repeat(31) })),
+    );
+    await assertFails(
+      setDoc(cat(db('u1'), 'u1', 'alias'), categoria({ aliases: ['ok', 1] })),
+    );
+  });
+
+  it('aceita percentual de 1% a 100% e rejeita fora da faixa definitiva', async () => {
+    await assertSucceeds(
+      setDoc(
+        cat(db('u1'), 'u1', 'p-min'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 100,
+        }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(
+        cat(db('u1'), 'u1', 'p-max'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 10_000,
+        }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        cat(db('u1'), 'u1', 'p-abaixo'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 99,
+        }),
+      ),
+    );
+    await assertFails(
+      setDoc(
+        cat(db('u1'), 'u1', 'p-acima'),
+        categoria({
+          limite_tipo: 'percentual_renda',
+          limite_centavos: null,
+          limite_percentual_centesimos: 10_001,
+        }),
+      ),
+    );
+  });
+
+  it('exclusão física de categoria é negada', async () => {
+    const ref = cat(db('u1'));
+    await assertSucceeds(setDoc(ref, categoria()));
+    await assertFails(deleteDoc(ref));
   });
 });

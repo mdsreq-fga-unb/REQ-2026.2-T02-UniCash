@@ -14,6 +14,7 @@ import {
 } from '@/features/categorias/service';
 import { CATEGORIA_EXCLUIDA, CATEGORIA_SALVA, setFeedback } from '@/features/categorias/feedback';
 import { solicitarSemeaduraAposExclusao } from '@/features/categorias/semeaduraPendente';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { EntradaCategoriaInvalida, MSG_CAT } from '@/features/categorias/validation';
 import type { Categoria, CategoriaInput } from '@/features/categorias/types';
 import { cores, raio } from '@/lib/theme';
@@ -83,6 +84,7 @@ export default function EditarCategoria() {
     setErroNome(null);
     try {
       await editarCategoria(id, dados);
+      sincronizarEmSegundoPlano();
       setFeedback(CATEGORIA_SALVA);
       router.dismissTo('/categorias');
       // Sucesso com navegação: a trava permanece — nada mais acontece nesta tela.
@@ -111,6 +113,7 @@ export default function EditarCategoria() {
     setExcluindo(true);
     try {
       await excluirCategoria(id);
+      sincronizarEmSegundoPlano();
       // A exclusão já está confirmada. O sinal apenas agenda uma reavaliação da
       // semeadura no próximo foco, se o nome for reservado; falhas posteriores
       // não revertem a exclusão nem são tratadas como falha dela.
@@ -200,7 +203,7 @@ export default function EditarCategoria() {
       <OpcoesModal
         visivel={confirmando}
         titulo="Excluir categoria?"
-        mensagem={`A categoria “${categoria.nome}” será excluída e o limite de gastos associado será perdido. Esta ação não pode ser desfeita. Quando a integração com despesas (UC02) estiver disponível, os lançamentos relacionados serão mantidos e ficarão como “Sem categoria”.`}
+        mensagem={`A categoria “${categoria.nome}” será excluída e o limite de gastos associado será perdido. As despesas relacionadas serão mantidas e ficarão como “Sem categoria”. Esta ação não pode ser desfeita.`}
         opcoes={[
           {
             rotulo: 'Excluir',

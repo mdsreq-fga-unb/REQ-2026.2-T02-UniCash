@@ -5,6 +5,7 @@ import { CategoriaForm } from '@/components/categorias/CategoriaForm';
 import { criarCategoria, FalhaPersistenciaCategoria, NomeDuplicado } from '@/features/categorias/service';
 import { EntradaCategoriaInvalida, MSG_CAT } from '@/features/categorias/validation';
 import { CATEGORIA_CRIADA, setFeedback } from '@/features/categorias/feedback';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import type { CategoriaInput } from '@/features/categorias/types';
 import { cores } from '@/lib/theme';
 
@@ -20,6 +21,7 @@ export default function NovaCategoria() {
     setErroNome(null);
     try {
       await criarCategoria(dados); // só confirma após o commit (RN11); limites já validados
+      sincronizarEmSegundoPlano();
       setFeedback(CATEGORIA_CRIADA);
       router.dismissTo('/categorias');
     } catch (e) {

@@ -205,7 +205,7 @@ describe('Serviço de categorias (UC06)', () => {
       });
     });
 
-    it.each([0, 10_001, 200_000])(
+    it.each([0, 99, 10_001, 200_000])(
       'rejeita limite percentual de %i centésimos no serviço, sem gravar nada (RN14, EX01)',
       async (valor) => {
         await expect(
@@ -218,7 +218,7 @@ describe('Serviço de categorias (UC06)', () => {
       },
     );
 
-    it.each([1, 5_000, 9_999, 10_000])(
+    it.each([100, 5_000, 9_999, 10_000])(
       'persiste o percentual válido de %i centésimos',
       async (valor) => {
         const id = await criarCategoria({
@@ -904,19 +904,31 @@ describe('Serviço de categorias (UC06)', () => {
   // ---------------------------------------------------------------- consultas
 
   describe('listarCategorias e contadores', () => {
-    it('lista apenas ativas, padrão primeiro, nome em ordem, SEM total_lancamentos fictício', async () => {
+    it('lista apenas ativas, padrão primeiro, nome em ordem, com contagem real de lançamentos', async () => {
       await semearCategoriasPadrao();
-      await criarCategoria({ nome: 'Zebra', limite: null });
+      const zebra = await criarCategoria({ nome: 'Zebra', limite: null });
       await criarCategoria({ nome: 'Abacaxi', limite: null });
       const tombada = await criarCategoria({ nome: 'Tombada', limite: null });
       await excluirCategoria(tombada);
 
+      const inserirDespesa = (id: string, categoriaId: string | null, excluidoEm: string | null = null) =>
+        banco.sqlite
+          .prepare(
+            `INSERT INTO despesas
+              (id, valor_centavos, data, titulo, categoria_id, sync_status, excluido_em, criado_em, atualizado_em)
+             VALUES (?, 1000, '2026-10-16', 'Despesa', ?, 'sincronizado', ?, '2026-10-16T00:00:00Z', '2026-10-16T00:00:00Z')`,
+          )
+          .run(id, categoriaId, excluidoEm);
+      inserirDespesa('d1', zebra);
+      inserirDespesa('d2', zebra);
+      inserirDespesa('d3', zebra, '2026-10-17T00:00:00Z'); // tombstone não conta
+      inserirDespesa('d4', null);
+
       const itens = await listarCategorias();
       expect(itens).toHaveLength(CATEGORIAS_PADRAO.length + 2); // tombada fora
       expect(itens[0].padrao).toBe(1); // padrões primeiro
-      for (const item of itens) {
-        expect(item).not.toHaveProperty('total_lancamentos'); // sem valor fictício
-      }
+      expect(itens.find((i) => i.nome === 'Zebra')?.total_lancamentos).toBe(2);
+      expect(itens.find((i) => i.nome === 'Abacaxi')?.total_lancamentos).toBe(0);
       const proprias = itens.filter((i) => i.padrao === 0).map((i) => i.nome);
       expect(proprias).toEqual(['Abacaxi', 'Zebra']); // nome ASC dentro do grupo
     });
@@ -1171,6 +1183,48 @@ describe('Serviço de categorias (UC06)', () => {
         sync_status: 'pendente',
         ativa: 0,
       });
+    });
+  });
+
+  describe('estado local explícito (v6)', () => {
+    const estado = (id: string) =>
+      (banco.sqlite
+        .prepare('SELECT estado_local FROM categorias_estado WHERE categoria_id = ?')
+        .get(id) as { estado_local: string } | undefined)?.estado_local;
+
+    it('padrões recém-semeadas ficam em semeadura', async () => {
+      await semearCategoriasPadrao();
+      const padrões = banco.sqlite
+        .prepare('SELECT id FROM categorias WHERE padrao = 1')
+        .all() as Array<{ id: string }>;
+      expect(padrões).toHaveLength(CATEGORIAS_PADRAO.length);
+      for (const p of padrões) expect(estado(p.id)).toBe('semeadura');
+    });
+
+    it('categoria própria nasce editada e a leitura devolve o estado', async () => {
+      const id = await criarCategoria(semLimite);
+      expect(estado(id)).toBe('editado');
+      expect((await buscarCategoria(id))?.estado_local).toBe('editado');
+      expect((await listarCategorias()).find((c) => c.id === id)?.estado_local).toBe('editado');
+    });
+
+    it('editar padrão ou própria marca editado', async () => {
+      await semearCategoriasPadrao();
+      const padrão = banco.sqlite
+        .prepare("SELECT id FROM categorias WHERE nome_normalizado = 'casa'")
+        .get() as { id: string };
+      await editarCategoria(padrão.id, { nome: 'Casa', limite: { tipo: 'valor', valor: 1000 } });
+      expect(estado(padrão.id)).toBe('editado');
+
+      const própria = await criarCategoria(semLimite);
+      await editarCategoria(própria, { nome: 'Mercado', limite: null });
+      expect(estado(própria)).toBe('editado');
+    });
+
+    it('excluir própria mantém estado editado até a confirmação remota', async () => {
+      const id = await criarCategoria(semLimite);
+      await excluirCategoria(id);
+      expect(estado(id)).toBe('editado');
     });
   });
 });
