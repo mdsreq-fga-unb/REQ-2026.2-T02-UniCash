@@ -4,7 +4,7 @@ Cadeia: **requisito → caso de uso (fluxo) → código → teste → resultado.
 Os caminhos são relativos a `mobile/`. As siglas de requisitos vêm dos comentários do código
 (`src/**`) e do `tests/MANUAL.md`; os textos completos estão em `engenharia_de_requisitos`.
 
-As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 registra o **UC06 — Gerenciar categorias**; a seção 5 registra o **UC03 — Consultar resumo financeiro**.
+As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 registra o **UC06 — Gerenciar categorias**; a seção 5 registra o **UC03 — Consultar resumo financeiro**; a seção 6 registra o **UC07 — Consultar evolução mensal**.
 
 ## 1. Regras de negócio e requisitos não funcionais
 
@@ -330,3 +330,60 @@ Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.ts
 | 4.3 RNF20 – tamanhos de tela | | | | | |
 | 4.4 RNF07 – precisão | | | | | |
 | 4.5 Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |
+
+## 6. UC07 — Consultar evolução mensal
+
+Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
+O gráfico fica na tela do resumo (UC03) e compartilha com ele o mês selecionado.
+
+### 6.1. Requisitos e regras
+
+| Requisito | Fluxo do UC07 | Código | Teste automatizado | Teste manual |
+|---|---|---|---|---|
+| RF68 – gráfico de barras com receitas e despesas de cada mês | passos 3 e 4 | `src/features/evolucao/service.ts` (`calcularEvolucao`), `src/components/resumo/GraficoEvolucao.tsx`, `src/app/index.tsx` (`SecaoEvolucao`) | `tests/service/evolucao.test.ts` (bloco "RF68"), `tests/screens/Evolucao.test.tsx` ("passos 1 a 4…", "barras proporcionais…") | 5.1 (passo 2) |
+| RN12 – mês corrente como padrão; janela de 6 meses (o selecionado e os 5 anteriores); datas futuras no mês | passo 2, passo 4, FA04, FA05 | `service.ts` (`mesesDaJanela`, `ajustarFimDaJanela`, `MESES_NO_GRAFICO`), `src/app/index.tsx` (`fimJanela`, `escolherMes`) | `tests/service/evolucao.test.ts` (bloco "janela do gráfico", "com mais de 6 meses…", "FA04…"), `tests/screens/Evolucao.test.tsx` ("FA05…") | 5.1 (passos 2, 4 e 6) |
+| RN06 / RF61 – base local, sem conta e sem conexão | FA03 | `service.ts` (só SQLite; não importa o Firebase) | `tests/service/evolucao.test.ts` ("FA03…"; o Firebase é mockado para quebrar se for importado) | 5.2 |
+| RN07 – sem contadores persistidos; exclusão lógica | passos 3 e 6, FA06 | `service.ts` (`excluido_em IS NULL`, cálculo na hora) | `tests/service/evolucao.test.ts` ("ignora lançamentos excluídos", "FA06…", "pós-condição…") | 5.1 (passo 7) |
+| RNF07 – inteiros em centavos, 2 casas na exibição | passos 3 e 4 | `service.ts` (`SUM(valor_centavos) … GROUP BY` mês), `GraficoEvolucao.tsx` (`formatarBRL`) | `tests/service/evolucao.test.ts` ("RNF07…") | 5.4 |
+| RNF20 – telas adaptadas a tamanhos de celular | passo 4 | `GraficoEvolucao.tsx` (6 colunas com `flex: 1`) | – (layout não é renderizado no Jest) | 5.3 |
+| RNF38 – barras na paleta | passo 4 | `src/lib/theme.ts` (`graficoReceita`, `graficoDespesa`), `GraficoEvolucao.tsx` | – | 5.3 |
+| RF55 – atalho para o tutorial | FA02 | `src/app/index.tsx` (`EstadoVazio` do resumo; a seção do gráfico some) | `tests/screens/Evolucao.test.tsx` ("FA02…") | 5.1 (passo 1) |
+| RNF03 – Security Rules | – | não se aplica: o gráfico não lê nem grava na nuvem | – | – |
+
+### 6.2. Fluxos e exceções
+
+| Fluxo / exceção | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| Passos 1–4 – abrir e calcular a janela do mês corrente | `src/app/index.tsx`, `src/features/evolucao/useEvolucao.ts`, `service.ts` (numa única consulta SQL) | `tests/screens/Evolucao.test.tsx` ("passos 1 a 4…"), `tests/service/evolucao.test.ts` ("lê tudo numa única consulta…") | 5.1 (passo 2) |
+| Passos 5–6 – selecionar o mês pela barra ou pelo seletor (mês compartilhado com o UC03) | `GraficoEvolucao.tsx` (cada mês é um botão), `src/app/index.tsx` (`escolherMes`) | `tests/screens/Evolucao.test.tsx` ("passos 5 e 6…", "seletor dentro da janela…") | 5.1 (passo 3) |
+| FA01 – mês sem receitas ou sem despesas | `service.ts` (meses sem lançamento entram com zero), `GraficoEvolucao.tsx` (`altura`) | `tests/service/evolucao.test.ts` ("FA01…"), `tests/screens/Evolucao.test.tsx` ("FA01…") | 5.1 (passo 5) |
+| FA02 – sem nenhum lançamento | `service.ts` (`semLancamentos`), `src/app/index.tsx` (`SecaoEvolucao`) | `tests/service/evolucao.test.ts` ("FA02…"), `tests/screens/Evolucao.test.tsx` ("FA02…") | 5.1 (passo 1) |
+| FA03 – consulta offline | `service.ts` | `tests/service/evolucao.test.ts` ("FA03…") | 5.2 |
+| FA04 – mês futuro | `service.ts` | `tests/service/evolucao.test.ts` ("FA04…") | 5.1 (passo 6) |
+| FA05 – mês fora da janela | `service.ts` (`ajustarFimDaJanela`), `src/app/index.tsx` | `tests/service/evolucao.test.ts` ("FA05…"), `tests/screens/Evolucao.test.tsx` ("FA05…") | 5.1 (passo 4) |
+| FA06 – lançamento alterado ou excluído | `src/app/index.tsx` (`useFocusEffect`), `service.ts` | `tests/service/evolucao.test.ts` ("FA06…") | 5.1 (passo 7) |
+| Abertura: recálculo depois da preparação e da restauração | `src/lib/baseAtualizada.ts`, `useEvolucao.ts` | `tests/screens/Evolucao.test.tsx` ("recalcula quando a preparação…") | – |
+| EX01 – falha na leitura ou no cálculo | `service.ts` (`FalhaEvolucao`, `MSG_FALHA_EVOLUCAO`), `useEvolucao.ts`, `src/app/index.tsx` | `tests/service/evolucao.test.ts` (bloco "EX01"), `tests/screens/Evolucao.test.tsx` ("EX01…", "a falha da evolução não esconde o resumo…"), `tests/unit/useEvolucao.test.ts` | – |
+| Pós-condição – nenhum dado alterado | `service.ts` (somente leitura) | `tests/service/evolucao.test.ts` ("pós-condição…") | 5.1 (passo 8) |
+
+**Biblioteca de gráficos:** nenhuma. As barras são `View` do React Native, sem dependência nova (funciona no Expo Go),
+e cada mês é um botão com rótulo de acessibilidade que informa os valores.
+
+### 6.3. Resultados de validação
+
+#### 6.3.1. Automatizados (`npm test -- --ci --coverage`)
+
+| Data | Suítes | Testes | `features/evolucao` (statements / branches / funções / linhas) | Responsável |
+|---|---|---|---|---|
+| 2026-11-24 | 77 de 77 | 1358 de 1358 | 100% / 100% / 100% / 100% | dantescarpati |
+
+Limites mínimos em `jest.config.js` para `src/**/evolucao/**` (e `src/**/resumo/**`, que inclui o gráfico): 90% statements, 70% branches, 85% funções, 90% linhas.
+
+#### 6.3.2. Manuais (`tests/MANUAL.md`, seção 5)
+
+| Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
+|---|---|---|---|---|---|
+| 5.1 Fluxo principal e alternativos | | | | | |
+| 5.2 Offline e sem conta | | | | | |
+| 5.3 RNF20 e RNF38 – tamanhos de tela e cores | | | | | |
+| 5.4 RNF07 – precisão | | | | | |
