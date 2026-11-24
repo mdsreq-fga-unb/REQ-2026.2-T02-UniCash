@@ -206,7 +206,7 @@ Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo 
 - **Filtros:** permite consulta por data única ou período, com data inicial menor ou igual à data final.
 - **Ordenação:** da data mais recente para a mais antiga.
 - **Datas futuras:** são aceitas e contabilizadas no mês correspondente à própria data do lançamento.
-- **Gráfico de evolução mensal:** mostra no máximo 6 meses.
+- **Gráfico de evolução mensal:** mostra no máximo 6 meses consecutivos. Ao abrir, mostra o mês selecionado (o mês corrente) e os 5 anteriores. Selecionar um mês que já está entre os 6 exibidos não altera o gráfico; selecionar um mês fora deles faz o gráfico passar a mostrar esse mês e os 5 anteriores.
 
 ### RN13: Categorias
 
