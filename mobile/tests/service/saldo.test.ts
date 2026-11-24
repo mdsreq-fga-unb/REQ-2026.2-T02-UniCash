@@ -53,6 +53,19 @@ describe('consulta local do resumo mensal', () => {
     expect(await consultarResumoMensal('2026-12-01')).toMatchObject({ saldo: 0, saldoAnterior: 5200 });
   });
 
+  it('registra o saldo positivo anterior ao lançar a primeira despesa do mês', async () => {
+    await registrarReceita(input({ data: '2026-11-03', valorCentavos: 100000 }));
+    expect(await consultarAlertas()).toEqual([]);
+
+    await registrarDespesa(despesa('2026-11-04', 150000));
+
+    expect(await consultarAlertas()).toEqual([expect.objectContaining({
+      mes: '2026-11',
+      anterior_centavos: 100000,
+      saldo_centavos: -50000,
+    })]);
+  });
+
   it('avisa uma vez por transição e emite novo alerta após o saldo voltar a zero', async () => {
     await registrarDespesa(despesa('2026-11-01', 1000));
     const [primeiro] = await consultarAlertas();

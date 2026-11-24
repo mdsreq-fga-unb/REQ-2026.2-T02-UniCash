@@ -9,27 +9,28 @@ export type AlertaSaldo = {
   criado_em: string;
 };
 
-function saldosComDespesas(db: SQLiteDatabase) {
+function saldosPorMes(db: SQLiteDatabase) {
   return db.getAllAsync<{ mes: string; saldo: number }>(`
-    WITH totais AS (
-      SELECT substr(data, 1, 7) AS mes, SUM(valor_centavos) AS despesas
-      FROM despesas
-      WHERE excluido_em IS NULL AND data >= COALESCE((SELECT mes || '-01' FROM saldo_inicial WHERE id = 1), '')
-      GROUP BY substr(data, 1, 7)
+    WITH referencia AS (
+      SELECT COALESCE((SELECT mes || '-01' FROM saldo_inicial WHERE id = 1), '') AS inicio
+    ), lancamentos AS (
+      SELECT data, valor_centavos AS valor FROM receitas
+      WHERE excluido_em IS NULL AND data >= (SELECT inicio FROM referencia)
+      UNION ALL
+      SELECT data, -valor_centavos AS valor FROM despesas
+      WHERE excluido_em IS NULL AND data >= (SELECT inicio FROM referencia)
     )
-    SELECT mes, COALESCE((
-      SELECT SUM(valor_centavos) FROM receitas
-      WHERE excluido_em IS NULL AND data >= mes || '-01'
-        AND data < date(mes || '-01', '+1 month')
-    ), 0) - despesas AS saldo FROM totais
+    SELECT substr(data, 1, 7) AS mes, SUM(valor) AS saldo
+    FROM lancamentos
+    GROUP BY substr(data, 1, 7)
   `);
 }
 
-/** Compara os meses com despesas antes e depois da operação, incluindo alterações em séries. */
+/** Compara os meses com lançamentos antes e depois da operação, incluindo alterações em séries. */
 export async function registrarTransicoes<T>(tx: SQLiteDatabase, alterar: () => Promise<T>) {
-  const antes = new Map((await saldosComDespesas(tx)).map(({ mes, saldo }) => [mes, saldo]));
+  const antes = new Map((await saldosPorMes(tx)).map(({ mes, saldo }) => [mes, saldo]));
   const resultado = await alterar();
-  for (const { mes, saldo } of await saldosComDespesas(tx)) {
+  for (const { mes, saldo } of await saldosPorMes(tx)) {
     const anterior = antes.get(mes) ?? 0;
     if (anterior >= 0 && saldo < 0) {
       await tx.runAsync(
