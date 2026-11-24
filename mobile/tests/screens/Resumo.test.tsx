@@ -8,6 +8,23 @@ import { mesAnterior, nomeMes, proximoMes } from '@/features/receitas/dates';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+jest.mock('@/features/evolucao/service', () => {
+  const real = jest.requireActual('@/features/evolucao/service');
+  // Evolução sem valores, mas com lançamentos: o gráfico aparece e não interfere no resumo.
+  return {
+    ...real,
+    calcularEvolucao: jest.fn(async (fimAno: number, fimMes: number) => ({
+      fimAno,
+      fimMes,
+      meses: real.mesesDaJanela({ ano: fimAno, mes: fimMes }).map((m: { ano: number; mes: number }) => ({
+        ...m,
+        receitasCentavos: 0,
+        despesasCentavos: 0,
+      })),
+      semLancamentos: false,
+    })),
+  };
+});
 jest.mock('@/features/resumo/service', () => ({
   ...jest.requireActual('@/features/resumo/service'),
   calcularResumo: jest.fn(),
