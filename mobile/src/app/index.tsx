@@ -7,18 +7,21 @@ import { cores } from '@/lib/theme';
 
 export default function Home() {
   const sessao = useSessao();
-  const [estado, setEstado] = useState<'verificando' | 'cadastro' | 'inicio'>('verificando');
+  const [mostrarCadastro, setMostrarCadastro] = useState(false);
+  const [verificadoSemSessao, setVerificadoSemSessao] = useState(false);
 
   useEffect(() => {
     let ativo = true;
 
     if (sessao.status === 'ativa') {
-      setEstado('inicio');
       return;
     }
 
     void decidirContinuarSemConta().then((continuarSemConta) => {
-      if (ativo) setEstado(continuarSemConta ? 'inicio' : 'cadastro');
+      if (ativo) {
+        setMostrarCadastro(!continuarSemConta);
+        setVerificadoSemSessao(true);
+      }
     });
 
     return () => {
@@ -26,8 +29,8 @@ export default function Home() {
     };
   }, [sessao.status]);
 
-  if (estado === 'verificando') return null;
-  if (estado === 'cadastro') return <Redirect href="/conta/cadastro" />;
+  if (sessao.status !== 'ativa' && !verificadoSemSessao) return null;
+  if (mostrarCadastro) return <Redirect href="/conta/cadastro" />;
 
   return (
     <View style={styles.container}>
