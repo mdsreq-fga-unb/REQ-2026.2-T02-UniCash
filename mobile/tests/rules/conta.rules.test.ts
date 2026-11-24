@@ -204,3 +204,10 @@ describe('coexistência com as regras da develop', () => {
     );
   });
 });
+
+describe('dados financeiros exigem confirmação', () => {
+  it.each(['receitas', 'despesas', 'recorrencias', 'categorias'])('recusa leitura sem confirmação: %s', async (colecao) => {
+    await assertFails(getDoc(doc(db('u1', anaNaoConfirmada), 'usuarios', 'u1', colecao, 'r1')));
+    await assertSucceeds(getDoc(doc(db('u1', ana), 'usuarios', 'u1', colecao, 'r1')));
+  });
+});

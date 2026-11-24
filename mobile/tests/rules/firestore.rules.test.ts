@@ -106,7 +106,7 @@ beforeEach(async () => {
   await env.clearFirestore();
 });
 
-const db = (uid: string) => env.authenticatedContext(uid).firestore();
+const db = (uid: string) => env.authenticatedContext(uid, { email_verified: true }).firestore();
 const anonimo = () => env.unauthenticatedContext().firestore();
 const rec = (d: any, uid = 'u1', id = 'r1') => doc(d, 'usuarios', uid, 'receitas', id);
 const desp = (d: any, uid = 'u1', id = 'd1') => doc(d, 'usuarios', uid, 'despesas', id);
