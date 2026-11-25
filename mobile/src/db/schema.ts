@@ -287,6 +287,28 @@ export const DDL_TRIGGER_PERCENTUAL = `
     END;
   `;
 
+/** UC05: emitido_em nulo representa uma notificação ainda pendente no aparelho. */
+export const DDL_ALERTAS = `
+  CREATE TABLE IF NOT EXISTS alertas (
+    tipo TEXT NOT NULL CHECK (tipo IN ('aproximacao', 'ultrapassagem')),
+    ref_id TEXT NOT NULL,
+    periodo TEXT NOT NULL,
+    categoria_nome TEXT NOT NULL,
+    gasto_centavos INTEGER NOT NULL CHECK (gasto_centavos > 0),
+    limite_centavos INTEGER NOT NULL CHECK (limite_centavos > 0),
+    emitido_em TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pendente'
+      CHECK (sync_status IN ('pendente', 'sincronizado')),
+    proprietario_uid TEXT,
+    PRIMARY KEY (tipo, ref_id, periodo)
+  );
+
+  CREATE TABLE IF NOT EXISTS preferencias_alertas (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    ativo INTEGER NOT NULL CHECK (ativo IN (0, 1))
+  );
+`;
+
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
@@ -294,4 +316,6 @@ export const ESQUEMA_SQL = `
     ${DDL_ESQUEMA_V6}
 
     ${DDL_TRIGGER_PERCENTUAL}
+
+    ${DDL_ALERTAS}
   `;

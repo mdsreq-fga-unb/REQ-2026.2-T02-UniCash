@@ -8,7 +8,12 @@ import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync
 import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 
 /** Mesma lista de produção; o teste falha se uma rota com SQLite ficar desprotegida. */
+jest.mock('@/features/alertas/useNotificacoesDeLimite', () => ({
+  useNotificacoesDeLimite: jest.fn(),
+}));
+
 const ROTAS_COM_BANCO = [
+  'preferencias-alertas',
   'categorias/index',
   'categorias/nova',
   'categorias/[id]/editar',
@@ -435,7 +440,7 @@ describe('Layout raiz: gate de inicialização', () => {
 
   // ---------------------------------------------------------------- rotas
 
-  it('protege as 11 rotas com SQLite e mantém a Home fora do guard', async () => {
+  it('protege as 12 rotas com SQLite e mantém a Home fora do guard', async () => {
     mockGetDb.mockReturnValue(adiar().promessa);
     estadoNavegador.rotaAtiva = 'despesas/index';
 

@@ -1,3 +1,5 @@
+import { comRecalculoDeAlertas } from '@/features/alertas/service';
+import { avisarAlertasPendentes } from '@/features/alertas/evento';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
 import {
@@ -41,9 +43,10 @@ async function transacao<T>(
     let resultado!: T;
 
     await db.withExclusiveTransactionAsync(async (tx) => {
-      resultado = await fn(tx as unknown as SQLiteDatabase);
+      resultado = await comRecalculoDeAlertas(tx as unknown as SQLiteDatabase, 'despesas', fn);
     });
 
+    avisarAlertasPendentes();
     return resultado;
   } catch (e) {
     if (e instanceof DespesaIndisponivel) throw e;

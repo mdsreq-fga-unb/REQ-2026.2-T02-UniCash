@@ -37,6 +37,14 @@ export default function ResumoFinanceiro() {
           Resumo financeiro
         </Text>
 
+        <Pressable
+          onPress={() => router.push('/preferencias-alertas')}
+          accessibilityRole="button"
+          style={estilos.botaoContorno}
+        >
+          <Text style={estilos.botaoContornoTexto}>Preferências de alertas</Text>
+        </Pressable>
+
         <View style={estilos.seletor}>
           <Pressable
             onPress={() => setPeriodo((p) => mesAnterior(p.ano, p.mes))}

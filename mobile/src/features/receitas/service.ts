@@ -1,3 +1,5 @@
+import { comRecalculoDeAlertas } from '@/features/alertas/service';
+import { avisarAlertasPendentes } from '@/features/alertas/evento';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
 import { adicionarDias, adicionarIntervalo, adicionarMeses, hojeISO } from './dates';
@@ -29,8 +31,9 @@ async function transacao<T>(fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> 
     const db = await getDb();
     let resultado!: T;
     await db.withExclusiveTransactionAsync(async (tx) => {
-      resultado = await fn(tx as unknown as SQLiteDatabase);
+      resultado = await comRecalculoDeAlertas(tx as unknown as SQLiteDatabase, 'receitas', fn);
     });
+    avisarAlertasPendentes();
     return resultado;
   } catch (e) {
     if (e instanceof ReceitaIndisponivel) throw e;
