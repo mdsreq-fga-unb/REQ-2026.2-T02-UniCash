@@ -1,3 +1,4 @@
+import { serializarImportacao } from './operacoes-locais';
 import { getDbLocal, getDbDoDono } from '@/db/database';
 import { auth } from '@/lib/firebase';
 
@@ -19,6 +20,10 @@ function exigirDono(uid: string) {
  * Uma falha permite retomar somente com o mesmo UID, nunca com outra conta.
  */
 export async function adotarDadosLocais(uid: string): Promise<void> {
+  return serializarImportacao(uid, () => copiarDadosLocais(uid));
+}
+
+async function copiarDadosLocais(uid: string): Promise<void> {
   exigirDono(uid);
   const origem = await getDbLocal();
   const destino = await getDbDoDono(uid);

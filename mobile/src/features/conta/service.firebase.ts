@@ -14,7 +14,7 @@ export function criarContaServiceFirebase(auth: AuthService): ContaService {
 
       // FA01: uma conta recém-criada não recebe automaticamente
       // os dados locais existentes no aparelho.
-      await obterSincronizacao().pausarEnvioAutomatico().catch(() => {});
+      await obterSincronizacao().pausarEnvioAutomatico();
     },
 
     verificarConfirmacao: () => auth.checkEmailVerified(),
@@ -43,6 +43,8 @@ export function criarContaServiceFirebase(auth: AuthService): ContaService {
         // Envio pedido pela pessoa (manual): libera o envio automático pausado em FA01.
         // Não chamar retomar() aqui: ele ocupa a trava do sincronizarPendentes() em segundo plano e
         // faria o envio manual ser descartado.
+        const atual = auth.currentSession();
+        if (atual.status !== 'ativa' || atual.uid !== sessao.uid) throw new ErroConta('falha');
         await sync.sincronizar();
       } catch (e) {
         if (e instanceof ErroConta) {
