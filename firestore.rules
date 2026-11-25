@@ -24,6 +24,26 @@ service cloud.firestore {
         && d.valor_centavos > 0
         && d.valor_centavos <= 99999999999;
     }
+        function saldoInicialValido(d) {
+      return d.keys().hasOnly([
+          'valor_centavos',
+          'mes_referencia',
+          'atualizado_em'
+        ])
+        && d.keys().hasAll([
+          'valor_centavos',
+          'mes_referencia',
+          'atualizado_em'
+        ])
+        && d.valor_centavos is int
+        && d.valor_centavos >= -99999999999
+        && d.valor_centavos <= 99999999999
+        && d.mes_referencia is string
+        && d.mes_referencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && !d.mes_referencia.matches('^0000-.*$')
+        && d.atualizado_em is string
+        && d.atualizado_em.size() > 0;
+    }
 
     function receitaValida(d) {
       return d.keys().hasOnly([
@@ -300,6 +320,17 @@ service cloud.firestore {
         );
       allow delete: if false;
     }
+
+            // UC08 - Gerenciar saldo inicial (RN16).
+    match /usuarios/{uid}/saldo_inicial/atual {
+      allow read: if dono(uid);
+
+      allow create, update: if dono(uid)
+        && saldoInicialValido(request.resource.data);
+
+      allow delete: if false;
+    }
+
 
     match /usuarios/{uid}/receitas/{id} {
       allow read, delete: if dono(uid);

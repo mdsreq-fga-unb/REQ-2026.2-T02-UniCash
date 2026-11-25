@@ -654,3 +654,152 @@ describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
     await assertFails(deleteDoc(ref));
   });
 });
+describe('UC08 — Security Rules do saldo inicial', () => {
+  const saldoRef = (uid = 'u1', dono = uid, id = 'atual') =>
+    doc(db(uid), 'usuarios', dono, 'saldo_inicial', id);
+
+  const saldoInicial = (extra: Record<string, unknown> = {}) => ({
+    valor_centavos: -15000,
+    mes_referencia: '2026-11',
+    atualizado_em: '2026-11-25T12:00:00.000Z',
+    ...extra,
+  });
+
+  it('permite ao dono criar, consultar e atualizar o saldo', async () => {
+    const ref = saldoRef();
+
+    await assertSucceeds(setDoc(ref, saldoInicial()));
+    await assertSucceeds(getDoc(ref));
+
+    await assertSucceeds(
+      updateDoc(ref, { valor_centavos: 20000 }),
+    );
+  });
+
+  it.each([
+    -99_999_999_999,
+    -15000,
+    0,
+    15000,
+    99_999_999_999,
+  ])('aceita saldo válido de %s centavos', async (valor) => {
+    await assertSucceeds(
+      setDoc(saldoRef(), saldoInicial({ valor_centavos: valor })),
+    );
+  });
+
+  it.each([
+    -100_000_000_000,
+    100_000_000_000,
+    1.5,
+    -1.5,
+    '15000',
+    null,
+  ])('rejeita saldo inválido: %p', async (valor) => {
+    await assertFails(
+      setDoc(saldoRef(), saldoInicial({ valor_centavos: valor })),
+    );
+  });
+
+  it.each([
+    '',
+    '2026-00',
+    '2026-13',
+    '2026-1',
+    '11-2026',
+    '2026/11',
+    '0000-01',
+    null,
+  ])('rejeita mês de referência inválido: %p', async (mes) => {
+    await assertFails(
+      setDoc(saldoRef(), saldoInicial({ mes_referencia: mes })),
+    );
+  });
+
+  it.each(['2026-01', '2026-12'])(
+    'aceita mês de referência válido: %s',
+    async (mes) => {
+      await assertSucceeds(
+        setDoc(saldoRef(), saldoInicial({ mes_referencia: mes })),
+      );
+    },
+  );
+
+  it('impede acesso por outro usuário', async () => {
+    await assertSucceeds(setDoc(saldoRef(), saldoInicial()));
+
+    const refOutro = saldoRef('u2', 'u1');
+
+    await assertFails(getDoc(refOutro));
+    await assertFails(setDoc(refOutro, saldoInicial()));
+    await assertFails(updateDoc(refOutro, { valor_centavos: 0 }));
+    await assertFails(deleteDoc(refOutro));
+  });
+
+  it('impede acesso sem autenticação', async () => {
+    await assertSucceeds(setDoc(saldoRef(), saldoInicial()));
+
+    const ref = doc(
+      anonimo(),
+      'usuarios',
+      'u1',
+      'saldo_inicial',
+      'atual',
+    );
+
+    await assertFails(getDoc(ref));
+    await assertFails(setDoc(ref, saldoInicial()));
+    await assertFails(deleteDoc(ref));
+  });
+
+  it('impede a criação de um segundo saldo inicial', async () => {
+    await assertSucceeds(setDoc(saldoRef(), saldoInicial()));
+
+    await assertFails(
+      setDoc(saldoRef('u1', 'u1', 'outro'), saldoInicial()),
+    );
+  });
+
+  it('impede a exclusão do saldo inicial', async () => {
+    await assertSucceeds(setDoc(saldoRef(), saldoInicial()));
+    await assertFails(deleteDoc(saldoRef()));
+  });
+
+  it('rejeita campos desconhecidos', async () => {
+    await assertFails(
+      setDoc(saldoRef(), saldoInicial({ campo_extra: true })),
+    );
+  });
+
+  it.each([
+    'valor_centavos',
+    'mes_referencia',
+    'atualizado_em',
+  ])('rejeita ausência do campo obrigatório %s', async (campo) => {
+    const dados: Record<string, unknown> = saldoInicial();
+
+    delete dados[campo];
+
+    await assertFails(setDoc(saldoRef(), dados));
+  });
+
+  it('rejeita atualização com valor acima do teto', async () => {
+    await assertSucceeds(setDoc(saldoRef(), saldoInicial()));
+
+    await assertFails(
+      updateDoc(saldoRef(), {
+        valor_centavos: 100_000_000_000,
+      }),
+    );
+  });
+
+  it('rejeita atualização com mês inválido', async () => {
+    await assertSucceeds(setDoc(saldoRef(), saldoInicial()));
+
+    await assertFails(
+      updateDoc(saldoRef(), {
+        mes_referencia: '2026-13',
+      }),
+    );
+  });
+});

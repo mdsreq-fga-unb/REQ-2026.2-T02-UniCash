@@ -312,6 +312,23 @@ export const DDL_TABELA_SALDO_INICIAL = `
 `;
 
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
+export const DDL_TRIGGERS_SALDO_INICIAL = `
+  CREATE TRIGGER IF NOT EXISTS trg_saldo_inicial_limite_insert
+  BEFORE INSERT ON saldo_inicial
+  FOR EACH ROW
+  WHEN NEW.valor_centavos NOT BETWEEN -99999999999 AND 99999999999
+  BEGIN
+    SELECT RAISE(ABORT, 'saldo_inicial_limite');
+  END;
+
+  CREATE TRIGGER IF NOT EXISTS trg_saldo_inicial_limite_update
+  BEFORE UPDATE ON saldo_inicial
+  FOR EACH ROW
+  WHEN NEW.valor_centavos NOT BETWEEN -99999999999 AND 99999999999
+  BEGIN
+    SELECT RAISE(ABORT, 'saldo_inicial_limite');
+  END;
+`;
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
 
@@ -320,5 +337,6 @@ export const ESQUEMA_SQL = `
     ${DDL_TRIGGER_PERCENTUAL}
 
     ${DDL_TABELA_SALDO_INICIAL}
-  `;
 
+    ${DDL_TRIGGERS_SALDO_INICIAL}
+  `;

@@ -186,7 +186,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
       expect(nomesTriggers(sqlite)).toEqual([
         'trg_categorias_percentual_insert',
@@ -216,7 +216,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
       await migrarSeNecessario(criarAdaptador(sqlite));
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
     });
   });
 
@@ -231,7 +231,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(linhasCategorias(sqlite)).toEqual(antes); // cópia idêntica, inclusive tombstone
       expect(linhasCategorias(sqlite).find((l: any) => l.id === 'a3').excluido_em).toBe('2026-02-01T00:00:00Z');
       const nomes = (sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all() as any[]).map(
@@ -301,7 +301,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(sqlCategorias(sqlite)).toBe(sqlAntes); // sem reconstrução
       expect(linhasCategorias(sqlite)).toHaveLength(1);
     });
@@ -324,7 +324,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(
         sqlite
           .prepare(
@@ -379,7 +379,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(sqlCategorias(sqlite)).toBe(sqlAntes);
       expect(linhasCategorias(sqlite)).toEqual(antes);
     });
@@ -407,7 +407,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(linhasCategorias(sqlite)).toEqual(antes);
       expect(nomesTriggers(sqlite)).toEqual([
         'trg_categorias_percentual_insert',
@@ -429,7 +429,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(
         sqlite
           .prepare("SELECT limite_percentual_centesimos AS p, sync_status AS s FROM categorias WHERE id = 'legado'")
@@ -596,7 +596,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(
         sqlite
           .prepare(
@@ -970,7 +970,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
     it('banco realmente vazio instala normalmente', async () => {
       const sqlite = novoSqlite();
       await migrarSeNecessario(criarAdaptador(sqlite));
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
     });
 
@@ -984,7 +984,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente'); // categorias criada
       expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1); // dado preservado
     });
@@ -994,7 +994,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
       expect(sqlite.prepare('SELECT * FROM receitas').all()).toHaveLength(1); // dado preservado
       expect(
@@ -1012,7 +1012,7 @@ describe('Migrações versionadas (migrarSeNecessario)', () => {
 
       await migrarSeNecessario(criarAdaptador(sqlite));
 
-      expect(versao(sqlite)).toBe(8);
+      expect(versao(sqlite)).toBe(9);
       expect(sqlCategorias(sqlite)).toContain('limite_coerente');
       expect(sqlite.prepare('SELECT * FROM recorrencias').all()).toHaveLength(1); // dado preservado
       expect(
@@ -1923,7 +1923,7 @@ describe('migração 005: tombstone de recorrências', () => {
   it('banco vazio termina em v6 com a estrutura completa', async () => {
     const sqlite = novoSqlite();
     await migrarSeNecessario(criarAdaptador(sqlite));
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expectEstruturaV6(sqlite);
   });
 
@@ -1952,7 +1952,7 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expect(linhasCategorias(sqlite)).toEqual(antes);
     expect(
       sqlite
@@ -2020,7 +2020,7 @@ describe('migração 005: tombstone de recorrências', () => {
     sqlite.exec('PRAGMA user_version = 4');
 
     await migrarSeNecessario(criarAdaptador(sqlite));
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-v4'").get()).toMatchObject({
       id: 'rec-v4',
@@ -2032,7 +2032,7 @@ describe('migração 005: tombstone de recorrências', () => {
 
     const antes = sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-v4'").get();
     await migrarSeNecessario(criarAdaptador(sqlite));
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-v4'").get()).toEqual(antes);
     expect(bancoIntegro(sqlite)).toBe(true);
   });
@@ -2080,7 +2080,7 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toMatchObject({
       id: 'rec-1',
@@ -2113,7 +2113,7 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT * FROM recorrencias WHERE id = 'rec-1'").get()).toMatchObject({
       id: 'rec-1',
@@ -2136,7 +2136,7 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT id, titulo FROM recorrencias WHERE id = 'rec-1'").get()).toEqual({
       id: 'rec-1',
@@ -2151,7 +2151,7 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT id, titulo FROM recorrencias WHERE id = 'rec-1'").get()).toEqual({
       id: 'rec-1',
@@ -2170,7 +2170,7 @@ describe('migração 005: tombstone de recorrências', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expectEstruturaV6(sqlite);
     expect(sqlite.prepare("SELECT id, titulo, tipo FROM recorrencias WHERE id = 'rec-1'").get()).toEqual({
       id: 'rec-1',
@@ -2349,7 +2349,7 @@ describe('UC08 — migração 008', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
 
     expect(sqlite.prepare(
       'SELECT * FROM saldo_inicial',
@@ -2396,6 +2396,168 @@ describe('UC08 — migração 008', () => {
       'SELECT * FROM receitas',
     ).all()).toEqual(antes);
 
+    expect(bancoIntegro(sqlite)).toBe(true);
+  });
+});
+describe('UC08 — migração 009 e teto monetário', () => {
+  let sqlite: Database.Database;
+
+  beforeEach(async () => {
+    sqlite = novoSqlite();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+  });
+
+  afterEach(() => {
+    sqlite.close();
+  });
+
+  function inserirSaldo(valor: number) {
+    sqlite.prepare(`
+      INSERT INTO saldo_inicial (
+        uid,
+        valor_centavos,
+        mes_referencia,
+        atualizado_em
+      ) VALUES (?, ?, ?, ?)
+    `).run(
+      'usuario-1',
+      valor,
+      '2026-11',
+      '2026-11-25T12:00:00Z',
+    );
+  }
+
+  function simularVersao8() {
+    sqlite.exec(`
+      DROP TRIGGER trg_saldo_inicial_limite_insert;
+      DROP TRIGGER trg_saldo_inicial_limite_update;
+      PRAGMA user_version = 8;
+    `);
+  }
+
+  function consultarSaldo() {
+    return sqlite.prepare(
+      'SELECT * FROM saldo_inicial WHERE uid = ?',
+    ).get('usuario-1');
+  }
+
+  it.each([-99_999_999_999, 0, 99_999_999_999])(
+    'aceita valor dentro do teto: %s',
+    (valor) => {
+      inserirSaldo(valor);
+
+      expect(consultarSaldo()).toMatchObject({
+        valor_centavos: valor,
+      });
+    },
+  );
+
+  it.each([-100_000_000_000, 100_000_000_000])(
+    'rejeita inserção fora do teto: %s',
+    (valor) => {
+      expect(() => inserirSaldo(valor))
+        .toThrow('saldo_inicial_limite');
+
+      expect(consultarSaldo()).toBeUndefined();
+    },
+  );
+
+  it.each([-100_000_000_000, 100_000_000_000])(
+    'rejeita atualização fora do teto: %s',
+    (valor) => {
+      inserirSaldo(-15000);
+
+      expect(() => {
+        sqlite.prepare(`
+          UPDATE saldo_inicial
+          SET valor_centavos = ?
+          WHERE uid = ?
+        `).run(valor, 'usuario-1');
+      }).toThrow('saldo_inicial_limite');
+
+      expect(consultarSaldo()).toMatchObject({
+        valor_centavos: -15000,
+      });
+    },
+  );
+
+  it('migra da versão 8 para 9 preservando os dados', async () => {
+    simularVersao8();
+    inserirSaldo(-15000);
+    inserirReceitaValida(sqlite);
+
+    const saldoAntes = consultarSaldo();
+    const receitasAntes = sqlite.prepare(
+      'SELECT * FROM receitas',
+    ).all();
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(9);
+    expect(consultarSaldo()).toEqual(saldoAntes);
+
+    expect(sqlite.prepare(
+      'SELECT * FROM receitas',
+    ).all()).toEqual(receitasAntes);
+
+    expect(() => {
+      sqlite.prepare(`
+        UPDATE saldo_inicial
+        SET valor_centavos = 100000000000
+        WHERE uid = 'usuario-1'
+      `).run();
+    }).toThrow('saldo_inicial_limite');
+
+    expect(bancoIntegro(sqlite)).toBe(true);
+  });
+
+  it('preserva dados legados incompatíveis e mantém a versão 8', async () => {
+    simularVersao8();
+    inserirSaldo(100_000_000_000);
+
+    const antes = consultarSaldo();
+
+    await expect(
+      migrarSeNecessario(criarAdaptador(sqlite)),
+    ).rejects.toThrow('Existem saldos iniciais fora do limite monetário');
+
+    expect(versao(sqlite)).toBe(8);
+    expect(consultarSaldo()).toEqual(antes);
+    expect(bancoIntegro(sqlite)).toBe(true);
+  });
+
+  it('reverte a migração 009 se a gravação da versão falhar', async () => {
+    simularVersao8();
+    inserirSaldo(-15000);
+
+    const antes = consultarSaldo();
+    const db = criarAdaptador(sqlite);
+    const executarOriginal = db.execAsync.bind(db);
+
+    jest.spyOn(db, 'execAsync').mockImplementation(
+      async (sql: string) => {
+        if (sql.includes('PRAGMA user_version = 9')) {
+          throw new Error('Falha simulada na 009');
+        }
+
+        await executarOriginal(sql);
+      },
+    );
+
+    await expect(
+      migrarSeNecessario(db),
+    ).rejects.toThrow('Falha simulada na 009');
+
+    expect(versao(sqlite)).toBe(8);
+    expect(consultarSaldo()).toEqual(antes);
+
+    const triggers = sqlite.prepare(`
+      SELECT name FROM sqlite_master
+      WHERE type = 'trigger'
+      AND tbl_name = 'saldo_inicial'
+    `).all();
+
+    expect(triggers).toEqual([]);
     expect(bancoIntegro(sqlite)).toBe(true);
   });
 });

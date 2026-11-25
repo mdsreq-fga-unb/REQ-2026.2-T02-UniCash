@@ -18,6 +18,7 @@ import {
   DDL_TABELA_CATEGORIA_ESTADO,
   DDL_TABELA_DESPESAS,
   DDL_TABELA_SALDO_INICIAL,
+  DDL_TRIGGERS_SALDO_INICIAL,
   DDL_TABELA_CATEGORIAS,
   DDL_TABELA_RESTAURACAO_PENDENTE,
   DDL_TRIGGER_PERCENTUAL,
@@ -26,7 +27,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 8;
+export const VERSAO_ESQUEMA = 9;
 
 export interface RegistroInvalido {
   id: string;
@@ -133,6 +134,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 6, executar: migrar006 },
   { versao: 7, executar: migrar007 },
   { versao: 8, executar: migrar008 },
+  { versao: 9, executar: migrar009 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -608,6 +610,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirTabelasV6(tx);
       await aplicarTriggersPercentual(tx);
       await tx.execAsync(DDL_TABELA_SALDO_INICIAL);
+      await tx.execAsync(DDL_TRIGGERS_SALDO_INICIAL);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
     return;
@@ -1293,6 +1296,28 @@ async function migrar008(
 ): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await tx.execAsync(DDL_TABELA_SALDO_INICIAL);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+/** Migração 009 — aplica o teto monetário do saldo inicial (UC08). */
+async function migrar009(
+  db: SQLiteDatabase,
+  versaoDestino: number,
+): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    const invalidos = await tx.getFirstAsync<{ n: number }>(
+      `SELECT COUNT(*) AS n
+       FROM saldo_inicial
+       WHERE valor_centavos NOT BETWEEN -99999999999 AND 99999999999`,
+    );
+
+    if ((invalidos?.n ?? 0) > 0) {
+      throw new FalhaMigracao(
+        'Existem saldos iniciais fora do limite monetário. Nenhum dado foi alterado.',
+      );
+    }
+
+    await tx.execAsync(DDL_TRIGGERS_SALDO_INICIAL);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

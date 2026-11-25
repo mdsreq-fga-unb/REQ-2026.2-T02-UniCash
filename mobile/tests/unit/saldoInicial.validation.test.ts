@@ -77,3 +77,31 @@ describe('UC08 — validação do saldo inicial', () => {
     },
   );
 });
+describe('UC08 — Limite monetário do saldo inicial', () => {
+  it.each([
+    -99_999_999_999,
+    0,
+    99_999_999_999,
+  ])('aceita o valor %s dentro do limite', (valor) => {
+    expect(
+      validarSaldoInicial({
+        valorCentavos: valor,
+        mesReferencia: '2026-11',
+      }),
+    ).toBeNull();
+  });
+
+  it.each([
+    -100_000_000_000,
+    100_000_000_000,
+  ])('rejeita o valor %s fora do limite', (valor) => {
+    expect(
+      validarSaldoInicial({
+        valorCentavos: valor,
+        mesReferencia: '2026-11',
+      }),
+    ).toBe(
+      'O saldo inicial deve estar entre -R$ 999.999.999,99 e R$ 999.999.999,99.',
+    );
+  });
+});
