@@ -654,3 +654,34 @@ describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
     await assertFails(deleteDoc(ref));
   });
 });
+
+describe('Alertas de limites — UC05', () => {
+  const dados = {
+    tipo: 'aproximacao',
+    ref_id: 'padrao_casa',
+    periodo: '2026-10',
+    categoria_nome: 'Casa',
+    gasto_centavos: 8000,
+    limite_centavos: 10000,
+    emitido_em: '2026-10-16T12:00:00.000Z',
+  };
+  const caminho = 'usuarios/alice/alertas/aproximacao_padrao_casa_2026-10';
+
+  it('permite gravar e ler ao dono, com identidade única e histórico imutável', async () => {
+    const alerta = doc(db('alice'), caminho);
+    await assertSucceeds(setDoc(alerta, dados));
+    await assertSucceeds(getDoc(alerta));
+    await assertFails(getDoc(doc(db('bob'), caminho)));
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), caminho)));
+    await assertFails(updateDoc(alerta, { gasto_centavos: 9000 }));
+  });
+
+  it('rejeita outro uid, chaves divergentes e meses inválidos', async () => {
+    await assertFails(setDoc(doc(db('bob'), caminho), dados));
+    await assertFails(setDoc(doc(db('alice'), caminho), { ...dados, periodo: '2026-11' }));
+    await assertFails(setDoc(doc(db('alice'), caminho.replace('2026-10', '2026-13')), {
+      ...dados,
+      periodo: '2026-13',
+    }));
+  });
+});
