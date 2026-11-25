@@ -8,6 +8,10 @@ import { formatarBRL } from '@/features/receitas/money';
 import { MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
 import { formatarSaldo, percentualMeta, rotuloDia } from '@/features/resumo/format';
 import { useResumo } from '@/features/resumo/useResumo';
+import { AcaoTutorial } from '@/components/tutorial/Interface';
+import { EntradaTutorial } from '@/components/tutorial/EntradaTutorial';
+import { MSG_ABERTURA_TUTORIAL } from '@/features/tutorial/conteudo';
+import { useOfertaTutorial } from '@/features/tutorial/useOfertaTutorial';
 
 function mesCorrente() {
   const n = new Date();
@@ -17,6 +21,7 @@ function mesCorrente() {
 /** Resumo financeiro inicial (UC03, RF11, RF40). Somente leitura; calculado na base local. */
 export default function ResumoFinanceiro() {
   // Passo 2: o mês corrente é o período padrão (RN12).
+  const ofertaTutorial = useOfertaTutorial();
   const [periodo, setPeriodo] = useState(mesCorrente);
   const { resumo, falhou, recarregar } = useResumo(periodo.ano, periodo.mes);
   // Só exibe valores calculados para o mês selecionado: ao trocar de mês, os do mês anterior
@@ -30,12 +35,31 @@ export default function ResumoFinanceiro() {
     }, [recarregar]),
   );
 
+  if (ofertaTutorial.verificando) {
+    return (
+      <SafeAreaView style={estilos.tela}>
+        <ActivityIndicator color={cores.primaria} accessibilityLabel="Preparando resumo" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <ScrollView contentContainerStyle={estilos.conteudo}>
-        <Text style={estilos.titulo} accessibilityRole="header">
-          Resumo financeiro
-        </Text>
+        <View style={estilos.cabecalho}>
+          <Text style={estilos.titulo} accessibilityRole="header">
+            Resumo financeiro
+          </Text>
+          <Pressable onPress={() => router.push('/ajuda')} style={estilos.ajuda} accessibilityRole="button">
+            <Text style={estilos.botaoContornoTexto}>Ajuda</Text>
+          </Pressable>
+        </View>
+        {ofertaTutorial.falhou && (
+          <View style={estilos.secao}>
+            <Text style={estilos.erro} accessibilityRole="alert">{MSG_ABERTURA_TUTORIAL}</Text>
+            <AcaoTutorial texto="Tentar novamente" onPress={ofertaTutorial.tentarNovamente} />
+          </View>
+        )}
 
         <View style={estilos.seletor}>
           <Pressable
@@ -190,9 +214,7 @@ function EstadoVazio() {
       <Text style={estilos.vazioTexto}>
         Registre receitas e despesas para ver aqui o saldo e os totais do mês.
       </Text>
-      <Pressable onPress={() => router.push('/tutorial')} style={estilos.botao} accessibilityRole="button">
-        <Text style={estilos.botaoTexto}>Ver tutorial</Text>
-      </Pressable>
+      <EntradaTutorial texto="Ver tutorial" />
       <View style={estilos.linha}>
         <Pressable onPress={() => router.push('/receitas/nova')} style={estilos.botaoContorno} accessibilityRole="button">
           <Text style={estilos.botaoContornoTexto}>Registrar receita</Text>
@@ -214,7 +236,9 @@ function EstadoVazio() {
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
-  titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  ajuda: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, marginBottom: 12 },
+  titulo: { flexShrink: 1, fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
   seletor: {
     flexDirection: 'row',
     alignItems: 'center',
