@@ -15,6 +15,9 @@ export default function Home() {
       <Link href="/categorias" style={styles.link}>
         Categorias
       </Link>
+      <Link href="/saldo-inicial" style={styles.link}>
+  Saldo inicial
+</Link>
     </View>
   );
 }

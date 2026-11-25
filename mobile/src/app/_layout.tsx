@@ -27,6 +27,7 @@ const TELAS_COM_BANCO = [
   'receitas/nova',
   'receitas/[id]/index',
   'receitas/[id]/editar',
+  'saldo-inicial/index',
 ] as const;
 
 // O Stack é montado desde a primeira renderização; a âncora continua sendo a Home.

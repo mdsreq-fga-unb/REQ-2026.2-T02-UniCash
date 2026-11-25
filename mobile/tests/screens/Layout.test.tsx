@@ -19,6 +19,7 @@ const ROTAS_COM_BANCO = [
   'receitas/nova',
   'receitas/[id]/index',
   'receitas/[id]/editar',
+  'saldo-inicial/index',
 ] as const;
 
 interface EstadoMockNavegador {
@@ -434,7 +435,7 @@ describe('Layout raiz: gate de inicialização', () => {
 
   // ---------------------------------------------------------------- rotas
 
-  it('protege as 11 rotas com SQLite e mantém a Home fora do guard', async () => {
+  it('protege as 12 rotas com SQLite e mantém a Home fora do guard', async () => {
     mockGetDb.mockReturnValue(adiar().promessa);
     estadoNavegador.rotaAtiva = 'despesas/index';
 

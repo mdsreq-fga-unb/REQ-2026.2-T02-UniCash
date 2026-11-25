@@ -1,4 +1,3 @@
-
 import type { SQLiteDatabase } from 'expo-sqlite';
 
 import { validarSaldoInicial } from './validation';
@@ -29,7 +28,7 @@ export async function salvarSaldoInicial(
   db: SQLiteDatabase,
   uid: string,
   dados: DadosSaldoInicial,
-): Promise<void> {
+): Promise<SaldoInicial> {
   if (!uid.trim()) {
     throw new Error('Usuário não identificado.');
   }
@@ -40,7 +39,13 @@ export async function salvarSaldoInicial(
     throw new Error(erro);
   }
 
-  const atualizadoEm = new Date().toISOString();
+  const registro: SaldoInicial = {
+    uid,
+    valor_centavos: dados.valorCentavos,
+    mes_referencia: dados.mesReferencia,
+    sync_status: 'pendente',
+    atualizado_em: new Date().toISOString(),
+  };
 
   await db.withExclusiveTransactionAsync(async (tx) => {
     await tx.runAsync(
@@ -57,12 +62,14 @@ export async function salvarSaldoInicial(
         sync_status = excluded.sync_status,
         atualizado_em = excluded.atualizado_em`,
       [
-        uid,
-        dados.valorCentavos,
-        dados.mesReferencia,
-        'pendente',
-        atualizadoEm,
+        registro.uid,
+        registro.valor_centavos,
+        registro.mes_referencia,
+        registro.sync_status,
+        registro.atualizado_em,
       ],
     );
   });
+
+  return registro;
 }
