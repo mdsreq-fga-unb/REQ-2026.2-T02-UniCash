@@ -43,6 +43,9 @@ describe('consulta local do resumo mensal', () => {
     await registrarDespesa(despesa('2026-11-02', 4800));
     await salvarSaldoInicial({ mes: '2026-11', centavos: -1000 });
     expect(await consultarResumoMensal('2026-10-01')).toMatchObject({ saldo: 0, saldoAnterior: null });
+    expect(await consultarResumoMensal('2026-10-01', { receitas: 5000, despesas: 1000 }))
+      .toMatchObject({ saldo: 0, saldoAnterior: null });
+
     expect(await consultarResumoMensal('2026-11-01')).toMatchObject({
       receitas: 10000,
       despesas: 4800,

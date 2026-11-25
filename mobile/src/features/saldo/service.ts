@@ -39,11 +39,14 @@ export async function consultarResumoMensal(inicio: string, totaisDoMes?: Totais
   );
 
   const mes = inicio.slice(0, 7);
-  const { receitas, despesas } = totaisDoMes ?? linhas.find((linha) => linha.mes === mes) ?? { receitas: 0, despesas: 0 };
   const referencia = linhas.find((linha) => linha.referencia !== null);
   const inicial = referencia?.referencia && referencia.inicial !== null
     ? { mes: referencia.referencia, centavos: referencia.inicial }
     : null;
+  const totais = inicial && mes < inicial.mes
+    ? undefined
+    : totaisDoMes ?? linhas.find((linha) => linha.mes === mes);
+  const { receitas, despesas } = totais ?? { receitas: 0, despesas: 0 };
   const saldo = calcularSaldo({ receitas, despesas });
   const saldoAnterior = calcularSaldoAnterior(
     mes,

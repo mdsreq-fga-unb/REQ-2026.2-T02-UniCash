@@ -1,3 +1,4 @@
+import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { registrarDespesa } from '@/features/despesas/service';
 import { getDb } from '@/db/database';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
@@ -14,7 +15,8 @@ jest.mock('@/features/receitas/sync', () => ({ sincronizarEmSegundoPlano: jest.f
 
 describe('Resumo financeiro', () => {
   let banco: ReturnType<typeof instalarBanco>;
-  beforeEach(() => {
+  beforeEach(async () => {
+    await salvarContinuidadeSemConta();
     banco = instalarBanco();
     fixarHoje('2026-11-18');
   });

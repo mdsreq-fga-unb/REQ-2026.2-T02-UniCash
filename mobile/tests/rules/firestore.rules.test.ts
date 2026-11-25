@@ -106,7 +106,7 @@ beforeEach(async () => {
   await env.clearFirestore();
 });
 
-const db = (uid: string) => env.authenticatedContext(uid).firestore();
+const db = (uid: string) => env.authenticatedContext(uid, { email_verified: true }).firestore();
 const anonimo = () => env.unauthenticatedContext().firestore();
 const rec = (d: any, uid = 'u1', id = 'r1') => doc(d, 'usuarios', uid, 'receitas', id);
 const desp = (d: any, uid = 'u1', id = 'd1') => doc(d, 'usuarios', uid, 'despesas', id);
@@ -435,6 +435,14 @@ describe('UC04: alertas emitidos', () => {
     await assertSucceeds(getDoc(ref(db('u1'))));
     await assertFails(setDoc(ref(db('u1')), { ...alerta, saldo_centavos: -200 }));
     await assertFails(deleteDoc(ref(db('u1'))));
+  });
+
+  it('impede leitura e emissão pela conta titular sem e-mail confirmado', async () => {
+    const verificado = ref(db('u1'));
+    const pendente = ref(env.authenticatedContext('u1', { email_verified: false }).firestore());
+    await assertFails(setDoc(pendente, alerta));
+    await assertSucceeds(setDoc(verificado, alerta));
+    await assertFails(getDoc(pendente));
   });
 
   it('valida a transição e restringe o acesso ao dono', async () => {

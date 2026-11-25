@@ -1,4 +1,6 @@
 import type { SQLiteBindParams } from 'expo-sqlite';
+import { serializarImportacao } from '@/features/conta/operacoes-locais';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   collection,
   deleteDoc,
@@ -10,8 +12,8 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { auth, db as firestore } from '@/lib/firebase';
-import { getDb } from '@/db/database';
 import { registrarTransicoes, type AlertaSaldo } from '@/features/saldo/alertas';
+import { getDbDoDono } from '@/db/database';
 import type { Receita } from './types';
 import { resolverCategoriaRemota } from '@/features/despesas/categorias';
 import {
@@ -50,6 +52,11 @@ type RecorrenciaSync = {
   excluido_em: string | null;
 };
 
+/** Existe quando o envio automático está pausado (FA01). */
+const ENVIO_PAUSADO = 'unicash:envio_automatico_pausado';
+// Protege o envio nesta execução caso a persistência da pausa falhe.
+const pausasNaoPersistidas = new Set<string>();
+
 let emAndamento = false;
 let acessoNegado = false;
 
@@ -74,21 +81,53 @@ export function consumirAcessoNegado(): boolean {
 }
 
 /**
+ * FA01: pausa (ligado = false) ou libera (ligado = true) o envio automático. Com o envio pausado,
+ * os registros continuam pendentes no aparelho e só sobem quando a pessoa pedir (envio manual).
+ * O estado fica no aparelho, então vale também depois de reiniciar o app.
+ */
+export async function definirEnvioAutomatico(ligado: boolean, uid = auth.currentUser?.uid): Promise<void> {
+  if (!uid) throw new Error('Conta ausente');
+  const chave = `${ENVIO_PAUSADO}:${uid}`;
+  if (!ligado) pausasNaoPersistidas.add(uid);
+  if (ligado) await AsyncStorage.removeItem(chave);
+  else await AsyncStorage.setItem(chave, '1');
+  pausasNaoPersistidas.delete(uid);
+}
+
+async function envioPausado(uid: string): Promise<boolean> {
+  return pausasNaoPersistidas.has(uid) ||
+    (await AsyncStorage.getItem(`${ENVIO_PAUSADO}:${uid}`)) === '1';
+}
+
+export interface OpcoesSincronizacao {
+  /** true quando a pessoa pediu o envio. Libera o envio automático se estava pausado (FA01). */
+  manual?: boolean;
+}
+
+/**
  * Sincroniza receitas, despesas e recorrências pendentes com o Firestore.
  * Sem conta ou conexão, mantém os registros pendentes para nova tentativa.
  * Retorna true quando algum registro local é atualizado pela nuvem.
  */
-export async function sincronizarPendentes(): Promise<boolean> {
+export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Promise<boolean> {
   const user = auth.currentUser;
 
-  if (!user || emAndamento) return false;
+  if (!user || !user.emailVerified || emAndamento) return false;
 
   emAndamento = true;
   let mudouLocal = false;
 
   try {
-    const sqlite = await getDb();
+    // FA01: com o envio automático pausado, só segue se a pessoa pediu a sincronização.
+    if (await envioPausado(user.uid)) {
+      if (!opcoes.manual) return false;
+      await definirEnvioAutomatico(true, user.uid); // a pessoa pediu: daqui em diante os registros sincronizam
+    }
+
     const uid = user.uid;
+    const sqlite = await getDbDoDono(uid);
+
+    if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) return false;
 
     async function aplicarLancamentoRemoto(sql: string, valores: SQLiteBindParams) {
       await sqlite.withExclusiveTransactionAsync(async (tx) => {
@@ -96,7 +135,6 @@ export async function sincronizarPendentes(): Promise<boolean> {
         mudouLocal ||= resultado.changes > 0;
       });
     }
-    if (auth.currentUser?.uid !== uid) return false;
 
     // Categorias primeiro: séries/despesas dependem do catálogo reconciliado.
     const categoriasSync = await sincronizarCategoriasPendentes(sqlite, uid);
@@ -153,7 +191,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
     );
 
     for (const s of series) {
-      if (auth.currentUser?.uid !== uid) throw new Error('conta alterada durante a sincronização');
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) throw new Error('conta alterada durante a sincronização');
       try {
         let categoriaSerie: string | null = null;
 
@@ -291,7 +329,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
     );
 
     for (const r of receitas) {
-      if (auth.currentUser?.uid !== uid) throw new Error('conta alterada durante a sincronização');
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) throw new Error('conta alterada durante a sincronização');
       try {
         const ref = doc(firestore, 'usuarios', uid, 'receitas', r.id);
 
@@ -453,7 +491,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
     };
 
     for (const d of despesas) {
-      if (auth.currentUser?.uid !== uid) throw new Error('conta alterada durante a sincronização');
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) throw new Error('conta alterada durante a sincronização');
       try {
         const ref = doc(firestore, 'usuarios', uid, 'despesas', d.id);
 
@@ -583,6 +621,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
       "SELECT * FROM alertas_emitidos WHERE sync_status = 'pendente'",
     );
     for (const { id, mes, anterior_centavos, saldo_centavos, criado_em } of alertas) {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) return mudouLocal;
       await setDoc(doc(firestore, 'usuarios', uid, 'alertas_emitidos', id), {
         mes, anterior_centavos, saldo_centavos, criado_em,
       });
@@ -657,9 +696,13 @@ async function aguardarAuthResolvida(): Promise<void> {
 export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
   await aguardarAuthResolvida();
   const user = auth.currentUser;
-  if (!user) throw new FalhaRestauracao('sem conta');
+  if (!user?.emailVerified) throw new FalhaRestauracao('sem conta confirmada');
   const uid = user.uid;
+  return serializarImportacao(uid, () => restaurarParaUid(uid));
+}
 
+async function restaurarParaUid(uid: string): Promise<ResultadoRestauracao> {
+  if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) throw new FalhaRestauracao('conta alterada');
   try {
     const [snapSeries, snapReceitas, snapDespesas, snapCategorias] = await Promise.all([
       getDocs(collection(firestore, 'usuarios', uid, 'recorrencias')),
@@ -667,11 +710,11 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
       getDocs(collection(firestore, 'usuarios', uid, 'despesas')),
       getDocs(collection(firestore, 'usuarios', uid, 'categorias')),
     ]);
-    const sqlite = await getDb();
+    const sqlite = await getDbDoDono(uid);
     const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0 };
 
     await sqlite.withExclusiveTransactionAsync(async (tx) => {
-      if (auth.currentUser?.uid !== uid) {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) {
         throw new FalhaRestauracao('conta alterada durante a restauração');
       }
 

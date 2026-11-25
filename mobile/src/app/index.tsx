@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { cores, raio } from '@/lib/theme';
 import { mesAnterior, nomeMes, primeiroDiaDoMes, proximoMes } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
@@ -10,13 +10,22 @@ import { percentualMeta, rotuloDia } from '@/features/resumo/format';
 import { useResumo } from '@/features/resumo/useResumo';
 import { PainelSaldo } from '@/components/saldo/PainelSaldo';
 
+import { useSessao } from '@/features/conta/sessao';
+import { continuarSemContaNestaSessao } from '@/features/conta/onboarding';
+
 function mesCorrente() {
   const n = new Date();
   return { ano: n.getFullYear(), mes: n.getMonth() + 1 };
 }
 
 /** Resumo financeiro inicial (UC03, RF11, RF40). Somente leitura; calculado na base local. */
-export default function ResumoFinanceiro() {
+export default function Home() {
+  const sessao = useSessao();
+  if (sessao.status !== 'ativa' && !continuarSemContaNestaSessao()) return <Redirect href="/conta/cadastro" />;
+  return <ResumoFinanceiro key={sessao.status === 'ativa' ? sessao.uid : 'local'} />;
+}
+
+function ResumoFinanceiro() {
   // Passo 2: o mês corrente é o período padrão (RN12).
   const [periodo, setPeriodo] = useState(mesCorrente);
   const inicio = primeiroDiaDoMes(periodo.ano, periodo.mes);
@@ -179,6 +188,9 @@ function Atalhos({ ano, mes }: { ano: number; mes: number }) {
       </Pressable>
       <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
         <Text style={estilos.botaoTexto}>Categorias</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push('/conta')} style={estilos.botao} accessibilityRole="button">
+        <Text style={estilos.botaoTexto}>Conta</Text>
       </Pressable>
     </View>
   );

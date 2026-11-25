@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import ResumoFinanceiro from '@/app/index';
 import { calcularResumo, FalhaCalculo, MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
 import { instalarBanco } from '../helpers/fakeDb';
@@ -35,6 +36,8 @@ function resumo(extra: Partial<ResumoMensal> = {}): ResumoMensal {
     ...extra,
   };
 }
+
+beforeEach(async () => { await salvarContinuidadeSemConta(); });
 
 describe('Tela de resumo financeiro (UC03)', () => {
   beforeEach(() => {
