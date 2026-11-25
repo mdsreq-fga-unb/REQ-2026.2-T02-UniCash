@@ -1,3 +1,5 @@
+import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
+beforeEach(async () => { await salvarContinuidadeSemConta(); });
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import ResumoFinanceiro from '@/app/index';
 import { calcularResumo, FalhaCalculo, MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
