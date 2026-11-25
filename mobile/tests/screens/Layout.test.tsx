@@ -16,6 +16,10 @@ const ROTAS_COM_BANCO = [
   'despesas/nova',
   'despesas/[id]/index',
   'despesas/[id]/editar',
+  'metas/index',
+  'metas/nova',
+  'metas/[id]/index',
+  'metas/[id]/editar',
   'receitas/index',
   'receitas/nova',
   'receitas/[id]/index',
@@ -140,7 +144,7 @@ describe('Layout raiz: gate de inicialização', () => {
     mockSemear.mockResolvedValue({ criadas: [], conflitos: [] });
     mockCompletar.mockResolvedValue(undefined);
     mockCompletarDespesas.mockResolvedValue(undefined);
-    mockRestaurar.mockResolvedValue({ receitas: 0, despesas: 0, recorrencias: 0 });
+    mockRestaurar.mockResolvedValue({ receitas: 0, despesas: 0, recorrencias: 0, metas: 0 });
     mockSincronizar.mockResolvedValue(false);
 
     estadoNavegador.rotaAtiva = 'index';

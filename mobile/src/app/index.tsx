@@ -178,6 +178,9 @@ function Atalhos({ ano, mes }: { ano: number; mes: number }) {
       <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
         <Text style={estilos.botaoTexto}>Categorias</Text>
       </Pressable>
+      <Pressable onPress={() => router.push('/metas')} style={estilos.botao} accessibilityRole="button">
+        <Text style={estilos.botaoTexto}>Metas</Text>
+      </Pressable>
     </View>
   );
 }

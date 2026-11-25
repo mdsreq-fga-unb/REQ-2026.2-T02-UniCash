@@ -8,6 +8,11 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    /** UC10: dados financeiros só são liberados com e-mail confirmado. */
+    function donoConfirmado(uid) {
+      return dono(uid) && request.auth.token.email_verified == true;
+    }
+
     function dataValida(data) {
       return data is string
         && data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -298,6 +303,52 @@ service cloud.firestore {
           resource.data,
           categoriaId
         );
+      allow delete: if false;
+    }
+
+    function metaValida(d) {
+      return d.keys().hasOnly([
+          'objetivo', 'tipo', 'valor_alvo_centavos', 'prazo',
+          'criado_em', 'atualizado_em', 'excluido_em'
+        ])
+        && d.keys().hasAll([
+          'objetivo', 'tipo', 'valor_alvo_centavos', 'prazo',
+          'criado_em', 'atualizado_em'
+        ])
+        && d.objetivo is string
+        && d.objetivo.size() >= 1
+        && d.objetivo.size() <= 80
+        && d.tipo in ['gasto', 'investimento']
+        && d.valor_alvo_centavos is int
+        && d.valor_alvo_centavos > 0
+        && d.valor_alvo_centavos <= 99999999999
+        && dataValida(d.prazo)
+        && d.criado_em is string && d.criado_em.size() > 0
+        && d.atualizado_em is string && d.atualizado_em.size() > 0
+        && (!('excluido_em' in d)
+          || d.excluido_em == null
+          || (d.excluido_em is string && d.excluido_em.size() > 0));
+    }
+
+    function metaAtivaValida(d) {
+      return metaValida(d)
+        && (!('excluido_em' in d) || d.excluido_em == null);
+    }
+
+    function metaTombstoneValida(d) {
+      return metaValida(d)
+        && d.excluido_em is string
+        && d.excluido_em.size() > 0;
+    }
+
+    match /usuarios/{uid}/metas/{metaId} {
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
+        && (metaAtivaValida(request.resource.data) || metaTombstoneValida(request.resource.data));
+      allow update: if donoConfirmado(uid)
+        && (!('excluido_em' in resource.data) || resource.data.excluido_em == null)
+        && request.resource.data.criado_em == resource.data.criado_em
+        && (metaAtivaValida(request.resource.data) || metaTombstoneValida(request.resource.data));
       allow delete: if false;
     }
 

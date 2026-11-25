@@ -18,6 +18,10 @@ import {
   sincronizarCategoriasPendentes,
 } from '@/features/categorias/sync';
 import {
+  restaurarMetasDaNuvem,
+  sincronizarMetasPendentes,
+} from '@/features/metas/sync';
+import {
   nomeNormalizadoCategoriaPadraoPorSlug,
   slugCategoriaPadrao,
 } from '@/features/categorias/padroes';
@@ -93,6 +97,15 @@ export async function sincronizarPendentes(): Promise<boolean> {
     // Categorias primeiro: séries/despesas dependem do catálogo reconciliado.
     const categoriasSync = await sincronizarCategoriasPendentes(sqlite, uid);
     if (categoriasSync.mudouLocal) mudouLocal = true;
+
+    // Metas são independentes do catálogo de categorias e têm fila própria.
+    // Uma falha de rede nas metas não impede a sincronização financeira.
+    try {
+      const metasSync = await sincronizarMetasPendentes(sqlite, uid);
+      if (metasSync.mudouLocal) mudouLocal = true;
+    } catch (e) {
+      if (negadoPelaNuvem(e)) acessoNegado = true;
+    }
 
     // Catálogo carregado no máximo uma vez por sincronização e compartilhado
     // entre uploads e conflitos. Falha de leitura não vira catálogo vazio.
@@ -612,6 +625,7 @@ export interface ResultadoRestauracao {
   receitas: number;
   despesas: number;
   recorrencias: number;
+  metas: number;
 }
 
 /**
@@ -651,8 +665,20 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
       getDocs(collection(firestore, 'usuarios', uid, 'despesas')),
       getDocs(collection(firestore, 'usuarios', uid, 'categorias')),
     ]);
+
+    // Metas ficam fora do Promise.all: uma regra ainda não publicada ou um
+    // erro só dessa coleção não pode impedir a restauração financeira.
+    let docsMetas: { id: string; data: () => unknown }[] = [];
+    try {
+      const snapMetas = await getDocs(collection(firestore, 'usuarios', uid, 'metas'));
+      docsMetas = snapMetas.docs;
+    } catch (e) {
+      if (negadoPelaNuvem(e)) acessoNegado = true;
+      else throw e;
+    }
+
     const sqlite = await getDb();
-    const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0 };
+    const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0, metas: 0 };
 
     await sqlite.withExclusiveTransactionAsync(async (tx) => {
       if (auth.currentUser?.uid !== uid) {
@@ -660,6 +686,8 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
       }
 
       const mapaCategorias = await restaurarCategoriasDaNuvem(tx, snapCategorias.docs);
+      const restauracaoMetas = await restaurarMetasDaNuvem(tx, docsMetas);
+      resultado.metas = restauracaoMetas.aplicadas;
       const categoriasLocais = await tx.getAllAsync<Categoria>(
         `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local
            FROM categorias c

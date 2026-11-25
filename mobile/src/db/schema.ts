@@ -255,6 +255,54 @@ export const DDL_ESQUEMA_V6 = `
     ${DDL_INDICES_V6.join('\n    ')}
   `;
 
+/**
+ * Tabela de metas (UC12).
+ * Valores monetários em centavos inteiros (RNF07); o prazo é uma data ISO
+ * validada no calendário pelo próprio SQLite. A situação/progresso não é
+ * persistida: depende do cálculo e da decisão pendente da issue #106.
+ */
+export const DDL_TABELA_METAS = `
+    CREATE TABLE IF NOT EXISTS metas (
+      id TEXT PRIMARY KEY NOT NULL,
+      objetivo TEXT NOT NULL
+        CONSTRAINT objetivo_valido CHECK (length(trim(objetivo)) BETWEEN 1 AND 80),
+      tipo TEXT NOT NULL
+        CONSTRAINT tipo_valido CHECK (tipo IN ('gasto', 'investimento')),
+      valor_alvo_centavos INTEGER NOT NULL
+        CONSTRAINT valor_alvo_valido CHECK (
+          typeof(valor_alvo_centavos) = 'integer'
+          AND valor_alvo_centavos > 0
+          AND valor_alvo_centavos <= 99999999999
+        ),
+      prazo TEXT NOT NULL
+        CONSTRAINT prazo_valido CHECK (
+          prazo GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+          AND date(prazo) = prazo
+        ),
+      sync_status TEXT NOT NULL DEFAULT 'pendente'
+        CONSTRAINT sync_status_valido CHECK (sync_status IN ('pendente', 'sincronizado')),
+      excluido_em TEXT
+        CONSTRAINT excluido_em_valido CHECK (excluido_em IS NULL OR length(excluido_em) > 0),
+      criado_em TEXT NOT NULL,
+      atualizado_em TEXT NOT NULL
+    );
+  `;
+
+export const DDL_INDICES_METAS = [
+  `CREATE INDEX IF NOT EXISTS idx_metas_prazo
+     ON metas(prazo) WHERE excluido_em IS NULL;`,
+  'CREATE INDEX IF NOT EXISTS idx_metas_sync ON metas(sync_status);',
+] as const;
+
+/** Forma atual v8: acrescenta a tabela de metas da UC12. */
+export const DDL_ESQUEMA_V8 = `
+    ${DDL_ESQUEMA_V6}
+
+    ${DDL_TABELA_METAS}
+
+    ${DDL_INDICES_METAS.join('\n    ')}
+  `;
+
 /** Triggers de faixa percentual (definitiva 1%–100%). */
 export const TRIGGERS_PERCENTUAL = [
   'trg_categorias_percentual_insert',
@@ -291,7 +339,7 @@ export const DDL_TRIGGER_PERCENTUAL = `
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
 
-    ${DDL_ESQUEMA_V6}
+    ${DDL_ESQUEMA_V8}
 
     ${DDL_TRIGGER_PERCENTUAL}
   `;

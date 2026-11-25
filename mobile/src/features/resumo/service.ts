@@ -20,7 +20,11 @@ export interface TotalDoDia {
   totalCentavos: number;
 }
 
-/** Progresso de uma meta no período (RF36/RF40). Metas ainda não existem na base (RF12). */
+/**
+ * Progresso de uma meta no período (RF36/RF40). As metas já existem na base
+ * (UC12), mas o valor realizado e o período dependem da decisão da issue #106;
+ * este resumo permanece vazio até a integração aprovada.
+ */
 export interface ProgressoMeta {
   id: string;
   titulo: string;
@@ -80,7 +84,7 @@ async function receitasPorDiaNoIntervalo(db: SQLiteDatabase, inicio: string, fim
   return linhas.map((l) => ({ data: l.data, totalCentavos: l.total }));
 }
 
-/** Placeholder até existir a tabela de metas (RF12). */
+/** Integração pendente: a issue #106 ainda define valor realizado e período. */
 async function metasDoPeriodo(_db: SQLiteDatabase, _inicio: string, _fim: string): Promise<ProgressoMeta[]> {
   return [];
 }

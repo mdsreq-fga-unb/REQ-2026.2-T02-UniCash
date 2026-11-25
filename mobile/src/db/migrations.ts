@@ -13,11 +13,13 @@ import {
 import {
   DDL_ESQUEMA,
   DDL_INDICES_DESPESAS,
+  DDL_INDICES_METAS,
   DDL_INDICES_V6,
   DDL_RECORRENCIAS_V5,
   DDL_TABELA_CATEGORIA_ESTADO,
   DDL_TABELA_DESPESAS,
   DDL_TABELA_CATEGORIAS,
+  DDL_TABELA_METAS,
   DDL_TABELA_RESTAURACAO_PENDENTE,
   DDL_TRIGGER_PERCENTUAL,
   LIMITE_PERCENTUAL_MAX,
@@ -25,7 +27,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 7;
+export const VERSAO_ESQUEMA = 8;
 
 export interface RegistroInvalido {
   id: string;
@@ -122,6 +124,7 @@ interface Migracao {
  * restauração adiada, de forma aditiva e sem alterar dados existentes.
  * A 007 normaliza os percentuais legados para a faixa definitiva de 1% a 100%
  * e substitui os triggers da faixa provisória pelos definitivos.
+ * A 008 adiciona a tabela de metas da UC12, de forma aditiva e validada.
  */
 const MIGRACOES: Migracao[] = [
   { versao: 1, executar: migrar001 },
@@ -131,6 +134,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 5, executar: migrar005 },
   { versao: 6, executar: migrar006 },
   { versao: 7, executar: migrar007 },
+  { versao: 8, executar: migrar008 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -422,7 +426,8 @@ async function prepararInstalacaoNova(tx: SQLiteDatabase): Promise<void> {
       n !== 'receitas' &&
       n !== 'despesas' &&
       n !== 'categorias_estado' &&
-      n !== 'restauracao_pendente',
+      n !== 'restauracao_pendente' &&
+      n !== 'metas',
   );
   if (inesperados.length > 0) {
     throw new EstruturaLegadaInesperada(
@@ -604,6 +609,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirTabelaDespesas(tx);
       await garantirColunaExcluidoEmRecorrencias(tx);
       await garantirTabelasV6(tx);
+      await garantirTabelaMetas(tx);
       await aplicarTriggersPercentual(tx);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
@@ -846,6 +852,109 @@ async function migrar007(db: SQLiteDatabase, versaoDestino: number): Promise<voi
   await db.withExclusiveTransactionAsync(async (tx) => {
     await substituirTriggersPercentualDefinitivos(tx);
     await normalizarPercentuaisLegados(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+const COLUNAS_METAS: ColunaTabela[] = [
+  { nome: 'id', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 1 },
+  { nome: 'objetivo', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'tipo', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'valor_alvo_centavos', tipo: 'INTEGER', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'prazo', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'sync_status', tipo: 'TEXT', notnull: 1, defaultValue: "'pendente'", pk: 0 },
+  { nome: 'excluido_em', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'criado_em', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'atualizado_em', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+];
+
+const CONSTRAINTS_METAS = [
+  'objetivo_valido',
+  'tipo_valido',
+  'valor_alvo_valido',
+  'prazo_valido',
+  'sync_status_valido',
+  'excluido_em_valido',
+] as const;
+
+async function validarTabelaMetas(tx: SQLiteDatabase): Promise<void> {
+  const tabela = await tx.getFirstAsync<{ sql: string | null }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'metas'",
+  );
+  if (!tabela?.sql) throw new FalhaMigracao('tabela "metas" ausente');
+
+  const info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(metas)');
+  if (info.length !== COLUNAS_METAS.length) {
+    throw new EstruturaLegadaInesperada(
+      `"metas" tem ${info.length} colunas; o esquema canônico tem ${COLUNAS_METAS.length}`,
+      'metas',
+    );
+  }
+  const porNome = new Map(info.map((coluna) => [coluna.name, coluna]));
+  for (const coluna of COLUNAS_METAS) {
+    const atual = porNome.get(coluna.nome);
+    if (!atual) {
+      throw new EstruturaLegadaInesperada(`coluna "${coluna.nome}" ausente em "metas"`, 'metas');
+    }
+    validarColunaTabela('metas', coluna, atual);
+  }
+  const extras = info.filter((coluna) => !COLUNAS_METAS.some((c) => c.nome === coluna.name));
+  if (extras.length > 0) {
+    throw new EstruturaLegadaInesperada(
+      `coluna(s) inesperada(s) em "metas": [${extras.map((c) => c.name).join(', ')}]`,
+      'metas',
+    );
+  }
+
+  const faltantes = CONSTRAINTS_METAS.filter((nome) => !tabela.sql!.includes(nome));
+  if (faltantes.length > 0) {
+    throw new EstruturaLegadaInesperada(
+      `constraints ausentes em "metas": [${faltantes.join(', ')}]`,
+      'metas',
+    );
+  }
+}
+
+async function validarIndicesMetas(tx: SQLiteDatabase): Promise<void> {
+  const esperados = ['idx_metas_prazo', 'idx_metas_sync'];
+  const indices = await indicesDeUsuario(tx, 'metas');
+  const ausentes = esperados.filter((nome) => !indices.includes(nome));
+  if (ausentes.length > 0) {
+    throw new FalhaMigracao(`índice(s) ausente(s) em "metas": [${ausentes.join(', ')}]`);
+  }
+
+  const prazo = await tx.getFirstAsync<{ sql: string | null }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_metas_prazo'",
+  );
+  if (!prazo?.sql?.includes('ON metas(prazo)')) {
+    throw new EstruturaLegadaInesperada('índice "idx_metas_prazo" divergente', 'metas');
+  }
+  const sync = await tx.getFirstAsync<{ sql: string | null }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_metas_sync'",
+  );
+  if (!sync?.sql?.includes('ON metas(sync_status)')) {
+    throw new EstruturaLegadaInesperada('índice "idx_metas_sync" divergente', 'metas');
+  }
+}
+
+/** Garante a tabela e os índices de metas, sem alterar user_version. */
+/** @internal Exportada para testes; não faz parte da API de produção. */
+export async function garantirTabelaMetas(tx: SQLiteDatabase): Promise<void> {
+  if (!(await existeTabela(tx, 'metas'))) {
+    await tx.execAsync(DDL_TABELA_METAS);
+  }
+  await validarTabelaMetas(tx);
+  for (const ddl of DDL_INDICES_METAS) await tx.execAsync(ddl);
+  await validarIndicesMetas(tx);
+}
+
+/**
+ * 008 — tabela de metas da UC12. Aditiva, idempotente e transacional.
+ * Nenhuma tabela financeira existente é reconstruída ou alterada.
+ */
+async function migrar008(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await garantirTabelaMetas(tx);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }
