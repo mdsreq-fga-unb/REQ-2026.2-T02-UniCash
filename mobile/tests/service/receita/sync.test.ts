@@ -4144,6 +4144,28 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(mockNuvem.size).toBe(0);
     });
 
+    it('não altera a preferência sem UID', async () => {
+      mockUsuario = null;
+      await expect(definirEnvioAutomatico(false)).rejects.toThrow('Conta ausente');
+      expect(await AsyncStorage.getAllKeys()).toHaveLength(0);
+    });
+
+    it('mantém o envio bloqueado quando a persistência da pausa falha', async () => {
+      await registrarReceita(input());
+      const gravar = jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('banco'));
+      try {
+        await expect(definirEnvioAutomatico(false, 'u1')).rejects.toThrow('banco');
+        expect(await sincronizarPendentes()).toBe(false);
+        expect(mockNuvem.size).toBe(0);
+        expect(banco.receitas()[0].sync_status).toBe('pendente');
+        await sincronizarPendentes({ manual: true });
+        expect(mockNuvem.size).toBe(1);
+      } finally {
+        gravar.mockRestore();
+        await definirEnvioAutomatico(true, 'u1');
+      }
+    });
+
     it('pausar duas vezes continua pausado e liberar remove a pausa', async () => {
       await definirEnvioAutomatico(false);
       await definirEnvioAutomatico(false);
