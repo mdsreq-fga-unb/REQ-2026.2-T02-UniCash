@@ -287,6 +287,30 @@ export const DDL_TRIGGER_PERCENTUAL = `
     END;
   `;
 
+
+/** Tabela de saldo inicial (UC08 — RN16). */
+export const DDL_TABELA_SALDO_INICIAL = `
+  CREATE TABLE IF NOT EXISTS saldo_inicial (
+    uid TEXT PRIMARY KEY NOT NULL,
+    valor_centavos INTEGER NOT NULL
+      CHECK (
+        typeof(valor_centavos) = 'integer'
+        AND valor_centavos BETWEEN -9007199254740991
+        AND 9007199254740991
+      ),
+    mes_referencia TEXT NOT NULL
+      CHECK (
+        length(mes_referencia) = 7
+        AND mes_referencia GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+        AND substr(mes_referencia, 1, 4) <> '0000'
+        AND substr(mes_referencia, 6, 2) BETWEEN '01' AND '12'
+      ),
+    sync_status TEXT NOT NULL DEFAULT 'pendente'
+      CHECK (sync_status IN ('pendente', 'sincronizado')),
+    atualizado_em TEXT NOT NULL
+  );
+`;
+
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
@@ -294,4 +318,7 @@ export const ESQUEMA_SQL = `
     ${DDL_ESQUEMA_V6}
 
     ${DDL_TRIGGER_PERCENTUAL}
+
+    ${DDL_TABELA_SALDO_INICIAL}
   `;
+

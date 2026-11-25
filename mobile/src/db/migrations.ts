@@ -17,6 +17,7 @@ import {
   DDL_RECORRENCIAS_V5,
   DDL_TABELA_CATEGORIA_ESTADO,
   DDL_TABELA_DESPESAS,
+  DDL_TABELA_SALDO_INICIAL,
   DDL_TABELA_CATEGORIAS,
   DDL_TABELA_RESTAURACAO_PENDENTE,
   DDL_TRIGGER_PERCENTUAL,
@@ -25,7 +26,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 7;
+export const VERSAO_ESQUEMA = 8;
 
 export interface RegistroInvalido {
   id: string;
@@ -131,6 +132,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 5, executar: migrar005 },
   { versao: 6, executar: migrar006 },
   { versao: 7, executar: migrar007 },
+  { versao: 8, executar: migrar008 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -605,6 +607,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirColunaExcluidoEmRecorrencias(tx);
       await garantirTabelasV6(tx);
       await aplicarTriggersPercentual(tx);
+      await tx.execAsync(DDL_TABELA_SALDO_INICIAL);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
     return;
@@ -1282,4 +1285,14 @@ async function reconstruirCategorias(tx: SQLiteDatabase, versaoDestino: number):
 
   // 8. Versão gravada na MESMA transação: commit e migração são atômicos.
   await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+}
+/** Migração 008 — adiciona a tabela de saldo inicial (UC08). */
+async function migrar008(
+  db: SQLiteDatabase,
+  versaoDestino: number,
+): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.execAsync(DDL_TABELA_SALDO_INICIAL);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
 }
