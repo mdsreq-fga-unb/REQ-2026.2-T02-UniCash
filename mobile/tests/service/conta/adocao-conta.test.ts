@@ -44,3 +44,15 @@ it('recusa uma sessão diferente do UID solicitado', async () => {
   expect(auth.currentUser?.uid).toBe('A');
   await expect(adotarDadosLocais('B')).rejects.toThrow('Sessão alterada');
 });
+
+it('permite nova tentativa após falha na cópia mantendo a origem', async () => {
+  const origem = banco('A', [{ id: 'r1', sync_status: 'pendente' }]);
+  const destino = banco();
+  (getDbLocal as jest.Mock).mockResolvedValue(origem);
+  (getDbDoDono as jest.Mock).mockResolvedValue(destino);
+  destino.runAsync.mockRejectedValueOnce(new Error('falha na cópia'));
+  await expect(adotarDadosLocais('A')).rejects.toThrow('falha na cópia');
+  await adotarDadosLocais('A');
+  expect(destino.runAsync).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO receitas'), ['r1', 'pendente']);
+  expect(origem.runAsync).not.toHaveBeenCalledWith(expect.stringContaining('DELETE'));
+});
