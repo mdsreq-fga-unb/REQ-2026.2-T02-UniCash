@@ -33,6 +33,20 @@ describe('Home (navegação da UC06)', () => {
 
     expect(await screen.findByRole('button', { name: 'Receitas' })).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Receitas' }));
-    expect(router.push).toHaveBeenCalledWith({ pathname: '/receitas', params: { ano: String(hoje.getFullYear()), mes: String(hoje.getMonth() + 1) } });
+        expect(router.push).toHaveBeenCalledWith({ pathname: '/receitas', params: { ano: String(hoje.getFullYear()), mes: String(hoje.getMonth() + 1) } });
+  });
+
+  it('UC08: oferece acesso ao saldo inicial e navega para /saldo-inicial', async () => {
+    await render(<Home />);
+
+    expect(
+      await screen.findByRole('button', { name: 'Saldo inicial' }),
+    ).toBeTruthy();
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Saldo inicial' }),
+    );
+
+    expect(router.push).toHaveBeenCalledWith('/saldo-inicial');
   });
 });

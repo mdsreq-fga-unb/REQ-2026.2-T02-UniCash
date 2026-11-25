@@ -175,17 +175,16 @@ function Atalhos({ ano, mes }: { ano: number; mes: number }) {
       >
         <Text style={estilos.botaoTexto}>Despesas</Text>
       </Pressable>
-      <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
-  <Text style={estilos.botaoTexto}>Categorias</Text>
-</Pressable>
-
-<Pressable
-  onPress={() => router.push('/saldo-inicial')}
-  style={estilos.botao}
-  accessibilityRole="button"
->
-  <Text style={estilos.botaoTexto}>Saldo inicial</Text>
-</Pressable>
+            <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
+        <Text style={estilos.botaoTexto}>Categorias</Text>
+      </Pressable>
+      <Pressable
+        onPress={() => router.push('/saldo-inicial')}
+        style={estilos.botao}
+        accessibilityRole="button"
+      >
+        <Text style={estilos.botaoTexto}>Saldo inicial</Text>
+      </Pressable>
     </View>
   );
 }
