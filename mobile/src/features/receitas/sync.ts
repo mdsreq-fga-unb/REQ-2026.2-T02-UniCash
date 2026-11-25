@@ -52,6 +52,8 @@ type RecorrenciaSync = {
 
 /** Existe quando o envio automático está pausado (FA01). */
 const ENVIO_PAUSADO = 'unicash:envio_automatico_pausado';
+// Protege o envio nesta execução caso a persistência da pausa falhe.
+const pausasNaoPersistidas = new Set<string>();
 
 let emAndamento = false;
 let acessoNegado = false;
@@ -84,12 +86,15 @@ export function consumirAcessoNegado(): boolean {
 export async function definirEnvioAutomatico(ligado: boolean, uid = auth.currentUser?.uid): Promise<void> {
   if (!uid) throw new Error('Conta ausente');
   const chave = `${ENVIO_PAUSADO}:${uid}`;
+  if (!ligado) pausasNaoPersistidas.add(uid);
   if (ligado) await AsyncStorage.removeItem(chave);
   else await AsyncStorage.setItem(chave, '1');
+  pausasNaoPersistidas.delete(uid);
 }
 
 async function envioPausado(uid: string): Promise<boolean> {
-  return (await AsyncStorage.getItem(`${ENVIO_PAUSADO}:${uid}`)) === '1';
+  return pausasNaoPersistidas.has(uid) ||
+    (await AsyncStorage.getItem(`${ENVIO_PAUSADO}:${uid}`)) === '1';
 }
 
 export interface OpcoesSincronizacao {

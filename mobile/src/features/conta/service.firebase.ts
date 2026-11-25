@@ -14,7 +14,7 @@ export function criarContaServiceFirebase(auth: AuthService): ContaService {
 
       // FA01: uma conta recém-criada não recebe automaticamente
       // os dados locais existentes no aparelho.
-      await obterSincronizacao().pausarEnvioAutomatico();
+      await obterSincronizacao().pausarEnvioAutomatico().catch(() => {});
     },
 
     verificarConfirmacao: () => auth.checkEmailVerified(),
