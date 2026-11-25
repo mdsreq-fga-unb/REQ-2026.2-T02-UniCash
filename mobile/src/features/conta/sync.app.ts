@@ -1,4 +1,6 @@
-import { getDb } from '@/db/database';
+import { adotarDadosLocais } from './adocao.service';
+import { getDb, getDbDoDono } from '@/db/database';
+import { auth } from '@/lib/firebase';
 import {
   definirEnvioAutomatico,
   restaurarDaNuvem,
@@ -20,8 +22,7 @@ const TABELAS = ['receitas', 'despesas', 'recorrencias'] as const;
  * UC02). Consultar uma tabela inexistente lançaria "no such table" e derrubaria o envio, a contagem
  * de pendências e a restauração.
  */
-async function tabelasSincronizaveis(): Promise<string[]> {
-  const banco = await getDb();
+async function tabelasSincronizaveis(banco: Awaited<ReturnType<typeof getDb>>): Promise<string[]> {
   const linhas = await banco.getAllAsync<{ name: string }>("SELECT name FROM sqlite_master WHERE type = 'table'");
   const existentes = new Set(linhas.map((l) => l.name));
   return TABELAS.filter((t) => existentes.has(t));
@@ -30,7 +31,7 @@ async function tabelasSincronizaveis(): Promise<string[]> {
 async function contarPendentes(): Promise<number> {
   const banco = await getDb();
   let total = 0;
-  for (const tabela of await tabelasSincronizaveis()) {
+  for (const tabela of await tabelasSincronizaveis(banco)) {
     const r = await banco.getFirstAsync<{ n: number }>(
       `SELECT COUNT(*) AS n FROM ${tabela} WHERE sync_status = 'pendente'`,
     );
@@ -39,9 +40,9 @@ async function contarPendentes(): Promise<number> {
   return total;
 }
 
-async function estaVazio(): Promise<boolean> {
-  const banco = await getDb();
-  for (const tabela of await tabelasSincronizaveis()) {
+async function estaVazio(uid: string): Promise<boolean> {
+  const banco = await getDbDoDono(uid);
+  for (const tabela of await tabelasSincronizaveis(banco)) {
     const r = await banco.getFirstAsync<{ n: number }>(`SELECT COUNT(*) AS n FROM ${tabela}`);
     if ((r?.n ?? 0) > 0) return false;
   }
@@ -52,8 +53,12 @@ export function criarSincronizacaoDoApp(): SincronizacaoPort {
   return {
     /** E6: os registros que já estavam no aparelho passam a pendentes e sobem no próximo envio. */
     async marcarTodosComoPendentes() {
-      const banco = await getDb();
-      const tabelas = await tabelasSincronizaveis();
+      const usuario = auth.currentUser;
+      if (!usuario?.emailVerified) throw new ErroConta('falha');
+      await adotarDadosLocais(usuario.uid);
+      if (auth.currentUser?.uid !== usuario.uid || !auth.currentUser.emailVerified) throw new ErroConta('falha');
+      const banco = await getDbDoDono(usuario.uid);
+      const tabelas = await tabelasSincronizaveis(banco);
       await banco.withTransactionAsync(async () => {
         for (const tabela of tabelas) {
           await banco.runAsync(`UPDATE ${tabela} SET sync_status = 'pendente'`);
@@ -92,8 +97,10 @@ export function criarSincronizacaoDoApp(): SincronizacaoPort {
     async suspender() {},
 
     /** FA02 / RNF40: aparelho novo ou reinstalado (sem receitas, despesas nem recorrências). */
-    async restaurarSeAparelhoVazio() {
-      if (!(await estaVazio())) return;
+    async restaurarSeAparelhoVazio(uid) {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) return;
+      if (!(await estaVazio(uid))) return;
+      if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) return;
       try {
         await restaurarDaNuvem();
       } catch {

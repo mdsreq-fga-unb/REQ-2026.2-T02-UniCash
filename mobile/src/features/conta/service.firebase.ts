@@ -34,7 +34,11 @@ export function criarContaServiceFirebase(auth: AuthService): ContaService {
           throw new ErroConta('falha');
         }
 
-        await sync.marcarTodosComoPendentes();
+        try {
+          await sync.marcarTodosComoPendentes();
+        } catch {
+          throw new ErroConta('falha');
+        }
 
         // Envio pedido pela pessoa (manual): libera o envio automático pausado em FA01.
         // Não chamar retomar() aqui: ele ocupa a trava do sincronizarPendentes() em segundo plano e
