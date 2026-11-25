@@ -1,5 +1,5 @@
 // A base local real (expo-sqlite) é substituída por SQLite em memória.
-jest.mock('@/db/database', () => ({ getDb: jest.fn() }));
+jest.mock('@/db/database', () => (() => { const getDb = jest.fn(); return { getDb, getDbDoDono: getDb }; })());
 jest.mock('@react-native-async-storage/async-storage', () =>
   require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
