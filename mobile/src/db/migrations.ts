@@ -12,6 +12,7 @@ import {
 } from '@/features/categorias/limites';
 import {
   DDL_ESQUEMA,
+  DDL_PREFERENCIAS_LOCAIS,
   DDL_INDICES_DESPESAS,
   DDL_INDICES_V6,
   DDL_RECORRENCIAS_V5,
@@ -25,7 +26,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 7;
+export const VERSAO_ESQUEMA = 8;
 
 export interface RegistroInvalido {
   id: string;
@@ -131,6 +132,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 5, executar: migrar005 },
   { versao: 6, executar: migrar006 },
   { versao: 7, executar: migrar007 },
+  { versao: 8, executar: migrar008 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -600,6 +602,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
     await db.withExclusiveTransactionAsync(async (tx) => {
       await prepararInstalacaoNova(tx);
       await tx.execAsync(DDL_ESQUEMA);
+      await tx.execAsync(DDL_PREFERENCIAS_LOCAIS);
       await garantirColunasRecorrencias(tx);
       await garantirTabelaDespesas(tx);
       await garantirColunaExcluidoEmRecorrencias(tx);
@@ -846,6 +849,14 @@ async function migrar007(db: SQLiteDatabase, versaoDestino: number): Promise<voi
   await db.withExclusiveTransactionAsync(async (tx) => {
     await substituirTriggersPercentualDefinitivos(tx);
     await normalizarPercentuaisLegados(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/** 008 — preferências do aparelho, independentes de conta. */
+async function migrar008(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.execAsync(DDL_PREFERENCIAS_LOCAIS);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }
