@@ -658,14 +658,18 @@ describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
 describe('Alertas de limites — UC05', () => {
   const dados = {
     tipo: 'aproximacao',
-    ref_id: 'padrao_casa',
+    ref_id: 'uuid-cat',
     periodo: '2026-10',
     categoria_nome: 'Casa',
     gasto_centavos: 8000,
     limite_centavos: 10000,
     emitido_em: '2026-10-16T12:00:00.000Z',
   };
-  const caminho = 'usuarios/alice/alertas/aproximacao_padrao_casa_2026-10';
+  const caminho = 'usuarios/alice/alertas/aproximacao_uuid-cat_2026-10';
+
+  beforeEach(async () => {
+    await assertSucceeds(setDoc(cat(db('alice'), 'alice'), categoria()));
+  });
 
   it('permite gravar e ler ao dono, com identidade única e histórico imutável', async () => {
     const alerta = doc(db('alice'), caminho);
@@ -684,4 +688,17 @@ describe('Alertas de limites — UC05', () => {
       periodo: '2026-13',
     }));
   });
+  it('só permite remover o alerta após excluir a categoria e bloqueia sua recriação', async () => {
+    const alerta = doc(db('alice'), caminho);
+    await assertSucceeds(setDoc(alerta, dados));
+    await assertFails(deleteDoc(alerta));
+    await assertSucceeds(updateDoc(cat(db('alice'), 'alice'), {
+      excluido_em: dados.emitido_em,
+      atualizado_em: dados.emitido_em,
+    }));
+    await assertFails(deleteDoc(doc(db('bob'), caminho)));
+    await assertSucceeds(deleteDoc(alerta));
+    await assertFails(setDoc(alerta, dados));
+  });
+
 });

@@ -1,5 +1,5 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { collection, doc, getDocs, runTransaction } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, runTransaction } from 'firebase/firestore';
 
 import { docIdCategoriaRemota, nomeNormalizadoCategoriaPadraoPorSlug, slugDoDocIdPadrao } from '@/features/categorias/padroes';
 import type { Categoria } from '@/features/categorias/types';
@@ -19,6 +19,20 @@ function alertaValido(dados: Record<string, unknown>): dados is AlertaRemoto {
 }
 
 export async function sincronizarAlertas(sqlite: SQLiteDatabase, uid: string) {
+  const excluidas = await sqlite.getAllAsync<{ id: string }>(
+    "SELECT id FROM categorias WHERE excluido_em IS NOT NULL AND sync_status = 'sincronizado'",
+  );
+  if (excluidas.length) {
+    const idsExcluidos = new Set(excluidas.map(({ id }) => id));
+    const snapshot = await getDocs(collection(firestore, 'usuarios', uid, 'alertas'));
+    for (const remoto of snapshot.docs) {
+      if (auth.currentUser?.uid !== uid) return;
+      if (idsExcluidos.has(remoto.data().ref_id)) {
+        await deleteDoc(doc(firestore, 'usuarios', uid, 'alertas', remoto.id));
+      }
+    }
+  }
+
   const pendentes = await sqlite.getAllAsync<Alerta>(
     `SELECT * FROM alertas WHERE sync_status = 'pendente' AND emitido_em IS NOT NULL
        AND (proprietario_uid IS NULL OR proprietario_uid = ?)`,
@@ -29,7 +43,8 @@ export async function sincronizarAlertas(sqlite: SQLiteDatabase, uid: string) {
     if (auth.currentUser?.uid !== uid) return;
     const { tipo, ref_id, periodo, categoria_nome, gasto_centavos, limite_centavos, emitido_em } = alerta;
     const categoria = await sqlite.getFirstAsync<Categoria>('SELECT * FROM categorias WHERE id = ?', [ref_id]);
-    const refRemota = categoria ? docIdCategoriaRemota(categoria) : ref_id;
+    if (!categoria || categoria.excluido_em) continue;
+    const refRemota = docIdCategoriaRemota(categoria);
     const dados = { tipo, ref_id: refRemota, periodo, categoria_nome, gasto_centavos, limite_centavos, emitido_em };
     const ref = doc(firestore, 'usuarios', uid, 'alertas', `${tipo}_${refRemota}_${periodo}`);
 
@@ -59,11 +74,17 @@ export async function restaurarAlertas(sqlite: SQLiteDatabase, uid: string) {
       const dados = doc.data();
       if (!alertaValido(dados)) continue;
       const slug = slugDoDocIdPadrao(dados.ref_id);
-      const categoria = slug && await tx.getFirstAsync<{ id: string }>(
-        'SELECT id FROM categorias WHERE padrao = 1 AND nome_normalizado = ?',
-        [nomeNormalizadoCategoriaPadraoPorSlug(slug)],
-      );
-      const refLocal = categoria ? categoria.id : dados.ref_id;
+      const categoria = slug
+        ? await tx.getFirstAsync<{ id: string }>(
+          'SELECT id FROM categorias WHERE padrao = 1 AND nome_normalizado = ? AND excluido_em IS NULL',
+          [nomeNormalizadoCategoriaPadraoPorSlug(slug)],
+        )
+        : await tx.getFirstAsync<{ id: string }>(
+          'SELECT id FROM categorias WHERE id = ? AND excluido_em IS NULL',
+          [dados.ref_id],
+        );
+      if (!categoria) continue;
+      const refLocal = categoria.id;
 
       await tx.runAsync(
         `INSERT INTO alertas

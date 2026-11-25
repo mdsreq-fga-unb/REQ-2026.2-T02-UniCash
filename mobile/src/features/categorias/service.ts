@@ -345,6 +345,7 @@ export async function marcarCategoriaExcluidaNaTransacao(
      WHERE id = ?`,
     [excluidoEm, syncStatus, atualizadoEm, id],
   );
+  await tx.runAsync('DELETE FROM alertas WHERE ref_id = ?', [id]);
   await definirEstadoCategoria(
     tx,
     id,

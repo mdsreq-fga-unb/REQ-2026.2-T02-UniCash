@@ -259,6 +259,30 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     expect(emitir).toHaveBeenCalledTimes(1);
   });
 
+  it('remove alertas já sincronizados após excluir a categoria offline (UC05)', async () => {
+    const id = await criarCategoria({ nome: 'Compras', limite: { tipo: 'valor', valor: 10000 } });
+    await registrarDespesa({
+      data: '2026-10-16', titulo: 'Compra', valorCentavos: 8000, categoriaId: id,
+      descricao: null, fixaOuVariavel: null, essencial: null, recorrencia: null,
+    });
+    await emitirAlertasPendentes({ disponivel: async () => true, emitir: async () => {} });
+    const caminhoAlerta = `usuarios/u1/alertas/aproximacao_${id}_2026-10`;
+    await sincronizarPendentes();
+    expect(mockNuvem.has(caminhoAlerta)).toBe(true);
+
+    mockRedeFora = true;
+    await excluirCategoria(id);
+    await sincronizarPendentes();
+    expect(banco.sqlite.prepare('SELECT * FROM alertas').all()).toEqual([]);
+    expect(mockNuvem.has(caminhoAlerta)).toBe(true);
+
+    mockRedeFora = false;
+    await restaurarDaNuvem();
+    expect(banco.sqlite.prepare('SELECT * FROM alertas').all()).toEqual([]);
+    await sincronizarPendentes();
+    expect(mockNuvem.has(caminhoAlerta)).toBe(false);
+  });
+
   it('preserva a restauração dos lançamentos quando as regras de alertas ainda não estão publicadas (UC05)', async () => {
     mockCaminhosRejeitados.add('usuarios/u1/alertas');
     mockNuvem.set(caminho('receita-remota'), {

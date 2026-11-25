@@ -303,8 +303,15 @@ service cloud.firestore {
 
     match /usuarios/{uid}/alertas/{id} {
       allow read: if dono(uid);
-      allow create: if dono(uid) && alertaValido(request.resource.data);
-      allow update, delete: if false;
+      allow create: if dono(uid) && alertaValido(request.resource.data)
+        && getAfter(categoriaDoAlerta(request.resource.data.ref_id)).data.excluido_em == null;
+      allow update: if false;
+      allow delete: if dono(uid)
+        && getAfter(categoriaDoAlerta(resource.data.ref_id)).data.excluido_em is string;
+
+      function categoriaDoAlerta(refId) {
+        return /databases/$(database)/documents/usuarios/$(uid)/categorias/$(refId);
+      }
 
       function alertaValido(d) {
         return d.keys().hasAll([
