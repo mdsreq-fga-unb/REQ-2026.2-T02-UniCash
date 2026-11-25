@@ -2,7 +2,7 @@ import { serializarImportacao } from './operacoes-locais';
 import { getDbLocal, getDbDoDono } from '@/db/database';
 import { auth } from '@/lib/firebase';
 
-const TABELAS = ['categorias', 'categorias_estado', 'recorrencias', 'receitas', 'despesas'] as const;
+const TABELAS = ['categorias', 'categorias_estado', 'recorrencias', 'receitas', 'despesas', 'saldo_inicial'] as const;
 type Valor = string | number | null | Uint8Array;
 type Linha = Record<string, Valor>;
 const META = `CREATE TABLE IF NOT EXISTS uc10_adocao (
