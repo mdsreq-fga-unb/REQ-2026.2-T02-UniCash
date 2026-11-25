@@ -1,3 +1,4 @@
+jest.mock('@/features/conta/adocao.service', () => ({ adotarDadosLocais: jest.fn(async () => {}) }));
 import { getDb } from '@/db/database';
 import {
   definirEnvioAutomatico,
@@ -8,7 +9,8 @@ import {
 import { criarSincronizacaoDoApp } from '@/features/conta/sync.app';
 import type { CodigoErro } from '@/features/conta/types';
 
-jest.mock('@/db/database', () => ({ getDb: jest.fn() }));
+jest.mock('@/db/database', () => { const getDb = jest.fn(); return { getDb, getDbDoDono: getDb }; });
+jest.mock('@/lib/firebase', () => ({ auth: { currentUser: { uid: 'u1', emailVerified: true } } }));
 jest.mock('@/features/receitas/sync', () => ({
   definirEnvioAutomatico: jest.fn(),
   restaurarDaNuvem: jest.fn(),
