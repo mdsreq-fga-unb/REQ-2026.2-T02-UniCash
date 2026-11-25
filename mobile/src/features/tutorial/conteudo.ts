@@ -44,7 +44,7 @@ export const etapas = [
     texto: 'O resumo mostra quanto entrou, quanto saiu e o saldo do período. Antes do primeiro lançamento, os três valores aparecem como R$ 0,00.',
     termos: ['receita', 'despesa', 'saldo'],
     destino: 'resumo',
-    acao: 'Ver exemplo de resumo',
+    acao: 'Ver meu resumo',
   },
 ] as const;
 

@@ -4,10 +4,11 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { AcaoTutorial, estilos, TelaTutorial } from '@/components/tutorial/Interface';
 import { destinos, etapas, glossario, MSG_ABERTURA_TUTORIAL } from '@/features/tutorial/conteudo';
+import { confirmarAberturaTutorial } from '@/features/tutorial/navegacao';
 import { registrarTutorialOferecido } from '@/features/tutorial/estado';
 
 export default function Tutorial() {
-  const { origem } = useLocalSearchParams<{ origem?: string }>();
+  const { origem, tentativa } = useLocalSearchParams<{ origem?: string; tentativa?: string }>();
   const [iniciado, setIniciado] = useState(origem !== 'primeiro-acesso');
   const [indice, setIndice] = useState(0);
   const [erro, setErro] = useState(false);
@@ -29,12 +30,13 @@ export default function Tutorial() {
   }, []);
 
   useFocusEffect(useCallback(() => {
+    confirmarAberturaTutorial(tentativa);
     const inscricao = BackHandler.addEventListener('hardwareBackPress', () => {
       void encerrar();
       return true;
     });
     return () => inscricao.remove();
-  }, [encerrar]));
+  }, [encerrar, tentativa]));
 
   function visitar(destino: keyof typeof destinos) {
     try {

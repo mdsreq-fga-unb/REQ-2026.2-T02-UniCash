@@ -19,9 +19,13 @@ function mesCorrente() {
 }
 
 /** Resumo financeiro inicial (UC03, RF11, RF40). Somente leitura; calculado na base local. */
-export default function ResumoFinanceiro() {
+export default function Inicio() {
+  return <ResumoFinanceiro />;
+}
+
+export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean }) {
   // Passo 2: o mês corrente é o período padrão (RN12).
-  const ofertaTutorial = useOfertaTutorial();
+  const ofertaTutorial = useOfertaTutorial(!noTutorial);
   const [periodo, setPeriodo] = useState(mesCorrente);
   const { resumo, falhou, recarregar } = useResumo(periodo.ano, periodo.mes);
   // Só exibe valores calculados para o mês selecionado: ao trocar de mês, os do mês anterior
@@ -50,9 +54,15 @@ export default function ResumoFinanceiro() {
           <Text style={estilos.titulo} accessibilityRole="header">
             Resumo financeiro
           </Text>
-          <Pressable onPress={() => router.push('/ajuda')} style={estilos.ajuda} accessibilityRole="button">
-            <Text style={estilos.botaoContornoTexto}>Ajuda</Text>
-          </Pressable>
+          {noTutorial ? (
+            <Pressable onPress={() => router.back()} style={estilos.ajuda} accessibilityRole="button">
+              <Text style={estilos.botaoContornoTexto}>Voltar ao tutorial</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => router.push('/ajuda')} style={estilos.ajuda} accessibilityRole="button">
+              <Text style={estilos.botaoContornoTexto}>Ajuda</Text>
+            </Pressable>
+          )}
         </View>
         {ofertaTutorial.falhou && (
           <View style={estilos.secao}>
@@ -94,13 +104,13 @@ export default function ResumoFinanceiro() {
           </View>
         ) : !resumoDoPeriodo ? (
           <ActivityIndicator color={cores.primaria} style={{ marginTop: 32 }} testID="carregando" />
-        ) : resumoDoPeriodo.semLancamentos ? (
+        ) : resumoDoPeriodo.semLancamentos && !noTutorial ? (
           <EstadoVazio />
         ) : (
           <Conteudo resumo={resumoDoPeriodo} />
         )}
 
-        <Atalhos ano={periodo.ano} mes={periodo.mes} />
+        {!noTutorial && <Atalhos ano={periodo.ano} mes={periodo.mes} />}
       </ScrollView>
     </SafeAreaView>
   );

@@ -1,30 +1,29 @@
-import { useCallback, useContext, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useContext, useEffect, useState } from 'react';
 import { BancoPronto } from '@/db/Preparacao';
 import { deveOferecerTutorial } from './estado';
 import { abrirTutorial } from './navegacao';
 
-export function useOfertaTutorial() {
+export function useOfertaTutorial(habilitada: boolean) {
   const bancoPronto = useContext(BancoPronto);
   const [estado, setEstado] = useState<'pendente' | 'verificado' | 'erro'>('pendente');
 
-  useFocusEffect(useCallback(() => {
-    if (!bancoPronto || estado !== 'pendente') return;
+  useEffect(() => {
+    if (!habilitada || !bancoPronto || estado !== 'pendente') return;
     let ativo = true;
 
-    void deveOferecerTutorial().then((oferecer) => {
+    void deveOferecerTutorial().then(async (oferecer) => {
       if (!ativo) return;
-      if (oferecer) abrirTutorial('primeiro-acesso');
-      setEstado('verificado');
+      const abriu = !oferecer || await abrirTutorial('primeiro-acesso');
+      if (ativo) setEstado(abriu ? 'verificado' : 'erro');
     }).catch(() => {
       if (ativo) setEstado('erro');
     });
 
     return () => { ativo = false; };
-  }, [bancoPronto, estado]));
+  }, [bancoPronto, estado, habilitada]);
 
   return {
-    verificando: bancoPronto && estado === 'pendente',
+    verificando: habilitada && bancoPronto && estado === 'pendente',
     falhou: estado === 'erro',
     tentarNovamente: () => setEstado('pendente'),
   };

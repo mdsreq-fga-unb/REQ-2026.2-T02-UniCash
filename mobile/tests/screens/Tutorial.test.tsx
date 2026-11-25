@@ -4,6 +4,7 @@ import Ajuda from '@/app/ajuda';
 import { Text } from 'react-native';
 import { BancoPronto } from '@/db/Preparacao';
 import { AcaoTutorial } from '@/components/tutorial/Interface';
+import { PRAZO_ABERTURA_TUTORIAL_MS } from '@/features/tutorial/navegacao';
 import { useOfertaTutorial } from '@/features/tutorial/useOfertaTutorial';
 import { deveOferecerTutorial, registrarTutorialOferecido } from '@/features/tutorial/estado';
 import { destinos, etapas, MSG_ABERTURA_TUTORIAL } from '@/features/tutorial/conteudo';
@@ -27,10 +28,10 @@ it('oferece no primeiro acesso e permite pular, registrando a oferta', async () 
   const resumo = await render(<BancoPronto.Provider value><Oferta /></BancoPronto.Provider>);
   expect(router.push).toHaveBeenCalledWith({
     pathname: '/tutorial',
-    params: { origem: 'primeiro-acesso' },
+    params: { origem: 'primeiro-acesso', tentativa: expect.any(String) },
   });
   await resumo.unmount();
-  (useLocalSearchParams as jest.Mock).mockReturnValue({ origem: 'primeiro-acesso' });
+  (useLocalSearchParams as jest.Mock).mockReturnValue(router.push.mock.lastCall![0].params);
   await render(<Tutorial />);
   await tocar('Pular tutorial');
   expect(registrarTutorialOferecido).toHaveBeenCalledTimes(1);
@@ -74,25 +75,38 @@ it('mantém o resumo acessível quando a gravação falha (EX02)', async () => {
   expect(router.dismissTo).toHaveBeenCalledWith('/');
 });
 
-it('exibe a exceção de abertura no menu de ajuda e permite tentar novamente (EX01)', async () => {
-  router.push.mockImplementationOnce(() => { throw new Error('rota indisponível'); });
-  await render(<Ajuda />);
+it('oferece nova tentativa se o push da Ajuda não levar o tutorial ao foco (EX01)', async () => {
+  const ajuda = await render(<Ajuda />);
   await tocar('Tutorial');
-  expect(screen.getByText(MSG_ABERTURA_TUTORIAL)).toBeTruthy();
+  expect(router.push).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText(MSG_ABERTURA_TUTORIAL)).toBeNull();
+
+  expect(await screen.findByText(MSG_ABERTURA_TUTORIAL, {}, {
+    timeout: PRAZO_ABERTURA_TUTORIAL_MS + 1000,
+  })).toBeTruthy();
+
   await tocar('Tentar novamente');
-  expect(router.push).toHaveBeenLastCalledWith('/tutorial');
+  const primeira = router.push.mock.calls[0][0].params;
+  const segunda = router.push.mock.lastCall![0].params;
+  expect(segunda).toEqual({ origem: 'manual', tentativa: expect.any(String) });
+  expect(segunda.tentativa).not.toBe(primeira.tentativa);
+
+  // O foco da tentativa antiga não deve confirmar a atual.
+  (useLocalSearchParams as jest.Mock).mockReturnValue(primeira);
+  await ajuda.rerender(<><Ajuda /><Tutorial /></>);
+  expect(screen.getByRole('button', { name: 'Tutorial' })).toBeDisabled();
+
+  (useLocalSearchParams as jest.Mock).mockReturnValue(segunda);
+  await ajuda.rerender(<><Ajuda /><Tutorial /></>);
+  expect(screen.getByRole('button', { name: 'Tutorial' })).toBeEnabled();
   expect(screen.queryByText(MSG_ABERTURA_TUTORIAL)).toBeNull();
 });
 
-it('mostra o resumo ao falhar no primeiro acesso e permite tentar novamente (EX01)', async () => {
-  jest.mocked(deveOferecerTutorial).mockRejectedValueOnce(new Error('SQLite')).mockResolvedValueOnce(true);
+it('mantém o resumo acessível quando a leitura da preferência falha', async () => {
+  jest.mocked(deveOferecerTutorial).mockRejectedValueOnce(new Error('SQLite'));
   await render(<BancoPronto.Provider value><Oferta /></BancoPronto.Provider>);
   expect(await screen.findByText(MSG_ABERTURA_TUTORIAL)).toBeTruthy();
   expect(screen.getByText('Resumo disponível')).toBeTruthy();
-  await tocar('Tentar novamente');
-  expect(router.push).toHaveBeenCalledWith({
-    pathname: '/tutorial', params: { origem: 'primeiro-acesso' },
-  });
 });
 
 it('não repete a oferta automática quando a preferência já existe', async () => {
@@ -108,7 +122,7 @@ it('abre cada tela de destino e preserva a etapa para continuar quando voltar', 
     ['Registrar receita', destinos['registrar-receita']],
     ['Registrar despesa', destinos['registrar-despesa']],
     ['Ver exemplo de meta', '/tutorial/criar-meta'],
-    ['Ver exemplo de resumo', '/tutorial/resumo'],
+    ['Ver meu resumo', '/tutorial/resumo'],
   ] as const) {
     await tocar('Avançar');
     await tocar(acao);
@@ -118,7 +132,7 @@ it('abre cada tela de destino e preserva a etapa para continuar quando voltar', 
 });
 
 function Oferta() {
-  const oferta = useOfertaTutorial();
+  const oferta = useOfertaTutorial(true);
   if (oferta.verificando) return null;
   return (
     <>
