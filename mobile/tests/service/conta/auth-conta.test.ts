@@ -432,3 +432,21 @@ describe('requestEmailChange e confirmEmailChange (UC11)', () => {
     expect(m(ff.updateDoc)).not.toHaveBeenCalled();
   });
 });
+
+ describe('EX07: retomada de cadastro', () => {
+  const dados = { email: 'ana@exemplo.com', senha: 'Abcdef1!' };
+  it.each(['perfil', 'auth'])('retoma após falha ao excluir %s', async (etapa) => {
+    const u = usuario();
+    m(fa.createUserWithEmailAndPassword).mockResolvedValueOnce({ user: u }).mockRejectedValueOnce(erroFirebase('auth/email-already-in-use'));
+    m(fa.signInWithEmailAndPassword).mockResolvedValue({ user: u });
+    m(fa.sendEmailVerification).mockRejectedValueOnce(erroFirebase('auth/internal-error')).mockResolvedValueOnce(undefined);
+    if (etapa === 'perfil') m(ff.deleteDoc).mockRejectedValueOnce(erroFirebase('permission-denied'));
+    else m(fa.deleteUser).mockRejectedValueOnce(erroFirebase('auth/network-request-failed'));
+    const servico = criarAuthFirebase();
+    await expect(servico.signUp(dados)).rejects.toBeDefined();
+    if (etapa === 'perfil') expect(fa.deleteUser).not.toHaveBeenCalled();
+    m(ff.getDoc).mockResolvedValue({ exists: () => etapa === 'perfil' });
+    await expect(servico.signUp(dados)).resolves.toBeUndefined();
+    expect(fa.sendEmailVerification).toHaveBeenCalledTimes(2);
+  });
+});

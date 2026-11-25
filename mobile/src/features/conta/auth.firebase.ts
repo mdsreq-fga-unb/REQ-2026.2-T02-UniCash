@@ -69,7 +69,7 @@ export function criarAuthFirebase(): AuthService {
           if (u.emailVerified) throw new ErroConta('email-em-uso');
         } catch {
           await fbSignOut(auth).catch(() => {});
-          throw traduzirErroFirebase(e);
+          throw new ErroConta('email-em-uso');
         }
       }
       try {
@@ -86,8 +86,8 @@ export function criarAuthFirebase(): AuthService {
         // Desfaz: nenhuma conta ou perfil parcial (EX07, EX10).
         try {
           // Não apagar Auth se não foi possível limpar o perfil: permite retomar o cadastro.
-          await deleteDoc(doc(db, 'usuarios', u.uid));
-          await deleteUser(u);
+          await comTimeout(deleteDoc(doc(db, 'usuarios', u.uid)));
+          await comTimeout(deleteUser(u));
         } catch {
           await fbSignOut(auth).catch(() => {});
         }
