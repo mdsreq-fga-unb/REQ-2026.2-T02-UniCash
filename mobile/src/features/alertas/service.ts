@@ -29,23 +29,22 @@ interface Consumo {
 
 type Escopo = 'despesas' | 'receitas' | 'categorias';
 
-export async function alertasAtivos(db: SQLiteDatabase) {
-  const preferencia = await db.getFirstAsync<{ ativo: number }>(
-    'SELECT ativo FROM preferencias_alertas WHERE id = 1',
+export async function lerPreferenciasAlertas(db: SQLiteDatabase): Promise<Record<TipoAlerta, boolean>> {
+  const preferencias = { aproximacao: true, ultrapassagem: true };
+  const linhas = await db.getAllAsync<{ tipo: TipoAlerta; ativo: number }>(
+    'SELECT tipo, ativo FROM preferencias_alertas_por_tipo',
   );
-  return preferencia?.ativo !== 0;
+  for (const { tipo, ativo } of linhas) preferencias[tipo] = ativo === 1;
+  return preferencias;
 }
 
-export async function definirAlertasAtivos(ativo: boolean) {
+export async function definirPreferenciaAlerta(tipo: TipoAlerta, ativo: boolean) {
   const db = await getDb();
-  await db.withExclusiveTransactionAsync(async (tx) => {
-    await tx.runAsync(
-      `INSERT INTO preferencias_alertas (id, ativo) VALUES (1, ?)
-       ON CONFLICT (id) DO UPDATE SET ativo = excluded.ativo`,
-      [Number(ativo)],
-    );
-    if (!ativo) await tx.runAsync('DELETE FROM alertas WHERE emitido_em IS NULL');
-  });
+  await db.runAsync(
+    `INSERT INTO preferencias_alertas_por_tipo (tipo, ativo) VALUES (?, ?)
+     ON CONFLICT (tipo) DO UPDATE SET ativo = excluded.ativo`,
+    [tipo, Number(ativo)],
+  );
 }
 
 async function consumos(tx: SQLiteDatabase, escopo: Escopo) {
@@ -90,29 +89,42 @@ function classificar(consumo: Consumo): { tipo: TipoAlerta; limite: number } | n
 
 const chaveConsumo = (consumo: Consumo) => JSON.stringify([consumo.ref_id, consumo.periodo]);
 
+/** EX02: uma avaliação indisponível não invalida a operação que a disparou. */
+async function avaliarConsumos(tx: SQLiteDatabase, escopo: Escopo) {
+  try {
+    return new Map((await consumos(tx, escopo)).map((consumo) => [
+      chaveConsumo(consumo), { consumo, faixa: classificar(consumo) },
+    ]));
+  } catch (erro) {
+    console.warn('Não foi possível calcular o consumo dos limites de gastos.', erro);
+    return null;
+  }
+}
+
 /** Reavalia apenas as combinações categoria/mês que mudaram na operação. */
 export async function comRecalculoDeAlertas<T>(
   tx: SQLiteDatabase,
   escopo: Escopo,
   alterar: (tx: SQLiteDatabase) => Promise<T>,
 ): Promise<T> {
-  if (!(await alertasAtivos(tx))) return alterar(tx);
-
-  const antes = new Map((await consumos(tx, escopo)).map((linha) => [chaveConsumo(linha), linha]));
+  const antes = await avaliarConsumos(tx, escopo);
   const resultado = await alterar(tx);
-  const alterados = (await consumos(tx, escopo)).flatMap((consumo) => {
-    const chave = chaveConsumo(consumo);
+  if (!antes) return resultado;
+
+  const depois = await avaliarConsumos(tx, escopo);
+  if (!depois) return resultado;
+
+  const alterados = [...depois].flatMap(([chave, avaliacao]) => {
     const anterior = antes.get(chave);
     antes.delete(chave);
-    return anterior && JSON.stringify(anterior) === JSON.stringify(consumo) ? [] : [{ consumo, anterior }];
+    return anterior && JSON.stringify(anterior.consumo) === JSON.stringify(avaliacao.consumo)
+      ? [] : [{ ...avaliacao, anteriorFaixa: anterior?.faixa }];
   });
   if (!alterados.length && !antes.size) return resultado;
 
   const uid = auth.currentUser?.uid ?? null;
 
-  for (const { consumo, anterior } of alterados) {
-    const faixa = classificar(consumo);
-    const anteriorFaixa = anterior && classificar(anterior);
+  for (const { consumo, faixa, anteriorFaixa } of alterados) {
     await tx.runAsync(
       `DELETE FROM alertas WHERE ref_id = ? AND periodo = ? AND emitido_em IS NULL
         AND tipo IS NOT ? AND (proprietario_uid IS NULL OR proprietario_uid = ?)`,
@@ -138,7 +150,7 @@ export async function comRecalculoDeAlertas<T>(
     }
   }
 
-  for (const removido of antes.values()) {
+  for (const { consumo: removido } of antes.values()) {
     await tx.runAsync(
       `DELETE FROM alertas WHERE ref_id = ? AND periodo = ? AND emitido_em IS NULL
         AND (proprietario_uid IS NULL OR proprietario_uid = ?)`,

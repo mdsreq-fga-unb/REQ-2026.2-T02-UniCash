@@ -302,9 +302,18 @@ export const DDL_ALERTAS = `
     proprietario_uid TEXT,
     PRIMARY KEY (tipo, ref_id, periodo)
   );
+`;
 
+export const DDL_PREFERENCIAS_ALERTAS_V8 = `
   CREATE TABLE IF NOT EXISTS preferencias_alertas (
     id INTEGER PRIMARY KEY CHECK (id = 1),
+    ativo INTEGER NOT NULL CHECK (ativo IN (0, 1))
+  );
+`;
+
+export const DDL_PREFERENCIAS_ALERTAS_POR_TIPO = `
+  CREATE TABLE IF NOT EXISTS preferencias_alertas_por_tipo (
+    tipo TEXT PRIMARY KEY NOT NULL CHECK (tipo IN ('aproximacao', 'ultrapassagem')),
     ativo INTEGER NOT NULL CHECK (ativo IN (0, 1))
   );
 `;
@@ -318,4 +327,5 @@ export const ESQUEMA_SQL = `
     ${DDL_TRIGGER_PERCENTUAL}
 
     ${DDL_ALERTAS}
+    ${DDL_PREFERENCIAS_ALERTAS_POR_TIPO}
   `;

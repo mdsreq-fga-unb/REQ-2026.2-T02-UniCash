@@ -1,7 +1,7 @@
 import { getDb } from '@/db/database';
 import { auth } from '@/lib/firebase';
 import { formatarBRL } from '@/features/receitas/money';
-import { alertasAtivos, type Alerta } from './service';
+import { lerPreferenciasAlertas, type Alerta } from './service';
 
 export interface NotificadorDeLimite {
   disponivel(): Promise<boolean>;
@@ -11,7 +11,7 @@ export interface NotificadorDeLimite {
 export async function emitirAlertasPendentes(notificador: NotificadorDeLimite): Promise<boolean> {
   const db = await getDb();
   const uid = auth.currentUser?.uid ?? null;
-  if (!(await alertasAtivos(db))) return false;
+  const preferencias = await lerPreferenciasAlertas(db);
 
   const pendentes = await db.getAllAsync<Alerta>(
     `SELECT * FROM alertas WHERE emitido_em IS NULL
@@ -19,12 +19,13 @@ export async function emitirAlertasPendentes(notificador: NotificadorDeLimite): 
        ORDER BY periodo, ref_id, tipo`,
     [uid],
   );
-  if (!pendentes.length || !(await notificador.disponivel())) return false;
+  const habilitados = pendentes.filter(({ tipo }) => preferencias[tipo]);
+  if (!habilitados.length || !(await notificador.disponivel())) return false;
 
   let emitiu = false;
-  for (const { tipo, ref_id, periodo } of pendentes) {
+  for (const { tipo, ref_id, periodo } of habilitados) {
     await db.withExclusiveTransactionAsync(async (tx) => {
-      if ((auth.currentUser?.uid ?? null) !== uid || !(await alertasAtivos(tx))) return;
+      if ((auth.currentUser?.uid ?? null) !== uid || !(await lerPreferenciasAlertas(tx))[tipo]) return;
       const alerta = await tx.getFirstAsync<Alerta>(
         `SELECT * FROM alertas WHERE tipo = ? AND ref_id = ? AND periodo = ? AND emitido_em IS NULL
            AND (proprietario_uid IS NULL OR proprietario_uid = ?)`,

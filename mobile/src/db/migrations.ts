@@ -12,6 +12,8 @@ import {
 } from '@/features/categorias/limites';
 import {
   DDL_ALERTAS,
+  DDL_PREFERENCIAS_ALERTAS_POR_TIPO,
+  DDL_PREFERENCIAS_ALERTAS_V8,
   DDL_ESQUEMA,
   DDL_INDICES_DESPESAS,
   DDL_INDICES_V6,
@@ -26,7 +28,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 8;
+export const VERSAO_ESQUEMA = 9;
 
 export interface RegistroInvalido {
   id: string;
@@ -133,6 +135,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 6, executar: migrar006 },
   { versao: 7, executar: migrar007 },
   { versao: 8, executar: migrar008 },
+  { versao: 9, executar: migrar009 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -608,6 +611,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirTabelasV6(tx);
       await aplicarTriggersPercentual(tx);
       await tx.execAsync(DDL_ALERTAS);
+      await tx.execAsync(DDL_PREFERENCIAS_ALERTAS_POR_TIPO);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
     return;
@@ -622,6 +626,25 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
 async function migrar008(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await tx.execAsync(DDL_ALERTAS);
+    await tx.execAsync(DDL_PREFERENCIAS_ALERTAS_V8);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+async function migrarPreferenciasAlertas(tx: SQLiteDatabase) {
+  await tx.execAsync(DDL_PREFERENCIAS_ALERTAS_POR_TIPO);
+  await tx.execAsync(`
+    INSERT INTO preferencias_alertas_por_tipo (tipo, ativo)
+      SELECT 'aproximacao', ativo FROM preferencias_alertas
+      UNION ALL SELECT 'ultrapassagem', ativo FROM preferencias_alertas;
+    DROP TABLE preferencias_alertas;
+    DELETE FROM alertas WHERE ref_id IN (SELECT id FROM categorias WHERE excluido_em IS NOT NULL);
+  `);
+}
+
+async function migrar009(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await migrarPreferenciasAlertas(tx);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

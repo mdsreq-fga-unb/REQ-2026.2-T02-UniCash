@@ -5,17 +5,22 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { getDb } from '@/db/database';
 import { avisarAlertasPendentes } from '@/features/alertas/evento';
-import { alertasAtivos, definirAlertasAtivos } from '@/features/alertas/service';
+import { definirPreferenciaAlerta, lerPreferenciasAlertas, type TipoAlerta } from '@/features/alertas/service';
 import { cores } from '@/lib/theme';
 
+const ROTULOS = {
+  aproximacao: 'Alertas de aproximação',
+  ultrapassagem: 'Alertas de ultrapassagem',
+} satisfies Record<TipoAlerta, string>;
+
 export default function PreferenciasAlertas() {
-  const [ativo, setAtivo] = useState<boolean | null>(null);
+  const [preferencias, setPreferencias] = useState<Record<TipoAlerta, boolean> | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState('');
 
   function carregar() {
-    void getDb().then(alertasAtivos).then((preferencia) => {
-      setAtivo(preferencia);
+    void getDb().then(lerPreferenciasAlertas).then((preferencia) => {
+      setPreferencias(preferencia);
       setErro('');
     }).catch(() => {
       setErro('Não foi possível consultar a preferência de alertas.');
@@ -26,12 +31,12 @@ export default function PreferenciasAlertas() {
     carregar();
   }, []);
 
-  async function alterar(valor: boolean) {
+  async function alterar(tipo: TipoAlerta, valor: boolean) {
     setSalvando(true);
     setErro('');
     try {
-      await definirAlertasAtivos(valor);
-      setAtivo(valor);
+      await definirPreferenciaAlerta(tipo, valor);
+      setPreferencias((atual) => atual && { ...atual, [tipo]: valor });
       if (valor) avisarAlertasPendentes();
     } catch {
       setErro('Não foi possível salvar a preferência de alertas.');
@@ -46,19 +51,19 @@ export default function PreferenciasAlertas() {
         <Text style={estilos.link}>Voltar</Text>
       </Pressable>
       <Text style={estilos.titulo} accessibilityRole="header">Preferências de alertas</Text>
-      {ativo !== null ? (
-        <View style={estilos.linha}>
-          <Text style={estilos.rotulo}>Alertas de limites de gastos</Text>
+      {preferencias ? (Object.keys(ROTULOS) as TipoAlerta[]).map((tipo) => (
+        <View style={estilos.linha} key={tipo}>
+          <Text style={estilos.rotulo}>{ROTULOS[tipo]}</Text>
           <Switch
-            accessibilityLabel="Alertas de limites de gastos"
-            value={ativo}
+            accessibilityLabel={ROTULOS[tipo]}
+            value={preferencias[tipo]}
             disabled={salvando}
-            onValueChange={(valor) => void alterar(valor)}
+            onValueChange={(valor) => void alterar(tipo, valor)}
           />
         </View>
-      ) : !erro ? <Text style={estilos.rotulo}>Carregando preferência…</Text> : null}
+      )) : !erro ? <Text style={estilos.rotulo}>Carregando preferência…</Text> : null}
       {erro ? <Text style={estilos.erro} accessibilityRole="alert">{erro}</Text> : null}
-      {ativo === null && erro ? (
+      {preferencias === null && erro ? (
         <Pressable onPress={carregar} accessibilityRole="button" style={estilos.acao}>
           <Text style={estilos.link}>Tentar novamente</Text>
         </Pressable>

@@ -1,8 +1,9 @@
+import { getDb } from '@/db/database';
 import { criarCategoria, editarCategoria, excluirCategoria, semearCategoriasPadrao } from '@/features/categorias/service';
 import { editarDespesa, excluirDespesa, registrarDespesa } from '@/features/despesas/service';
 import type { DespesaInput } from '@/features/despesas/types';
 import { registrarReceita } from '@/features/receitas/service';
-import { definirAlertasAtivos, type Alerta } from '@/features/alertas/service';
+import { definirPreferenciaAlerta, type Alerta } from '@/features/alertas/service';
 import { emitirAlertasPendentes } from '@/features/alertas/notificacoes';
 import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
 import { input } from '../helpers/dados';
@@ -108,15 +109,51 @@ describe('UC05 — Monitorar limites de gastos', () => {
     expect(alertas()).toEqual([]);
   });
 
-  it('respeita a preferência desativada e cancela as notificações pendentes', async () => {
+  it.each(['aproximacao', 'ultrapassagem'] as const)(
+    'mantém o cálculo com %s desativado e emite apenas o outro tipo',
+    async (desativado) => {
+      await definirPreferenciaAlerta(desativado, false);
+      await registrarDespesa(despesa(8000));
+      await registrarDespesa(despesa(11000, { data: '2026-09-16' }));
+
+      const local = notificador();
+      await emitirAlertasPendentes(local);
+      expect(alertas()).toHaveLength(2);
+      expect(alertas().find((alerta) => alerta.tipo === desativado)?.emitido_em).toBeNull();
+      expect(alertas().find((alerta) => alerta.tipo !== desativado)?.emitido_em).toEqual(expect.any(String));
+      expect(local.emitir).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it('remove um alerta já emitido ao excluir a categoria', async () => {
     await registrarDespesa(despesa(8000));
-    await definirAlertasAtivos(false);
-    await registrarDespesa(despesa(3000));
-    const local = notificador();
-    await emitirAlertasPendentes(local);
-    expect(local.emitir).not.toHaveBeenCalled();
+    await emitirAlertasPendentes(notificador());
+    expect(alertas()[0].emitido_em).toEqual(expect.any(String));
+
+    await excluirCategoria(categoriaId);
+
     expect(alertas()).toEqual([]);
-    expect(banco.despesas()).toHaveLength(2);
+    expect(banco.despesas()[0].categoria_id).toBeNull();
+  });
+
+  it.each([1, 2])('salva a despesa se a consulta de consumo %i falhar (EX02)', async (etapa) => {
+    const db = await getDb();
+    const ler = db.getAllAsync.bind(db);
+    let chamadas = 0;
+    const consulta = jest.spyOn(db, 'getAllAsync').mockImplementation(async (sql, ...params) => {
+      if (sql.includes('WITH gastos AS') && ++chamadas === etapa) throw new Error('Consumo indisponível');
+      return ler(sql, ...params);
+    });
+    const aviso = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await registrarDespesa(despesa(8000));
+      expect(banco.despesas()).toHaveLength(1);
+      expect(alertas()).toEqual([]);
+      expect(aviso).toHaveBeenCalledTimes(1);
+    } finally {
+      consulta.mockRestore();
+      aviso.mockRestore();
+    }
   });
 
   it('reverte a despesa se a gravação da pendência falha', async () => {
