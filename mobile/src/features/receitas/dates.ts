@@ -83,3 +83,16 @@ export function formatarDataHora(isoTimestamp: string): string {
   if (isNaN(d.getTime())) return '—';
   return `${p2(d.getDate())}/${p2(d.getMonth() + 1)}/${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
 }
+
+/**
+ * Lê `ano` e `mes` vindos de parâmetros de rota (ex.: atalho do resumo do UC03 para as listas).
+ * Retorna null se faltarem ou forem inválidos, para a tela cair no mês corrente.
+ */
+export function lerMesDeParametros(ano: unknown, mes: unknown): { ano: number; mes: number } | null {
+  if (typeof ano !== 'string' || typeof mes !== 'string') return null;
+  if (!/^\d{4}$/.test(ano) || !/^\d{1,2}$/.test(mes)) return null;
+  const a = Number(ano);
+  const m = Number(mes);
+  if (a < 1900 || a > 2200 || m < 1 || m > 12) return null;
+  return { ano: a, mes: m };
+}

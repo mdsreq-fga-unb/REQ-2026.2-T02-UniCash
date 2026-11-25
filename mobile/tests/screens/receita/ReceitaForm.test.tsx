@@ -214,3 +214,17 @@ describe('Formulário de receita (registrar e editar)', () => {
     });
   });
 });
+
+describe('Seletor Despesa/Receita', () => {
+  it('no cadastro novo, tocar em "Despesa" chama a troca de tipo', async () => {
+    const onTrocarTipo = jest.fn();
+    await montar({ onTrocarTipo });
+    await fireEvent.press(screen.getByRole('button', { name: 'Despesa' }));
+    expect(onTrocarTipo).toHaveBeenCalledTimes(1);
+  });
+
+  it('na edição (sem troca de tipo), "Despesa" fica desabilitado', async () => {
+    await montar();
+    expect(screen.getByRole('button', { name: 'Despesa' })).toBeDisabled();
+  });
+});

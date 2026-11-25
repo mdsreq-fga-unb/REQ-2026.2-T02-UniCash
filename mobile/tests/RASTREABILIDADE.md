@@ -6,6 +6,8 @@ Os caminhos são relativos a `mobile/`. As siglas de requisitos vêm dos coment�
 
 As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 registra o **UC06 — Gerenciar categorias**; a seção 5 registra o **UC10 — Conta e sessão**.
 
+A seção 6 registra o **UC03 — Consultar resumo financeiro**.
+
 ## 1. Regras de negócio e requisitos não funcionais
 
 | Requisito | Fluxo do UC01 | Código | Teste automatizado | Teste manual |
@@ -289,7 +291,7 @@ Atualização de 23/11/2026: a seção registra as quatro decisões técnicas da
 | RF61 — uso sem conta | todos | `src/app/conta/cadastro.tsx`, `entrar.tsx` ("Continuar sem conta") | `tests/screens/CadastroConta.test.tsx`, `tests/screens/EntrarConta.test.tsx` | Testado; roteiro 3.2 do UC10 |
 | RF62 — sincronização (contrato) | B4, E6, FA01 | `src/features/conta/sync.ts` (porta), `sync.app.ts` (adaptador sobre `features/receitas/sync.ts`), `index.ts` | `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/index-conta.test.ts`, `tests/unit/sync-conta.test.ts` | Testado com o sync da UC01 simulado por mock |
 | RF62 — sincronizar só com e-mail confirmado (decisão 5.4, item 1) | B4, E, EX11 | `src/features/receitas/sync.ts` (`sincronizarPendentes`: sem `user.emailVerified` não envia, nem em envio manual) | `tests/service/receita/sync.test.ts` ("e-mail não confirmado…", "e-mail confirmado depois…"), `tests/service/receita/sync.segundoPlano.test.ts` ("com e-mail não confirmado…"), mocks com `emailVerified: true` em `sync.extras.test.ts` e `sync.restauracaoRede.extras.test.ts` | Implementado/testado. `restaurarDaNuvem()` continua conferindo só `currentUser`: só é chamada com sessão ativa (e-mail confirmado) |
-| RF62 — envio automático pausado (FA01, decisão 5.4, item 4) | A, E5-E6, FA01 | `service.firebase.ts` (`cadastrar` pausa depois de criar a conta; `enviarDadosDoAparelho` e `sincronizarAgora` exigem sessão ativa), `sync.app.ts` (`pausarEnvioAutomatico`, `sincronizar` como envio manual), `features/receitas/sync.ts` (`definirEnvioAutomatico`, `sincronizarPendentes({ manual })`), `src/db/schema.ts` (tabela `preferencias`) | `tests/service/conta/servico-conta.test.ts` ("envio automático (FA01)"), `tests/service/conta/sync-app-conta.test.ts` ("pausar o envio automático (FA01)"), `tests/service/receita/sync.test.ts` ("envio automático pausado (FA01)"), `tests/screens/ConfirmarEmail.test.tsx` | Implementado/testado. Limitações em 5.4 (pausa por aparelho; sem botão dedicado) |
+| RF62 — envio automático pausado (FA01, decisão 5.4, item 4) | A, E5-E6, FA01 | `service.firebase.ts` (`cadastrar` pausa depois de criar a conta; `enviarDadosDoAparelho` e `sincronizarAgora` exigem sessão ativa), `sync.app.ts` (`pausarEnvioAutomatico`, `sincronizar` como envio manual), `features/receitas/sync.ts` (`definirEnvioAutomatico`, `sincronizarPendentes({ manual })`), `src/db/schema.ts` (tabela `preferencias`) | `tests/service/conta/servico-conta.test.ts` ("envio automático (FA01)"), `tests/service/conta/sync-app-conta.test.ts` ("pausar o envio automático (FA01)"), `tests/service/receita/sync.test.ts` ("envio automático pausado (FA01)"), `tests/screens/ConfirmarEmail.test.tsx` | Implementado/testado. Limitações em 5.4 (sem botão dedicado) |
 | Política de senha — regra a incluir no catálogo (A4) | A, C | `src/features/conta/validation.ts` (`senhaNaPolitica`, `validarCadastro`, `validarSenhaNova`), `firebase-erros.ts` | `tests/unit/validation-conta.test.ts` (7 e 8 caracteres e cada classe ausente), `tests/screens/CadastroConta.test.tsx`, `tests/screens/RedefinirSenha.test.tsx`, `tests/unit/firebase-erros-conta.test.ts` | Cliente testado; no servidor depende de configuração no Console (5.5). Número da regra: definir no catálogo |
 | Confirmação do e-mail — regra a incluir no catálogo (A6, E, EX11) | A, B, E | `auth.firebase.ts` (`sessaoDe`, `signIn`, `checkEmailVerified`), `confirmar-email.tsx` | `tests/service/conta/auth-conta.test.ts`, `tests/screens/EntrarConta.test.tsx`, `tests/screens/ConfirmarEmail.test.tsx` | Testado. Número da regra: definir no catálogo |
 | RN06 — conta opcional, base local | todos | `sync.app.ts` (`suspender` não altera dados), `service.firebase.ts` (`sair`), `index.ts` | `tests/screens/Conta.test.tsx`, `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` | Testado; roteiros 3.3 e 3.4 |
@@ -363,7 +365,7 @@ Texto das decisões para o `decisoes.md`: `DECISOES.uc10.md`.
 
 **Como o FA01 funciona na branch**
 
-- `cadastrar` pausa o envio automático logo depois de criar a conta, antes de qualquer pergunta. Se a pessoa fechar o app sem responder, nada sobe. A pausa fica na tabela local `preferencias` (chave `envio_automatico_pausado`) e vale depois de reiniciar o app.
+- `cadastrar` pausa o envio automático logo depois de criar a conta, antes de qualquer pergunta. Se a pessoa fechar o app sem responder, nada sobe. A pausa fica no AsyncStorage (chave `envio_automatico_pausado:<uid>`) e vale depois de reiniciar o app.
 - "Não enviar" só segue para a tela inicial: os registros atuais e os futuros ficam pendentes no aparelho.
 - A pessoa libera o envio pedindo a sincronização: "Enviar meus dados" (pergunta pós-confirmação) ou "Sincronizar e sair" (Conta → Sair, quando há pendências). Esse envio é `manual`, sobe tudo o que está pendente e religa o envio automático dali em diante.
 - `retomar()` (observador de sessão) não libera a pausa.
@@ -371,7 +373,7 @@ Texto das decisões para o `decisoes.md`: `DECISOES.uc10.md`.
 
 **Limitações conhecidas do FA01**
 
-- A pausa é do **aparelho**, não da conta (a tabela `preferencias` não guarda o `uid`): outra conta que entre no mesmo aparelho herda a pausa até pedir um envio.
+- A pausa é armazenada por UID no AsyncStorage; validação integrada pendente.
 - Não existe botão "Sincronizar agora" na tela Conta. Depois de "Não enviar", o único caminho de interface é Conta → Sair → "Sincronizar e sair", que também encerra a sessão.
 
 ### 5.5. Pendências e decisões em aberto
@@ -389,3 +391,66 @@ Texto das decisões para o `decisoes.md`: `DECISOES.uc10.md`.
 - **Execução e fechamento:** rodar a seção 5.3, os roteiros manuais, abrir o PR e atualizar o DoD Nível 1 na issue. Anexar o resultado do CI na seção 3.4.
 
 Conferido na branch: `src/app/_layout.tsx` chama `iniciarConta()` e `tests/screens/receita/Layout.test.tsx` mocka `@/features/conta`; o `@ts-expect-error` do `getReactNativePersistence` está em `src/lib/firebase.ts`.
+
+## 6. UC03 — Consultar resumo financeiro
+
+Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
+
+### 6.1. Requisitos e regras
+
+| Requisito | Fluxo do UC03 | Código | Teste automatizado | Teste manual |
+|---|---|---|---|---|
+| RF11 – total de receitas do mês e por dia | passos 3 e 4 | `src/features/resumo/service.ts` (`totalReceitasDoMes`, `receitasPorDia`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF11"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…") | 4.1 (passo 2) |
+| RF40 – saldo, receitas, despesas e metas do período | passos 3 e 4 | `service.ts` (`totalDespesasDoMes`, `saldoDoMes`, `progressoMetasDoMes`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF40"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…", "mostra o progresso das metas…") | 4.1 (passo 2) |
+| RF55 – atalho para o tutorial (placeholder) | FA02 | `src/app/index.tsx` (`EstadoVazio`), `src/app/tutorial.tsx` | `tests/screens/Resumo.test.tsx` ("FA02…"), `tests/screens/Tutorial.test.tsx` | 4.1 (passo 1) |
+| RF61 – usar sem conta | FA03 | `service.ts` (só SQLite; não importa o Firebase) | `tests/service/resumo.test.ts` ("FA03…"; o Firebase é mockado para quebrar se for importado) | 4.2 |
+| RN06 – base local | todos | `service.ts`, `src/db/schema.ts` | `tests/service/resumo.test.ts` (SQLite em memória) | 4.2 |
+| RN07 – sem contadores persistidos; exclusão lógica | passos 3 e 6, FA05 | `service.ts` (`excluido_em IS NULL`, cálculo na hora) | `tests/service/resumo.test.ts` ("ignora receitas excluídas", "ignora despesas excluídas", "FA02: lançamentos só excluídos…", "pós-condição…") | 4.1 (passo 5) |
+| RN12 – mês corrente como padrão; datas futuras no mês | passo 2, FA04 | `src/app/index.tsx` (`mesCorrente`), `service.ts` (`intervaloDoMes`) | `tests/screens/Resumo.test.tsx` ("abre no mês corrente…"), `tests/service/resumo.test.ts` ("intervalo do mês…", "FA04…") | 4.1 (passo 3) |
+| RN15 – saldo do mês = receitas − despesas | passos 3 e 4 | `service.ts` (`saldoDoMes`, `calcularResumo`) | `tests/service/resumo.test.ts` ("total de despesas e saldo…", "saldo negativo…"), `tests/screens/Resumo.test.tsx` ("saldo negativo…") | 4.1 (passo 2) |
+| RNF07 – inteiros em centavos, 2 casas na exibição | passos 3 e 4 | `service.ts` (`SUM(valor_centavos)`), `src/features/resumo/format.ts` | `tests/service/resumo.test.ts` ("RNF07…"), `tests/unit/resumo.format.test.ts` | 4.4 |
+| RNF20 – telas adaptadas a tamanhos de celular | passo 4 | `src/app/index.tsx` (estilos com `flexWrap`/`flexBasis`, comentário RNF20) | – (layout não é renderizado no Jest) | 4.3 |
+| RNF03 – Security Rules | – | não se aplica: o resumo não lê nem grava na nuvem | – | – |
+
+### 6.2. Fluxos e exceções
+
+| Fluxo / exceção | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| Passos 1–4 – abrir e calcular o mês corrente | `src/app/index.tsx`, `src/features/resumo/useResumo.ts`, `service.ts` (`calcularResumo`, numa única consulta SQL) | `tests/screens/Resumo.test.tsx` ("abre no mês corrente…"), `tests/service/resumo.test.ts` ("calcularResumo reúne…", "lê todos os totais numa única consulta…", "gravações durante a abertura do app…") | 4.1 (passo 2) |
+| Passos 5–6 – seletor de mês e recálculo | `src/app/index.tsx`, `useResumo.ts` (descarta respostas atrasadas) | `tests/screens/Resumo.test.tsx` ("seletor navega…", "ao trocar de mês, não mostra os valores do mês anterior…"), `tests/unit/useResumo.test.ts` | 4.1 (passo 3) |
+| FA01 – mês sem receitas | `service.ts`, `src/app/index.tsx` | `tests/service/resumo.test.ts` ("FA01…"), `tests/screens/Resumo.test.tsx` ("FA01…") | 4.1 (passo 4) |
+| FA02 – sem nenhum lançamento | `service.ts` (`existeLancamento`), `src/app/index.tsx` (`EstadoVazio`) | `tests/service/resumo.test.ts` ("FA02…", "mês vazio com lançamentos em outros meses…"), `tests/screens/Resumo.test.tsx` ("FA02…") | 4.1 (passo 1) |
+| FA03 – consulta offline | `service.ts` | `tests/service/resumo.test.ts` ("FA03…") | 4.2 |
+| FA04 – mês futuro | `service.ts` (`intervaloDoMes`) | `tests/service/resumo.test.ts` ("FA04…") | 4.1 (passo 3) |
+| FA05 – lançamento alterado ou excluído | `src/app/index.tsx` (`useFocusEffect`), `service.ts` | `tests/service/resumo.test.ts` ("FA05…") | 4.1 (passo 5) |
+| EX01 – falha na leitura ou no cálculo | `service.ts` (`FalhaCalculo`, `MSG_FALHA_CALCULO`), `useResumo.ts`, `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "EX01"), `tests/screens/Resumo.test.tsx` ("EX01…"), `tests/unit/useResumo.test.ts` ("EX01…") | – |
+| Pós-condição – nenhum dado alterado | `service.ts` (somente leitura) | `tests/service/resumo.test.ts` ("pós-condição…") | 4.1 (passo 6) |
+| Abertura com recorrências a completar | `src/app/_layout.tsx` (geração de receitas e despesas), `service.ts` (`calcularResumo`) | `tests/service/resumo.test.ts` ("gravações durante a abertura do app…") | 4.5 |
+| Abertura: recálculo depois da preparação e da restauração da nuvem | `src/lib/baseAtualizada.ts`, `src/app/_layout.tsx` (sinal ao liberar o guard e ao terminar as rotinas), `useResumo.ts` (recalcula ao receber o sinal) | `tests/screens/Layout.test.tsx` (bloco "sinal de base atualizada"), `tests/screens/Resumo.test.tsx` (bloco "recálculo quando a base muda por fora da tela") | 4.5 (passo 2) |
+| Atalhos Receitas, Despesas e Categorias em todos os estados | `src/app/index.tsx` (`Atalhos`; Receitas e Despesas abrem no mês selecionado) | `tests/screens/Resumo.test.tsx` (bloco "atalhos em todos os estados", "atalhos abrem as listas no mês selecionado…"), `tests/screens/Home.test.tsx`, `tests/screens/HomeDespesas.test.tsx` | 4.1 (passo 1) |
+
+**Placeholders:** metas (RF12) e tutorial (RF55) ainda não existem. `progressoMetasDoMes` retorna vazio e
+`/tutorial` mostra "Tutorial em breve"; ligar quando os casos de uso de metas e tutorial forem entregues.
+A visão por dia está em lista, provisória até a escolha entre lista e calendário com a cliente.
+
+### 6.3. Resultados de validação
+
+#### 6.3.1. Automatizados (`npm test -- --ci --coverage`)
+
+| Data | Suítes | Testes | `features/resumo` (statements / branches / funções / linhas) | `src/app/index.tsx` | Responsável |
+|---|---|---|---|---|---|
+| 2026-11-19 | 54 de 54 | 525 de 525 | 100% / 100% / 100% / 100% | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-23 (resumo em consulta única) | 54 de 54 | 527 de 527 | 100% / 100% / 100% / 100% | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-23 (após integrar a `develop` com UC02 e UC06) | 73 de 73 | 1295 de 1295 | 100% / 100% / 100% / 100% | 100% / 100% / 100% / 100% | dantescarpati |
+
+Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.tsx`: 90% statements, 70% branches, 85% funções, 90% linhas.
+
+#### 6.3.2. Manuais (`tests/MANUAL.md`, seção 4)
+
+| Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
+|---|---|---|---|---|---|
+| 4.1 Fluxo principal e alternativos | | | | | |
+| 4.2 Offline e sem conta | | | | | |
+| 4.3 RNF20 – tamanhos de tela | | | | | |
+| 4.4 RNF07 – precisão | | | | | |
+| 4.5 Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |

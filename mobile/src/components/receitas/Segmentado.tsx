@@ -4,7 +4,7 @@ import { cores, raio } from '@/lib/theme';
 export interface OpcaoSegmento<T extends string> {
   valor: T;
   rotulo: string;
-  /** Visível, mas sem ação (ex.: Despesa, fora do escopo deste caso de uso). */
+  /** Visível, mas sem ação (ex.: trocar o tipo de um lançamento que está sendo editado). */
   inerte?: boolean;
 }
 

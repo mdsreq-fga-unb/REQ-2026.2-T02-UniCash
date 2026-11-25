@@ -673,3 +673,22 @@ it('preenche a data do dia em que o formulário é aberto', async () => {
     restaurarTempo();
   }
 });
+
+describe('Seletor Despesa/Receita', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCategorias.mockReturnValue(retornoCategorias());
+  });
+
+  it('no cadastro novo, tocar em "Receita" chama a troca de tipo', async () => {
+    const onTrocarTipo = jest.fn();
+    await montar({ onTrocarTipo });
+    await fireEvent.press(screen.getByRole('button', { name: 'Receita' }));
+    expect(onTrocarTipo).toHaveBeenCalledTimes(1);
+  });
+
+  it('na edição (sem troca de tipo), "Receita" fica desabilitado', async () => {
+    await montar();
+    expect(screen.getByRole('button', { name: 'Receita' })).toBeDisabled();
+  });
+});

@@ -77,7 +77,7 @@ npx expo install firebase @react-native-async-storage/async-storage
 - A prova manual (seção 3) usa o **Firebase real**, porque o Emulator Suite não envia e-mails: no `.env`, `EXPO_PUBLIC_USE_EMULATOR=false` e as variáveis `EXPO_PUBLIC_FIREBASE_*` preenchidas. No Console: ativar o provedor E-mail/senha (Authentication → Sign-in method) e publicar as regras com `firebase deploy --only firestore:rules`.
 - No `src/app/_layout.tsx`, `iniciarConta()` precisa estar chamada; sem ela o app continua com o serviço simulado.
 - O prazo de validade das ligações de e-mail (confirmação, redefinição e novo e-mail) é o do Firebase Authentication e não é configurável (decisão de 23/11/2026). A redefinição de senha acontece na página padrão do Firebase.
-- A sincronização só roda com o e-mail confirmado e, depois de um cadastro novo, fica **pausada** até a pessoa pedir o envio (FA01). Para repetir o roteiro 3.6 num aparelho já usado, limpe os dados do app: a pausa fica na base local (tabela `preferencias`) e vale para o aparelho, não para a conta.
+- A sincronização só roda com o e-mail confirmado e, depois de um cadastro novo, fica **pausada** até a pessoa pedir o envio (FA01). Para repetir o roteiro 3.6 num aparelho já usado, limpe os dados do app: a pausa fica no AsyncStorage por UID.
 
 ## 2. Mapa do checklist → arquivos
 
@@ -138,7 +138,7 @@ Antes de começar, cadastre alguns registros locais (receitas e despesas) para c
    2. Conta → Sair → "Sincronizar e sair". **Esperado:** todos os pendentes (os do aparelho e os feitos depois da recusa) aparecem em `usuarios/{uid}/receitas` e a sessão é encerrada.
    3. Entre de novo com o e-mail B, registre outra receita e abra a lista. **Esperado:** ela sobe sozinha: o envio automático voltou depois do pedido da pessoa.
    4. Com outro e-mail (C), cadastre, confirme e **feche o app sem responder** à pergunta. Reabra e entre. **Esperado:** nada sobe até a pessoa pedir o envio (a pausa começa no cadastro).
-   5. Observação (limitação conhecida): a pausa é do aparelho, não da conta. Registre se outra conta que entra no mesmo aparelho também fica sem envio automático.
+   5. Troque de conta no mesmo aparelho e confirme que a pausa de uma não afeta a outra.
 3. **Aparelho novo:** com os dados do passo 1 já enviados, limpe os dados do app (ou reinstale) e entre com o e-mail A. **Esperado:** receitas, despesas e séries voltam sem duplicar ocorrências, e a receita excluída não reaparece. Se falhar com a mensagem de catálogo ausente, abra a lista de categorias para semear as padrão e entre de novo.
 
 ### 3.7 Acessibilidade e identidade visual (RNF33, RNF38)
@@ -149,3 +149,37 @@ Percorra cadastro, entrada, confirmação, recuperação e conta com TalkBack (A
 - Séries (`recorrencias`): se alguma série ficar pendente com "permission-denied" (aviso de acesso negado na lista), registre na issue; é o ponto sobre o campo `tipo` descrito na pendência 5.5 da rastreabilidade.
 - Uma chamada direta à API com senha de 7 caracteres é recusada, se a política de senha do servidor estiver ativa.
 
+
+## 4. Roteiros manuais do UC03 – Consultar resumo financeiro
+
+Rodar com `npx expo start` e abrir no Expo Go. O app abre direto no resumo (`src/app/index.tsx`).
+Resultados em `tests/RASTREABILIDADE.md`, seção do UC03.
+
+### 4.1 Fluxo principal e alternativos no aparelho
+1. **FA02 – sem lançamentos:** com a base vazia (limpe os dados do Expo Go), abra o app.
+   **Esperado:** "Nenhum lançamento ainda", com "Ver tutorial" (abre "Tutorial em breve") e atalhos para registrar receita e despesa; os botões Receitas, Despesas e Categorias continuam no fim da tela (Categorias deve abrir mesmo sem lançamentos).
+2. **Passos 3 e 4:** registre no mês atual duas receitas no mesmo dia (ex.: R$ 100,10 e R$ 50,20), uma em outro dia e duas despesas. Volte ao resumo.
+   **Esperado:** saldo, total de receitas e total de despesas batem com a conta feita à mão; "Receitas por dia" mostra só os dias com lançamento, e o dia com duas receitas aparece somado (R$ 150,30).
+3. **Passos 5 e 6 / FA04:** use as setas para ir a meses anteriores e futuros, passando pela virada do ano. Registre uma receita com data num mês futuro.
+   **Esperado:** cada mês mostra os próprios totais; ao trocar de mês, aparece o carregamento e nunca os valores do mês anterior sob o título novo; a receita futura aparece no mês dela.
+4. **FA01:** vá a um mês com despesas e sem receitas. **Esperado:** total de receitas R$ 0,00 e "Nenhuma receita neste mês."
+5. **FA05:** edite o valor de uma receita, exclua uma despesa e volte ao resumo. **Esperado:** os totais e o saldo são recalculados.
+6. **Pós-condição:** navegue por vários meses e confira as listas de receitas e despesas. **Esperado:** nada foi alterado.
+
+### 4.2 FA03 – offline e sem conta (RN06, RF61)
+Ative o modo avião, sem conta conectada, e repita os passos 2 a 5 de 4.1. **Esperado:** o resumo funciona igual, calculado só com a base local.
+
+### 4.3 RNF20 – diferentes tamanhos de celular
+Abra o resumo num aparelho pequeno (≈ 360 dp de largura) e num grande, ou aumente o tamanho da fonte do sistema.
+**Esperado:** nada cortado nem sobreposto; os cartões de receitas e despesas e os botões passam para uma coluna quando não cabem lado a lado; o nome do mês não empurra as setas; a tela rola até o fim.
+
+### 4.4 RNF07 – precisão
+Registre receitas de R$ 0,10 e R$ 0,20 no mesmo dia. **Esperado:** o dia e o total mostram exatamente R$ 0,30.
+
+O EX01 (falha no cálculo) não é provocável no aparelho sem alterar o código; fica coberto pelos testes automatizados.
+
+### 4.5 – Geração de recorrências na abertura do resumo
+
+1. Em um aparelho de teste, no primeiro dia de um mês, registre uma receita de R$ 100,10 e uma despesa de R$ 40,20, ambas com repetição mensal, sem término e com a data de início nesse dia. Nas listas de receitas e despesas, confirme que o mês 13 meses à frente ainda não tem ocorrências dessas séries.
+2. Encerre o app, avance a data do aparelho para o primeiro dia do mês seguinte e reabra no Expo Go. **Sem tocar nas setas de mês**, assim que a camada "Preparando seus dados locais…" sumir, confira que o resumo do mês corrente já mostra receitas de R$ 100,10, despesas de R$ 40,20 e saldo de R$ 59,90 (e não o estado vazio nem a mensagem de falha). Só então navegue até o mês que estava vazio no passo anterior.
+3. Confira nesse mês uma ocorrência de cada série, receitas de R$ 100,10, despesas de R$ 40,20 e saldo de R$ 59,90. Encerre e abra o app novamente e confirme que as ocorrências e os totais permanecem iguais. Restaure a data automática do aparelho após o teste.

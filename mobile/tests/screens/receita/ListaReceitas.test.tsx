@@ -1,11 +1,11 @@
-﻿import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import ListaReceitas from '@/app/receitas/index';
 import { FalhaLeitura, listarReceitas } from '@/features/receitas/service';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import { consumirAcessoNegado } from '@/features/receitas/sync';
 import { setFeedback } from '@/lib/feedback';
 import { MSG } from '@/features/receitas/validation';
-import { router } from '../../helpers/expoRouterMock';
+import { router, useLocalSearchParams } from '../../helpers/expoRouterMock';
 import { receitaLinha } from '../../helpers/dados';
 
 jest.mock('expo-router', () => require('../../helpers/expoRouterMock'));
@@ -129,5 +129,17 @@ describe('Lista de receitas (protótipo F6)', () => {
       expect(await screen.findByText('Recuperada')).toBeTruthy();
       await waitFor(() => expect(screen.queryByText(MSG.falhaLeitura)).toBeNull());
     });
+  });
+
+  it('vindo do resumo (UC03), abre no mês selecionado lá', async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ ano: '2026', mes: '3' });
+    listar.mockResolvedValue({ itens: [receitaLinha({ id: '1', titulo: 'Março', data: '2026-03-10' })], total: 15000 });
+    try {
+      await render(<ListaReceitas />);
+      expect(await screen.findByText('Março')).toBeTruthy();
+      expect(listar).toHaveBeenCalledWith('2026-03-01', '2026-04-01');
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'abc' });
+    }
   });
 });
