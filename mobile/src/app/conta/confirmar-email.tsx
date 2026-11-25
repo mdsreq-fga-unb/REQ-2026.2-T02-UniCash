@@ -53,12 +53,15 @@ export default function ConfirmarEmail() {
     try {
       await obterServicoConta().enviarDadosDoAparelho();
     } catch (e) {
-      // EX08: conta e sessão já valem; os registros seguem pendentes e são reenviados depois.
-      if (!(e instanceof ErroConta)) throw e;
+      if (!(e instanceof ErroConta) || e.codigo !== 'sem-conexao') {
+        setErro(mensagemDoErro(e));
+        setPerguntarEnvio(false);
+        return;
+      }
     } finally {
       setEnviando(false);
-      concluir();
     }
+    concluir();
   }
 
   function concluir() {
