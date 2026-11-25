@@ -4132,12 +4132,24 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(mockNuvem.size).toBe(1);
     });
 
+    it('isola a pausa entre UIDs ao trocar de conta', async () => {
+      await definirEnvioAutomatico(false);
+      mockUsuario = { uid: 'u2', emailVerified: true };
+      await definirEnvioAutomatico(true);
+      expect(await AsyncStorage.getItem('unicash:envio_automatico_pausado:u1')).toBe('1');
+      expect(await AsyncStorage.getItem('unicash:envio_automatico_pausado:u2')).toBeNull();
+      mockUsuario = { uid: 'u1', emailVerified: true };
+      await registrarReceita(input());
+      expect(await sincronizarPendentes()).toBe(false);
+      expect(mockNuvem.size).toBe(0);
+    });
+
     it('pausar duas vezes continua pausado e liberar remove a pausa', async () => {
       await definirEnvioAutomatico(false);
       await definirEnvioAutomatico(false);
-      expect(await AsyncStorage.getItem('unicash:envio_automatico_pausado')).toBe('1');
+      expect(await AsyncStorage.getItem('unicash:envio_automatico_pausado:u1')).toBe('1');
       await definirEnvioAutomatico(true);
-      expect(await AsyncStorage.getItem('unicash:envio_automatico_pausado')).toBeNull();
+      expect(await AsyncStorage.getItem('unicash:envio_automatico_pausado:u1')).toBeNull();
     });
   });
 });

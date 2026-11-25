@@ -1,3 +1,4 @@
+import { serializarImportacao } from '@/features/conta/operacoes-locais';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   collection,
@@ -80,13 +81,15 @@ export function consumirAcessoNegado(): boolean {
  * os registros continuam pendentes no aparelho e só sobem quando a pessoa pedir (envio manual).
  * O estado fica no aparelho, então vale também depois de reiniciar o app.
  */
-export async function definirEnvioAutomatico(ligado: boolean): Promise<void> {
-  if (ligado) await AsyncStorage.removeItem(ENVIO_PAUSADO);
-  else await AsyncStorage.setItem(ENVIO_PAUSADO, '1');
+export async function definirEnvioAutomatico(ligado: boolean, uid = auth.currentUser?.uid): Promise<void> {
+  if (!uid) throw new Error('Conta ausente');
+  const chave = `${ENVIO_PAUSADO}:${uid}`;
+  if (ligado) await AsyncStorage.removeItem(chave);
+  else await AsyncStorage.setItem(chave, '1');
 }
 
-async function envioPausado(): Promise<boolean> {
-  return (await AsyncStorage.getItem(ENVIO_PAUSADO)) === '1';
+async function envioPausado(uid: string): Promise<boolean> {
+  return (await AsyncStorage.getItem(`${ENVIO_PAUSADO}:${uid}`)) === '1';
 }
 
 export interface OpcoesSincronizacao {
@@ -109,9 +112,9 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
 
   try {
     // FA01: com o envio automático pausado, só segue se a pessoa pediu a sincronização.
-    if (await envioPausado()) {
+    if (await envioPausado(user.uid)) {
       if (!opcoes.manual) return false;
-      await definirEnvioAutomatico(true); // a pessoa pediu: daqui em diante os registros sincronizam
+      await definirEnvioAutomatico(true, user.uid); // a pessoa pediu: daqui em diante os registros sincronizam
     }
 
     const uid = user.uid;
@@ -672,7 +675,11 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
   const user = auth.currentUser;
   if (!user?.emailVerified) throw new FalhaRestauracao('sem conta confirmada');
   const uid = user.uid;
+  return serializarImportacao(uid, () => restaurarParaUid(uid));
+}
 
+async function restaurarParaUid(uid: string): Promise<ResultadoRestauracao> {
+  if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) throw new FalhaRestauracao('conta alterada');
   try {
     const [snapSeries, snapReceitas, snapDespesas, snapCategorias] = await Promise.all([
       getDocs(collection(firestore, 'usuarios', uid, 'recorrencias')),
