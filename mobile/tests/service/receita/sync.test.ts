@@ -4179,7 +4179,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
 
     it('aborta a restauração se a conta mudar antes da transação local', async () => {
       mockLeiturasUsuario = 0;
-      mockTrocarUsuarioDepois = 2;
+      mockTrocarUsuarioDepois = 3;
       mockTrocarUsuario = true;
       await expect(restaurarDaNuvem()).rejects.toThrow('conta alterada durante a restauração');
       expect(banco.receitas()).toHaveLength(0);
