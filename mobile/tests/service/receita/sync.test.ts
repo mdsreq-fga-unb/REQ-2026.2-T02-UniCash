@@ -51,13 +51,14 @@ let mockErroTransacao: unknown = null;
 let mockTransacoes = 0;
 let mockAuthReadyFalha = false;
 let mockTrocarUsuario = false;
+let mockTrocarUsuarioDepois = 1;
 let mockLeiturasUsuario = 0;
 
 jest.mock('@/lib/firebase', () => ({
   auth: {
     get currentUser() {
       mockLeiturasUsuario++;
-      if (mockTrocarUsuario && mockLeiturasUsuario > 1) return { uid: 'u2' };
+      if (mockTrocarUsuario && mockLeiturasUsuario > mockTrocarUsuarioDepois) return { uid: 'u2' };
       return mockUsuario;
     },
     async authStateReady() {
@@ -216,6 +217,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     mockTransacoes = 0;
     mockAuthReadyFalha = false;
     mockTrocarUsuario = false;
+    mockTrocarUsuarioDepois = 1;
     mockLeiturasUsuario = 0;
     consumirAcessoNegado();
   });
@@ -4152,7 +4154,8 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
 
     it('mantém o envio bloqueado quando a persistência da pausa falha', async () => {
       await registrarReceita(input());
-      const gravar = jest.spyOn(AsyncStorage, 'setItem').mockRejectedValueOnce(new Error('banco'));
+      // setItem já é um jest.fn no mock oficial do AsyncStorage.
+      jest.mocked(AsyncStorage.setItem).mockRejectedValueOnce(new Error('banco'));
       try {
         await expect(definirEnvioAutomatico(false, 'u1')).rejects.toThrow('banco');
         expect(await sincronizarPendentes()).toBe(false);
@@ -4161,9 +4164,26 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
         await sincronizarPendentes({ manual: true });
         expect(mockNuvem.size).toBe(1);
       } finally {
-        gravar.mockRestore();
         await definirEnvioAutomatico(true, 'u1');
       }
+    });
+
+    it('aborta o envio se a conta mudar antes de acessar os registros', async () => {
+      await registrarReceita(input());
+      mockLeiturasUsuario = 0;
+      mockTrocarUsuario = true;
+      expect(await sincronizarPendentes()).toBe(false);
+      expect(mockNuvem.size).toBe(0);
+      expect(banco.receitas()[0].sync_status).toBe('pendente');
+    });
+
+    it('aborta a restauração se a conta mudar antes da transação local', async () => {
+      mockLeiturasUsuario = 0;
+      mockTrocarUsuarioDepois = 2;
+      mockTrocarUsuario = true;
+      await expect(restaurarDaNuvem()).rejects.toThrow('conta alterada durante a restauração');
+      expect(banco.receitas()).toHaveLength(0);
+      expect(banco.despesas()).toHaveLength(0);
     });
 
     it('pausar duas vezes continua pausado e liberar remove a pausa', async () => {
