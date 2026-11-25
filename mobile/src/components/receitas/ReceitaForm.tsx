@@ -39,6 +39,8 @@ interface Props {
   onCancelar: () => void;
   /** Se informado, o rodapé mostra "Excluir lançamento" no lugar de "Cancelar" (tela de edição). */
   onExcluir?: () => void;
+  /** Se informado (cadastro novo), tocar em "Despesa" abre o formulário de despesa. Na edição fica inerte. */
+  onTrocarTipo?: () => void;
 }
 
 const UNIDADES: { valor: UnidadeRecorrencia; rotulo: string; um: string; varios: string }[] = [
@@ -57,7 +59,7 @@ function resumoRepeticao(v: FormValores): string {
 
 /** Formulário único para registrar e editar (A e C), conforme os protótipos F4 e F5. */
 export function ReceitaForm({
-  titulo, textoSalvar, inicial, emSerie, salvando, erroGeral, onSalvar, onCancelar, onExcluir,
+  titulo, textoSalvar, inicial, emSerie, salvando, erroGeral, onSalvar, onCancelar, onExcluir, onTrocarTipo,
 }: Props) {
   const [v, setV] = useState<FormValores>(inicial ?? FORM_VAZIO);
   const [erros, setErros] = useState<ErrosForm>({});
@@ -86,9 +88,12 @@ export function ReceitaForm({
           <Segmentado
             valor="receita"
             opcoes={[
-              { valor: 'despesa', rotulo: 'Despesa', inerte: true },
+              { valor: 'despesa', rotulo: 'Despesa', inerte: !onTrocarTipo },
               { valor: 'receita', rotulo: 'Receita' },
             ]}
+            onChange={(tipo) => {
+              if (tipo === 'despesa') onTrocarTipo?.();
+            }}
           />
         </View>
 

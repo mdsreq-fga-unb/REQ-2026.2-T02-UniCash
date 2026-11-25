@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { cores, raio } from '@/lib/theme';
 import { FiltroReceitas } from '@/components/receitas/FiltroReceitas';
 import { ReceitaItem } from '@/components/receitas/ReceitaItem';
@@ -16,6 +16,7 @@ import {
 } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
 import type { Filtro } from '@/features/receitas/types';
+import { lerMesDeParametros } from '@/features/receitas/dates';
 
 function filtroMesCorrente(): Filtro {
   const n = new Date();
@@ -23,7 +24,12 @@ function filtroMesCorrente(): Filtro {
 }
 
 export default function ListaReceitas() {
-  const [filtro, setFiltro] = useState<Filtro>(filtroMesCorrente);
+  // Vindo do resumo (UC03), abre no mês que estava selecionado lá.
+  const params = useLocalSearchParams<{ ano?: string; mes?: string }>();
+  const [filtro, setFiltro] = useState<Filtro>(() => {
+    const doResumo = lerMesDeParametros(params.ano, params.mes);
+    return doResumo ? { modo: 'mes', ...doResumo } : filtroMesCorrente();
+  });
   const { itens, total, carregando, erroLeitura, recarregar } = useReceitas(filtro);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [pendentes, setPendentes] = useState(0);

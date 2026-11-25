@@ -31,6 +31,7 @@ import {
   type Feedback,
 } from '@/lib/feedback';
 import type { FiltroDespesa } from '@/features/despesas/types';
+import { lerMesDeParametros } from '@/features/receitas/dates';
 
 function filtroMesCorrente(): FiltroDespesa {
   const hoje = new Date();
@@ -43,13 +44,17 @@ function filtroMesCorrente(): FiltroDespesa {
 }
 
 export default function ListaDespesas() {
-  const params = useLocalSearchParams<{ categoriaId?: string }>();
+  const params = useLocalSearchParams<{ categoriaId?: string; ano?: string; mes?: string }>();
   const categoriaParam =
     typeof params.categoriaId === 'string' && params.categoriaId.length > 0
       ? params.categoriaId
       : null;
 
-  const [filtro, setFiltro] = useState<FiltroDespesa>(filtroMesCorrente);
+  // Vindo do resumo (UC03), abre no mês que estava selecionado lá.
+  const [filtro, setFiltro] = useState<FiltroDespesa>(() => {
+    const doResumo = lerMesDeParametros(params.ano, params.mes);
+    return doResumo ? { modo: 'mes', ...doResumo } : filtroMesCorrente();
+  });
   const [categoria, setCategoria] = useState<string | null>(categoriaParam);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const parametroAplicado = useRef<string | null>(categoriaParam);
