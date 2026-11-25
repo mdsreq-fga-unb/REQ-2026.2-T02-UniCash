@@ -10,7 +10,7 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { auth, db as firestore } from '@/lib/firebase';
-import { getDb } from '@/db/database';
+import { getDbDoDono } from '@/db/database';
 import type { Receita } from './types';
 import { resolverCategoriaRemota } from '@/features/despesas/categorias';
 import {
@@ -114,8 +114,8 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
       await definirEnvioAutomatico(true); // a pessoa pediu: daqui em diante os registros sincronizam
     }
 
-    const sqlite = await getDb();
     const uid = user.uid;
+    const sqlite = await getDbDoDono(uid);
 
     if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) return false;
 
@@ -680,7 +680,7 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
       getDocs(collection(firestore, 'usuarios', uid, 'despesas')),
       getDocs(collection(firestore, 'usuarios', uid, 'categorias')),
     ]);
-    const sqlite = await getDb();
+    const sqlite = await getDbDoDono(uid);
     const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0 };
 
     await sqlite.withExclusiveTransactionAsync(async (tx) => {
