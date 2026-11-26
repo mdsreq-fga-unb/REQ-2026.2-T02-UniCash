@@ -156,6 +156,44 @@ describe('UC05 — Monitorar limites de gastos', () => {
     }
   });
 
+  it.each([5000, 9000])('revalida o alerta de 80%% após editar o gasto para %i centavos (EX02)', async (gasto) => {
+    await registrarDespesa(despesa(8000));
+    const id = banco.despesas()[0].id;
+    const local = notificador();
+    const db = await getDb();
+    const ler = db.getAllAsync.bind(db);
+    let chamadas = 0;
+    const consulta = jest.spyOn(db, 'getAllAsync').mockImplementation(async (sql, ...params) => {
+      if (sql.includes('WITH gastos AS') && ++chamadas >= 2) throw new Error('Consumo indisponível');
+      return ler(sql, ...params);
+    });
+    const aviso = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await editarDespesa(id, despesa(gasto));
+      expect(banco.despesas()[0].valor_centavos).toBe(gasto);
+      expect(alertas()[0]).toMatchObject({ gasto_centavos: 8000, emitido_em: null });
+
+      await expect(emitirAlertasPendentes(local)).resolves.toBe(false);
+      expect(local.emitir).not.toHaveBeenCalled();
+      expect(alertas()[0].emitido_em).toBeNull();
+      expect(aviso).toHaveBeenCalledTimes(2);
+    } finally {
+      consulta.mockRestore();
+      aviso.mockRestore();
+    }
+
+    if (gasto === 5000) {
+      await expect(emitirAlertasPendentes(local)).resolves.toBe(false);
+      expect(local.emitir).not.toHaveBeenCalled();
+      expect(alertas()).toEqual([]);
+    } else {
+      await expect(emitirAlertasPendentes(local)).resolves.toBe(true);
+      expect(local.emitir).toHaveBeenCalledTimes(1);
+      expect(local.emitir.mock.calls[0][2]).toMatch(/90,00/);
+      expect(alertas()[0]).toMatchObject({ gasto_centavos: 9000, emitido_em: expect.any(String) });
+    }
+  });
+
   it('reverte a despesa se a gravação da pendência falha', async () => {
     banco.sqlite.exec(`
       CREATE TRIGGER falhar_alerta BEFORE INSERT ON alertas

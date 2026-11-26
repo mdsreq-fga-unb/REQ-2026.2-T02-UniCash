@@ -28,6 +28,7 @@ interface Consumo {
 }
 
 type Escopo = 'despesas' | 'receitas' | 'categorias';
+type ReferenciaConsumo = Pick<Consumo, 'ref_id' | 'periodo'>;
 
 export async function lerPreferenciasAlertas(db: SQLiteDatabase): Promise<Record<TipoAlerta, boolean>> {
   const preferencias = { aproximacao: true, ultrapassagem: true };
@@ -47,7 +48,7 @@ export async function definirPreferenciaAlerta(tipo: TipoAlerta, ativo: boolean)
   );
 }
 
-async function consumos(tx: SQLiteDatabase, escopo: Escopo) {
+async function consumos(tx: SQLiteDatabase, escopo: Escopo, referencia?: ReferenciaConsumo) {
   return tx.getAllAsync<Consumo>(
     `WITH gastos AS (
        SELECT d.categoria_id, substr(d.data, 1, 7) AS periodo, SUM(d.valor_centavos) AS total
@@ -55,6 +56,7 @@ async function consumos(tx: SQLiteDatabase, escopo: Escopo) {
          JOIN categorias c ON c.id = d.categoria_id
         WHERE d.excluido_em IS NULL AND c.excluido_em IS NULL AND c.limite_tipo IS NOT NULL
           AND (? <> 'receitas' OR c.limite_tipo = 'percentual_renda')
+          ${referencia ? 'AND d.categoria_id = ? AND substr(d.data, 1, 7) = ?' : ''}
         GROUP BY d.categoria_id, substr(d.data, 1, 7)
      ), rendas AS (
        SELECT substr(data, 1, 7) AS periodo, SUM(valor_centavos) AS total
@@ -65,7 +67,7 @@ async function consumos(tx: SQLiteDatabase, escopo: Escopo) {
        FROM gastos g
        JOIN categorias c ON c.id = g.categoria_id
        LEFT JOIN rendas r ON r.periodo = g.periodo AND c.limite_tipo = 'percentual_renda'`,
-    [escopo],
+    referencia ? [escopo, referencia.ref_id, referencia.periodo] : [escopo],
   );
 }
 
@@ -87,18 +89,33 @@ function classificar(consumo: Consumo): { tipo: TipoAlerta; limite: number } | n
   return null;
 }
 
-const chaveConsumo = (consumo: Consumo) => JSON.stringify([consumo.ref_id, consumo.periodo]);
+const chaveConsumo = (consumo: ReferenciaConsumo) => JSON.stringify([consumo.ref_id, consumo.periodo]);
 
 /** EX02: uma avaliação indisponível não invalida a operação que a disparou. */
-async function avaliarConsumos(tx: SQLiteDatabase, escopo: Escopo) {
+async function avaliarConsumos(tx: SQLiteDatabase, escopo: Escopo, referencia?: ReferenciaConsumo) {
   try {
-    return new Map((await consumos(tx, escopo)).map((consumo) => [
+    return new Map((await consumos(tx, escopo, referencia)).map((consumo) => [
       chaveConsumo(consumo), { consumo, faixa: classificar(consumo) },
     ]));
   } catch (erro) {
     console.warn('Não foi possível calcular o consumo dos limites de gastos.', erro);
     return null;
   }
+}
+
+/** Consulta o consumo atual sem depender da última avaliação feita ao salvar. */
+export async function revalidarAlertaPendente(tx: SQLiteDatabase, alerta: Alerta) {
+  const avaliacoes = await avaliarConsumos(tx, 'despesas', alerta);
+  if (!avaliacoes) return 'indisponivel';
+
+  const atual = avaliacoes.get(chaveConsumo(alerta));
+  if (!atual || atual.faixa?.tipo !== alerta.tipo) return null;
+
+  return {
+    categoria_nome: atual.consumo.categoria_nome,
+    gasto_centavos: atual.consumo.gasto_centavos,
+    limite_centavos: atual.faixa.limite,
+  };
 }
 
 /** Reavalia apenas as combinações categoria/mês que mudaram na operação. */

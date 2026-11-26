@@ -1,7 +1,7 @@
 import { getDb } from '@/db/database';
 import { auth } from '@/lib/firebase';
 import { formatarBRL } from '@/features/receitas/money';
-import { lerPreferenciasAlertas, type Alerta } from './service';
+import { lerPreferenciasAlertas, revalidarAlertaPendente, type Alerta } from './service';
 
 export interface NotificadorDeLimite {
   disponivel(): Promise<boolean>;
@@ -33,12 +33,24 @@ export async function emitirAlertasPendentes(notificador: NotificadorDeLimite): 
       );
       if (!alerta) return;
 
+      const atual = await revalidarAlertaPendente(tx, alerta);
+      if (atual === 'indisponivel' || (auth.currentUser?.uid ?? null) !== uid) return;
+      if (!atual) {
+        await tx.runAsync(
+          'DELETE FROM alertas WHERE tipo = ? AND ref_id = ? AND periodo = ? AND emitido_em IS NULL',
+          [tipo, ref_id, periodo],
+        );
+        return;
+      }
+
       const titulo = tipo === 'aproximacao' ? 'Limite de gastos próximo' : 'Limite de gastos ultrapassado';
-      const mensagem = `${alerta.categoria_nome} (${periodo}): gasto de ${formatarBRL(alerta.gasto_centavos)} de um limite de ${formatarBRL(alerta.limite_centavos)}.`;
+      const mensagem = `${atual.categoria_nome} (${periodo}): gasto de ${formatarBRL(atual.gasto_centavos)} de um limite de ${formatarBRL(atual.limite_centavos)}.`;
       await tx.runAsync(
-        `UPDATE alertas SET emitido_em = ?, proprietario_uid = COALESCE(proprietario_uid, ?)
+        `UPDATE alertas SET categoria_nome = ?, gasto_centavos = ?, limite_centavos = ?,
+           emitido_em = ?, proprietario_uid = COALESCE(proprietario_uid, ?)
            WHERE tipo = ? AND ref_id = ? AND periodo = ?`,
-        [new Date().toISOString(), uid, tipo, ref_id, periodo],
+        [atual.categoria_nome, atual.gasto_centavos, atual.limite_centavos,
+          new Date().toISOString(), uid, tipo, ref_id, periodo],
       );
       await notificador.emitir(`unicash-limite-${tipo}-${ref_id}-${periodo}`, titulo, mensagem);
       emitiu = true;
