@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AppState } from 'react-native';
+import { router } from 'expo-router';
 import Perfil from '@/app/perfil';
 import { SecaoNotificacoes } from '@/components/perfil/SecaoNotificacoes';
 import { MSG_NOTIFICACOES, ROTULOS_ALERTA } from '@/features/notificacoes/mensagens';
@@ -33,6 +34,14 @@ async function alternar(tipo: TipoAlerta) {
     fireEvent(interruptor(tipo), 'valueChange', true);
   });
 }
+
+describe('UC13 - entrada para Conquistas', () => {
+  it('o ícone de selo no cabeçalho abre a área Conquistas', async () => {
+    await render(<Perfil />);
+    fireEvent.press(await screen.findByRole('button', { name: 'Conquistas' }));
+    expect(router.push).toHaveBeenCalledWith('/conquistas');
+  });
+});
 
 describe('UC14 - seção Notificações', () => {
   it('a rota Perfil exibe a seção', async () => {
