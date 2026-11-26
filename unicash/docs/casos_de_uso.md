@@ -999,7 +999,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Metas concluídas (UC12):** o contrato é o modelo `Meta`, com a situação, e a função `calcularProgresso`, aprovados no início do timebox. O UC13 usa metas concluídas de exemplo até o UC12 ficar pronto; o critério real de conclusão fica como **integração posterior**.
 - **Marcos e pontos:** sem solução definida; registrados como pendência com decisão a registrar em `decisoes.md`. A avaliação roda atrás de uma tabela de configuração dos marcos e dos pontos (`MARCOS`, `PONTOS_POR_META`), com valores de teste, para que a definição entre sem mudar o código.
 - **Lançamentos e saldo (UC01, UC02, UC04):** o contrato é o modelo de lançamento e a função de saldo mensal (RN15). Os testes usam dados de exemplo.
-- **Preferências de notificação (RF58), sem caso de uso próprio:** o contrato é `NotificationPreferences.isEnabled('conquistas')`, com versão simulada; o envio real da notificação fica como **integração posterior**.
+- **Preferências de notificação (RF58, UC14):** o contrato é `NotificationPreferences.isEnabled('conquistas')`, com versão simulada até o UC14 ficar pronto; o envio real da notificação fica como **integração posterior**.
 - **Sincronização (RF62) e grupos (RF30, fora do MVP):** selos e pontos são derivados (RN07), então não há contador a sincronizar; a classificação do grupo não faz parte deste caso de uso.
 
 ### Requisitos e regras associados
@@ -1013,11 +1013,12 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Ator principal:** Usuário.
 - **Valor:** escolher quais avisos o aplicativo exibe, para receber só os alertas de que precisa.
 - **Requisitos funcionais:** RF58.
+- **Decisões:** [D25](decisoes.md#d25).
 
 ### Pré-condições
 
 - A base local está disponível (RN06).
-- O usuário abriu a área de configurações.
+- O usuário abriu a tela de Perfil.
 
 ### Pós-condições
 
@@ -1027,46 +1028,48 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 ### Fluxo principal
 
-1. O usuário acessa "Notificações" nas configurações.
-2. O sistema exibe os três tipos de alerta, cada um com o estado atual (ativado ou desativado): **aproximação do limite** (RF37), **ultrapassagem do limite** (RF38) e **conquistas** (RF46).
-3. O usuário ativa ou desativa um ou mais tipos.
-4. O sistema grava a escolha na base local e só então confirma a alteração.
-5. Se houver conta com sessão ativa e conexão, o sistema sincroniza a preferência (RF62).
-6. O sistema passa a respeitar a nova escolha nos alertas seguintes (UC05, UC13).
+1. O usuário localiza a seção "Notificações" na tela de Perfil.
+2. O sistema exibe os dois tipos de alerta, cada um com um interruptor no estado atual (ligado ou desligado): **limite**, que abrange a aproximação (80%, RF37) e a ultrapassagem (100%, RF38) da RN03, e **conquistas** (RF46). Na primeira vez, os dois aparecem desligados (D25).
+3. O usuário liga ou desliga um tipo.
+4. Se o usuário ligou um tipo e o aplicativo ainda não pediu a permissão de notificações do aparelho, o sistema a solicita.
+5. O sistema grava a escolha na base local e só então confirma a alteração.
+6. Se houver conta com sessão ativa e conexão, o sistema sincroniza a preferência (RF62).
+7. O sistema passa a respeitar a nova escolha nos alertas seguintes (UC05, UC13).
 
 ### Fluxos alternativos
 
-- **FA01 - Alteração a qualquer momento:** o usuário pode voltar à tela e mudar a escolha quantas vezes quiser (RF58).
+- **FA01 - Alteração a qualquer momento:** o usuário pode voltar à seção e mudar a escolha quantas vezes quiser (RF58).
 - **FA02 - Tipo desativado:** o consumo do limite continua sendo calculado (UC09) e os selos continuam sendo concedidos (UC13); apenas a notificação deixa de ser exibida.
 - **FA03 - Tipo reativado:** o alerta volta a ser emitido na próxima avaliação, se a condição ainda existir e a emissão não estiver registrada no período (RN03, UC05).
 - **FA04 - Alerta de saldo negativo:** não aparece na lista, pois o RF58 não o prevê; ele permanece sempre ativo, até validação (RN18).
 - **FA05 - Operação offline:** a escolha é gravada localmente e, havendo conta, fica pendente de sincronização (RN06, RF62).
-- **FA06 - Permissão de notificações do aparelho negada:** o sistema mantém a escolha gravada, informa que as notificações do aparelho estão bloqueadas e orienta o usuário a liberá-las nas configurações do aparelho.
-- **FA07 - Cancelamento:** se o usuário sai da tela sem alterar nada, nada é gravado.
+- **FA06 - Permissão de notificações do aparelho negada (passo 4):** o sistema mantém a escolha gravada, informa que as notificações do aparelho estão bloqueadas e orienta o usuário a liberá-las nas configurações do aparelho. O aviso continua visível na seção enquanto houver tipo ligado e a permissão estiver negada.
+- **FA07 - Permissão já decidida:** se o usuário já concedeu ou negou a permissão antes, o sistema não volta a solicitá-la no passo 4; com permissão negada, segue o FA06.
+- **FA08 - Cancelamento:** se o usuário sai da tela sem alterar nada, nada é gravado.
 
 ### Exceções
 
 Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
-- **EX01 - Falha na gravação (passo 4):** o sistema não confirma e mantém a escolha anterior. Informa: "Não foi possível salvar a configuração. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao passo 3 do fluxo principal, com a escolha do usuário preservada na tela.
-- **EX02 - Falha na leitura local (passo 2):** o sistema informa: "Não foi possível carregar as notificações. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo principal, ao tentar novamente.
-- **EX03 - Falha na sincronização (passo 5):** a preferência já está gravada localmente e permanece pendente de sincronização. **Retorno:** o fluxo segue normalmente no passo 6.
-- **EX04 - Conflito de sincronização (depois do passo 5):** aplica-se a RN07; vale a escolha mais recente. **Retorno:** ao concluir a sincronização, a tela é atualizada (passo 2 do fluxo principal).
+- **EX01 - Falha na gravação (passo 5):** o sistema não confirma, devolve o interruptor ao estado anterior e informa: "Não foi possível salvar a configuração. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao passo 3 do fluxo principal.
+- **EX02 - Falha na leitura local (passo 2):** o sistema informa na seção: "Não foi possível carregar as notificações. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 2 do fluxo principal, ao tentar novamente.
+- **EX03 - Falha na sincronização (passo 6):** a preferência já está gravada localmente e permanece pendente de sincronização. **Retorno:** o fluxo segue normalmente no passo 7.
+- **EX04 - Conflito de sincronização (depois do passo 6):** aplica-se a RN07; vale a escolha mais recente. **Retorno:** ao concluir a sincronização, a seção é atualizada (passo 2 do fluxo principal).
 - **EX05 - Acesso a dados de outro usuário (passo 2):** o sistema nega o acesso (RNF03). **Retorno:** ao passo 2 do fluxo principal, com as preferências do próprio usuário.
 
 ### Pontos para validação
 
-- **Estado inicial (RF58):** o catálogo não diz se cada tipo de alerta começa ativado ou desativado.
+- **D25:** a união de aproximação e ultrapassagem em um único tipo e o estado inicial desativado seguem o protótipo e precisam de validação com a cliente.
 - **Alerta de saldo negativo (RN18):** a inclusão desse tipo nas preferências está pendente de validação com a cliente.
 - **Preferências e sincronização:** a RN04 trata as preferências como dados do usuário, mas não está definido se elas voltam na restauração dos dados em aparelho novo.
-- **Permissão do aparelho (FA06):** o texto orienta o usuário, mas o catálogo não define esse comportamento.
+- **Itens do protótipo fora do catálogo:** "Lembrete diário de registro", "Aviso de mês sem movimentação" e "Prazos de metas" não têm requisito e ficam fora do escopo; "Atividade dos grupos" depende do CP7, fora do MVP (D25).
 
 ### Dependências planejadas (DoR)
 
-- **Alertas (UC05) e conquistas (UC13):** consomem as preferências pelo contrato `NotificationPreferences.isEnabled(tipo)`, com os tipos `aproximacao`, `ultrapassagem` e `conquistas`, aprovado no início do timebox. Até o UC14 ficar pronto, as duas frentes usam uma versão simulada com todos os tipos ativados.
-- **Estado inicial:** sem solução definida; registrado como pendência com decisão a registrar em `decisoes.md`. O valor inicial fica em uma constante única.
+- **Alertas (UC05) e conquistas (UC13):** consomem as preferências pelo contrato `NotificationPreferences.isEnabled(tipo)`, com os tipos `limite` e `conquistas` (D25). Até o UC14 ficar pronto, as duas frentes usam uma versão simulada.
+- **Estado inicial:** os dois tipos começam desativados (D25); o valor inicial fica em uma constante única.
 - **Sincronização (UC16):** o contrato é o estado de sincronização do registro; a sincronização real da preferência fica como **integração posterior**.
-- **Permissão de notificações do aparelho:** o acesso à permissão fica atrás de uma interface (`NotificationPermission`), com versão simulada nos testes.
+- **Permissão de notificações do aparelho:** o acesso à permissão fica atrás de uma interface (`NotificationPermission`), com versão simulada nos testes. O envio de notificações remotas (push) não faz parte deste caso de uso.
 
 ### Requisitos e regras associados
 
@@ -1260,3 +1263,4 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 | 1.13 | 01/11/2026 | Adiciona mais detalhes ao uc03 | Natan França |
 | 1.14 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
 | 1.15 | 07/11/2026 | Ajusta a validação dos UC01 e UC02 à gravação local e retira o RNF06, fundido ao RNF35 (issue #21) | Dante Scarpati |
+| 1.16 | 26/11/2026 | Alinha o UC14 ao protótipo do Perfil: seção de notificações, tipos "limite" e "conquistas", estado inicial desativado e pedido de permissão do aparelho na primeira ativação (D25) | Bruno Duarte |
