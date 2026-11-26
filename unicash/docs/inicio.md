@@ -150,3 +150,7 @@ A evolução da solução será orientada por protótipos, validações frequent
   <a href="../cronograma/" class="docs-link"><span>05</span><strong>Cronograma e entregas</strong><small>Acompanhe o planejamento.</small></a>
   <a href="../interacao/" class="docs-link"><span>06</span><strong>Interação com a cliente</strong><small>Consulte os registros de interação.</small></a>
 </div>
+
+## Uso de IA
+
+Este trabalho contou com apoio de ferramentas de inteligência artificial na análise dos requisitos, na redação da documentação, na geração de código e testes e na revisão. Todo o conteúdo foi conferido, ajustado e validado pela equipe, que é responsável pelas decisões e pelo resultado final.
