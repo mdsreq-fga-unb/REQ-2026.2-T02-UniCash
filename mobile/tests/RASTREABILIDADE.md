@@ -461,3 +461,7 @@ Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.ts
 | 4.3 RNF20 – tamanhos de tela | | | | | |
 | 4.4 RNF07 – precisão | | | | | |
 | 4.5 Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |
+
+## UC05 — Monitorar limites de gastos
+
+A [issue #32](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32) e o [manual do UC05](MANUAL-UC05.md) registram o escopo entregue, a integração com UC09 e RF12 e os cenários de notificação em aparelho, incluindo offline. A cobertura automatizada da EX02 está em [alertas-uc05.test.ts](service/alertas-uc05.test.ts).

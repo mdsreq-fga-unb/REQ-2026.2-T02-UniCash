@@ -11,6 +11,8 @@ import {
   PERCENTUAL_MIN_CENTESIMOS,
 } from '@/features/categorias/limites';
 import {
+  DDL_ALERTAS,
+  DDL_PREFERENCIAS_ALERTAS_POR_TIPO,
   DDL_ESQUEMA,
   DDL_PREFERENCIAS_LOCAIS,
   DDL_SALDO_INICIAL,
@@ -29,7 +31,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 10;
+export const VERSAO_ESQUEMA = 11;
 
 export interface RegistroInvalido {
   id: string;
@@ -138,6 +140,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 8, executar: migrar008 },
   { versao: 9, executar: migrar009 },
   { versao: 10, executar: migrar010 },
+  { versao: 11, executar: migrar011 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -625,16 +628,42 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirColunaExcluidoEmRecorrencias(tx);
       await garantirTabelasV6(tx);
       await aplicarTriggersPercentual(tx);
+      await tx.execAsync(DDL_ALERTAS);
+      await tx.execAsync(DDL_PREFERENCIAS_ALERTAS_POR_TIPO);
       await consolidarSaldoInicial(tx);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
     return;
   }
 
+  // As prévias da UC05 gravaram 8/9 antes de incorporar as migrações de saldo.
+  const previaUC05 = (versao === 8 || versao === 9)
+    && await existeTabela(db, 'alertas') && !(await existeTabela(db, 'alertas_emitidos'));
+
   // Instalação legada (ou parcial): migrações pendentes, em ordem.
   for (const m of MIGRACOES) {
-    if (m.versao > versao) await m.executar(db, m.versao);
+    if (m.versao > (previaUC05 ? 7 : versao)) await m.executar(db, m.versao);
   }
+}
+
+/** 011 — integra os alertas e as preferências de limite da UC05. */
+async function migrar011(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.execAsync(DDL_ALERTAS);
+    await tx.execAsync(DDL_PREFERENCIAS_ALERTAS_POR_TIPO);
+    if (await existeTabela(tx, 'preferencias_alertas')) {
+      await tx.execAsync(`
+        INSERT OR IGNORE INTO preferencias_alertas_por_tipo (tipo, ativo)
+          SELECT 'aproximacao', ativo FROM preferencias_alertas
+          UNION ALL SELECT 'ultrapassagem', ativo FROM preferencias_alertas;
+        DROP TABLE preferencias_alertas;
+      `);
+    }
+    if (await existeTabela(tx, 'categorias')) {
+      await tx.execAsync('DELETE FROM alertas WHERE ref_id IN (SELECT id FROM categorias WHERE excluido_em IS NOT NULL)');
+    }
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
 }
 
 /**

@@ -15,6 +15,7 @@ import {
 import {
   DDL_ESQUEMA,
   DDL_ESQUEMA_V5,
+  DDL_PREFERENCIAS_ALERTAS_V8,
   DDL_NUMERAR_ALERTAS,
   DDL_SALDO_MENSAL,
   DDL_TRIGGER_PERCENTUAL,
@@ -2210,6 +2211,67 @@ describe('migração 005: tombstone de recorrências', () => {
       valor_centavos: 50000,
     });
     expect(bancoIntegro(sqlite)).toBe(true);
+  });
+});
+
+describe('Migração 011 — preferências e alertas da UC05', () => {
+  it.each([0, 10])('cria alertas e preferências a partir da versão %i', async (versaoInicial) => {
+    const sqlite = novoSqlite();
+    const db = criarAdaptador(sqlite);
+    try {
+      if (versaoInicial === 10) {
+        await migrarSeNecessario(db);
+        sqlite.exec(`
+          DROP TABLE alertas;
+          DROP TABLE preferencias_alertas_por_tipo;
+          INSERT INTO preferencias_locais VALUES ('existente', 0);
+          PRAGMA user_version = 10;
+        `);
+        inserirReceitaValida(sqlite);
+      }
+      await migrarSeNecessario(db);
+      expect(versao(sqlite)).toBe(11);
+      expect(sqlite.prepare('SELECT * FROM alertas').all()).toEqual([]);
+      expect(sqlite.prepare('SELECT * FROM preferencias_alertas_por_tipo').all()).toEqual([]);
+      if (versaoInicial === 10) {
+        expect(sqlite.prepare('SELECT id FROM receitas').all()).toEqual([{ id: 'rx' }]);
+        expect(sqlite.prepare("SELECT valor FROM preferencias_locais WHERE chave = 'existente'").get()).toEqual({ valor: 0 });
+      }
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  it('preserva a preferência anterior nos dois tipos e remove alertas de categoria excluída', async () => {
+    const sqlite = new Database(':memory:');
+    const db = criarAdaptador(sqlite);
+    try {
+      await migrarSeNecessario(db);
+      sqlite.exec(`
+        DROP TABLE preferencias_alertas_por_tipo;
+        DROP TABLE alertas_emitidos;
+        DROP TABLE saldo_inicial;
+        DROP TABLE preferencias_locais;
+        ${DDL_PREFERENCIAS_ALERTAS_V8}
+        INSERT INTO preferencias_alertas VALUES (1, 0);
+        INSERT INTO categorias (id, nome, nome_normalizado, excluido_em, criado_em, atualizado_em)
+          VALUES ('antiga', 'Antiga', 'antiga', '2026-10-16', '2026-10-10', '2026-10-16');
+        INSERT INTO alertas (tipo, ref_id, periodo, categoria_nome, gasto_centavos, limite_centavos, emitido_em)
+          VALUES ('aproximacao', 'antiga', '2026-10', 'Antiga', 8000, 10000, '2026-10-15');
+        PRAGMA user_version = 8;
+      `);
+
+      await migrarSeNecessario(db);
+
+      expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+      expect(sqlite.prepare('SELECT * FROM preferencias_alertas_por_tipo ORDER BY tipo').all()).toEqual([
+        { tipo: 'aproximacao', ativo: 0 },
+        { tipo: 'ultrapassagem', ativo: 0 },
+      ]);
+      expect(sqlite.prepare('SELECT * FROM alertas').all()).toEqual([]);
+    } finally {
+      sqlite.close();
+    }
   });
 });
 

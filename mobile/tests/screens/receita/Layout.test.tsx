@@ -8,7 +8,12 @@ import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync
 import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 
 /** Mesma lista de produção; o teste falha se uma rota com SQLite ficar desprotegida. */
+jest.mock('@/features/alertas/useNotificacoesDeLimite', () => ({
+  useNotificacoesDeLimite: jest.fn(),
+}));
+
 const ROTAS_COM_BANCO = [
+  'preferencias-alertas',
   'tutorial',
   'configuracoes-financeiras',
   'saldo-inicial',
