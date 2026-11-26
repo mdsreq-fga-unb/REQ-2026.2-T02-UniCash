@@ -473,3 +473,21 @@ Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.ts
 | RNF03 (isolamento por dono), EX05 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
 | EX01, EX02 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/mensagens.ts` | `tests/screens/Perfil.test.tsx` (US3) | — |
 | Contrato `isEnabled('limite' \| 'conquistas')` para UC05 e UC13 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
+
+## UC13 — Acompanhar conquistas e pontuação
+
+| Requisito / fluxo | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| RF44, A1 (selos por marco), FR-005 | `src/features/conquistas/avaliacao.ts`, `src/features/conquistas/config.ts`, `src/features/conquistas/consulta.ts` | `tests/features/conquistas/avaliacao.test.ts`, `tests/features/conquistas/consulta.test.ts` | 2 |
+| RF45, A2 (pontos por meta), FR-006 | `src/features/conquistas/avaliacao.ts`, `src/features/conquistas/metas.ts` | `tests/features/conquistas/avaliacao.test.ts` | 3 |
+| RF46, A3 (notificação), FA05 | `src/features/conquistas/emissao.ts`, `src/features/conquistas/emissor.ts`, `src/app/_layout.tsx` | `tests/features/conquistas/emissao.test.ts` | 8, 9 |
+| B1, B2 (consultar), FA01 | `src/app/conquistas/index.tsx`, `src/components/conquistas/*`, `src/app/perfil.tsx` | `tests/screens/Conquistas.test.tsx` (US1), `tests/screens/Perfil.test.tsx` (UC13) | 1, 3 |
+| B3 (detalhe do selo) | `src/app/conquistas/[chave].tsx`, `src/app/index.tsx` (mês por parâmetro) | `tests/screens/Conquistas.test.tsx` (US3) | 4, 5 |
+| FA02, FA03, FA07 (sem duplicidade, sem contador), RN07 | `src/features/conquistas/avaliacao.ts` | `tests/features/conquistas/avaliacao.test.ts`, `tests/features/conquistas/emissao.test.ts` ("chamadas simultâneas") | 12 |
+| FA04 (alerta desligado) | `src/features/conquistas/emissao.ts` | `tests/features/conquistas/emissao.test.ts` | 10 |
+| FA06, RN06 (offline) | `src/features/conquistas/consulta.ts` (só base local) | `tests/features/conquistas/consulta.test.ts` (sem Firebase) | 11 |
+| FA08, FR-007a (selo acompanha os dados) | `src/features/conquistas/consulta.ts`, `src/features/conquistas/gatilhos.ts` | `tests/features/conquistas/consulta.test.ts`, `tests/features/conquistas/emissao.test.ts` | 6, 7 |
+| FR-009a (histórico sem notificação) | `src/features/conquistas/emissao.ts` | `tests/features/conquistas/emissao.test.ts` | 2 |
+| EX01, EX02 | `src/features/conquistas/emissao.ts`, `src/db/migrations.ts` (`migrar012`) | `tests/features/conquistas/emissao.test.ts`, `tests/db/migrations.test.ts` | — |
+| EX03, EX04, RNF03 | `src/app/conquistas/index.tsx` | `tests/screens/Conquistas.test.tsx` (US5) | — |
+| EX05 (sincronização) | Selos derivados; `conquistas_emitidas` não sincroniza | — | — |
