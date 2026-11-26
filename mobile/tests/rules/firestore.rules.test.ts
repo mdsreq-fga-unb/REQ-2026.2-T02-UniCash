@@ -901,6 +901,11 @@ describe('metas: metadados de merge por campo (RN07)', () => {
         }),
       ),
     );
-    await expect(getDoc(ref)).resolves.toMatchObject({ exists: true });
+    const snapshot = await assertSucceeds(getDoc(ref));
+    expect(snapshot.exists()).toBe(true);
+    expect(snapshot.data()).toMatchObject({
+      revisao: 2,
+      campos_revisao: { objetivo: 2 },
+    });
   });
 });
