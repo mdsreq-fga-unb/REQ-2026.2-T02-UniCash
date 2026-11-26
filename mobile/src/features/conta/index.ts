@@ -1,7 +1,8 @@
 import { criarAuthFirebase, iniciarObservadorDeSessao } from './auth.firebase';
 import { criarContaServiceFirebase } from './service.firebase';
 import { definirServicoConta } from './service';
-import { aoMudarSessao } from './sessao';
+import { aoMudarSessao, obterSessao } from './sessao';
+import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { definirSincronizacao, obterSincronizacao } from './sync';
 import { criarSincronizacaoDoApp } from './sync.app';
 
@@ -27,6 +28,10 @@ export function iniciarConta() {
       sync
         .retomar(s.uid)
         .then(() => sync.restaurarSeAparelhoVazio(s.uid))
+        .then(() => {
+          const atual = obterSessao();
+          if (atual.status === 'ativa' && atual.uid === s.uid) avisarBaseAtualizada();
+        })
         .catch(() => {});
     } else {
       sync.suspender().catch(() => {});

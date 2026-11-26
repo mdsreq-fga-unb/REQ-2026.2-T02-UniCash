@@ -287,6 +287,36 @@ export const DDL_TRIGGER_PERCENTUAL = `
     END;
   `;
 
+export const DDL_SALDO_MENSAL = `
+    CREATE TABLE IF NOT EXISTS saldo_inicial (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      mes TEXT NOT NULL,
+      valor_centavos INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS alertas_emitidos (
+      id TEXT PRIMARY KEY NOT NULL,
+      mes TEXT NOT NULL,
+      anterior_centavos INTEGER NOT NULL,
+      saldo_centavos INTEGER NOT NULL,
+      criado_em TEXT NOT NULL,
+      lido INTEGER NOT NULL DEFAULT 0,
+      sync_status TEXT NOT NULL DEFAULT 'pendente'
+    );
+  `;
+
+/** Migração 008: numera transições por mês sem alterar os IDs já enviados ao Firestore. */
+export const DDL_NUMERAR_ALERTAS = `
+  ALTER TABLE alertas_emitidos ADD COLUMN transicao INTEGER NOT NULL DEFAULT 0;
+  WITH numerados AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY mes ORDER BY criado_em, rowid) AS numero
+    FROM alertas_emitidos
+  )
+  UPDATE alertas_emitidos SET transicao = (
+    SELECT numero FROM numerados WHERE numerados.id = alertas_emitidos.id
+  );
+  CREATE UNIQUE INDEX idx_alertas_mes_transicao ON alertas_emitidos(mes, transicao);
+`;
+
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
@@ -294,4 +324,8 @@ export const ESQUEMA_SQL = `
     ${DDL_ESQUEMA_V6}
 
     ${DDL_TRIGGER_PERCENTUAL}
+
+    ${DDL_SALDO_MENSAL}
+
+    ${DDL_NUMERAR_ALERTAS}
   `;
