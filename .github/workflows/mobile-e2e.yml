@@ -19,6 +19,9 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'e2e'
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write        # publica prints e vídeo na branch e2e-evidencias
+      pull-requests: write   # comentário fixo com o resultado
     defaults:
       run:
         working-directory: mobile
@@ -77,6 +80,56 @@ jobs:
           disable-animations: true
           working-directory: mobile
           script: bash .maestro/rodar-ci.sh app.apk
+
+      # O GitHub não mostra imagens de dentro do zip do artefato. Os prints e o vídeo vão para a
+      # branch e2e-evidencias (só evidências, sem código), e o resumo e o comentário apontam para lá.
+      - name: Publicar evidências na branch e2e-evidencias
+        id: evidencias
+        if: always()
+        env:
+          TOKEN: ${{ github.token }}
+          DESTINO: pr-${{ github.event.pull_request.number || 'manual' }}/execucao-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          arquivos=$(find . \( -path ./node_modules -prune \) -o \( -path '*artefatos*' \( -name '*.png' -o -name '*.mp4' \) -print \))
+          if [ -z "$arquivos" ]; then echo "Nenhum print ou vídeo gerado."; exit 0; fi
+          repo="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$repo" e2e-evidencias > /dev/null; then
+            git clone --quiet --depth 1 --branch e2e-evidencias "$repo" "$RUNNER_TEMP/evid"
+          else
+            git init --quiet -b e2e-evidencias "$RUNNER_TEMP/evid"
+            git -C "$RUNNER_TEMP/evid" remote add origin "$repo"
+            echo "# Evidências dos testes E2E (Maestro), geradas pelo workflow mobile-e2e.yml" > "$RUNNER_TEMP/evid/README.md"
+          fi
+          lista=""
+          for f in $arquivos; do
+            nome="uc13/$(basename "$f")"
+            mkdir -p "$RUNNER_TEMP/evid/$DESTINO/uc13"
+            cp "$f" "$RUNNER_TEMP/evid/$DESTINO/$nome"
+            lista="$lista $nome"
+          done
+          cd "$RUNNER_TEMP/evid"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit --quiet -m "evidências E2E: $DESTINO"
+          git push --quiet origin e2e-evidencias
+          echo "url=https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/e2e-evidencias/$DESTINO" >> "$GITHUB_OUTPUT"
+          echo "lista=$lista" >> "$GITHUB_OUTPUT"
+
+      - name: Resumo do E2E
+        if: always()
+        env:
+          URL_EXECUCAO: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node ../.github/scripts/resumo-e2e.mjs .maestro/artefatos/relatorio.xml "${{ steps.evidencias.outputs.url }}" ${{ steps.evidencias.outputs.lista }} -- resumo-e2e.md
+          cat resumo-e2e.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comentar resultado no PR
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: e2e-maestro
+          path: mobile/resumo-e2e.md
 
       - name: Publicar prints, vídeo e relatório
         if: always()

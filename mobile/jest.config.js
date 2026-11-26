@@ -21,7 +21,7 @@ module.exports = {
     '!src/features/receitas/types.ts',
   ],
 
-  coverageReporters: ['text', 'text-summary', 'lcov'],
+  coverageReporters: ['text', 'text-summary', 'lcov', 'json-summary'],
 
   coverageThreshold: {
     'src/features/consumo/**/*.ts': { statements: 100, branches: 100, functions: 100, lines: 100 },

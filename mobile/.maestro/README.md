@@ -25,7 +25,11 @@ Não precisa de emulador local. O workflow `.github/workflows/mobile-e2e.yml` co
 - **Num PR**: adicione a label `e2e`. Outras labels e novos pushes não disparam; para rodar de novo, tire e recoloque a label.
 - **Manual**: Actions > Mobile E2E (Maestro) > Run workflow (depois que o arquivo estiver na `main`).
 
-Os prints, o vídeo (`uc13.mp4`) e o relatório JUnit ficam no artefato `e2e-uc13` da execução; é só baixar e anexar ao PR ou à documentação. Os jobs Maestro do EAS Workflows exigem plano pago, por isso o EAS só faz o build.
+Onde ver o resultado:
+
+- **No PR**: um comentário fixo "Testes ponta a ponta (Maestro)", atualizado a cada execução, com o resultado de cada fluxo, a galeria de prints e o link do vídeo.
+- **Na execução** (aba Checks → Mobile E2E): o mesmo resumo aparece no topo da página.
+- **Arquivos**: os prints e o vídeo ficam na branch `e2e-evidencias`, em `pr-<número>/execucao-<id>/` (só evidências, sem código). O relatório JUnit e a saída completa do Maestro ficam no artefato `e2e-uc13`. Os jobs Maestro do EAS Workflows exigem plano pago, por isso o EAS só faz o build.
 
 ## Rodar localmente
 
