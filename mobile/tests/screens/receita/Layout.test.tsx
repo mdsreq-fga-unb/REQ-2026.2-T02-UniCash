@@ -18,6 +18,7 @@ const ROTAS_COM_BANCO = [
   'despesas/nova',
   'despesas/[id]/index',
   'despesas/[id]/editar',
+  'sincronizacao',
   'receitas/index',
   'receitas/nova',
   'receitas/[id]/index',
@@ -96,6 +97,9 @@ jest.mock('@/features/despesas/service', () => ({
 jest.mock('@/features/receitas/sync', () => ({
   restaurarDaNuvem: jest.fn(),
   sincronizarPendentes: jest.fn(),
+}));
+jest.mock('@/features/sincronizacao/service', () => ({
+  iniciarSincronizacaoAutomatica: () => () => {},
 }));
 jest.mock('@/features/conta', () =>
   ({ iniciarConta: jest.fn()

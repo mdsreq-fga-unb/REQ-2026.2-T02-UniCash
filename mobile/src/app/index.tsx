@@ -189,6 +189,9 @@ function Atalhos({ ano, mes }: { ano: number; mes: number }) {
       <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
         <Text style={estilos.botaoTexto}>Categorias</Text>
       </Pressable>
+      <Pressable onPress={() => router.push('/sincronizacao')} style={estilos.botao} accessibilityRole="button">
+        <Text style={estilos.botaoTexto}>Sincronização</Text>
+      </Pressable>
       <Pressable onPress={() => router.push('/configuracoes-financeiras')} style={estilos.botao} accessibilityRole="button">
         <Text style={estilos.botaoTexto}>Configurações financeiras</Text>
       </Pressable>

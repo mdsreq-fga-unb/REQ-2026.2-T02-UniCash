@@ -11,6 +11,7 @@ import { completarRecorrenciasDespesas } from '@/features/despesas/service';
 import { restaurarDaNuvem, sincronizarEmSegundoPlano, sincronizarPendentes } from '@/features/receitas/sync';
 import { observarConexaoSaldoInicial } from '@/features/saldoInicial/sync';
 import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
+import { iniciarSincronizacaoAutomatica } from '@/features/sincronizacao/service';
 import { cores, raio } from '@/lib/theme';
 
 iniciarConta();
@@ -32,6 +33,7 @@ const TELAS_COM_BANCO = [
   'despesas/nova',
   'despesas/[id]/index',
   'despesas/[id]/editar',
+  'sincronizacao',
   'receitas/index',
   'receitas/nova',
   'receitas/[id]/index',
@@ -86,7 +88,12 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (estado !== 'pronto') return;
-    return observarConexaoSaldoInicial(() => sincronizarEmSegundoPlano(true));
+    const pararSincronizacao = iniciarSincronizacaoAutomatica();
+    const pararObservacaoSaldo = observarConexaoSaldoInicial(() => sincronizarEmSegundoPlano(true));
+    return () => {
+      pararObservacaoSaldo();
+      pararSincronizacao();
+    };
   }, [estado]);
 
   return (
