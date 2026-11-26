@@ -1,8 +1,10 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { onIdTokenChanged } from 'firebase/auth';
-import { doc, onSnapshot, runTransaction } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, runTransaction } from 'firebase/firestore';
 import { getDbDoDono } from '@/db/database';
+import { serializarImportacao } from '@/features/conta/operacoes-locais';
 import { auth, db as firestore, firebaseConfigurado } from '@/lib/firebase';
+import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { lerSaldoInicial } from './service';
 import { dadosSaldoValidos } from './validacao';
 
@@ -10,7 +12,11 @@ function documentoSaldo(uid: string) {
   return doc(firestore, 'usuarios', uid, 'saldo_inicial', 'atual');
 }
 
-/** A mudança de cache para servidor permite tentar o envio novamente sem reabrir o app. */
+export async function lerSaldoInicialRemoto(uid: string): Promise<Record<string, unknown> | undefined> {
+  return (await getDoc(documentoSaldo(uid))).data();
+}
+
+/** Um snapshot do servidor retoma o envio ou preenche a referência local ausente. */
 export function observarConexaoSaldoInicial(reenviar: () => void): () => void {
   if (!firebaseConfigurado) return () => {};
   let pararDocumento: (() => void) | undefined;
@@ -24,12 +30,23 @@ export function observarConexaoSaldoInicial(reenviar: () => void): () => void {
       const voltouDoCache = usaCache && !snapshot.metadata.fromCache && !snapshot.metadata.hasPendingWrites;
       usaCache = snapshot.metadata.fromCache;
       if (!voltouDoCache) return;
-      void getDbDoDono(uid).then(lerSaldoInicial).then((saldo) => {
-        if (saldo?.sync_status === 'pendente' && auth.currentUser?.uid === uid && auth.currentUser.emailVerified) {
+      const dados = snapshot.data();
+      void (async () => {
+        const banco = await getDbDoDono(uid);
+        const saldo = await lerSaldoInicial(banco);
+        const sessaoValida = () => auth.currentUser?.uid === uid && auth.currentUser.emailVerified;
+        if (!sessaoValida()) return;
+        if (saldo?.sync_status === 'pendente') {
           reenviar();
+        } else if (!saldo && dados) {
+          let restaurado = false;
+          await serializarImportacao(uid, () => banco.withExclusiveTransactionAsync(async (tx) => {
+            if (sessaoValida()) restaurado = await restaurarSaldoInicial(tx, dados);
+          }));
+          if (restaurado && sessaoValida()) avisarBaseAtualizada();
         }
-      }).catch((erro: unknown) => {
-        console.warn('Não foi possível consultar a pendência do saldo inicial.', erro);
+      })().catch((erro: unknown) => {
+        console.warn('Não foi possível retomar a sincronização do saldo inicial.', erro);
       });
     }, (erro) => {
       console.warn('Não foi possível observar a conexão para o saldo inicial.', erro);
@@ -61,12 +78,13 @@ export async function enviarSaldoInicial(banco: SQLiteDatabase, uid: string): Pr
 export async function restaurarSaldoInicial(
   tx: SQLiteDatabase,
   dados: Record<string, unknown> | undefined,
-): Promise<void> {
-  if (!dados) return;
+): Promise<boolean> {
+  if (!dados) return false;
   if (!dadosSaldoValidos(dados)) throw new Error('Saldo inicial remoto inválido.');
-  await tx.runAsync(
+  const resultado = await tx.runAsync(
     `INSERT INTO saldo_inicial (id, valor_centavos, mes_referencia, sync_status) VALUES (1, ?, ?, 'sincronizado')
      ON CONFLICT(id) DO NOTHING`,
     [dados.valor_centavos, dados.mes_referencia],
   );
+  return resultado.changes > 0;
 }

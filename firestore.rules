@@ -338,7 +338,7 @@ service cloud.firestore {
     }
 
     match /usuarios/{uid}/saldo_inicial/{id} {
-      allow read: if donoConfirmado(uid);
+      allow get: if donoConfirmado(uid) && id == 'atual';
       allow create, update: if donoConfirmado(uid) && id == 'atual'
         && request.resource.data.keys().hasOnly(['valor_centavos', 'mes_referencia'])
         && request.resource.data.valor_centavos is int

@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 
 /**
  * Security Rules no Firebase Emulator Suite.
@@ -667,6 +667,8 @@ describe('UC08 — saldo inicial', () => {
     await assertSucceeds(setDoc(proprio, { ...saldo, valor_centavos: Number.MAX_SAFE_INTEGER }));
     await assertSucceeds(getDoc(proprio));
     await assertFails(setDoc(ref(db('dono'), 'dono', 'outro'), saldo));
+    await assertFails(getDoc(ref(db('dono'), 'dono', 'outro')));
+    await assertFails(getDocs(collection(db('dono'), 'usuarios', 'dono', 'saldo_inicial')));
   });
 
   it('isola contas e rejeita usuários sem confirmação', async () => {

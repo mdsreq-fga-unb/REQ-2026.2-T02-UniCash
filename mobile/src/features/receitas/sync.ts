@@ -30,7 +30,7 @@ import {
   removerPendente,
 } from '@/db/restauracaoPendente';
 import type { Categoria } from '@/features/categorias/types';
-import { enviarSaldoInicial, restaurarSaldoInicial } from '@/features/saldoInicial/sync';
+import { enviarSaldoInicial, lerSaldoInicialRemoto, restaurarSaldoInicial } from '@/features/saldoInicial/sync';
 import type { Despesa } from '@/features/despesas/types';
 
 type RecorrenciaSync = {
@@ -130,7 +130,12 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
 
     if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) return false;
 
-    if (await enviarSaldoInicial(sqlite, uid)) mudouLocal = true;
+    try {
+      if (await enviarSaldoInicial(sqlite, uid)) mudouLocal = true;
+    } catch (e) {
+      if (!negadoPelaNuvem(e)) throw e;
+      acessoNegado = true;
+    }
 
     // Categorias primeiro: séries/despesas dependem do catálogo reconciliado.
     const categoriasSync = await sincronizarCategoriasPendentes(sqlite, uid);
@@ -701,12 +706,12 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
 async function restaurarParaUid(uid: string): Promise<ResultadoRestauracao> {
   if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) throw new FalhaRestauracao('conta alterada');
   try {
-    const [snapSeries, snapReceitas, snapDespesas, snapCategorias, snapSaldo] = await Promise.all([
+    const [snapSeries, snapReceitas, snapDespesas, snapCategorias, saldoRemoto] = await Promise.all([
       getDocs(collection(firestore, 'usuarios', uid, 'recorrencias')),
       getDocs(collection(firestore, 'usuarios', uid, 'receitas')),
       getDocs(collection(firestore, 'usuarios', uid, 'despesas')),
       getDocs(collection(firestore, 'usuarios', uid, 'categorias')),
-      getDocs(collection(firestore, 'usuarios', uid, 'saldo_inicial')),
+      lerSaldoInicialRemoto(uid),
     ]);
     const sqlite = await getDbDoDono(uid);
     const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0 };
@@ -716,7 +721,7 @@ async function restaurarParaUid(uid: string): Promise<ResultadoRestauracao> {
         throw new FalhaRestauracao('conta alterada durante a restauração');
       }
 
-      await restaurarSaldoInicial(tx, snapSaldo.docs.find((documento) => documento.id === 'atual')?.data());
+      await restaurarSaldoInicial(tx, saldoRemoto);
       const mapaCategorias = await restaurarCategoriasDaNuvem(tx, snapCategorias.docs);
       const categoriasLocais = await tx.getAllAsync<Categoria>(
         `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local

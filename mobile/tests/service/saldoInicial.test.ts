@@ -1,8 +1,9 @@
 import { getDb } from '@/db/database';
 import { consultarSaldoAnterior } from '@/features/saldoInicial/referencia';
 import { lerSaldoInicial, salvarSaldoInicial } from '@/features/saldoInicial/service';
-import { enviarSaldoInicial, observarConexaoSaldoInicial, restaurarSaldoInicial } from '@/features/saldoInicial/sync';
+import { enviarSaldoInicial, lerSaldoInicialRemoto, observarConexaoSaldoInicial, restaurarSaldoInicial } from '@/features/saldoInicial/sync';
 import { mesReferenciaValido, valorSaldoInicial } from '@/features/saldoInicial/validacao';
+import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { instalarBanco } from '../helpers/fakeDb';
 
 jest.mock('@/db/database', () => {
@@ -13,11 +14,13 @@ jest.mock('@/lib/firebase', () => ({ auth: { currentUser: { uid: 'dono', emailVe
 const mockTransacao = jest.fn();
 const mockIdToken = jest.fn();
 const mockSnapshot = jest.fn();
+const mockGetDoc = jest.fn();
 jest.mock('firebase/auth', () => ({
   onIdTokenChanged: (_auth: unknown, callback: unknown) => mockIdToken(callback),
 }));
 jest.mock('firebase/firestore', () => ({
   doc: (_banco: unknown, ...path: string[]) => path.join('/'),
+  getDoc: (...args: unknown[]) => mockGetDoc(...args),
   onSnapshot: (...args: unknown[]) => mockSnapshot(...args),
   runTransaction: (_banco: unknown, callback: unknown) => mockTransacao(callback),
 }));
@@ -30,6 +33,7 @@ beforeEach(() => {
   mockTransacao.mockReset();
   mockIdToken.mockReset();
   mockSnapshot.mockReset();
+  mockGetDoc.mockReset();
 });
 
 afterEach(() => banco.sqlite.close());
@@ -96,10 +100,10 @@ it('mantém a pendência offline e protege uma edição feita durante o envio', 
 
 it('restaura os dados da conta sem sobrescrever uma edição local pendente', async () => {
   const conexao = await getDb();
-  await conexao.withExclusiveTransactionAsync((tx) => restaurarSaldoInicial(tx, { ...dados }));
+  await conexao.withExclusiveTransactionAsync(async (tx) => { await restaurarSaldoInicial(tx, { ...dados }); });
   expect(await lerSaldoInicial()).toMatchObject({ ...dados, sync_status: 'sincronizado' });
   await salvarSaldoInicial({ ...dados, valor_centavos: 0 });
-  await conexao.withExclusiveTransactionAsync((tx) => restaurarSaldoInicial(tx, { ...dados }));
+  await conexao.withExclusiveTransactionAsync(async (tx) => { await restaurarSaldoInicial(tx, { ...dados }); });
   expect(await lerSaldoInicial()).toMatchObject({ valor_centavos: 0, sync_status: 'pendente' });
 });
 
@@ -117,7 +121,7 @@ it('solicita reenvio quando a conexão volta e há uma alteração local pendent
   const parar = observarConexaoSaldoInicial(reenviar);
   const receber = mockSnapshot.mock.calls[0][2];
   const enviarSnapshot = async (fromCache: boolean) => {
-    receber({ metadata: { fromCache, hasPendingWrites: false } });
+    receber({ metadata: { fromCache, hasPendingWrites: false }, data: () => undefined });
     await new Promise<void>((resolver) => setImmediate(resolver));
   };
 
@@ -132,4 +136,46 @@ it('solicita reenvio quando a conexão volta e há uma alteração local pendent
   parar();
   expect(cancelarDocumento).toHaveBeenCalledTimes(1);
   expect(cancelarSessao).toHaveBeenCalledTimes(1);
+});
+
+it.each([false, true])('retoma a restauração com o app aberto e cadastro concorrente = %s', async (cadastroConcorrente) => {
+  mockGetDoc.mockRejectedValueOnce(new Error('offline'));
+  await expect(lerSaldoInicialRemoto('dono')).rejects.toThrow('offline');
+
+  mockIdToken.mockImplementation((receber) => {
+    receber({ uid: 'dono', emailVerified: true });
+    return jest.fn();
+  });
+  mockSnapshot.mockReturnValue(jest.fn());
+  const reenviar = jest.fn();
+  const parar = observarConexaoSaldoInicial(reenviar);
+  const avisar = jest.fn();
+  const cancelar = ouvirBaseAtualizada(avisar);
+  const receber = mockSnapshot.mock.calls[0][2];
+  const conexao = await getDb();
+  const aguardar = () => new Promise<void>((resolver) => setImmediate(resolver));
+  try {
+    receber({ metadata: { fromCache: true, hasPendingWrites: false }, data: () => dados });
+    await aguardar();
+    expect(await lerSaldoInicial()).toBeNull();
+
+    if (cadastroConcorrente) {
+      const transacao = conexao.withExclusiveTransactionAsync.bind(conexao);
+      jest.spyOn(conexao, 'withExclusiveTransactionAsync').mockImplementationOnce(async (executar) => {
+        await salvarSaldoInicial({ ...dados, valor_centavos: 0 });
+        await transacao(executar);
+      });
+    }
+    receber({ metadata: { fromCache: false, hasPendingWrites: false }, data: () => dados });
+    await aguardar();
+
+    expect(await lerSaldoInicial()).toMatchObject(cadastroConcorrente
+      ? { ...dados, valor_centavos: 0, sync_status: 'pendente' }
+      : { ...dados, sync_status: 'sincronizado' });
+    expect(avisar).toHaveBeenCalledTimes(cadastroConcorrente ? 0 : 1);
+    expect(reenviar).not.toHaveBeenCalled();
+  } finally {
+    cancelar();
+    parar();
+  }
 });

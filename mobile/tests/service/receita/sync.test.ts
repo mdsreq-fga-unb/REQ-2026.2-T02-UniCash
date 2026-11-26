@@ -32,7 +32,7 @@ import {
   excluirCategoria,
   semearCategoriasPadrao,
 } from '@/features/categorias/service';
-import { lerSaldoInicial } from '@/features/saldoInicial/service';
+import { lerSaldoInicial, salvarSaldoInicial } from '@/features/saldoInicial/service';
 import type { Categoria } from '@/features/categorias/types';
 
 // Firestore em memória: o que está em mockNuvem é o que "está na nuvem".
@@ -40,6 +40,7 @@ const mockNuvem = new Map<string, any>();
 let mockUsuario: { uid: string; emailVerified: boolean } | null = { uid: 'u1', emailVerified: true };
 let mockRedeFora = false;
 let mockLeiturasRemotas = 0;
+const mockDocumentosLidos: string[] = [];
 let mockCodigoErro = 'unavailable';
 /** Caminhos que a nuvem rejeita (permission-denied) mesmo com a rede funcionando. */
 const mockCaminhosRejeitados = new Set<string>();
@@ -151,6 +152,7 @@ jest.mock('firebase/firestore', () => ({
     return fn(tx);
   },
   getDoc: async (ref: any) => {
+    mockDocumentosLidos.push(ref.path);
     mockLeiturasRemotas++;
     if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
     const d = mockNuvem.get(ref.path);
@@ -210,6 +212,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     mockUsuario = { uid: 'u1', emailVerified: true };
     mockRedeFora = false;
     mockLeiturasRemotas = 0;
+    mockDocumentosLidos.length = 0;
     mockCodigoErro = 'unavailable';
     mockCaminhosRejeitados.clear();
     mockOrdemEscritas.length = 0;
@@ -1772,6 +1775,20 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
   });
 
   describe('envio', () => {
+    it('mantém o saldo rejeitado pendente e continua enviando receitas', async () => {
+      await salvarSaldoInicial({ valor_centavos: -100, mes_referencia: '2026-11' });
+      await registrarReceita(input());
+      mockCaminhosRejeitados.add('usuarios/u1/saldo_inicial/atual');
+
+      await sincronizarPendentes();
+
+      expect(await lerSaldoInicial()).toMatchObject({ sync_status: 'pendente' });
+      expect(mockNuvem.has('usuarios/u1/saldo_inicial/atual')).toBe(false);
+      expect(mockNuvem.has(caminho(banco.receitas()[0].id))).toBe(true);
+      expect(banco.receitas()[0].sync_status).toBe("sincronizado");
+      expect(consumirAcessoNegado()).toBe(true);
+    });
+
     it('grava em usuarios/{uid}/receitas/{id} com os campos esperados', async () => {
       await registrarReceita(input({ descricao: 'Logo' }));
       await sincronizarPendentes();
@@ -2284,6 +2301,7 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
 
       await restaurarDaNuvem();
 
+      expect(mockDocumentosLidos).toContain('usuarios/u1/saldo_inicial/atual');
       expect(await lerSaldoInicial()).toMatchObject({ ...dados, sync_status: 'sincronizado' });
     });
 
