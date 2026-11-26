@@ -107,6 +107,9 @@ jest.mock('@/features/receitas/sync', () => ({
 jest.mock('@/features/sincronizacao/service', () => ({
   iniciarSincronizacaoAutomatica: () => () => {},
 }));
+jest.mock('@/features/conta/remocao', () => ({
+  iniciarReenvioDeRemocoes: () => () => {},
+}));
 jest.mock('@/features/conta', () =>
   ({ iniciarConta: jest.fn()
 }));
