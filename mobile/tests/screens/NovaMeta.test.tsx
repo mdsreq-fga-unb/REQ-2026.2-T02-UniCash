@@ -11,6 +11,14 @@ import { router } from '../helpers/expoRouterMock';
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/receitas/sync', () => ({ sincronizarEmSegundoPlano: jest.fn() }));
+jest.mock('@/features/categorias/useCategoriasAtivas', () => ({
+  useCategoriasAtivas: () => ({
+    itens: [{ id: 'c1', nome: 'Mercado' }],
+    carregando: false,
+    erro: false,
+    recarregar: jest.fn(),
+  }),
+}));
 jest.mock('@/features/metas/service', () => ({
   ...jest.requireActual('@/features/metas/service'),
   criarMeta: jest.fn(),
@@ -26,6 +34,7 @@ async function preencher(objetivo = 'Viagem') {
   await digitar('Objetivo', objetivo);
   await digitar('Valor alvo', '1.000,00');
   await digitar('Prazo', '31/12/2027');
+  await fireEvent.press(screen.getByText('Mercado'));
 }
 
 describe('Nova meta (UC12)', () => {
@@ -45,6 +54,8 @@ describe('Nova meta (UC12)', () => {
       tipo: 'gasto',
       valorAlvoCentavos: 100_000,
       prazo: '2027-12-31',
+      categoriaId: 'c1',
+      valorAcumuladoCentavos: null,
     });
     await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith('/metas'));
     expect(consumirFeedback()).toEqual(META_CRIADA);

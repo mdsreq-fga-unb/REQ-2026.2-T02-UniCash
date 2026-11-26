@@ -37,6 +37,32 @@ describe('Schema do banco — metas', () => {
     return id;
   }
 
+  function inserirV9(overrides: Record<string, unknown> = {}): string {
+    sequencia++;
+    const id = `meta-${sequencia}`;
+    const dados = {
+      id,
+      ...base,
+      inicio: '2027-01-01',
+      categoria_id: null,
+      valor_acumulado_centavos: null,
+      valor_acumulado_atualizado_em: null,
+      ...overrides,
+    };
+    sqlite
+      .prepare(
+        `INSERT INTO metas
+           (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
+            valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
+            excluido_em, criado_em, atualizado_em)
+         VALUES (@id, @objetivo, @tipo, @valor_alvo_centavos, @prazo, @inicio,
+            @categoria_id, @valor_acumulado_centavos, @valor_acumulado_atualizado_em,
+            @sync_status, @excluido_em, @criado_em, @atualizado_em)`,
+      )
+      .run(dados);
+    return id;
+  }
+
   it('aceita meta válida de gasto e de investimento', () => {
     expect(() => inserir()).not.toThrow();
     expect(() => inserir({ tipo: 'gasto' })).not.toThrow();
@@ -80,12 +106,58 @@ describe('Schema do banco — metas', () => {
     expect(() => inserir({ excluido_em: '' })).toThrow(/excluido_em_valido/);
   });
 
-  it('cria os índices de prazo e sincronização', () => {
+  it('cria os índices de prazo, sincronização e categoria', () => {
     const nomes = (
       sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'metas'").all() as {
         name: string;
       }[]
     ).map((i) => i.name);
-    expect(nomes).toEqual(expect.arrayContaining(['idx_metas_prazo', 'idx_metas_sync']));
+    expect(nomes).toEqual(
+      expect.arrayContaining(['idx_metas_prazo', 'idx_metas_sync', 'idx_metas_categoria']),
+    );
+  });
+
+  it('aceita investimento com zero e exige valor e data juntos', () => {
+    expect(() =>
+      inserirV9({
+        tipo: 'investimento',
+        valor_acumulado_centavos: 0,
+        valor_acumulado_atualizado_em: '2026-11-25T00:00:00Z',
+      }),
+    ).not.toThrow();
+    expect(() => inserirV9({ valor_acumulado_centavos: 100 })).toThrow(/meta_coerente/);
+    expect(() =>
+      inserirV9({ valor_acumulado_atualizado_em: '2026-11-25T00:00:00Z' }),
+    ).toThrow(/meta_coerente/);
+  });
+
+  it.each([-1, 1.5, 100_000_000_000])('rejeita valor acumulado %p', (valor) => {
+    expect(() =>
+      inserirV9({
+        valor_acumulado_centavos: valor,
+        valor_acumulado_atualizado_em: '2026-11-25T00:00:00Z',
+      }),
+    ).toThrow(/valor_acumulado_valido/);
+  });
+
+  it('investimento não aceita categoria; gasto aceita e não aceita acumulado', () => {
+    expect(() => inserirV9({ tipo: 'investimento', categoria_id: 'c1' })).toThrow(
+      /meta_coerente/,
+    );
+    expect(() => inserirV9({ tipo: 'gasto', categoria_id: 'c1' })).not.toThrow();
+    expect(() =>
+      inserirV9({
+        tipo: 'gasto',
+        categoria_id: 'c1',
+        valor_acumulado_centavos: 100,
+        valor_acumulado_atualizado_em: '2026-11-25T00:00:00Z',
+      }),
+    ).toThrow(/meta_coerente/);
+  });
+
+  it('início deve ser data válida e não pode ultrapassar o prazo', () => {
+    expect(() => inserirV9({ inicio: '2026-02-31' })).toThrow(/inicio_valido/);
+    expect(() => inserirV9({ inicio: '2028-01-01' })).toThrow(/inicio_coerente/);
+    expect(() => inserirV9({ inicio: '2027-12-31' })).not.toThrow();
   });
 });

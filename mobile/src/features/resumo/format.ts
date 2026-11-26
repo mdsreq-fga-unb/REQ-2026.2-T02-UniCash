@@ -15,8 +15,20 @@ export function rotuloDia(iso: string): string {
   return `${semana}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}`;
 }
 
-/** Percentual inteiro de progresso de uma meta, limitado a 0–100. */
+/** Percentual inteiro de progresso de uma meta, limitado a 0–100 (barra visual). */
 export function percentualMeta(realizadoCentavos: number, alvoCentavos: number): number {
   if (alvoCentavos <= 0) return 0;
   return Math.max(0, Math.min(100, Math.floor((realizadoCentavos * 100) / alvoCentavos)));
+}
+
+/**
+ * Percentual exibido com uma casa decimal, sem limitar a 100. A barra visual
+ * usa `percentualMeta` ou `Math.min(100, ...)`, separadamente.
+ */
+export function percentualMetaExibido(
+  realizadoCentavos: number,
+  alvoCentavos: number,
+): number {
+  if (alvoCentavos <= 0) return 0;
+  return Math.max(0, Math.round((realizadoCentavos * 1000) / alvoCentavos) / 10);
 }

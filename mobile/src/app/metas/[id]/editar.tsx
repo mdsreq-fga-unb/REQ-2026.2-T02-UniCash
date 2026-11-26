@@ -5,6 +5,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { MetaForm } from '@/components/metas/MetaForm';
 import {
   buscarMeta,
+  CategoriaMetaIndisponivel,
   editarMeta,
   FalhaPersistenciaMeta,
   MetaIndisponivel,
@@ -64,8 +65,9 @@ export default function EditarMeta() {
         router.replace('/metas');
         return;
       }
-      if (e instanceof EntradaMetaInvalida) setErroGeral(e.message);
-      else if (e instanceof FalhaPersistenciaMeta) setErroGeral(MSG_META.falhaSalvar);
+      if (e instanceof EntradaMetaInvalida || e instanceof CategoriaMetaIndisponivel) {
+        setErroGeral(e.message);
+      } else if (e instanceof FalhaPersistenciaMeta) setErroGeral(MSG_META.falhaSalvar);
       else setErroGeral(MSG_META.falhaSalvar);
       emOperacao.current = false;
       setSalvando(false);
@@ -95,6 +97,8 @@ export default function EditarMeta() {
     tipo: meta.tipo,
     valorAlvoCentavos: meta.valor_alvo_centavos,
     prazo: meta.prazo,
+    categoriaId: meta.categoria_id,
+    valorAcumuladoCentavos: meta.valor_acumulado_centavos,
   };
 
   return (
@@ -103,6 +107,7 @@ export default function EditarMeta() {
         titulo="Editar meta"
         textoSalvar="Salvar alterações"
         inicial={inicial}
+        tipoImutavel
         salvando={salvando}
         erroGeral={erroGeral}
         onSalvar={gravar}

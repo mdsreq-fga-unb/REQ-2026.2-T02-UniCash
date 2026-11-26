@@ -14,6 +14,7 @@ import {
   DDL_ESQUEMA,
   DDL_INDICES_DESPESAS,
   DDL_INDICES_METAS,
+  DDL_INDICES_METAS_V9,
   DDL_INDICES_V6,
   DDL_RECORRENCIAS_V5,
   DDL_TABELA_CATEGORIA_ESTADO,
@@ -24,10 +25,11 @@ import {
   DDL_TRIGGER_PERCENTUAL,
   LIMITE_PERCENTUAL_MAX,
   TRIGGERS_PERCENTUAL,
+  ddlTabelaMetasV9,
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 8;
+export const VERSAO_ESQUEMA = 9;
 
 export interface RegistroInvalido {
   id: string;
@@ -125,6 +127,8 @@ interface Migracao {
  * A 007 normaliza os percentuais legados para a faixa definitiva de 1% a 100%
  * e substitui os triggers da faixa provisória pelos definitivos.
  * A 008 adiciona a tabela de metas da UC12, de forma aditiva e validada.
+ * A 009 estende `metas` com início, categoria e valor acumulado declarado,
+ * preservando os dados da 008 e mantendo registros legados incompletos.
  */
 const MIGRACOES: Migracao[] = [
   { versao: 1, executar: migrar001 },
@@ -135,6 +139,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 6, executar: migrar006 },
   { versao: 7, executar: migrar007 },
   { versao: 8, executar: migrar008 },
+  { versao: 9, executar: migrar009 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -609,7 +614,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirTabelaDespesas(tx);
       await garantirColunaExcluidoEmRecorrencias(tx);
       await garantirTabelasV6(tx);
-      await garantirTabelaMetas(tx);
+      await garantirTabelaMetasV9(tx);
       await aplicarTriggersPercentual(tx);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
@@ -877,6 +882,40 @@ const CONSTRAINTS_METAS = [
   'excluido_em_valido',
 ] as const;
 
+const COLUNAS_METAS_V9: ColunaTabela[] = [
+  { nome: 'id', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 1 },
+  { nome: 'objetivo', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'tipo', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'valor_alvo_centavos', tipo: 'INTEGER', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'prazo', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'inicio', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'categoria_id', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'valor_acumulado_centavos', tipo: 'INTEGER', notnull: 0, defaultValue: null, pk: 0 },
+  {
+    nome: 'valor_acumulado_atualizado_em',
+    tipo: 'TEXT',
+    notnull: 0,
+    defaultValue: null,
+    pk: 0,
+  },
+  { nome: 'sync_status', tipo: 'TEXT', notnull: 1, defaultValue: "'pendente'", pk: 0 },
+  { nome: 'excluido_em', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+  { nome: 'criado_em', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+  { nome: 'atualizado_em', tipo: 'TEXT', notnull: 1, defaultValue: null, pk: 0 },
+];
+
+const CONSTRAINTS_METAS_V9 = [
+  ...CONSTRAINTS_METAS,
+  'inicio_valido',
+  'categoria_id_valido',
+  'valor_acumulado_valido',
+  'valor_acumulado_atualizado_valido',
+  'inicio_coerente',
+  'meta_coerente',
+] as const;
+
+const INDICES_METAS_V9 = ['idx_metas_prazo', 'idx_metas_sync', 'idx_metas_categoria'] as const;
+
 async function validarTabelaMetas(tx: SQLiteDatabase): Promise<void> {
   const tabela = await tx.getFirstAsync<{ sql: string | null }>(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'metas'",
@@ -954,7 +993,166 @@ export async function garantirTabelaMetas(tx: SQLiteDatabase): Promise<void> {
  */
 async function migrar008(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
-    await garantirTabelaMetas(tx);
+    // Um banco parcial pode já ter a forma v9 (ex.: crash após a 009). Nesse
+    // caso, a 008 apenas valida a estrutura atual; a 009 confirma a versão.
+    const info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(metas)');
+    const temColunaV9 = info.some((coluna) =>
+      ['inicio', 'categoria_id', 'valor_acumulado_centavos', 'valor_acumulado_atualizado_em'].includes(
+        coluna.name,
+      ),
+    );
+    if (temColunaV9) {
+      await validarTabelaMetasV9(tx);
+      await criarIndicesMetasV9(tx);
+      await validarIndicesMetasV9(tx);
+    } else {
+      await garantirTabelaMetas(tx);
+    }
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+async function validarTabelaMetasV9(tx: SQLiteDatabase): Promise<void> {
+  const tabela = await tx.getFirstAsync<{ sql: string | null }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'metas'",
+  );
+  if (!tabela?.sql) throw new FalhaMigracao('tabela "metas" ausente');
+
+  const info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(metas)');
+  if (info.length !== COLUNAS_METAS_V9.length) {
+    throw new EstruturaLegadaInesperada(
+      `"metas" tem ${info.length} colunas; o esquema canônico v9 tem ${COLUNAS_METAS_V9.length}`,
+      'metas',
+    );
+  }
+  const porNome = new Map(info.map((coluna) => [coluna.name, coluna]));
+  for (const coluna of COLUNAS_METAS_V9) {
+    const atual = porNome.get(coluna.nome);
+    if (!atual) {
+      throw new EstruturaLegadaInesperada(`coluna "${coluna.nome}" ausente em "metas"`, 'metas');
+    }
+    validarColunaTabela('metas', coluna, atual);
+  }
+  const extras = info.filter((coluna) => !COLUNAS_METAS_V9.some((c) => c.nome === coluna.name));
+  if (extras.length > 0) {
+    throw new EstruturaLegadaInesperada(
+      `coluna(s) inesperada(s) em "metas": [${extras.map((c) => c.name).join(', ')}]`,
+      'metas',
+    );
+  }
+
+  const faltantes = CONSTRAINTS_METAS_V9.filter((nome) => !tabela.sql!.includes(nome));
+  if (faltantes.length > 0) {
+    throw new EstruturaLegadaInesperada(
+      `constraints ausentes em "metas" v9: [${faltantes.join(', ')}]`,
+      'metas',
+    );
+  }
+}
+
+async function validarIndicesMetasV9(tx: SQLiteDatabase): Promise<void> {
+  const indices = await indicesDeUsuario(tx, 'metas');
+  const ausentes = INDICES_METAS_V9.filter((nome) => !indices.includes(nome));
+  if (ausentes.length > 0) {
+    throw new FalhaMigracao(`índice(s) ausente(s) em "metas": [${ausentes.join(', ')}]`);
+  }
+
+  const esperados: Record<(typeof INDICES_METAS_V9)[number], string> = {
+    idx_metas_prazo: 'ON metas(prazo)',
+    idx_metas_sync: 'ON metas(sync_status)',
+    idx_metas_categoria: 'ON metas(categoria_id)',
+  };
+  for (const nome of INDICES_METAS_V9) {
+    const indice = await tx.getFirstAsync<{ sql: string | null }>(
+      "SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?",
+      [nome],
+    );
+    if (!indice?.sql?.includes(esperados[nome])) {
+      throw new EstruturaLegadaInesperada(`índice "${nome}" divergente`, 'metas');
+    }
+  }
+}
+
+async function criarIndicesMetasV9(tx: SQLiteDatabase): Promise<void> {
+  for (const ddl of DDL_INDICES_METAS_V9) await tx.execAsync(ddl);
+}
+
+/**
+ * Garante a tabela e os índices de metas na forma v9.
+ *
+ * - Tabela ausente: cria diretamente na forma atual.
+ * - Tabela v8: reconstrói em uma única transação, derivando `inicio` de
+ *   `criado_em` somente quando a data é válida e não é posterior ao prazo.
+ *   Categoria e valor acumulado permanecem nulos; nenhum dado fictício é criado.
+ * - Tabela v9: valida e apenas recria índices ausentes.
+ *
+ * Não altera user_version.
+ */
+/** @internal Exportada para testes; não faz parte da API de produção. */
+export async function garantirTabelaMetasV9(tx: SQLiteDatabase): Promise<void> {
+  if (!(await existeTabela(tx, 'metas'))) {
+    await tx.execAsync(ddlTabelaMetasV9('metas'));
+    await validarTabelaMetasV9(tx);
+    await criarIndicesMetasV9(tx);
+    await validarIndicesMetasV9(tx);
+    return;
+  }
+
+  const info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(metas)');
+  const temColunaV9 = info.some((coluna) =>
+    ['inicio', 'categoria_id', 'valor_acumulado_centavos', 'valor_acumulado_atualizado_em'].includes(
+      coluna.name,
+    ),
+  );
+
+  if (temColunaV9) {
+    await validarTabelaMetasV9(tx);
+    await criarIndicesMetasV9(tx);
+    await validarIndicesMetasV9(tx);
+    return;
+  }
+
+  // A tabela precisa estar exatamente na forma v8 antes da reconstrução.
+  await validarTabelaMetas(tx);
+
+  const residuo = await tx.getFirstAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE name = 'metas_nova_009'",
+  );
+  if (residuo) throw new ResiduoDeMigracao('metas_nova_009');
+
+  await tx.execAsync(ddlTabelaMetasV9('metas_nova_009'));
+  await tx.execAsync(`
+    INSERT INTO metas_nova_009
+      (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
+       valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
+       excluido_em, criado_em, atualizado_em)
+    SELECT
+      id, objetivo, tipo, valor_alvo_centavos, prazo,
+      CASE
+        WHEN date(substr(criado_em, 1, 10)) = substr(criado_em, 1, 10)
+          AND substr(criado_em, 1, 10) <= prazo
+        THEN substr(criado_em, 1, 10)
+        ELSE NULL
+      END,
+      NULL, NULL, NULL, sync_status, excluido_em, criado_em, atualizado_em
+    FROM metas
+  `);
+
+  await tx.execAsync('DROP TABLE metas');
+  await tx.execAsync('ALTER TABLE metas_nova_009 RENAME TO metas');
+  await criarIndicesMetasV9(tx);
+  await validarTabelaMetasV9(tx);
+  await validarIndicesMetasV9(tx);
+}
+
+/**
+ * 009 — extensão das metas da UC12 (issue #106). Transacional e idempotente.
+ * Preserva integralmente os registros da 008 e não preenche categoria ou valor
+ * realizado fictícios.
+ */
+async function migrar009(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await garantirTabelaMetasV9(tx);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

@@ -4,6 +4,7 @@ import {
   aplicarMetaRemota,
   decidirMetaRemota,
   normalizarMetaRemota,
+  payloadMetaRemota,
   restaurarMetasDaNuvem,
   sincronizarMetasPendentes,
   type MetaRemota,
@@ -47,9 +48,14 @@ const remota = (extra: Partial<MetaRemota> = {}): MetaRemota => ({
   tipo: 'investimento',
   valor_alvo_centavos: 100_000,
   prazo: '2027-12-31',
+  inicio: '2026-01-01',
+  categoria_id: null,
+  valor_acumulado_centavos: null,
+  valor_acumulado_atualizado_em: null,
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
   atualizado_em: '2026-01-02T00:00:00Z',
+  legado: false,
   ...extra,
 });
 
@@ -59,6 +65,10 @@ const meta = (extra: Partial<Meta> = {}): Meta => ({
   tipo: 'investimento',
   valor_alvo_centavos: 100_000,
   prazo: '2027-12-31',
+  inicio: '2026-01-01',
+  categoria_id: null,
+  valor_acumulado_centavos: null,
+  valor_acumulado_atualizado_em: null,
   sync_status: 'pendente',
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
@@ -86,8 +96,64 @@ describe('normalização de meta remota', () => {
     ['criado_em vazio', { criado_em: '' }],
     ['atualizado_em vazio', { atualizado_em: '' }],
     ['tombstone vazio', { excluido_em: '' }],
+    ['início inexistente', { inicio: '2027-02-31' }],
+    ['início depois do prazo', { inicio: '2028-01-01' }],
+    ['categoria em investimento', { categoria_id: 'c1' }],
+    ['acumulado negativo', { valor_acumulado_centavos: -1 }],
+    [
+      'acumulado sem data',
+      { valor_acumulado_centavos: 0, valor_acumulado_atualizado_em: null },
+    ],
   ])('rejeita %s', (_nome, extra) => {
     expect(normalizarMetaRemota('m1', remota(extra as never))).toBeNull();
+  });
+
+  it('aceita documento legado sem os campos novos, normalizando-os como nulos', () => {
+    const legado = {
+      objetivo: 'Viagem',
+      tipo: 'investimento',
+      valor_alvo_centavos: 100_000,
+      prazo: '2027-12-31',
+      criado_em: '2026-01-01T00:00:00Z',
+      atualizado_em: '2026-01-02T00:00:00Z',
+    };
+    expect(normalizarMetaRemota('m1', legado)).toMatchObject({
+      inicio: null,
+      categoria_id: null,
+      valor_acumulado_centavos: null,
+      valor_acumulado_atualizado_em: null,
+    });
+  });
+
+  it('aceita investimento com valor zero e data do informe', () => {
+    expect(
+      normalizarMetaRemota(
+        'm1',
+        remota({
+          valor_acumulado_centavos: 0,
+          valor_acumulado_atualizado_em: '2026-02-01T00:00:00Z',
+        }),
+      ),
+    ).toMatchObject({
+      valor_acumulado_centavos: 0,
+      valor_acumulado_atualizado_em: '2026-02-01T00:00:00Z',
+    });
+  });
+
+  it('aceita gasto com categoria e rejeita valor acumulado em gasto', () => {
+    expect(
+      normalizarMetaRemota(
+        'm1',
+        remota({ tipo: 'gasto', categoria_id: 'c1' }),
+      ),
+    ).toMatchObject({ tipo: 'gasto', categoria_id: 'c1' });
+
+    expect(
+      normalizarMetaRemota(
+        'm1',
+        remota({ tipo: 'gasto', categoria_id: 'c1', valor_acumulado_centavos: 10 }),
+      ),
+    ).toBeNull();
   });
 });
 
@@ -115,6 +181,19 @@ describe('decisão de conflito', () => {
       decidirMetaRemota(meta({ atualizado_em: '2026-03-01T00:00:00Z' }), remota()),
     ).toBe('local');
   });
+
+  it('tipo imutável vence qualquer versão remota que tente trocá-lo', () => {
+    expect(
+      decidirMetaRemota(
+        meta({ tipo: 'investimento' }),
+        remota({
+          tipo: 'gasto',
+          categoria_id: 'c1',
+          atualizado_em: '2099-01-01T00:00:00Z',
+        }),
+      ),
+    ).toBe('local');
+  });
 });
 
 describe('aplicação local de meta remota', () => {
@@ -138,6 +217,121 @@ describe('aplicação local de meta remota', () => {
       objetivo: 'Viagem',
       sync_status: 'sincronizado',
       excluido_em: null,
+      inicio: '2026-01-01',
+      categoria_id: null,
+      valor_acumulado_centavos: null,
+    });
+  });
+
+  it('preserva categoria ativa e desvincula categoria ausente', async () => {
+    banco.sqlite
+      .prepare(
+        `INSERT INTO categorias
+          (id, nome, nome_normalizado, padrao, limite_tipo, limite_centavos,
+           limite_percentual_centesimos, sync_status, excluido_em, criado_em, atualizado_em)
+         VALUES ('c1', 'Mercado', 'mercado', 0, NULL, NULL, NULL, 'sincronizado', NULL, 't', 't')`,
+      )
+      .run();
+
+    await db.withExclusiveTransactionAsync(async (tx) => {
+      await aplicarMetaRemota(
+        tx as SQLiteDatabase,
+        'm1',
+        remota({ tipo: 'gasto', categoria_id: 'c1' }),
+      );
+      await aplicarMetaRemota(
+        tx as SQLiteDatabase,
+        'm2',
+        remota({ objetivo: 'Outra', tipo: 'gasto', categoria_id: 'inexistente' }),
+      );
+    });
+
+    expect(linha('m1').categoria_id).toBe('c1');
+    expect(linha('m2').categoria_id).toBeNull();
+  });
+
+  it('payload remoto inclui os campos novos e mantém nulos explícitos', () => {
+    expect(payloadMetaRemota(meta())).toMatchObject({
+      inicio: '2026-01-01',
+      categoria_id: null,
+      valor_acumulado_centavos: null,
+      valor_acumulado_atualizado_em: null,
+    });
+  });
+
+  it('documento legado mais recente preserva campos novos já conhecidos localmente', async () => {
+    banco.sqlite
+      .prepare(
+        `INSERT INTO categorias
+          (id, nome, nome_normalizado, padrao, limite_tipo, limite_centavos,
+           limite_percentual_centesimos, sync_status, excluido_em, criado_em, atualizado_em)
+         VALUES ('c1', 'Mercado', 'mercado', 0, NULL, NULL, NULL, 'sincronizado', NULL, 't', 't')`,
+      )
+      .run();
+    banco.sqlite
+      .prepare(
+        `INSERT INTO metas
+          (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
+           valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
+           excluido_em, criado_em, atualizado_em)
+         VALUES ('m1', 'Mercado', 'gasto', 100000, '2027-12-31', '2026-02-01', 'c1',
+                 NULL, NULL, 'sincronizado', NULL, '2026-01-01T00:00:00Z',
+                 '2026-01-01T00:00:00Z')`,
+      )
+      .run();
+
+    const legado = normalizarMetaRemota('m1', {
+      objetivo: 'Mercado atualizado',
+      tipo: 'gasto',
+      valor_alvo_centavos: 120_000,
+      prazo: '2027-12-31',
+      criado_em: '2026-01-01T00:00:00Z',
+      atualizado_em: '2099-01-01T00:00:00Z',
+    })!;
+    expect(legado.legado).toBe(true);
+    expect(legado.categoria_id).toBeNull();
+
+    await db.withExclusiveTransactionAsync(async (tx) => {
+      await aplicarMetaRemota(tx as SQLiteDatabase, 'm1', legado);
+    });
+
+    expect(linha()).toMatchObject({
+      objetivo: 'Mercado atualizado',
+      categoria_id: 'c1',
+      inicio: '2026-02-01',
+      sync_status: 'sincronizado',
+    });
+  });
+
+  it('documento legado de investimento preserva valor acumulado local', async () => {
+    banco.sqlite
+      .prepare(
+        `INSERT INTO metas
+          (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
+           valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
+           excluido_em, criado_em, atualizado_em)
+         VALUES ('m1', 'Reserva', 'investimento', 100000, '2027-12-31', '2026-01-01', NULL,
+                 50000, '2026-03-01T00:00:00Z', 'sincronizado', NULL,
+                 '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+      )
+      .run();
+
+    const legado = normalizarMetaRemota('m1', {
+      objetivo: 'Reserva atualizada',
+      tipo: 'investimento',
+      valor_alvo_centavos: 100_000,
+      prazo: '2027-12-31',
+      criado_em: '2026-01-01T00:00:00Z',
+      atualizado_em: '2099-01-01T00:00:00Z',
+    })!;
+
+    await db.withExclusiveTransactionAsync(async (tx) => {
+      await aplicarMetaRemota(tx as SQLiteDatabase, 'm1', legado);
+    });
+
+    expect(linha()).toMatchObject({
+      valor_acumulado_centavos: 50_000,
+      valor_acumulado_atualizado_em: '2026-03-01T00:00:00Z',
     });
   });
 

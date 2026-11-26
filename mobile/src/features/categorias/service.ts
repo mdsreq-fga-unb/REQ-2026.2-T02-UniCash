@@ -334,6 +334,16 @@ export async function marcarCategoriaExcluidaNaTransacao(
     [atualizadoEm, id],
   );
 
+  // Metas de gasto permanecem cadastradas, mas sem vínculo válido. A mesma
+  // transação evita qualquer janela com referência órfã.
+  await tx.runAsync(
+    `UPDATE metas SET
+       categoria_id = NULL, sync_status = 'pendente',
+       atualizado_em = CASE WHEN atualizado_em > ? THEN atualizado_em ELSE ? END
+     WHERE categoria_id = ? AND excluido_em IS NULL`,
+    [atualizadoEm, atualizadoEm, id],
+  );
+
   await tx.runAsync(
     `UPDATE categorias SET
        excluido_em = ?, limite_tipo = NULL, limite_centavos = NULL,

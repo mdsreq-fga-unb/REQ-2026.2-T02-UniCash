@@ -74,11 +74,23 @@ describe('Tela de resumo financeiro (UC03)', () => {
 
   it('mostra o progresso das metas quando houver', async () => {
     calcular.mockResolvedValue(
-      resumo({ metas: [{ id: 'm1', titulo: 'Viagem', alvoCentavos: 100000, realizadoCentavos: 25000 }] }),
+      resumo({
+        metas: [
+          {
+            id: 'm1',
+            titulo: 'Viagem',
+            tipo: 'gasto',
+            alvoCentavos: 100000,
+            realizadoCentavos: 25000,
+            situacaoProgresso: 'dentro_do_limite',
+            situacaoPrazo: 'em_vigor',
+          },
+        ],
+      }),
     );
     await render(<ResumoFinanceiro />);
     expect(await screen.findByText('Viagem')).toBeTruthy();
-    expect(screen.getByText('25%')).toBeTruthy();
+    expect(screen.getByText('25,0%')).toBeTruthy();
     expect(screen.getByText('R$ 250,00 de R$ 1.000,00')).toBeTruthy();
   });
 

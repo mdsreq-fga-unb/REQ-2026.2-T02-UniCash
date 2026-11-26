@@ -746,3 +746,68 @@ describe('metas: acesso e validação (UC12, RNF03)', () => {
     await assertSucceeds(setDoc(ref, meta({ objetivo: 'Viagem 2' })));
   });
 });
+
+describe('metas: campos da issue #106 (UC12)', () => {
+  it('aceita legado sem campos novos e aceita atualização para a forma nova', async () => {
+    const ref = metaRef(db('u1'));
+    await assertSucceeds(setDoc(ref, meta()));
+    await assertSucceeds(
+      setDoc(
+        ref,
+        meta({
+          inicio: '2026-01-01',
+          valor_acumulado_centavos: 0,
+          valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z',
+        }),
+      ),
+    );
+  });
+
+  it('aceita gasto com categoria e investimento com valor declarado', async () => {
+    await assertSucceeds(
+      setDoc(
+        metaRef(db('u1'), 'u1', 'gasto'),
+        meta({ tipo: 'gasto', categoria_id: 'categoria-1' }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(
+        metaRef(db('u1'), 'u1', 'investimento'),
+        meta({
+          tipo: 'investimento',
+          valor_acumulado_centavos: 250_000,
+          valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z',
+        }),
+      ),
+    );
+  });
+
+  it.each([
+    ['investimento com categoria', { categoria_id: 'c1' }],
+    ['gasto com acumulado', { tipo: 'gasto', categoria_id: 'c1', valor_acumulado_centavos: 0 }],
+    ['acumulado sem data', { valor_acumulado_centavos: 0 }],
+    ['data sem acumulado', { valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z' }],
+    ['acumulado negativo', { valor_acumulado_centavos: -1, valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z' }],
+    ['acumulado fracionado', { valor_acumulado_centavos: 1.5, valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z' }],
+    ['acumulado acima do teto', { valor_acumulado_centavos: 100_000_000_000, valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z' }],
+    ['categoria vazia', { tipo: 'gasto', categoria_id: '' }],
+    ['início em formato inválido', { inicio: '31/12/2027' }],
+    ['início depois do prazo', { inicio: '2028-01-01' }],
+  ])('rejeita %s', async (_nome, extra) => {
+    await assertFails(setDoc(metaRef(db('u1')), meta(extra)));
+  });
+
+  it('aceita tombstone com os novos campos', async () => {
+    await assertSucceeds(
+      setDoc(
+        metaRef(db('u1')),
+        meta({
+          excluido_em: '2026-11-01T00:00:00.000Z',
+          inicio: '2026-01-01',
+          categoria_id: 'c1',
+          tipo: 'gasto',
+        }),
+      ),
+    );
+  });
+});

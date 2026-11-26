@@ -4,19 +4,35 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { cores, raio } from '@/lib/theme';
 import { OpcoesModal } from '@/components/receitas/OpcoesModal';
-import { useMeta } from '@/features/metas/useMetas';
+import { useMeta, type ReferenciaMes } from '@/features/metas/useMetas';
 import { excluirMeta } from '@/features/metas/service';
 import { MSG_META } from '@/features/metas/validation';
 import { META_EXCLUIDA, setFeedback } from '@/features/metas/feedback';
 import { formatarPercentual, rotuloSync, rotuloTipoMeta } from '@/features/metas/formato';
-import { rotuloSituacao } from '@/features/metas/progresso';
-import { formatarBR } from '@/features/receitas/dates';
+import {
+  rotuloSituacaoPrazo,
+  rotuloSituacaoProgresso,
+  situacaoDoPrazo,
+} from '@/features/metas/progresso';
+import {
+  periodoAnterior,
+  periodoAtualDaMeta,
+  periodoDoMes,
+  periodoSeguinte,
+  rotuloPeriodo,
+} from '@/features/metas/periodo';
+import { formatarBR, formatarDataHora, hojeISO } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 
 export default function DetalheMeta() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { meta, progresso, carregando, erroLeitura, recarregar } = useMeta(id);
+  const [mes, setMes] = useState<ReferenciaMes | null>(null);
+  const { meta, progresso, carregando, erroLeitura, recarregar } = useMeta(
+    id,
+    undefined,
+    mes,
+  );
   const [confirmando, setConfirmando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
   const [erroGeral, setErroGeral] = useState<string | null>(null);
@@ -72,7 +88,24 @@ export default function DetalheMeta() {
   }
 
   const pendente = meta.sync_status === 'pendente';
+  const semCategoria = meta.tipo === 'gasto' && !meta.categoria_id;
+  const categoriaExcluida = meta.categoria_excluida_em != null;
+  const categoriaIndisponivel =
+    meta.tipo === 'gasto' &&
+    (semCategoria || categoriaExcluida || !meta.categoria_nome);
   const indisponivel = !progresso || progresso.progressoIndisponivel;
+  const situacaoPrazo =
+    progresso?.situacaoPrazo ?? situacaoDoPrazo(meta.prazo, hojeISO());
+  const periodo = progresso?.periodo ?? (meta.tipo === 'gasto' ? periodoAtualDaMeta(meta) : null);
+  const anterior = periodo ? periodoAnterior(periodo) : null;
+  const seguinte = periodo ? periodoSeguinte(periodo) : null;
+  const temAnterior = !!(periodo && anterior && periodoDoMes(meta, anterior.ano, anterior.mes));
+  const temSeguinte = !!(periodo && seguinte && periodoDoMes(meta, seguinte.ano, seguinte.mes));
+
+  function irParaPeriodo(destino: { ano: number; mes: number } | null) {
+    if (!destino) return;
+    setMes(destino);
+  }
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top', 'bottom']}>
@@ -90,29 +123,84 @@ export default function DetalheMeta() {
             <Text style={estilos.tipo}>{rotuloTipoMeta(meta.tipo)}</Text>
           </View>
           <Text style={estilos.valor}>{formatarBRL(meta.valor_alvo_centavos)}</Text>
+          <Text style={estilos.textoClaro}>
+            {meta.tipo === 'gasto' ? 'Limite mensal' : 'Valor alvo'}
+          </Text>
           <Text style={estilos.textoClaro}>Prazo: {formatarBR(meta.prazo)}</Text>
+          <Text style={estilos.textoClaro}>
+            Início: {meta.inicio ? formatarBR(meta.inicio) : 'não disponível'}
+          </Text>
           <Text style={[estilos.sync, pendente ? estilos.syncPendente : estilos.syncOk]}>
             {rotuloSync(meta.sync_status)}
           </Text>
         </View>
 
+        {meta.tipo === 'gasto' ? (
+          <View style={estilos.secao}>
+            <Text style={estilos.secaoTitulo}>Categoria</Text>
+            <Text style={estilos.textoSuave}>
+              {meta.categoria_nome
+                ? meta.categoria_nome
+                : semCategoria
+                  ? 'Não vinculada'
+                  : 'Categoria indisponível'}
+            </Text>
+            {categoriaIndisponivel ? (
+              <Text style={estilos.aviso}>{MSG_META.categoriaRemovida}</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {periodo ? (
+          <View style={estilos.navegacaoPeriodo}>
+            <Pressable
+              onPress={() => irParaPeriodo(anterior)}
+              disabled={!temAnterior}
+              accessibilityLabel="Mês anterior"
+              style={[estilos.seta, !temAnterior && estilos.setaInativa]}
+            >
+              <Text style={estilos.setaTexto}>‹</Text>
+            </Pressable>
+            <Text style={estilos.periodoTexto}>{rotuloPeriodo(periodo)}</Text>
+            <Pressable
+              onPress={() => irParaPeriodo(seguinte)}
+              disabled={!temSeguinte}
+              accessibilityLabel="Próximo mês"
+              style={[estilos.seta, !temSeguinte && estilos.setaInativa]}
+            >
+              <Text style={estilos.setaTexto}>›</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         <View style={estilos.secao}>
           <Text style={estilos.secaoTitulo}>Progresso</Text>
           {indisponivel ? (
             <>
-              <Text style={estilos.textoSuave}>Valor realizado: a definir (issue #106)</Text>
-              <Text style={estilos.textoSuave}>Valor restante: a definir (issue #106)</Text>
-              <Text style={estilos.textoSuave}>Progresso: a definir (issue #106)</Text>
-              <Text style={estilos.textoSuave}>Situação: A definir (issue #106)</Text>
-              <Text style={estilos.aviso}>
-                O cálculo depende da definição de quais lançamentos compõem cada tipo de meta.
+              <Text style={estilos.textoSuave}>
+                {meta.tipo === 'investimento'
+                  ? MSG_META.valorNaoInformado
+                  : categoriaIndisponivel
+                    ? MSG_META.categoriaRemovida
+                    : 'Progresso indisponível para o período.'}
+              </Text>
+              <Text style={estilos.textoSuave}>Valor realizado: indisponível</Text>
+              <Text style={estilos.textoSuave}>Valor restante: indisponível</Text>
+              <Text style={estilos.textoSuave}>Percentual: indisponível</Text>
+              <Text style={estilos.textoSuave}>
+                Situação do progresso: {rotuloSituacaoProgresso('indisponivel')}
+              </Text>
+              <Text style={estilos.textoSuave}>
+                Situação do prazo: {rotuloSituacaoPrazo(situacaoPrazo)}
               </Text>
             </>
           ) : (
             <>
               <View style={estilos.progressoTopo}>
                 <Text style={estilos.percentual}>{formatarPercentual(progresso.percentual!)}</Text>
-                <Text style={estilos.textoSuave}>{rotuloSituacao(progresso.situacao)}</Text>
+                <Text style={estilos.textoSuave}>
+                  {rotuloSituacaoProgresso(progresso.situacaoProgresso)}
+                </Text>
               </View>
               <View style={estilos.barra}>
                 <View
@@ -128,7 +216,28 @@ export default function DetalheMeta() {
               <Text style={estilos.textoSuave}>
                 Valor restante: {formatarBRL(progresso.valorRestanteCentavos!)}
               </Text>
-              <Text style={estilos.textoSuave}>Prazo: {formatarBR(progresso.prazo)}</Text>
+              <Text style={estilos.textoSuave}>
+                Situação do progresso: {rotuloSituacaoProgresso(progresso.situacaoProgresso)}
+              </Text>
+              <Text style={estilos.textoSuave}>
+                Situação do prazo: {rotuloSituacaoPrazo(progresso.situacaoPrazo)}
+              </Text>
+              {meta.tipo === 'investimento' ? (
+                <>
+                  <Text style={estilos.aviso}>Valor informado pelo usuário.</Text>
+                  <Text style={estilos.textoSuave}>
+                    Atualizado em:{' '}
+                    {meta.valor_acumulado_atualizado_em
+                      ? formatarDataHora(meta.valor_acumulado_atualizado_em)
+                      : 'não informado'}
+                  </Text>
+                </>
+              ) : null}
+              {periodo ? (
+                <Text style={estilos.textoSuave}>
+                  Período: {formatarBR(periodo.inicio)} a {formatarBR(periodo.fim)}
+                </Text>
+              ) : null}
             </>
           )}
         </View>
@@ -144,7 +253,9 @@ export default function DetalheMeta() {
           style={estilos.botao}
           accessibilityRole="button"
         >
-          <Text style={estilos.botaoTexto}>Editar meta</Text>
+          <Text style={estilos.botaoTexto}>
+            {categoriaIndisponivel ? 'Corrigir categoria' : 'Editar meta'}
+          </Text>
         </Pressable>
 
         <Pressable
@@ -227,7 +338,17 @@ const estilos = StyleSheet.create({
     marginVertical: 8,
   },
   barraCheia: { height: 10, backgroundColor: cores.primaria },
-  aviso: { fontSize: 12, color: cores.primaria, marginTop: 6 },
+  aviso: { fontSize: 12, color: cores.primaria, marginTop: 6, lineHeight: 17 },
+  navegacaoPeriodo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  seta: { paddingHorizontal: 14, paddingVertical: 6 },
+  setaInativa: { opacity: 0.25 },
+  setaTexto: { fontSize: 28, color: cores.primaria, fontWeight: '700', lineHeight: 30 },
+  periodoTexto: { fontSize: 15, fontWeight: '700', color: cores.marinho },
   botao: {
     backgroundColor: cores.primaria,
     borderRadius: raio.botao,

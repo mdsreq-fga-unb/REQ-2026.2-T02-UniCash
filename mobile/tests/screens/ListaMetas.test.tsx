@@ -18,6 +18,10 @@ const meta = (extra: Record<string, unknown> = {}) => ({
   tipo: 'investimento',
   valor_alvo_centavos: 100_000,
   prazo: '2027-12-31',
+  inicio: '2026-01-01',
+  categoria_id: null,
+  valor_acumulado_centavos: null,
+  valor_acumulado_atualizado_em: null,
   sync_status: 'pendente',
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
@@ -27,6 +31,7 @@ const meta = (extra: Record<string, unknown> = {}) => ({
 
 const retorno = (extra: Partial<ReturnType<typeof useMetas>> = {}): ReturnType<typeof useMetas> => ({
   itens: [],
+  progressos: {},
   carregando: false,
   erroLeitura: false,
   recarregar: jest.fn().mockResolvedValue(undefined),
@@ -75,6 +80,32 @@ describe('Lista de metas (UC12)', () => {
     expect(screen.getByText('R$ 500,00')).toBeTruthy();
     expect(screen.getByText(/30\/06\/2028/)).toBeTruthy();
     expect(screen.getByText('Sincronizado')).toBeTruthy();
+  });
+
+  it('mostra progresso real e situação separada do prazo', async () => {
+    usarMetas.mockReturnValue(
+      retorno({
+        itens: [meta({ tipo: 'gasto', categoria_id: 'c1' })] as never,
+        progressos: {
+          m1: {
+            metaId: 'm1',
+            tipo: 'gasto',
+            valorAlvoCentavos: 100_000,
+            valorRealizadoCentavos: 85_000,
+            valorRestanteCentavos: 15_000,
+            percentual: 85.0,
+            prazo: '2027-12-31',
+            situacaoProgresso: 'proximo_do_limite',
+            situacaoPrazo: 'em_vigor',
+            progressoIndisponivel: false,
+            periodo: { ano: 2026, mes: 11, inicio: '2026-11-01', fim: '2026-11-30' },
+          },
+        },
+      }),
+    );
+    await render(<ListaMetas />);
+    expect(await screen.findByText(/R\$ 850,00 de R\$ 1.000,00 \(85,0%\)/)).toBeTruthy();
+    expect(screen.getByText(/Próximo do limite · Prazo em vigor/)).toBeTruthy();
   });
 
   it('navega para detalhe e para o cadastro', async () => {

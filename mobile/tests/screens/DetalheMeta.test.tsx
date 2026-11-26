@@ -25,6 +25,10 @@ const meta = {
   tipo: 'investimento' as const,
   valor_alvo_centavos: 100_000,
   prazo: '2027-12-31',
+  inicio: '2026-01-01',
+  categoria_id: null,
+  valor_acumulado_centavos: 79_900,
+  valor_acumulado_atualizado_em: '2026-11-20T10:00:00.000Z',
   sync_status: 'pendente' as const,
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
@@ -39,8 +43,10 @@ const progresso = (extra: Record<string, unknown> = {}) => ({
   valorRestanteCentavos: 20_100,
   percentual: 79.9,
   prazo: '2027-12-31',
-  situacao: 'em_andamento' as const,
+  situacaoProgresso: 'em_andamento' as const,
+  situacaoPrazo: 'em_vigor' as const,
   progressoIndisponivel: false,
+  periodo: null,
   ...extra,
 });
 
@@ -72,24 +78,52 @@ describe('Detalhe da meta (UC12)', () => {
     expect(screen.getByText(/R\$ 201,00/)).toBeTruthy();
     expect(screen.getByText('Em andamento')).toBeTruthy();
     expect(screen.getByText('Pendente de sincronização')).toBeTruthy();
+    expect(screen.getByText('Valor informado pelo usuário.')).toBeTruthy();
+    expect(screen.getByText(/Prazo em vigor/)).toBeTruthy();
   });
 
-  it('sem valor realizado aprovado, não mostra número inventado', async () => {
+  it('sem valor acumulado, não mostra número inventado', async () => {
     usarMeta.mockReturnValue(
       retorno({
         progresso: progresso({
           valorRealizadoCentavos: null,
           valorRestanteCentavos: null,
           percentual: null,
-          situacao: 'indefinida',
+          situacaoProgresso: 'indisponivel',
+          situacaoPrazo: 'em_vigor',
           progressoIndisponivel: true,
         }),
       }),
     );
     await render(<DetalheMeta />);
-    expect(await screen.findByText(/Valor realizado: a definir/)).toBeTruthy();
-    expect(screen.getByText(/Situação: A definir/)).toBeTruthy();
+    expect(await screen.findByText(MSG_META.valorNaoInformado)).toBeTruthy();
+    expect(screen.getByText(/Valor realizado: indisponível/)).toBeTruthy();
+    expect(screen.getByText(/Situação do progresso: Indisponível/)).toBeTruthy();
     expect(screen.queryByText(/79,9%/)).toBeNull();
+  });
+
+  it('meta de gasto sem categoria oferece correção', async () => {
+    usarMeta.mockReturnValue(
+      retorno({
+        meta: {
+          ...meta,
+          tipo: 'gasto',
+          categoria_id: null,
+          categoria_nome: null,
+        },
+        progresso: progresso({
+          tipo: 'gasto',
+          valorRealizadoCentavos: null,
+          valorRestanteCentavos: null,
+          percentual: null,
+          situacaoProgresso: 'indisponivel',
+          progressoIndisponivel: true,
+        }),
+      }),
+    );
+    await render(<DetalheMeta />);
+    expect((await screen.findAllByText(MSG_META.categoriaRemovida)).length).toBeGreaterThan(0);
+    expect(screen.getByText('Corrigir categoria')).toBeTruthy();
   });
 
   it('navega para edição', async () => {

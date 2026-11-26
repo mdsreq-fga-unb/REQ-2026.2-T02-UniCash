@@ -338,9 +338,27 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    function metaCoerente(d) {
+      return (d.tipo == 'gasto'
+          && (!('valor_acumulado_centavos' in d) || d.valor_acumulado_centavos == null)
+          && (!('valor_acumulado_atualizado_em' in d) || d.valor_acumulado_atualizado_em == null))
+        || (d.tipo == 'investimento'
+          && (!('categoria_id' in d) || d.categoria_id == null)
+          && (
+            ((!('valor_acumulado_centavos' in d) || d.valor_acumulado_centavos == null)
+              && (!('valor_acumulado_atualizado_em' in d)
+                || d.valor_acumulado_atualizado_em == null))
+            || (('valor_acumulado_centavos' in d) && d.valor_acumulado_centavos != null
+              && ('valor_acumulado_atualizado_em' in d)
+              && d.valor_acumulado_atualizado_em != null)
+          ));
+    }
+
     function metaValida(d) {
       return d.keys().hasOnly([
           'objetivo', 'tipo', 'valor_alvo_centavos', 'prazo',
+          'inicio', 'categoria_id', 'valor_acumulado_centavos',
+          'valor_acumulado_atualizado_em',
           'criado_em', 'atualizado_em', 'excluido_em'
         ])
         && d.keys().hasAll([
@@ -355,6 +373,22 @@ service cloud.firestore {
         && d.valor_alvo_centavos > 0
         && d.valor_alvo_centavos <= 99999999999
         && dataValida(d.prazo)
+        && (!('inicio' in d)
+          || d.inicio == null
+          || (dataValida(d.inicio) && d.inicio <= d.prazo))
+        && (!('categoria_id' in d)
+          || d.categoria_id == null
+          || (d.categoria_id is string && d.categoria_id.size() > 0))
+        && (!('valor_acumulado_centavos' in d)
+          || d.valor_acumulado_centavos == null
+          || (d.valor_acumulado_centavos is int
+            && d.valor_acumulado_centavos >= 0
+            && d.valor_acumulado_centavos <= 99999999999))
+        && (!('valor_acumulado_atualizado_em' in d)
+          || d.valor_acumulado_atualizado_em == null
+          || (d.valor_acumulado_atualizado_em is string
+            && d.valor_acumulado_atualizado_em.size() > 0))
+        && metaCoerente(d)
         && d.criado_em is string && d.criado_em.size() > 0
         && d.atualizado_em is string && d.atualizado_em.size() > 0
         && (!('excluido_em' in d)

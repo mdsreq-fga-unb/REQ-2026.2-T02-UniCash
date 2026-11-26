@@ -1,5 +1,6 @@
 import { getDb } from '@/db/database';
 import {
+  CategoriaMetaIndisponivel,
   FalhaLeituraMeta,
   FalhaPersistenciaMeta,
   MetaIndisponivel,
@@ -19,6 +20,8 @@ const input = (extra: Partial<MetaInput> = {}): MetaInput => ({
   tipo: 'investimento',
   valorAlvoCentavos: 500_000,
   prazo: '2027-12-31',
+  categoriaId: null,
+  valorAcumuladoCentavos: null,
   ...extra,
 });
 
@@ -30,8 +33,20 @@ describe('Serviço de metas (UC12)', () => {
 
   const metas = () => banco.sqlite.prepare('SELECT * FROM metas ORDER BY id').all() as any[];
 
+  function criarCategoriaAtiva(id = 'c1', nome = 'Mercado', padrao = 0): string {
+    banco.sqlite
+      .prepare(
+        `INSERT INTO categorias
+          (id, nome, nome_normalizado, padrao, limite_tipo, limite_centavos,
+           limite_percentual_centesimos, sync_status, excluido_em, criado_em, atualizado_em)
+         VALUES (?, ?, ?, ?, NULL, NULL, NULL, 'sincronizado', NULL, 't', 't')`,
+      )
+      .run(id, nome, nome.toLowerCase(), padrao);
+    return id;
+  }
+
   describe('criarMeta', () => {
-    it('cria com id estável, objetivo trimado e sync pendente', async () => {
+    it('cria investimento com início explícito e campos de acumulado nulos', async () => {
       const id = await criarMeta(input({ objetivo: '  Viagem  ' }));
       expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 
@@ -42,18 +57,66 @@ describe('Serviço de metas (UC12)', () => {
         tipo: 'investimento',
         valor_alvo_centavos: 500_000,
         prazo: '2027-12-31',
+        categoria_id: null,
+        valor_acumulado_centavos: null,
+        valor_acumulado_atualizado_em: null,
         sync_status: 'pendente',
         excluido_em: null,
       });
+      expect(m.inicio).toBeTruthy();
       expect(m.criado_em).toBeTruthy();
       expect(m.atualizado_em).toBe(m.criado_em);
     });
 
-    it('aceita meta de gasto e os valores-limite', async () => {
-      const idMin = await criarMeta(input({ tipo: 'gasto', valorAlvoCentavos: 1 }));
+    it('aceita investimento com valor zero e registra a data do informe', async () => {
+      const id = await criarMeta(input({ valorAcumuladoCentavos: 0 }));
+      const m = (await buscarMeta(id))!;
+      expect(m.valor_acumulado_centavos).toBe(0);
+      expect(m.valor_acumulado_atualizado_em).toBeTruthy();
+    });
+
+    it('cria gasto somente com categoria ativa e sem valor acumulado', async () => {
+      criarCategoriaAtiva('c1', 'Mercado');
+      const id = await criarMeta(input({ tipo: 'gasto', categoriaId: 'c1' }));
+      expect(await buscarMeta(id)).toMatchObject({
+        tipo: 'gasto',
+        categoria_id: 'c1',
+        categoria_nome: 'Mercado',
+      });
+
+      await expect(
+        criarMeta(input({ tipo: 'gasto', categoriaId: null })),
+      ).rejects.toThrow(MSG_META.categoriaVazia);
+      await expect(
+        criarMeta(input({ tipo: 'gasto', categoriaId: 'inexistente' })),
+      ).rejects.toThrow(CategoriaMetaIndisponivel);
+      await expect(
+        criarMeta(
+          input({ tipo: 'gasto', categoriaId: 'c1', valorAcumuladoCentavos: 10 }),
+        ),
+      ).rejects.toThrow(MSG_META.valorAcumuladoNaoSeAplica);
+      expect(metas()).toHaveLength(1);
+    });
+
+    it('aceita categoria padrão ativa', async () => {
+      criarCategoriaAtiva('c1', 'Alimentação', 1);
+      const id = await criarMeta(input({ tipo: 'gasto', categoriaId: 'c1' }));
+      expect(await buscarMeta(id)).toMatchObject({
+        categoria_id: 'c1',
+        categoria_nome: 'Alimentação',
+      });
+    });
+
+    it('aceita os valores-limite e rejeita prazo anterior ao início', async () => {
+      criarCategoriaAtiva();
+      const idMin = await criarMeta(input({ tipo: 'gasto', categoriaId: 'c1', valorAlvoCentavos: 1 }));
       const idMax = await criarMeta(input({ valorAlvoCentavos: 99_999_999_999 }));
       expect((await buscarMeta(idMin))!.valor_alvo_centavos).toBe(1);
       expect((await buscarMeta(idMax))!.valor_alvo_centavos).toBe(99_999_999_999);
+
+      await expect(
+        criarMeta(input({ prazo: '2020-01-01' })),
+      ).rejects.toThrow(MSG_META.prazoAntesInicio);
     });
 
     it('revalida no serviço e não grava nada quando inválido', async () => {
@@ -63,6 +126,9 @@ describe('Serviço de metas (UC12)', () => {
       );
       await expect(criarMeta(input({ prazo: '2027-02-31' }))).rejects.toThrow(
         MSG_META.prazoInvalido,
+      );
+      await expect(criarMeta(input({ valorAcumuladoCentavos: -1 }))).rejects.toThrow(
+        MSG_META.valorAcumuladoInvalido,
       );
       expect(metas()).toHaveLength(0);
     });
@@ -100,19 +166,114 @@ describe('Serviço de metas (UC12)', () => {
   });
 
   describe('editarMeta', () => {
-    it('altera os campos e marca como pendente', async () => {
-      const id = await criarMeta(input());
+    it('altera objetivo, alvo, prazo e categoria sem mudar o tipo/start', async () => {
+      criarCategoriaAtiva('c1');
+      criarCategoriaAtiva('c2', 'Lazer');
+      const id = await criarMeta(input({ tipo: 'gasto', categoriaId: 'c1', objetivo: 'Antiga' }));
+      const antes = (await buscarMeta(id))!;
+
       await editarMeta(
         id,
-        input({ objetivo: 'Carro', tipo: 'gasto', valorAlvoCentavos: 1_000_000, prazo: '2028-06-30' }),
+        input({
+          objetivo: 'Nova',
+          tipo: 'gasto',
+          categoriaId: 'c2',
+          valorAlvoCentavos: 1_000_000,
+          prazo: '2028-06-30',
+        }),
       );
+
       expect(await buscarMeta(id)).toMatchObject({
-        objetivo: 'Carro',
+        objetivo: 'Nova',
         tipo: 'gasto',
+        categoria_id: 'c2',
         valor_alvo_centavos: 1_000_000,
         prazo: '2028-06-30',
+        inicio: antes.inicio,
         sync_status: 'pendente',
       });
+    });
+
+    it('não permite alterar o tipo após a criação', async () => {
+      const id = await criarMeta(input());
+      const antes = (await buscarMeta(id))!;
+
+      await expect(
+        editarMeta(id, input({ tipo: 'gasto', categoriaId: 'c1' })),
+      ).rejects.toThrow(MSG_META.tipoImutavel);
+      expect(await buscarMeta(id)).toEqual(antes);
+    });
+
+    it('atualiza valor acumulado para zero, aumenta e reduz', async () => {
+      const id = await criarMeta(input());
+      await editarMeta(id, input({ valorAcumuladoCentavos: 0 }));
+      expect((await buscarMeta(id))!.valor_acumulado_centavos).toBe(0);
+      expect((await buscarMeta(id))!.valor_acumulado_atualizado_em).toBeTruthy();
+
+      await editarMeta(id, input({ valorAcumuladoCentavos: 100_000 }));
+      expect((await buscarMeta(id))!.valor_acumulado_centavos).toBe(100_000);
+
+      await editarMeta(id, input({ valorAcumuladoCentavos: 30_000 }));
+      expect((await buscarMeta(id))!.valor_acumulado_centavos).toBe(30_000);
+
+      await editarMeta(id, input({ valorAcumuladoCentavos: null }));
+      expect((await buscarMeta(id))!.valor_acumulado_centavos).toBeNull();
+      expect((await buscarMeta(id))!.valor_acumulado_atualizado_em).toBeNull();
+    });
+
+    it('mantém a data do informe quando o valor não muda e atualiza quando muda', async () => {
+      const id = await criarMeta(input({ valorAcumuladoCentavos: 10_000 }));
+      banco.sqlite
+        .prepare(
+          "UPDATE metas SET valor_acumulado_atualizado_em = '2020-01-01T00:00:00.000Z' WHERE id = ?",
+        )
+        .run(id);
+
+      await editarMeta(id, input({ objetivo: 'Outro', valorAcumuladoCentavos: 10_000 }));
+      expect((await buscarMeta(id))!.valor_acumulado_atualizado_em).toBe(
+        '2020-01-01T00:00:00.000Z',
+      );
+
+      await editarMeta(id, input({ valorAcumuladoCentavos: 20_000 }));
+      expect((await buscarMeta(id))!.valor_acumulado_atualizado_em).not.toBe(
+        '2020-01-01T00:00:00.000Z',
+      );
+    });
+
+    it('meta de gasto legada sem categoria exige correção e deriva o início de criado_em', async () => {
+      banco.sqlite
+        .prepare(
+          `INSERT INTO metas
+            (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
+             valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
+             excluido_em, criado_em, atualizado_em)
+           VALUES ('legada', 'Mercado', 'gasto', 100000, '2027-12-31', NULL, NULL,
+                   NULL, NULL, 'sincronizado', NULL, '2026-01-10T12:00:00.000Z', '2026-01-10T12:00:00.000Z')`,
+        )
+        .run();
+      criarCategoriaAtiva('c1');
+
+      await expect(
+        editarMeta('legada', input({ tipo: 'gasto', categoriaId: null })),
+      ).rejects.toThrow(MSG_META.categoriaVazia);
+
+      await editarMeta('legada', input({ tipo: 'gasto', categoriaId: 'c1' }));
+      expect(await buscarMeta('legada')).toMatchObject({
+        categoria_id: 'c1',
+        inicio: '2026-01-10',
+      });
+    });
+
+    it('categoria inativa não é aceita na edição', async () => {
+      criarCategoriaAtiva('c1');
+      const id = await criarMeta(input({ tipo: 'gasto', categoriaId: 'c1' }));
+      banco.sqlite
+        .prepare("UPDATE categorias SET excluido_em = '2026-01-01T00:00:00Z' WHERE id = 'c1'")
+        .run();
+
+      await expect(
+        editarMeta(id, input({ tipo: 'gasto', categoriaId: 'c1' })),
+      ).rejects.toThrow(CategoriaMetaIndisponivel);
     });
 
     it('meta inexistente → MetaIndisponivel', async () => {

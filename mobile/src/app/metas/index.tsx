@@ -7,6 +7,12 @@ import { useMetas } from '@/features/metas/useMetas';
 import { consumirFeedback, type Feedback } from '@/features/metas/feedback';
 import { MSG_META } from '@/features/metas/validation';
 import type { Meta } from '@/features/metas/types';
+import type { ProgressoMeta } from '@/features/metas/progresso';
+import {
+  rotuloSituacaoPrazo,
+  rotuloSituacaoProgresso,
+} from '@/features/metas/progresso';
+import { formatarPercentual } from '@/features/metas/formato';
 import { formatarBR } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 
@@ -18,8 +24,18 @@ export function textoPrazo(prazo: string): string {
   return formatarBR(prazo);
 }
 
-function MetaItem({ meta, onPress }: { meta: Meta; onPress: () => void }) {
+function MetaItem({
+  meta,
+  progresso,
+  onPress,
+}: {
+  meta: Meta;
+  progresso?: ProgressoMeta;
+  onPress: () => void;
+}) {
   const pendente = meta.sync_status === 'pendente';
+  const indisponivel = !progresso || progresso.progressoIndisponivel;
+
   return (
     <Pressable
       onPress={onPress}
@@ -36,14 +52,32 @@ function MetaItem({ meta, onPress }: { meta: Meta; onPress: () => void }) {
       <Text style={[estilos.sync, pendente ? estilos.syncPendente : estilos.syncOk]}>
         {pendente ? 'Pendente de sincronização' : 'Sincronizado'}
       </Text>
-      <Text style={estilos.progressoPendente}>Progresso: a definir (issue #106)</Text>
+      {indisponivel ? (
+        <Text style={estilos.progressoPendente}>
+          {meta.tipo === 'investimento'
+            ? 'Valor acumulado não informado'
+            : 'Progresso indisponível'}
+        </Text>
+      ) : (
+        <>
+          <Text style={estilos.progressoTexto}>
+            {meta.tipo === 'gasto' ? 'Consumo do limite' : 'Valor acumulado'}:{' '}
+            {formatarBRL(progresso.valorRealizadoCentavos!)} de{' '}
+            {formatarBRL(progresso.valorAlvoCentavos)} ({formatarPercentual(progresso.percentual!)})
+          </Text>
+          <Text style={estilos.progressoPendente}>
+            {rotuloSituacaoProgresso(progresso.situacaoProgresso)} ·{' '}
+            {rotuloSituacaoPrazo(progresso.situacaoPrazo)}
+          </Text>
+        </>
+      )}
     </Pressable>
   );
 }
 
 /** Lista de metas (UC12). */
 export default function ListaMetas() {
-  const { itens, carregando, erroLeitura, recarregar } = useMetas();
+  const { itens, progressos, carregando, erroLeitura, recarregar } = useMetas();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   useFocusEffect(
@@ -66,6 +100,7 @@ export default function ListaMetas() {
         renderItem={({ item }) => (
           <MetaItem
             meta={item}
+            progresso={progressos?.[item.id]}
             onPress={() =>
               router.push({ pathname: '/metas/[id]', params: { id: item.id } })
             }
@@ -163,6 +198,7 @@ const estilos = StyleSheet.create({
   sync: { fontSize: 12, fontWeight: '600', marginTop: 6 },
   syncPendente: { color: cores.erro },
   syncOk: { color: cores.sucesso },
+  progressoTexto: { fontSize: 12, color: cores.marinho, marginTop: 6, fontWeight: '600' },
   progressoPendente: { fontSize: 12, color: cores.textoSuave, marginTop: 4 },
   vazio: { alignItems: 'center', paddingVertical: 40 },
   vazioTitulo: { fontSize: 16, fontWeight: '700', color: cores.marinho },

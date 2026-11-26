@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { MetaForm } from '@/components/metas/MetaForm';
 import {
+  CategoriaMetaIndisponivel,
   criarMeta,
   FalhaPersistenciaMeta,
 } from '@/features/metas/service';
@@ -26,7 +27,7 @@ export default function NovaMeta() {
       setFeedback(META_CRIADA);
       router.dismissTo('/metas');
     } catch (e) {
-      if (e instanceof EntradaMetaInvalida) {
+      if (e instanceof EntradaMetaInvalida || e instanceof CategoriaMetaIndisponivel) {
         setErroGeral(e.message);
       } else if (e instanceof FalhaPersistenciaMeta) {
         setErroGeral(MSG_META.falhaSalvar);

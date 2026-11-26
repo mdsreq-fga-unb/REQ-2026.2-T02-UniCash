@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { cores, raio } from '@/lib/theme';
 import { Campo } from '@/components/receitas/Campo';
 import { Segmentado } from '@/components/receitas/Segmentado';
+import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
 import { centavosParaTexto } from '@/features/receitas/money';
 import { formatarBR, mascararData } from '@/features/receitas/dates';
 import type {
@@ -11,7 +12,7 @@ import type {
   MetaInput,
   MetaTipo,
 } from '@/features/metas/types';
-import { validarFormularioMeta } from '@/features/metas/validation';
+import { MSG_META, validarFormularioMeta } from '@/features/metas/validation';
 
 function valoresIniciais(inicial?: MetaInput): FormMetaValores {
   return {
@@ -19,6 +20,11 @@ function valoresIniciais(inicial?: MetaInput): FormMetaValores {
     tipo: inicial?.tipo ?? 'gasto',
     valorAlvo: inicial ? centavosParaTexto(inicial.valorAlvoCentavos) : '',
     prazo: inicial ? formatarBR(inicial.prazo) : '',
+    categoriaId: inicial?.categoriaId ?? '',
+    valorAcumulado:
+      inicial?.valorAcumuladoCentavos != null
+        ? centavosParaTexto(inicial.valorAcumuladoCentavos)
+        : '',
   };
 }
 
@@ -26,6 +32,8 @@ export interface MetaFormProps {
   titulo: string;
   textoSalvar: string;
   inicial?: MetaInput;
+  /** Em edição, o tipo é exibido mas não pode ser alterado. */
+  tipoImutavel?: boolean;
   salvando: boolean;
   erroGeral?: string | null;
   onSalvar: (dados: MetaInput) => void | Promise<void>;
@@ -37,6 +45,7 @@ export function MetaForm({
   titulo,
   textoSalvar,
   inicial,
+  tipoImutavel = false,
   salvando,
   erroGeral,
   onSalvar,
@@ -47,6 +56,19 @@ export function MetaForm({
   const set = <K extends keyof FormMetaValores>(k: K, valor: FormMetaValores[K]) =>
     setV((p) => ({ ...p, [k]: valor }));
 
+  const {
+    itens: categorias,
+    carregando: carregandoCategorias,
+    erro: erroCategorias,
+    recarregar: recarregarCategorias,
+  } = useCategoriasAtivas();
+
+  const categoriaInicial = inicial?.categoriaId ?? '';
+  const categoriaInicialAusente =
+    inicial?.tipo === 'gasto' &&
+    (!categoriaInicial ||
+      (!carregandoCategorias && !categorias.some((c) => c.id === categoriaInicial)));
+
   const enviando = useRef(false);
   useEffect(() => {
     if (!salvando) enviando.current = false;
@@ -54,9 +76,21 @@ export function MetaForm({
 
   function salvar() {
     if (salvando || enviando.current) return;
-    const { erros: e, dados } = validarFormularioMeta(v);
+    const { erros: e, dados } = validarFormularioMeta(v, {
+      tipoAtual: tipoImutavel ? inicial?.tipo : undefined,
+    });
+
+    if (
+      v.tipo === 'gasto' &&
+      !carregandoCategorias &&
+      v.categoriaId !== '' &&
+      !categorias.some((c) => c.id === v.categoriaId)
+    ) {
+      e.categoriaId = MSG_META.categoriaIndisponivel;
+    }
+
     setErros(e);
-    if (!dados) return;
+    if (!dados || e.categoriaId) return;
 
     enviando.current = true;
     const resultado = onSalvar(dados);
@@ -96,12 +130,17 @@ export function MetaForm({
           <Text style={estilos.rotulo}>Tipo</Text>
           <Segmentado<MetaTipo>
             valor={v.tipo}
-            onChange={(t) => set('tipo', t)}
+            onChange={(t) => {
+              if (!tipoImutavel) set('tipo', t);
+            }}
             opcoes={[
-              { valor: 'gasto', rotulo: 'Gasto' },
-              { valor: 'investimento', rotulo: 'Investimento' },
+              { valor: 'gasto', rotulo: 'Gasto', inerte: tipoImutavel },
+              { valor: 'investimento', rotulo: 'Investimento', inerte: tipoImutavel },
             ]}
           />
+          {tipoImutavel ? (
+            <Text style={estilos.dica}>O tipo não pode ser alterado após a criação.</Text>
+          ) : null}
           {erros.tipo ? (
             <Text style={estilos.erro} accessibilityRole="alert">
               {erros.tipo}
@@ -111,13 +150,93 @@ export function MetaForm({
 
         <Campo
           rotulo="Valor alvo"
-          prefixo="R$"
+          prefixo={v.tipo === 'gasto' ? 'R$ / mês' : 'R$'}
           value={v.valorAlvo}
           onChangeText={(t) => set('valorAlvo', t)}
           placeholder="0,00"
           keyboardType="decimal-pad"
           erro={erros.valorAlvo}
         />
+
+        {v.tipo === 'gasto' ? (
+          <View style={estilos.bloco}>
+            <Text style={estilos.rotulo}>Categoria</Text>
+
+            {carregandoCategorias ? (
+              <ActivityIndicator color={cores.primaria} style={estilos.carregandoCategorias} />
+            ) : null}
+
+            {erroCategorias ? (
+              <View style={estilos.avisoCategorias}>
+                <Text style={estilos.erro} accessibilityRole="alert">
+                  {MSG_META.falhaCategorias}
+                </Text>
+                <Pressable
+                  onPress={recarregarCategorias}
+                  accessibilityRole="button"
+                  style={estilos.tentarCategorias}
+                >
+                  <Text style={estilos.dica}>Tentar novamente</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {categoriaInicialAusente ? (
+              <Text style={estilos.avisoCategoriaAtual}>
+                {MSG_META.categoriaRemovida}
+              </Text>
+            ) : null}
+
+            <View style={estilos.categoriaOpcoes} accessibilityRole="radiogroup">
+              {categorias.map((c) => {
+                const ativa = v.categoriaId === c.id;
+                return (
+                  <Pressable
+                    key={c.id}
+                    onPress={() => set('categoriaId', c.id)}
+                    style={[estilos.categoriaChip, ativa && estilos.categoriaChipAtivo]}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: ativa }}
+                  >
+                    <Text
+                      style={[
+                        estilos.categoriaChipTexto,
+                        ativa && estilos.categoriaChipTextoAtivo,
+                      ]}
+                    >
+                      {c.nome}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {!carregandoCategorias && categorias.length === 0 && !erroCategorias ? (
+              <Text style={estilos.avisoCategoriaAtual}>
+                Nenhuma categoria ativa. Cadastre uma categoria antes de criar a meta.
+              </Text>
+            ) : null}
+            {erros.categoriaId ? (
+              <Text style={estilos.erro} accessibilityRole="alert">
+                {erros.categoriaId}
+              </Text>
+            ) : null}
+          </View>
+        ) : (
+          <Campo
+            rotulo="Valor acumulado (opcional)"
+            prefixo="R$"
+            value={v.valorAcumulado}
+            onChangeText={(t) => set('valorAcumulado', t)}
+            placeholder="Não informado"
+            keyboardType="decimal-pad"
+            erro={erros.valorAcumulado}
+            abaixo={
+              <Text style={estilos.dica}>
+                Valor informado pelo usuário. Deixe vazio se ainda não souber.
+              </Text>
+            }
+          />
+        )}
 
         <Campo
           rotulo="Prazo"
@@ -177,6 +296,22 @@ const estilos = StyleSheet.create({
   dica: { fontSize: 12, color: cores.primaria, marginTop: 6 },
   erro: { color: cores.erro, fontSize: 12, marginTop: 4 },
   erroGeral: { color: cores.erro, fontSize: 14, fontWeight: '600', marginTop: 12 },
+  categoriaOpcoes: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  carregandoCategorias: { alignSelf: 'flex-start', marginBottom: 8 },
+  avisoCategorias: { marginBottom: 8 },
+  tentarCategorias: { alignSelf: 'flex-start', paddingVertical: 4 },
+  avisoCategoriaAtual: { fontSize: 12, color: cores.erro, marginBottom: 8, lineHeight: 17 },
+  categoriaChip: {
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: raio.campo,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: cores.branco,
+  },
+  categoriaChipAtivo: { backgroundColor: cores.primaria, borderColor: cores.primaria },
+  categoriaChipTexto: { fontSize: 13, color: cores.marinho },
+  categoriaChipTextoAtivo: { color: cores.branco, fontWeight: '600' },
   rodape: { padding: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: cores.borda },
   salvar: {
     backgroundColor: cores.primaria,

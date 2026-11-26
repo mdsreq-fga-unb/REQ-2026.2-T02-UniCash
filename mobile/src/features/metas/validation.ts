@@ -7,7 +7,7 @@ import type {
   MetaTipo,
 } from './types';
 
-/** Textos literais das exceções da UC12 (EX01). */
+/** Textos literais das exceções da UC12. */
 export const MSG_META = {
   objetivoVazio: 'Informe o objetivo da meta.',
   objetivoLongo: 'O objetivo deve ter até 80 caracteres.',
@@ -16,12 +16,28 @@ export const MSG_META = {
   valorLimite: 'O valor máximo permitido é R$ 999.999.999,99.',
   prazoVazio: 'Informe o prazo da meta.',
   prazoInvalido: 'Informe um prazo válido.',
+  prazoAntesInicio: 'O prazo deve ser igual ou posterior ao início da meta.',
   tipoInvalido: 'Selecione o tipo da meta.',
+  tipoImutavel: 'O tipo da meta não pode ser alterado após a criação.',
+  categoriaVazia: 'Selecione uma categoria para a meta de gasto.',
+  categoriaIndisponivel:
+    'A categoria selecionada não está disponível. Escolha outra categoria ativa.',
+  categoriaNaoSeAplica: 'Metas de investimento não possuem categoria vinculada.',
+  categoriaRemovida:
+    'Categoria não vinculada ou excluída. Escolha uma nova categoria para calcular o progresso.',
+  valorAcumuladoInvalido:
+    'O valor acumulado deve ser zero ou maior, com no máximo duas casas decimais.',
+  valorAcumuladoLimite: 'O valor acumulado máximo permitido é R$ 999.999.999,99.',
+  valorAcumuladoNaoSeAplica:
+    'O valor acumulado se aplica apenas a metas de investimento.',
+  valorNaoInformado: 'Valor acumulado não informado.',
+  progressoIndisponivel: 'Progresso indisponível: complete os dados da meta.',
   dadosInvalidos: 'Não foi possível validar os dados da meta. Tente novamente.',
   indisponivel: 'Esta meta não está mais disponível.',
   falhaSalvar: 'Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente.',
   falhaLeitura: 'Não foi possível carregar as metas. Tente novamente.',
   falhaExcluir: 'Não foi possível excluir. Tente novamente.',
+  falhaCategorias: 'Não foi possível carregar as categorias.',
   exclusaoMantemLancamentos:
     'A meta será excluída. Os lançamentos associados serão mantidos. Esta ação não pode ser desfeita.',
 } as const;
@@ -34,6 +50,13 @@ export interface DadosMetaValidos {
   tipo: MetaTipo;
   valorAlvoCentavos: number;
   prazo: string;
+  categoriaId: string | null;
+  valorAcumuladoCentavos: number | null;
+}
+
+export interface OpcoesValidacaoMeta {
+  /** Tipo já gravado; impede alteração após a criação. */
+  tipoAtual?: MetaTipo;
 }
 
 /** Conta caracteres por code point, mesma semântica de length() do SQLite. */
@@ -60,15 +83,43 @@ export function dataISOValida(iso: string): boolean {
 }
 
 /**
+ * Compatibilidade com registros legados: a data de criação (ISO) pode servir
+ * de início quando a parte de data é válida. Caso contrário, permanece nula.
+ */
+export function derivarInicioDeCriadoEm(criadoEm: string): string | null {
+  const data = String(criadoEm ?? '').slice(0, 10);
+  return dataISOValida(data) ? data : null;
+}
+
+/** Converte o valor acumulado, permitindo zero; vazio significa não informado. */
+export function parseValorAcumulado(
+  texto: string,
+): { ok: true; centavos: number } | { ok: false; erro: 'invalido' | 'limite' } {
+  const limpo = texto.replace(/R\$/g, '').replace(/\s/g, '');
+  if (!limpo) return { ok: false, erro: 'invalido' };
+  if (/^0+(?:[.,]0{1,2})?$/.test(limpo)) return { ok: true, centavos: 0 };
+
+  const valor = parseValor(limpo);
+  if (valor.ok) return valor;
+  return { ok: false, erro: valor.erro === 'limite' ? 'limite' : 'invalido' };
+}
+
+/**
  * Validação de domínio compartilhada entre formulário e serviço.
  * O objetivo é trimado; o valor é inteiro em centavos e o prazo é ISO.
  */
-export function validarDadosMeta(input: MetaInput): DadosMetaValidos {
+export function validarDadosMeta(
+  input: MetaInput,
+  opcoes: OpcoesValidacaoMeta = {},
+): DadosMetaValidos {
   const objetivo = String(input.objetivo ?? '').trim();
   if (!objetivo) throw new EntradaMetaInvalida(MSG_META.objetivoVazio);
   if (contarCaracteres(objetivo) > 80) throw new EntradaMetaInvalida(MSG_META.objetivoLongo);
 
   if (!tipoMetaValido(input.tipo)) throw new EntradaMetaInvalida(MSG_META.tipoInvalido);
+  if (opcoes.tipoAtual && input.tipo !== opcoes.tipoAtual) {
+    throw new EntradaMetaInvalida(MSG_META.tipoImutavel);
+  }
 
   const valor = input.valorAlvoCentavos;
   if (!Number.isSafeInteger(valor) || valor <= 0) {
@@ -80,11 +131,59 @@ export function validarDadosMeta(input: MetaInput): DadosMetaValidos {
   if (!prazo) throw new EntradaMetaInvalida(MSG_META.prazoVazio);
   if (!dataISOValida(prazo)) throw new EntradaMetaInvalida(MSG_META.prazoInvalido);
 
-  return { objetivo, tipo: input.tipo, valorAlvoCentavos: valor, prazo };
+  if (input.tipo === 'gasto') {
+    const categoriaId = String(input.categoriaId ?? '').trim();
+    if (!categoriaId) throw new EntradaMetaInvalida(MSG_META.categoriaVazia);
+    if (input.valorAcumuladoCentavos != null) {
+      throw new EntradaMetaInvalida(MSG_META.valorAcumuladoNaoSeAplica);
+    }
+    return {
+      objetivo,
+      tipo: input.tipo,
+      valorAlvoCentavos: valor,
+      prazo,
+      categoriaId,
+      valorAcumuladoCentavos: null,
+    };
+  }
+
+  if (input.categoriaId != null && String(input.categoriaId).trim() !== '') {
+    throw new EntradaMetaInvalida(MSG_META.categoriaNaoSeAplica);
+  }
+
+  const acumulado = input.valorAcumuladoCentavos;
+  if (acumulado == null) {
+    return {
+      objetivo,
+      tipo: input.tipo,
+      valorAlvoCentavos: valor,
+      prazo,
+      categoriaId: null,
+      valorAcumuladoCentavos: null,
+    };
+  }
+  if (!Number.isSafeInteger(acumulado) || acumulado < 0) {
+    throw new EntradaMetaInvalida(MSG_META.valorAcumuladoInvalido);
+  }
+  if (acumulado > VALOR_MAXIMO_CENTAVOS) {
+    throw new EntradaMetaInvalida(MSG_META.valorAcumuladoLimite);
+  }
+
+  return {
+    objetivo,
+    tipo: input.tipo,
+    valorAlvoCentavos: valor,
+    prazo,
+    categoriaId: null,
+    valorAcumuladoCentavos: acumulado,
+  };
 }
 
 /** Valida o formulário da UC12; não grava nada. */
-export function validarFormularioMeta(v: FormMetaValores): {
+export function validarFormularioMeta(
+  v: FormMetaValores,
+  opcoes: OpcoesValidacaoMeta = {},
+): {
   erros: ErrosMetaForm;
   dados: MetaInput | null;
 } {
@@ -95,6 +194,7 @@ export function validarFormularioMeta(v: FormMetaValores): {
   else if (contarCaracteres(objetivo) > 80) erros.objetivo = MSG_META.objetivoLongo;
 
   if (!tipoMetaValido(v.tipo)) erros.tipo = MSG_META.tipoInvalido;
+  else if (opcoes.tipoAtual && v.tipo !== opcoes.tipoAtual) erros.tipo = MSG_META.tipoImutavel;
 
   let valorAlvoCentavos: number | null = null;
   if (!v.valorAlvo.trim()) {
@@ -119,7 +219,27 @@ export function validarFormularioMeta(v: FormMetaValores): {
     if (!prazoISO) erros.prazo = MSG_META.prazoInvalido;
   }
 
+  const categoriaId = v.categoriaId.trim();
+  if (tipoMetaValido(v.tipo) && v.tipo === 'gasto' && !categoriaId) {
+    erros.categoriaId = MSG_META.categoriaVazia;
+  }
+
+  let valorAcumuladoCentavos: number | null = null;
+  if (tipoMetaValido(v.tipo) && v.tipo === 'investimento' && v.valorAcumulado.trim()) {
+    const acumulado = parseValorAcumulado(v.valorAcumulado);
+    if (!acumulado.ok) {
+      erros.valorAcumulado =
+        acumulado.erro === 'limite'
+          ? MSG_META.valorAcumuladoLimite
+          : MSG_META.valorAcumuladoInvalido;
+    } else {
+      valorAcumuladoCentavos = acumulado.centavos;
+    }
+  }
+
   if (Object.keys(erros).length > 0) return { erros, dados: null };
+  if (!tipoMetaValido(v.tipo)) return { erros, dados: null };
+
   return {
     erros,
     dados: {
@@ -127,6 +247,8 @@ export function validarFormularioMeta(v: FormMetaValores): {
       tipo: v.tipo,
       valorAlvoCentavos: valorAlvoCentavos!,
       prazo: prazoISO!,
+      categoriaId: v.tipo === 'gasto' ? categoriaId : null,
+      valorAcumuladoCentavos: v.tipo === 'investimento' ? valorAcumuladoCentavos : null,
     },
   };
 }

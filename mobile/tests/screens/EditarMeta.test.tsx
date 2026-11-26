@@ -12,6 +12,14 @@ import { router, useLocalSearchParams } from '../helpers/expoRouterMock';
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/receitas/sync', () => ({ sincronizarEmSegundoPlano: jest.fn() }));
+jest.mock('@/features/categorias/useCategoriasAtivas', () => ({
+  useCategoriasAtivas: () => ({
+    itens: [{ id: 'c1', nome: 'Mercado' }],
+    carregando: false,
+    erro: false,
+    recarregar: jest.fn(),
+  }),
+}));
 jest.mock('@/features/metas/service', () => ({
   ...jest.requireActual('@/features/metas/service'),
   buscarMeta: jest.fn(),
@@ -27,6 +35,10 @@ const meta = {
   tipo: 'investimento' as const,
   valor_alvo_centavos: 100_000,
   prazo: '2027-12-31',
+  inicio: '2026-01-01',
+  categoria_id: null,
+  valor_acumulado_centavos: null,
+  valor_acumulado_atualizado_em: null,
   sync_status: 'pendente' as const,
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
@@ -60,6 +72,8 @@ describe('Editar meta (UC12)', () => {
       tipo: 'investimento',
       valorAlvoCentavos: 100_000,
       prazo: '2027-12-31',
+      categoriaId: null,
+      valorAcumuladoCentavos: null,
     });
     await waitFor(() => expect(router.dismissTo).toHaveBeenCalledWith('/metas'));
     expect(consumirFeedback()).toEqual(META_SALVA);
