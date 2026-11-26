@@ -2305,7 +2305,7 @@ it('migra v8 do UC04 sem perder saldo provisório nem a numeração do alerta', 
 
   await migrarSeNecessario(criarAdaptador(sqlite));
 
-  expect(versao(sqlite)).toBe(9);
+  expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
   expect(sqlite.prepare('SELECT * FROM saldo_inicial').get()).toEqual({
     id: 1, mes_referencia: '2026-11', valor_centavos: -12550, sync_status: 'pendente', revisao: 0,
   });

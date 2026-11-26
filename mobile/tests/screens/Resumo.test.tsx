@@ -4,12 +4,18 @@ import { criarSincronizacaoDoApp } from '@/features/conta/sync.app';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import ResumoFinanceiro from '@/app/index';
+import ResumoNoTutorial from '@/app/tutorial/resumo';
+import { BancoPronto } from '@/db/Preparacao';
+import { deveOferecerTutorial } from '@/features/tutorial/estado';
+import { MSG_ABERTURA_TUTORIAL } from '@/features/tutorial/conteudo';
+import { confirmarAberturaTutorial, PRAZO_ABERTURA_TUTORIAL_MS } from '@/features/tutorial/navegacao';
 import { calcularResumo, FalhaCalculo, MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
 import { instalarBanco } from '../helpers/fakeDb';
 import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { router } from '../helpers/expoRouterMock';
 import { mesAnterior, nomeMes, proximoMes } from '@/features/receitas/dates';
 
+jest.mock('@/features/tutorial/estado');
 jest.mock('@/features/conta/auth.firebase', () => ({
   criarAuthFirebase: jest.fn(),
   iniciarObservadorDeSessao: jest.fn(),
@@ -151,7 +157,10 @@ describe('Tela de resumo financeiro (UC03)', () => {
     expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
     expect(await screen.findByTestId('saldo')).toHaveTextContent('R$ 0,00');
     await fireEvent.press(screen.getByText('Ver tutorial'));
-    expect(router.push).toHaveBeenCalledWith('/tutorial');
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/tutorial', params: { origem: 'manual', tentativa: expect.any(String) },
+    });
+    await act(() => confirmarAberturaTutorial(router.push.mock.lastCall![0].params.tentativa));
     await fireEvent.press(screen.getByText('Registrar receita'));
     expect(router.push).toHaveBeenCalledWith('/receitas/nova');
     await fireEvent.press(screen.getByText('Registrar despesa'));
@@ -303,5 +312,64 @@ describe('Tela de resumo financeiro (UC03)', () => {
       avisarBaseAtualizada();
       expect(calcular).not.toHaveBeenCalled();
     });
+  });
+});
+
+
+describe('Resumo aberto pela etapa do tutorial (UC15)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    instalarBanco();
+  });
+
+  it.each([
+    { vazio: false, saldo: 'R$ 925,65', receitas: 'R$ 1.500,00', despesas: 'R$ 574,35' },
+    { vazio: true, saldo: 'R$ 0,00', receitas: 'R$ 0,00', despesas: 'R$ 0,00' },
+  ])('mostra os totais calculados e volta à etapa (base vazia: $vazio)', async ({ vazio, saldo, receitas, despesas }) => {
+    calcular.mockResolvedValue(vazio ? resumo({
+      totalReceitasCentavos: 0,
+      totalDespesasCentavos: 0,
+      saldoCentavos: 0,
+      receitasPorDia: [],
+      semLancamentos: true,
+    }) : resumo());
+
+    await render(<BancoPronto.Provider value><ResumoNoTutorial /></BancoPronto.Provider>);
+
+    expect(await screen.findByTestId('saldo')).toHaveTextContent(saldo);
+    expect(screen.getByTestId('total-receitas')).toHaveTextContent(receitas);
+    expect(screen.getByTestId('total-despesas')).toHaveTextContent(despesas);
+    expect(calcular).toHaveBeenCalledWith(atual.ano, atual.mes);
+    expect(deveOferecerTutorial).not.toHaveBeenCalled();
+    await fireEvent.press(screen.getByRole('button', { name: 'Voltar ao tutorial' }));
+    expect(router.back).toHaveBeenCalledTimes(1);
+  });
+
+  it('abre o menu de ajuda a partir do resumo financeiro', async () => {
+    calcular.mockResolvedValue(resumo());
+    await render(<ResumoFinanceiro />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Ajuda' }));
+
+    expect(router.push).toHaveBeenCalledWith('/ajuda');
+  });
+
+  it('mantém o resumo acessível se a oferta inicial não abrir e permite tentar de novo (EX01)', async () => {
+    calcular.mockResolvedValue(resumo());
+    jest.mocked(deveOferecerTutorial).mockResolvedValue(true);
+    await render(<BancoPronto.Provider value><ResumoFinanceiro /></BancoPronto.Provider>);
+    expect(router.push).toHaveBeenCalledTimes(1);
+
+    expect(await screen.findByRole('alert', {}, {
+      timeout: PRAZO_ABERTURA_TUTORIAL_MS + 1000,
+    })).toHaveTextContent(MSG_ABERTURA_TUTORIAL);
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('R$ 925,65');
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Tentar novamente' }));
+    expect(router.push).toHaveBeenCalledTimes(2);
+    const { tentativa } = router.push.mock.lastCall![0].params;
+    await act(() => confirmarAberturaTutorial(tentativa));
+    expect(screen.queryByText(MSG_ABERTURA_TUTORIAL)).toBeNull();
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('R$ 925,65');
   });
 });

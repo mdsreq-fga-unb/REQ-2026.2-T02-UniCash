@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DespesaForm } from '@/components/despesas/DespesaForm';
@@ -11,6 +11,7 @@ import type { DespesaInput } from '@/features/despesas/types';
 import { cores } from '@/lib/theme';
 
 export default function NovaDespesa() {
+  const { tutorial } = useLocalSearchParams<{ tutorial?: string }>();
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -44,9 +45,12 @@ export default function NovaDespesa() {
         textoSalvar="Salvar despesa"
         salvando={salvando}
         erroGeral={erro}
+        textoCancelar={tutorial === '1' && erro ? 'Voltar à etapa' : undefined}
         onSalvar={salvar}
         onCancelar={() => router.back()}
-        onTrocarTipo={() => router.replace('/receitas/nova')}
+        onTrocarTipo={() => router.replace(tutorial === '1'
+          ? { pathname: '/receitas/nova', params: { tutorial } }
+          : '/receitas/nova')}
       />
     </SafeAreaView>
   );
