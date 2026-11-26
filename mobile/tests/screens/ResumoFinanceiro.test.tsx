@@ -6,6 +6,10 @@ import Home from '@/app/index';
 import { instalarBanco } from '../helpers/fakeDb';
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 
+jest.mock('@/features/consumo/sqlite', () => ({
+  lerTotaisLocais: jest.fn(async () => ({ categorias: [], rendaCentavos: 0 })),
+}));
+
 jest.mock('expo-router', () => ({
   ...require('../helpers/expoRouterMock'),
   Link: require('react-native').Text,

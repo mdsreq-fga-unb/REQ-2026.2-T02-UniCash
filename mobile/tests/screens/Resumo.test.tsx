@@ -315,6 +315,25 @@ describe('Tela de resumo financeiro (UC03)', () => {
   });
 });
 
+it('mostra o consumo do mesmo mês do Resumo e atualiza após mudar o período', async () => {
+  const { sqlite } = instalarBanco();
+  const dia = `${atual.ano}-${String(atual.mes).padStart(2, '0')}-01`;
+  sqlite.exec(`INSERT INTO categorias
+    (id, nome, nome_normalizado, limite_tipo, limite_centavos, criado_em, atualizado_em)
+    VALUES ('consumo-resumo', 'Alimentação', 'alimentacao', 'valor', 10000, 't', 't')`);
+  sqlite.prepare(`INSERT INTO despesas
+    (id, valor_centavos, data, titulo, categoria_id, fixa_ou_variavel, essencial, criado_em, atualizado_em)
+    VALUES ('d-resumo', 8000, ?, 'Mercado', 'consumo-resumo', 'variavel', 0, 't', 't')`).run(dia);
+  calcular.mockResolvedValue(resumo());
+  await render(<ResumoFinanceiro />);
+  expect(await screen.findByText('80% · Próximo do limite')).toBeTruthy();
+  await fireEvent.press(screen.getByRole('button', { name: 'Mês anterior' }));
+  expect(await screen.findByText('0% · Consumo baixo')).toBeTruthy();
+  expect(screen.queryByText('80% · Próximo do limite')).toBeNull();
+
+  await act(async () => { avisarBaseAtualizada(); avisarBaseAtualizada(); });
+  expect(await screen.findByText('0% · Consumo baixo')).toBeTruthy();
+});
 
 describe('Resumo aberto pela etapa do tutorial (UC15)', () => {
   beforeEach(() => {

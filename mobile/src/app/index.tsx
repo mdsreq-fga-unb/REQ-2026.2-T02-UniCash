@@ -8,6 +8,8 @@ import { formatarBRL } from '@/features/receitas/money';
 import { MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
 import { percentualMeta, rotuloDia } from '@/features/resumo/format';
 import { useResumo } from '@/features/resumo/useResumo';
+import { IndicadoresConsumo } from '@/components/consumo/IndicadoresConsumo';
+import { useConsumoMensal } from '@/features/consumo/useConsumoMensal';
 import { AcaoTutorial } from '@/components/tutorial/Interface';
 import { EntradaTutorial } from '@/components/tutorial/EntradaTutorial';
 import { MSG_ABERTURA_TUTORIAL } from '@/features/tutorial/conteudo';
@@ -35,6 +37,7 @@ export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean 
   const ofertaTutorial = useOfertaTutorial(!noTutorial);
   const [periodo, setPeriodo] = useState(mesCorrente);
   const inicio = primeiroDiaDoMes(periodo.ano, periodo.mes);
+  const consumo = useConsumoMensal(inicio.slice(0, 7));
   const { resumo, falhou, recarregar } = useResumo(periodo.ano, periodo.mes);
   // Só exibe valores calculados para o mês selecionado: ao trocar de mês, os do mês anterior
   // não podem aparecer sob o título novo enquanto o recálculo não termina.
@@ -125,6 +128,13 @@ export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean 
           <EstadoVazio />
         ) : (
           <Conteudo resumo={resumoDoPeriodo} />
+        )}
+
+        {!noTutorial && (
+          <View style={estilos.vazio}>
+            <Text accessibilityRole="header" style={estilos.titulo}>Consumo por categoria</Text>
+            <IndicadoresConsumo estado={consumo.estado} aoTentarNovamente={consumo.tentarNovamente} />
+          </View>
         )}
 
         {!noTutorial && <Atalhos ano={periodo.ano} mes={periodo.mes} />}
