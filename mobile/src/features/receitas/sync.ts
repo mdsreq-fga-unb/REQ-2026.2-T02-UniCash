@@ -2,6 +2,7 @@ import type { ItemFila } from '@/features/sincronizacao/fila';
 import type { SQLiteBindParams } from 'expo-sqlite';
 import { serializarImportacao } from '@/features/conta/operacoes-locais';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { restaurarAlertas, sincronizarAlertas } from '@/features/alertas/sync';
 import {
   collection,
   deleteField,
@@ -685,6 +686,7 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
         registrarAcessoNegado(e, { tipo: 'Alerta de saldo', id, revisao: criado_em });
       }
     }
+    await sincronizarAlertas(sqlite, uid);
   } catch (e) {
     // Falha de catálogo é explícita; os demais erros mantêm o comportamento atual.
     if (e instanceof FalhaLeituraCatalogoSincronizacao) throw e;
@@ -1109,6 +1111,12 @@ async function restaurarParaUid(uid: string, servidor: boolean): Promise<Resulta
     // alcança toda a coleção e é idempotente; não altera dados financeiros.
     const normalizacao = await normalizarCategoriasRemotas(uid, snapCategorias.docs);
     if (normalizacao.acessoNegado) acessoNegado = true;
+    try {
+      await restaurarAlertas(sqlite, uid);
+    } catch (erro) {
+      if (!negadoPelaNuvem(erro)) throw erro;
+      acessoNegado = true;
+    }
 
     return resultado;
   } catch (e) {

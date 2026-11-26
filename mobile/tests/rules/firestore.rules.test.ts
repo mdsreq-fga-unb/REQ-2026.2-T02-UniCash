@@ -690,6 +690,54 @@ describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
   });
 });
 
+describe('Alertas de limites — UC05', () => {
+  const dados = {
+    tipo: 'aproximacao',
+    ref_id: 'uuid-cat',
+    periodo: '2026-10',
+    categoria_nome: 'Casa',
+    gasto_centavos: 8000,
+    limite_centavos: 10000,
+    emitido_em: '2026-10-16T12:00:00.000Z',
+  };
+  const caminho = 'usuarios/alice/alertas/aproximacao_uuid-cat_2026-10';
+
+  beforeEach(async () => {
+    await assertSucceeds(setDoc(cat(db('alice'), 'alice'), categoria()));
+  });
+
+  it('permite gravar e ler ao dono, com identidade única e histórico imutável', async () => {
+    const alerta = doc(db('alice'), caminho);
+    await assertSucceeds(setDoc(alerta, dados));
+    await assertSucceeds(getDoc(alerta));
+    await assertFails(getDoc(doc(db('bob'), caminho)));
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), caminho)));
+    await assertFails(updateDoc(alerta, { gasto_centavos: 9000 }));
+  });
+
+  it('rejeita outro uid, chaves divergentes e meses inválidos', async () => {
+    await assertFails(setDoc(doc(db('bob'), caminho), dados));
+    await assertFails(setDoc(doc(db('alice'), caminho), { ...dados, periodo: '2026-11' }));
+    await assertFails(setDoc(doc(db('alice'), caminho.replace('2026-10', '2026-13')), {
+      ...dados,
+      periodo: '2026-13',
+    }));
+  });
+  it('só permite remover o alerta após excluir a categoria e bloqueia sua recriação', async () => {
+    const alerta = doc(db('alice'), caminho);
+    await assertSucceeds(setDoc(alerta, dados));
+    await assertFails(deleteDoc(alerta));
+    await assertSucceeds(updateDoc(cat(db('alice'), 'alice'), {
+      excluido_em: dados.emitido_em,
+      atualizado_em: dados.emitido_em,
+    }));
+    await assertFails(deleteDoc(doc(db('bob'), caminho)));
+    await assertSucceeds(deleteDoc(alerta));
+    await assertFails(setDoc(alerta, dados));
+  });
+
+});
+
 describe('UC08 — saldo inicial', () => {
   const saldo = { valor_centavos: -12550, mes_referencia: '2026-11' };
   const ref = (firestore: ReturnType<typeof db>, uid = 'dono', id = 'atual') =>

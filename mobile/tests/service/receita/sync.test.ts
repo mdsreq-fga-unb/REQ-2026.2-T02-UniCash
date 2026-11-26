@@ -1,3 +1,4 @@
+import { emitirAlertasPendentes } from '@/features/alertas/notificacoes';
 import { consultarAlertas } from '@/features/saldo/alertas';
 import { consultarResumoMensal } from '@/features/saldo/service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -81,6 +82,9 @@ jest.mock('firebase/firestore', () => ({
   },
   getDocs: async (col: any) => {
     if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
+    if (mockCaminhosRejeitados.has(col.path)) {
+      throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
+    }
     const docs = [...mockNuvem.entries()]
       .filter(([k]) => k.startsWith(col.path + '/'))
       .map(([k, v]) => ({ id: k.slice(col.path.length + 1), data: () => v }));
@@ -236,7 +240,95 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     consumirAcessoNegado();
   });
   afterEach(restaurarTempo);
-    describe('sincronização de despesas', () => {
+  it('sincroniza o alerta offline uma vez e restaura sem uma nova notificação (UC05)', async () => {
+    const categoria = inserirCategoria({ limite_tipo: 'valor', limite_centavos: 10000 });
+    await registrarDespesa({
+      data: '2026-10-16',
+      titulo: 'Compra',
+      valorCentavos: 8000,
+      descricao: null,
+      categoriaId: categoria.id,
+      fixaOuVariavel: null,
+      essencial: null,
+      recorrencia: null,
+    });
+    const emitir = jest.fn(async () => {});
+    const notificador = { disponivel: async () => true, emitir };
+    const caminhoAlerta = 'usuarios/u1/alertas/aproximacao_padrao_casa_2026-10';
+
+    mockRedeFora = true;
+    await emitirAlertasPendentes(notificador);
+    await sincronizarPendentes();
+    expect(mockNuvem.has(caminhoAlerta)).toBe(false);
+    expect(banco.sqlite.prepare('SELECT sync_status FROM alertas').get()).toEqual({ sync_status: 'pendente' });
+
+    mockRedeFora = false;
+    await sincronizarPendentes();
+    await sincronizarPendentes();
+    expect(mockNuvem.get(caminhoAlerta)).toMatchObject({ ref_id: 'padrao_casa', gasto_centavos: 8000 });
+    expect(mockOrdemEscritas.filter((c) => c === caminhoAlerta)).toHaveLength(1);
+
+    banco.sqlite.prepare('DELETE FROM alertas').run();
+    await restaurarDaNuvem();
+    await emitirAlertasPendentes(notificador);
+    expect(banco.sqlite.prepare('SELECT ref_id, sync_status FROM alertas').get()).toEqual({
+      ref_id: categoria.id,
+      sync_status: 'sincronizado',
+    });
+    expect(emitir).toHaveBeenCalledTimes(1);
+  });
+
+  it('remove alertas já sincronizados após excluir a categoria offline (UC05)', async () => {
+    const id = await criarCategoria({ nome: 'Compras', limite: { tipo: 'valor', valor: 10000 } });
+    await registrarDespesa({
+      data: '2026-10-16', titulo: 'Compra', valorCentavos: 8000, categoriaId: id,
+      descricao: null, fixaOuVariavel: null, essencial: null, recorrencia: null,
+    });
+    await emitirAlertasPendentes({ disponivel: async () => true, emitir: async () => {} });
+    const caminhoAlerta = `usuarios/u1/alertas/aproximacao_${id}_2026-10`;
+    await sincronizarPendentes();
+    expect(mockNuvem.has(caminhoAlerta)).toBe(true);
+
+    mockRedeFora = true;
+    await excluirCategoria(id);
+    await sincronizarPendentes();
+    expect(banco.sqlite.prepare('SELECT * FROM alertas').all()).toEqual([]);
+    expect(mockNuvem.has(caminhoAlerta)).toBe(true);
+
+    mockRedeFora = false;
+    await restaurarDaNuvem();
+    expect(banco.sqlite.prepare('SELECT * FROM alertas').all()).toEqual([]);
+    await sincronizarPendentes();
+    expect(mockNuvem.has(caminhoAlerta)).toBe(false);
+  });
+
+  it('comunica falha ao consultar os alertas remotos de categorias excluídas (UC05)', async () => {
+    inserirCategoria({ excluido_em: '2026-10-16', sync_status: 'sincronizado' });
+    mockCaminhosRejeitados.add('usuarios/u1/alertas');
+    const aoFalhar = jest.fn();
+
+    await sincronizarPendentes({ aoFalhar });
+
+    expect(aoFalhar).toHaveBeenCalledWith(expect.objectContaining({ code: 'permission-denied' }));
+    expect(consumirAcessoNegado()).toBe(true);
+  });
+
+  it('preserva a restauração dos lançamentos quando as regras de alertas ainda não estão publicadas (UC05)', async () => {
+    mockCaminhosRejeitados.add('usuarios/u1/alertas');
+    mockNuvem.set(caminho('receita-remota'), {
+      titulo: 'Bolsa',
+      data: '2026-10-16',
+      valor_centavos: 10000,
+    });
+
+    const resultado = await restaurarDaNuvem();
+
+    expect(resultado.receitas).toBe(1);
+    expect(banco.receitas()[0]).toMatchObject({ id: 'receita-remota', titulo: 'Bolsa' });
+    expect(consumirAcessoNegado()).toBe(true);
+  });
+
+  describe('sincronização de despesas', () => {
     const caminhoDespesa = (id: string) =>
       `usuarios/u1/despesas/${id}`;
 

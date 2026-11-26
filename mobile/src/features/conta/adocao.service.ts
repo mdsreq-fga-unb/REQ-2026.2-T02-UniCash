@@ -2,7 +2,7 @@ import { serializarImportacao } from './operacoes-locais';
 import { getDbLocal, getDbDoDono } from '@/db/database';
 import { auth } from '@/lib/firebase';
 
-const TABELAS = ['categorias', 'categorias_estado', 'recorrencias', 'receitas', 'despesas', 'saldo_inicial', 'alertas_emitidos'] as const;
+const TABELAS = ['categorias', 'categorias_estado', 'recorrencias', 'receitas', 'despesas', 'saldo_inicial', 'alertas_emitidos', 'alertas', 'preferencias_alertas_por_tipo'] as const;
 type Valor = string | number | null | Uint8Array;
 type Linha = Record<string, Valor>;
 const META = `CREATE TABLE IF NOT EXISTS uc10_adocao (
@@ -69,6 +69,11 @@ async function copiarDadosLocais(uid: string): Promise<void> {
         if ('categoria_id' in linha && idsCategorias.has(linha.categoria_id)) {
           linha.categoria_id = idsCategorias.get(linha.categoria_id)!;
         }
+        if (tabela === 'alertas') {
+          if (linha.proprietario_uid !== null && linha.proprietario_uid !== uid) continue;
+          linha.ref_id = idsCategorias.get(linha.ref_id) ?? linha.ref_id;
+          linha.proprietario_uid = uid;
+        }
         if (tabela === 'alertas_emitidos') {
           const ultima = await tx.getFirstAsync<{ numero: number | null }>(
             'SELECT MAX(transicao) AS numero FROM alertas_emitidos WHERE mes = ?', [linha.mes],
@@ -79,7 +84,9 @@ async function copiarDadosLocais(uid: string): Promise<void> {
         // A referência da conta prevalece; o mesmo ID de alerta já representa o mesmo evento.
         const conflito = tabela === 'saldo_inicial' || tabela === 'alertas_emitidos'
           ? ' ON CONFLICT(id) DO NOTHING'
-          : '';
+          : tabela === 'alertas' || tabela === 'preferencias_alertas_por_tipo'
+            ? ' ON CONFLICT DO NOTHING'
+            : '';
         await tx.runAsync(`INSERT INTO ${tabela} (${colunas.map(c => '"' + c.replace(/"/g, '""') + '"').join(', ')}) VALUES (${colunas.map(() => '?').join(', ')})${conflito}`, colunas.map(c => linha[c]));
       }
     }

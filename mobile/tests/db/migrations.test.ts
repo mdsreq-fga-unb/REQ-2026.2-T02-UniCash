@@ -15,6 +15,7 @@ import {
 import {
   DDL_ESQUEMA,
   DDL_ESQUEMA_V5,
+  DDL_PREFERENCIAS_ALERTAS_V8,
   DDL_NUMERAR_ALERTAS,
   DDL_SALDO_MENSAL,
   DDL_TRIGGER_PERCENTUAL,
@@ -2213,6 +2214,67 @@ describe('migração 005: tombstone de recorrências', () => {
   });
 });
 
+describe('Migração 011 — preferências e alertas da UC05', () => {
+  it.each([0, 10])('cria alertas e preferências a partir da versão %i', async (versaoInicial) => {
+    const sqlite = novoSqlite();
+    const db = criarAdaptador(sqlite);
+    try {
+      if (versaoInicial === 10) {
+        await migrarSeNecessario(db);
+        sqlite.exec(`
+          DROP TABLE alertas;
+          DROP TABLE preferencias_alertas_por_tipo;
+          INSERT INTO preferencias_locais VALUES ('existente', 0);
+          PRAGMA user_version = 10;
+        `);
+        inserirReceitaValida(sqlite);
+      }
+      await migrarSeNecessario(db);
+      expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+      expect(sqlite.prepare('SELECT * FROM alertas').all()).toEqual([]);
+      expect(sqlite.prepare('SELECT * FROM preferencias_alertas_por_tipo').all()).toEqual([]);
+      if (versaoInicial === 10) {
+        expect(sqlite.prepare('SELECT id FROM receitas').all()).toEqual([{ id: 'rx' }]);
+        expect(sqlite.prepare("SELECT valor FROM preferencias_locais WHERE chave = 'existente'").get()).toEqual({ valor: 0 });
+      }
+    } finally {
+      sqlite.close();
+    }
+  });
+
+  it('preserva a preferência anterior nos dois tipos e remove alertas de categoria excluída', async () => {
+    const sqlite = new Database(':memory:');
+    const db = criarAdaptador(sqlite);
+    try {
+      await migrarSeNecessario(db);
+      sqlite.exec(`
+        DROP TABLE preferencias_alertas_por_tipo;
+        DROP TABLE alertas_emitidos;
+        DROP TABLE saldo_inicial;
+        DROP TABLE preferencias_locais;
+        ${DDL_PREFERENCIAS_ALERTAS_V8}
+        INSERT INTO preferencias_alertas VALUES (1, 0);
+        INSERT INTO categorias (id, nome, nome_normalizado, excluido_em, criado_em, atualizado_em)
+          VALUES ('antiga', 'Antiga', 'antiga', '2026-10-16', '2026-10-10', '2026-10-16');
+        INSERT INTO alertas (tipo, ref_id, periodo, categoria_nome, gasto_centavos, limite_centavos, emitido_em)
+          VALUES ('aproximacao', 'antiga', '2026-10', 'Antiga', 8000, 10000, '2026-10-15');
+        PRAGMA user_version = 8;
+      `);
+
+      await migrarSeNecessario(db);
+
+      expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+      expect(sqlite.prepare('SELECT * FROM preferencias_alertas_por_tipo ORDER BY tipo').all()).toEqual([
+        { tipo: 'aproximacao', ativo: 0 },
+        { tipo: 'ultrapassagem', ativo: 0 },
+      ]);
+      expect(sqlite.prepare('SELECT * FROM alertas').all()).toEqual([]);
+    } finally {
+      sqlite.close();
+    }
+  });
+});
+
 describe('008 — saldo inicial', () => {
   it('acrescenta o saldo inicial à base v7 e mantém os lançamentos existentes', async () => {
     const sqlite = novoSqlite();
@@ -2313,27 +2375,33 @@ it('migra v8 do UC04 sem perder saldo provisório nem a numeração do alerta', 
   sqlite.close();
 });
 
-describe('Migração 011 (UC14, preferências de notificação)', () => {
-  const temTabela = (sqlite: Database.Database) =>
-    !!sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'preferencias_notificacao'").get();
+describe('Migração 012 (UC14, preferências de notificação)', () => {
+  const temTabela = (sqlite: Database.Database, nome: string) =>
+    !!sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(nome);
 
-  it('instalação nova já cria a tabela', async () => {
+  it('instalação nova já cria a tabela, junto com as da UC05', async () => {
     const sqlite = novoSqlite();
     await migrarSeNecessario(criarAdaptador(sqlite));
-    expect(versao(sqlite)).toBe(11);
-    expect(temTabela(sqlite)).toBe(true);
+    expect(versao(sqlite)).toBe(12);
+    expect(temTabela(sqlite, 'preferencias_notificacao')).toBe(true);
+    expect(temTabela(sqlite, 'alertas')).toBe(true);
   });
 
-  it('banco na versão 10 ganha a tabela, de forma idempotente', async () => {
+  it('base v11 com as tabelas da UC05 ganha a tabela do UC14, de forma idempotente', async () => {
     const sqlite = novoSqlite();
     await migrarSeNecessario(criarAdaptador(sqlite));
-    sqlite.exec('DROP TABLE preferencias_notificacao; PRAGMA user_version = 10;');
+    sqlite.exec("INSERT INTO preferencias_alertas_por_tipo (tipo, ativo) VALUES ('aproximacao', 0)");
+    sqlite.exec('DROP TABLE preferencias_notificacao; PRAGMA user_version = 11;');
 
     await migrarSeNecessario(criarAdaptador(sqlite));
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(11);
-    expect(temTabela(sqlite)).toBe(true);
+    expect(versao(sqlite)).toBe(12);
+    expect(temTabela(sqlite, 'preferencias_notificacao')).toBe(true);
+    expect(temTabela(sqlite, 'alertas')).toBe(true);
+    expect(sqlite.prepare('SELECT tipo, ativo FROM preferencias_alertas_por_tipo').all()).toEqual([
+      { tipo: 'aproximacao', ativo: 0 },
+    ]);
     expect(() =>
       sqlite.exec("INSERT INTO preferencias_notificacao VALUES ('u1', 'aproximacao', 1, '2026-11-26T00:00:00Z', 'local')"),
     ).toThrow(/CHECK/);

@@ -37,7 +37,7 @@ export function slugCategoriaPadrao(
 }
 
 /** Documento canônico da padrão; UUID local preservado para a própria. */
-export function docIdCategoriaRemota(categoria: Categoria): string {
+export function docIdCategoriaRemota(categoria: Pick<Categoria, 'id' | 'padrao' | 'nome_normalizado'>): string {
   const slug = slugCategoriaPadrao(categoria);
   return slug ? `${PREFIXO_DOC_PADRAO}${slug}` : categoria.id;
 }
