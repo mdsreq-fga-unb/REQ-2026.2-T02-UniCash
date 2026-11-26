@@ -461,3 +461,15 @@ Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.ts
 | 4.3 RNF20 – tamanhos de tela | | | | | |
 | 4.4 RNF07 – precisão | | | | | |
 | 4.5 Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |
+
+## UC14 — Configurar notificações (D25)
+
+| Requisito / fluxo | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| RF58, passos 1 e 2, D25 (estado inicial desligado) | `src/app/perfil.tsx`, `src/components/perfil/SecaoNotificacoes.tsx`, `src/features/notificacoes/padroes.ts` | `tests/screens/Perfil.test.tsx` (US1), `tests/features/notificacoes/preferencias.test.ts` | 1, 10 |
+| Passos 3 e 5 (grava antes de confirmar), FA01 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/preferencias.ts` | `tests/screens/Perfil.test.tsx` ("grava antes de ligar o interruptor") | 2, 3 |
+| Passo 4, FA06, FA07 (permissão do aparelho) | `src/features/notificacoes/permissao.ts` | `tests/features/notificacoes/permissao.test.ts`, `tests/screens/Perfil.test.tsx` (US2) | 4 a 7 |
+| FA05, RN06 (pendente de sincronização com conta) | `src/features/notificacoes/preferencias.ts`, `src/db/migrations.ts` (`migrar011`) | `tests/features/notificacoes/preferencias.test.ts`, `tests/db/migrations.test.ts` | 8 |
+| RNF03 (isolamento por dono), EX05 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
+| EX01, EX02 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/mensagens.ts` | `tests/screens/Perfil.test.tsx` (US3) | — |
+| Contrato `isEnabled('limite' \| 'conquistas')` para UC05 e UC13 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
