@@ -6,13 +6,13 @@ import {
   EntradaCategoriaInvalida,
 } from '@/features/categorias/validation';
 
-describe('parsePercentualParaCentesimos (faixa provisória 0,01%–100%)', () => {
+describe('parsePercentualParaCentesimos (faixa de 1% a 100%)', () => {
   const casosValidos: Array<[string, number]> = [
     ['1', 100],
+    ['1,00', 100],
+    ['1,5', 150],
     ['12,5', 1250],
     ['12.5', 1250],
-    ['0,01', 1],
-    ['0.05', 5],
     ['50', 5_000],
     ['99,99', 9_999],
     ['100', 10_000],
@@ -29,6 +29,8 @@ describe('parsePercentualParaCentesimos (faixa provisória 0,01%–100%)', () =>
     ['', 'texto vazio'],
     ['0', 'zero'],
     ['0,00', 'zero com casas'],
+    ['0,01', 'abaixo do mínimo'],
+    ['0,99', 'abaixo do mínimo'],
     ['0,001', 'abaixo do mínimo (três casas)'],
     ['100,01', 'acima do máximo'],
     ['101', 'acima do máximo'],
@@ -96,6 +98,7 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
     [{ tipo: 'percentual_renda', valor: 0 }, 'percentual zero'],
     [{ tipo: 'percentual_renda', valor: -10 }, 'percentual negativo'],
     [{ tipo: 'percentual_renda', valor: 1.5 }, 'percentual não inteiro'],
+    [{ tipo: 'percentual_renda', valor: 99 }, 'percentual abaixo de 1%'],
     [{ tipo: 'percentual_renda', valor: 10_001 }, 'percentual acima de 100%'],
     [{ tipo: 'percentual_renda', valor: 200_000 }, 'percentual muito acima de 100%'],
     [{ tipo: 'percentual_renda', valor: 9_007_199_254_740_993 }, 'percentual acima de MAX_SAFE_INTEGER'],
@@ -111,7 +114,8 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
   });
 
   it.each([
-    [1, '0,01%'],
+    [100, '1%'],
+    [150, '1,5%'],
     [5_000, '50%'],
     [9_999, '99,99%'],
     [10_000, '100%'],
@@ -119,7 +123,10 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
     expect(() => validarDadosCategoria('X', { tipo: 'percentual_renda', valor })).not.toThrow();
   });
 
-  it('rejeita percentual fora da faixa provisória com a mensagem literal', () => {
+  it('rejeita percentual fora da faixa com a mensagem literal', () => {
+    expect(() =>
+      validarDadosCategoria('X', { tipo: 'percentual_renda', valor: 99 }),
+    ).toThrow(MSG_CAT.limitePercentualInvalido);
     expect(() =>
       validarDadosCategoria('X', { tipo: 'percentual_renda', valor: 10_001 }),
     ).toThrow(MSG_CAT.limitePercentualInvalido);
@@ -137,7 +144,7 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
     ).not.toThrow();
   });
 
-  describe('validarFormularioCategoria — faixa provisória 0,01%–100%', () => {
+  describe('validarFormularioCategoria — faixa de 1% a 100%', () => {
     const base = {
       nome: 'X',
       comLimite: true,
@@ -147,7 +154,8 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
     };
 
     it.each([
-      ['0,01', 1],
+      ['1', 100],
+      ['1,5', 150],
       ['50', 5_000],
       ['99,99', 9_999],
       ['100', 10_000],
@@ -158,7 +166,7 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
       expect(r.dados).toEqual({ nome: 'X', limite: { tipo: 'percentual_renda', valor: esperado } });
     });
 
-    it.each(['0', '0,001', '100,01', '101', '200000', '1,999', '1 2'])(
+    it.each(['0', '0,01', '0,99', '0,001', '100,01', '101', '200000', '1,999', '1 2'])(
       'rejeita "%s"',
       (texto) => {
         expect(validarFormularioCategoria({ ...base, limitePercentual: texto }).dados).toBeNull();
@@ -174,7 +182,7 @@ describe('validarDadosCategoria (domínio compartilhado formulário × serviço,
           .limitePercentual,
       ).toBe(MSG_CAT.limitePercentualInvalido);
       expect(MSG_CAT.limitePercentualInvalido).toBe(
-        'O percentual deve ser maior que 0% e até 100%.',
+        'O percentual deve ser de 1% a 100%.',
       );
     });
   });

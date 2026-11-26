@@ -16,6 +16,8 @@ Valores monetários usam centavos e limites percentuais usam centésimos de pont
 | RN06, RN07, RN13 e RN14 | `src/features/consumo/sqlite.ts` | `tests/service/consumo.test.ts` verifica recálculo com o esquema real, período e exclusões. |
 | RF39, FA06, EX01 e EX02 na lista de categorias | `src/app/categorias/index.tsx` | `tests/screens/ListaCategorias.test.tsx` verifica período, retorno de foco, descarte de resposta anterior, limite indisponível e nova tentativa. |
 | UC06 FA04 — categoria sem limite | `src/features/consumo/calculo.ts`, `src/app/categorias/index.tsx` | `tests/service/consumo.test.ts` e `tests/screens/IndicadoresConsumo.test.tsx` verificam o estado sem limite e a ausência de indicador. |
+| RF39 e FA06 no Resumo Financeiro | `src/app/index.tsx`, `src/features/consumo/useConsumoMensal.ts` | `tests/screens/Resumo.test.tsx` verifica a troca de período com dados SQLite. |
+| EX03 | `src/db/database.ts`, `src/features/consumo/sqlite.ts` | `tests/db/proprietario-uc10.test.ts` verifica que a conta B não consulta a base de A. |
 | FA06 | `src/features/consumo/consulta.ts` | `tests/screens/IndicadoresConsumo.test.tsx` verifica a virada de ano. |
 | RNF38, FA01 e EX02 | `src/components/consumo/IndicadoresConsumo.tsx` | `tests/screens/IndicadoresConsumo.test.tsx` verifica rótulos, erro e nova tentativa. |
 
@@ -24,6 +26,6 @@ O Jest exige 100% de instruções, ramos, funções e linhas nos módulos de con
 ## Avaliação do DoD
 
 - [x] Cálculo, consulta SQLite e indicadores integrados à lista de categorias com seleção mensal. Os testes exercitam alterações de despesa e limite, exclusões lógicas, mês sem receita e mudança de período.
-- [ ] Integrar o indicador no seletor do Resumo Financeiro após a entrada da tela na develop. Validar isolamento entre contas (EX03) quando o SQLite estiver vinculado à conta ativa. A consulta desta entrega usa o banco local existente e funciona sem consulta à nuvem.
+- [x] Indicador integrado ao seletor do Resumo Financeiro. A consulta usa o SQLite local selecionado por `getDb()`, com teste de isolamento entre contas (EX03).
 - [ ] Executar o CI em PR, obter revisão técnica e anexar evidências de tela e cobertura à issue. Publicar documentação e decisões no GitHub Pages.
 - [ ] Realizar UAT com a cliente, integrar à branch principal e validar o deploy em homologação.

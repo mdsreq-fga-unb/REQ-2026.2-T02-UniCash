@@ -9,37 +9,61 @@ import { centesimosParaTextoPercentual } from '@/features/categorias/formato';
 import { formatarBRL } from '@/features/receitas/money';
 import { MSG_CAT, mensagemConflitoSemeadura } from '@/features/categorias/validation';
 import { adicionarMeses, hojeISO, nomeMes } from '@/features/receitas/dates';
-import { consultarConsumoMensal } from '@/features/consumo/consulta';
-import { lerTotaisLocais } from '@/features/consumo/sqlite';
+import { useConsumoMensal } from '@/features/consumo/useConsumoMensal';
 import { IndicadorCategoria, IndicadoresConsumo, type EstadoConsumo } from '@/components/consumo/IndicadoresConsumo';
 import type { Categoria } from '@/features/categorias/types';
 
-/** Limite do item (RF65/RF66): texto discreto, sem contagem de lançamentos (UC02 futura). */
+/** Texto do limite (RF65/RF66). */
 function textoLimite(c: Categoria): string {
   if (!c.limite_tipo) return 'Sem limite de gastos';
   if (c.limite_tipo === 'valor') return `Limite: ${formatarBRL(c.limite_centavos ?? 0)}`;
   return `Limite: ${centesimosParaTextoPercentual(c.limite_percentual_centesimos ?? 0)} da renda`;
 }
 
-function CategoriaItem({ categoria, onPress, indicador }: {
+/** Contagem de lançamentos ativos vinculados à categoria (RF65). */
+function textoLancamentos(c: Categoria): string {
+  const total = c.total_lancamentos ?? 0;
+  if (total === 0) return 'Nenhum lançamento';
+  return `${total} ${total === 1 ? 'lançamento' : 'lançamentos'}`;
+}
+
+function CategoriaItem({
+  categoria,
+  onEditar,
+  onVerDespesas,
+  indicador,
+}: {
   categoria: Categoria;
-  onPress: () => void;
+  onEditar: () => void;
+  onVerDespesas: () => void;
   indicador?: Extract<EstadoConsumo, { tipo: 'pronto' }>['itens'][number];
 }) {
+  const nome = categoria.nome;
   return (
-    <Pressable
-      onPress={onPress}
-      style={estilos.item}
-      accessibilityRole="button"
-      accessibilityLabel={`Categoria ${categoria.nome}`}
-    >
-      <View style={estilos.itemLinha}>
-        <Text style={estilos.itemNome}>{categoria.nome}</Text>
-        {categoria.padrao ? <Text style={estilos.etiqueta}>Padrão</Text> : null}
-      </View>
-      <Text style={estilos.itemLimite}>{textoLimite(categoria)}</Text>
-      {indicador && indicador.status !== 'sem_limite' ? <IndicadorCategoria item={indicador} /> : null}
-    </Pressable>
+    <View style={estilos.item}>
+      <Pressable
+        onPress={onEditar}
+        accessibilityRole="button"
+        accessibilityLabel={`Categoria ${nome}`}
+      >
+        <View style={estilos.itemLinha}>
+          <Text style={estilos.itemNome}>{nome}</Text>
+          {categoria.padrao ? <Text style={estilos.etiqueta}>Padrão</Text> : null}
+        </View>
+        <Text style={estilos.itemLimite}>{textoLimite(categoria)}</Text>
+        {indicador && indicador.status !== 'sem_limite' ? <IndicadorCategoria item={indicador} /> : null}
+      </Pressable>
+
+      <Pressable
+        onPress={onVerDespesas}
+        style={estilos.atalho}
+        accessibilityRole="button"
+        accessibilityLabel={`Ver despesas da categoria ${nome}`}
+      >
+        <Text style={estilos.atalhoContagem}>{textoLancamentos(categoria)}</Text>
+        <Text style={estilos.atalhoTexto}>Ver despesas ›</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -48,25 +72,14 @@ export default function ListaCategorias() {
   const { itens, carregando, erroLeitura, erroSemeadura, conflitosSemeadura, recarregar } = useCategorias();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
-  const [periodo, setPeriodo] = useState(() => ({ mes: hojeISO().slice(0, 7) }));
-  const [consumo, setConsumo] = useState<EstadoConsumo>({ tipo: 'carregando' });
-  const [ano, mes] = periodo.mes.split('-').map(Number);
-
-  useFocusEffect(useCallback(() => {
-    if (carregando || erroLeitura) return;
-    let ativo = true;
-    setConsumo({ tipo: 'carregando' });
-    consultarConsumoMensal(periodo.mes, lerTotaisLocais).then(
-      (itens) => { if (ativo) setConsumo({ tipo: 'pronto', itens }); },
-      () => { if (ativo) setConsumo({ tipo: 'erro' }); },
-    );
-    return () => { ativo = false; };
-  }, [periodo, carregando, erroLeitura]));
+  const [periodo, setPeriodo] = useState(() => hojeISO().slice(0, 7));
+  const { estado: consumo, tentarNovamente } = useConsumoMensal(periodo, !carregando && !erroLeitura);
+  const [ano, mes] = periodo.split('-').map(Number);
 
   const indicadores = new Map(consumo.tipo === 'pronto' ? consumo.itens.map((item) => [item.categoriaId, item]) : []);
 
   function mudarMes(direcao: number) {
-    setPeriodo(({ mes }) => ({ mes: adicionarMeses(`${mes}-01`, direcao).slice(0, 7) }));
+    setPeriodo((mes) => adicionarMeses(`${mes}-01`, direcao).slice(0, 7));
   }
 
   // Ao voltar de outra tela: mensagem pendente (uma única vez) e recarrega (EX05).
@@ -91,7 +104,12 @@ export default function ListaCategorias() {
           <CategoriaItem
             categoria={item}
             indicador={indicadores.get(item.id)}
-            onPress={() => router.push({ pathname: '/categorias/[id]/editar', params: { id: item.id } })}
+            onEditar={() =>
+              router.push({ pathname: '/categorias/[id]/editar', params: { id: item.id } })
+            }
+            onVerDespesas={() =>
+              router.push({ pathname: '/despesas', params: { categoriaId: item.id } })
+            }
           />
         )}
         ListHeaderComponent={
@@ -108,7 +126,7 @@ export default function ListaCategorias() {
                 </Pressable>
               </View>
               {!erroLeitura && !carregando && consumo.tipo !== 'pronto' ? (
-                <IndicadoresConsumo estado={consumo} aoTentarNovamente={() => setPeriodo(({ mes }) => ({ mes }))} />
+                <IndicadoresConsumo estado={consumo} aoTentarNovamente={tentarNovamente} />
               ) : null}
             </View>
             {feedback ? (
@@ -149,7 +167,7 @@ export default function ListaCategorias() {
         }
         ListFooterComponent={
           itens.length > 0 ? (
-            <Text style={estilos.dica}>Toque em uma categoria para consultar, editar o limite ou excluir.</Text>
+            <Text style={estilos.dica}>Toque em uma categoria para editar ou em “Ver despesas” para consultar os lançamentos.</Text>
           ) : undefined
         }
         ListEmptyComponent={
@@ -226,6 +244,17 @@ const estilos = StyleSheet.create({
     paddingVertical: 2,
   },
   itemLimite: { fontSize: 13, color: cores.textoSuave, marginTop: 4 },
+  atalho: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: cores.borda,
+    marginTop: 10,
+    paddingTop: 10,
+  },
+  atalhoContagem: { fontSize: 12, color: cores.textoSuave },
+  atalhoTexto: { fontSize: 12, fontWeight: '700', color: cores.primaria },
   dica: { fontSize: 12, color: cores.textoSuave, textAlign: 'center', marginTop: 16 },
   vazio: { alignItems: 'center', paddingVertical: 40 },
   vazioTitulo: { fontSize: 16, fontWeight: '700', color: cores.marinho },

@@ -1,18 +1,37 @@
+import type { ItemFila } from '@/features/sincronizacao/fila';
+import type { SQLiteBindParams } from 'expo-sqlite';
+import { serializarImportacao } from '@/features/conta/operacoes-locais';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   collection,
-  deleteDoc,
   deleteField,
   doc,
-  getDoc,
   getDocs,
+  getDocsFromServer,
   runTransaction,
-  setDoc,
 } from 'firebase/firestore';
+import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { auth, db as firestore } from '@/lib/firebase';
-import { getDb } from '@/db/database';
+import { registrarTransicoes, type AlertaSaldo } from '@/features/saldo/alertas';
+import { getDbDoDono } from '@/db/database';
 import type { Receita } from './types';
 import { resolverCategoriaRemota } from '@/features/despesas/categorias';
+import {
+  normalizarCategoriasRemotas,
+  restaurarCategoriasDaNuvem,
+  sincronizarCategoriasPendentes,
+} from '@/features/categorias/sync';
+import {
+  nomeNormalizadoCategoriaPadraoPorSlug,
+  slugCategoriaPadrao,
+} from '@/features/categorias/padroes';
+import {
+  listarPendentes,
+  registrarPendente,
+  removerPendente,
+} from '@/db/restauracaoPendente';
 import type { Categoria } from '@/features/categorias/types';
+import { enviarSaldoInicial, lerSaldoInicialRemoto, restaurarSaldoInicial } from '@/features/saldoInicial/sync';
 import type { Despesa } from '@/features/despesas/types';
 
 type RecorrenciaSync = {
@@ -34,7 +53,12 @@ type RecorrenciaSync = {
   excluido_em: string | null;
 };
 
-let emAndamento = false;
+/** Existe quando o envio automático está pausado (FA01). */
+const ENVIO_PAUSADO = 'unicash:envio_automatico_pausado';
+// Protege o envio nesta execução caso a persistência da pausa falhe.
+const pausasNaoPersistidas = new Set<string>();
+
+let envioAtual: Promise<boolean> | null = null;
 let acessoNegado = false;
 
 /** Falha ao restaurar os dados da nuvem; a base local não é alterada (transação revertida). */
@@ -58,21 +82,93 @@ export function consumirAcessoNegado(): boolean {
 }
 
 /**
+ * FA01: pausa (ligado = false) ou libera (ligado = true) o envio automático. Com o envio pausado,
+ * os registros continuam pendentes no aparelho e só sobem quando a pessoa pedir (envio manual).
+ * O estado fica no aparelho, então vale também depois de reiniciar o app.
+ */
+export async function definirEnvioAutomatico(ligado: boolean, uid = auth.currentUser?.uid): Promise<void> {
+  if (!uid) throw new Error('Conta ausente');
+  const chave = `${ENVIO_PAUSADO}:${uid}`;
+  if (!ligado) pausasNaoPersistidas.add(uid);
+  if (ligado) await AsyncStorage.removeItem(chave);
+  else await AsyncStorage.setItem(chave, '1');
+  pausasNaoPersistidas.delete(uid);
+}
+
+export async function envioPausado(uid: string): Promise<boolean> {
+  return pausasNaoPersistidas.has(uid) ||
+    (await AsyncStorage.getItem(`${ENVIO_PAUSADO}:${uid}`)) === '1';
+}
+
+export interface OpcoesSincronizacao {
+  /** true quando a pessoa pediu o envio. Libera o envio automático se estava pausado (FA01). */
+  manual?: boolean;
+  /** O UC16 aguarda o envio em curso antes de iniciar um ciclo próprio. */
+  aguardar?: boolean;
+  aoFalhar?: (erro: unknown, item?: Pick<ItemFila, 'tipo' | 'id' | 'revisao'>) => void;
+}
+
+/**
  * Sincroniza receitas, despesas e recorrências pendentes com o Firestore.
  * Sem conta ou conexão, mantém os registros pendentes para nova tentativa.
  * Retorna true quando algum registro local é atualizado pela nuvem.
  */
-export async function sincronizarPendentes(): Promise<boolean> {
+export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Promise<boolean> {
   const user = auth.currentUser;
+  if (!user?.emailVerified) return false;
+  while (envioAtual) {
+    if (!opcoes.aguardar && !opcoes.manual) return false;
+    await envioAtual.catch(() => {});
+  }
+  if (auth.currentUser?.uid !== user.uid
+    || !auth.currentUser.emailVerified) return false;
+  const envio = enviarPendencias(user.uid, opcoes);
+  envioAtual = envio;
+  try {
+    return await envio;
+  } finally {
+    if (envioAtual === envio) envioAtual = null;
+  }
+}
 
-  if (!user || emAndamento) return false;
-
-  emAndamento = true;
+async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promise<boolean> {
+  function registrarAcessoNegado(erro: unknown, item?: Pick<ItemFila, 'tipo' | 'id' | 'revisao'>) {
+    acessoNegado = true;
+    if (item) opcoes.aoFalhar?.(erro, item);
+    else opcoes.aoFalhar?.(erro);
+  }
   let mudouLocal = false;
 
   try {
-    const sqlite = await getDb();
-    const uid = user.uid;
+    // FA01: com o envio automático pausado, só segue se a pessoa pediu a sincronização.
+    if (await envioPausado(uid)) {
+      if (!opcoes.manual) return false;
+      await definirEnvioAutomatico(true, uid); // a pessoa pediu: daqui em diante os registros sincronizam
+    }
+
+    const sqlite = await getDbDoDono(uid);
+
+    if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) return false;
+
+    try {
+      if (await enviarSaldoInicial(sqlite, uid)) mudouLocal = true;
+    } catch (e) {
+      if (!negadoPelaNuvem(e)) throw e;
+      acessoNegado = true;
+    }
+
+    async function aplicarLancamentoRemoto(sql: string, valores: SQLiteBindParams) {
+      await sqlite.withExclusiveTransactionAsync(async (tx) => {
+        const resultado = await registrarTransicoes(tx, () => tx.runAsync(sql, valores));
+        mudouLocal ||= resultado.changes > 0;
+      });
+    }
+
+    // Categorias primeiro: séries/despesas dependem do catálogo reconciliado.
+    const categoriasSync = await sincronizarCategoriasPendentes(sqlite, uid, (erro, categoria) => {
+      registrarAcessoNegado(erro, { tipo: 'Categoria', id: categoria.id, revisao: categoria.atualizado_em });
+    });
+    if (categoriasSync.mudouLocal) mudouLocal = true;
 
     // Catálogo carregado no máximo uma vez por sincronização e compartilhado
     // entre uploads e conflitos. Falha de leitura não vira catálogo vazio.
@@ -91,20 +187,15 @@ export async function sincronizarPendentes(): Promise<boolean> {
     };
 
     const resolverCategoriaUpload = async (
-      categoriaId: string | null,
+      categoriaId: string,
     ): Promise<{ valida: boolean; id: string | null }> => {
-      if (categoriaId == null) return { valida: true, id: null };
-
-      const resolvida = resolverCategoriaRemota(
-        categoriaId,
-        await obterCategoriasLocais(),
-      );
+      const catalogo = await obterCategoriasLocais();
+      const resolvida = resolverCategoriaRemota(categoriaId, catalogo);
 
       if (resolvida.tipo === 'valida') {
-        return { valida: true, id: resolvida.id };
-      }
-      if (resolvida.tipo === 'sem_categoria') {
-        return { valida: true, id: null };
+        const local = catalogo.find((c) => c.id === resolvida.id)!;
+        // Padrão viaja com slug estável; própria preserva o UUID.
+        return { valida: true, id: slugCategoriaPadrao(local) ?? local.id };
       }
       return { valida: false, id: null };
     };
@@ -130,23 +221,20 @@ export async function sincronizarPendentes(): Promise<boolean> {
     );
 
     for (const s of series) {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) throw new Error('conta alterada durante a sincronização');
       try {
         let categoriaSerie: string | null = null;
 
-        if (
-          s.excluido_em == null &&
-          s.tipo === 'despesa' &&
-          s.categoria_id != null
-        ) {
+        if (s.tipo === 'despesa' && s.categoria_id != null) {
           const categoriaUpload = await resolverCategoriaUpload(
             s.categoria_id,
           );
-          if (!categoriaUpload.valida) {
+          if (s.excluido_em == null && !categoriaUpload.valida) {
             // Categoria inválida: não executa setDoc nem marca como sincronizada.
             seriesNaoConfirmadas.add(s.id);
             continue;
           }
-          categoriaSerie = categoriaUpload.id;
+          if (categoriaUpload.valida) categoriaSerie = categoriaUpload.id;
         }
 
         const payload: Record<string, unknown> = {
@@ -185,8 +273,8 @@ export async function sincronizarPendentes(): Promise<boolean> {
         if (s.termino) payloadTombstone.termino = s.termino;
         if (s.descricao) payloadTombstone.descricao = s.descricao;
         if (s.tipo === 'despesa') {
-          if (s.categoria_id != null) {
-            payloadTombstone.categoria_id = s.categoria_id;
+          if (categoriaSerie != null) {
+            payloadTombstone.categoria_id = categoriaSerie;
           }
           if (s.fixa_ou_variavel != null) {
             payloadTombstone.fixa_ou_variavel = s.fixa_ou_variavel;
@@ -197,6 +285,9 @@ export async function sincronizarPendentes(): Promise<boolean> {
         const ref = doc(firestore, 'usuarios', uid, 'recorrencias', s.id);
 
         const resultado = await runTransaction(firestore, async (tx) => {
+          if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) {
+            throw new Error('conta alterada durante a sincronização');
+          }
           const remoto = await tx.get(ref);
 
           if (!remoto.exists()) {
@@ -219,9 +310,35 @@ export async function sincronizarPendentes(): Promise<boolean> {
             return { tipo: 'enviado' as const };
           }
 
+          if (typeof dados.atualizado_em === 'string' && dados.atualizado_em > s.atualizado_em) {
+            return { tipo: 'remoto_ativo' as const, dados };
+          }
           tx.set(ref, payload);
           return { tipo: 'enviado' as const };
         });
+
+        if (resultado.tipo === 'remoto_ativo') {
+          const d = resultado.dados;
+          const categoria = d.categoria_id == null
+            ? null
+            : resolverCategoriaRemota(d.categoria_id, await obterCategoriasLocais());
+          if (categoria && categoria.tipo !== 'valida') {
+            seriesNaoConfirmadas.add(s.id);
+            continue;
+          }
+          await aplicarLancamentoRemoto(
+            `UPDATE recorrencias
+                SET intervalo = ?, unidade = ?, inicio = ?, termino = ?, ativa = ?,
+                    valor_centavos = ?, titulo = ?, descricao = ?, categoria_id = ?,
+                    fixa_ou_variavel = ?, essencial = ?, atualizado_em = ?, sync_status = 'sincronizado'
+              WHERE id = ? AND atualizado_em = ? AND excluido_em IS NULL`,
+            [d.intervalo, d.unidade, d.inicio, d.termino ?? null, d.ativa === false ? 0 : 1,
+              d.valor_centavos, d.titulo, d.descricao ?? null, categoria?.id ?? null,
+              d.fixa_ou_variavel ?? null, d.essencial == null ? null : Number(d.essencial),
+              d.atualizado_em, s.id, s.atualizado_em],
+          );
+          continue;
+        }
 
         if (resultado.tipo === 'remoto_tombstone') {
           const ts =
@@ -253,7 +370,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
         // Um registro rejeitado não bloqueia os demais; ele segue pendente.
         if (!negadoPelaNuvem(e)) throw e;
         seriesNaoConfirmadas.add(s.id);
-        acessoNegado = true;
+        registrarAcessoNegado(e, { tipo: 'Recorrência', id: s.id, revisao: s.atualizado_em });
       }
     }
 
@@ -271,6 +388,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
     );
 
     for (const r of receitas) {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) throw new Error('conta alterada durante a sincronização');
       try {
         const ref = doc(firestore, 'usuarios', uid, 'receitas', r.id);
 
@@ -282,53 +400,6 @@ export async function sincronizarPendentes(): Promise<boolean> {
           continue;
         }
 
-        if (r.excluido_em) {
-          await deleteDoc(ref);
-
-          if (r.recorrencia_id) {
-            await sqlite.runAsync(
-              "UPDATE receitas SET sync_status = 'sincronizado' WHERE id = ?",
-              [r.id],
-            );
-          } else {
-            await sqlite.runAsync(
-              'DELETE FROM receitas WHERE id = ? AND excluido_em IS NOT NULL',
-              [r.id],
-            );
-          }
-
-          continue;
-        }
-
-        const remoto = await getDoc(ref);
-
-        if (remoto.exists()) {
-          const d = remoto.data();
-
-          if (
-            typeof d.atualizado_em === 'string' &&
-            d.atualizado_em > r.atualizado_em
-          ) {
-            await sqlite.runAsync(
-              `UPDATE receitas
-               SET valor_centavos = ?, data = ?, titulo = ?, descricao = ?,
-                   sync_status = 'sincronizado', atualizado_em = ?
-               WHERE id = ?`,
-              [
-                d.valor_centavos,
-                d.data,
-                d.titulo,
-                d.descricao ?? null,
-                d.atualizado_em,
-                r.id,
-              ],
-            );
-
-            mudouLocal = true;
-            continue;
-          }
-        }
-
         const payload: Record<string, unknown> = {
           valor_centavos: r.valor_centavos,
           data: r.data,
@@ -336,21 +407,53 @@ export async function sincronizarPendentes(): Promise<boolean> {
           criado_em: r.criado_em,
           atualizado_em: r.atualizado_em,
         };
-
         if (r.descricao) payload.descricao = r.descricao;
         if (r.recorrencia_id) payload.recorrencia_id = r.recorrencia_id;
 
-        await setDoc(ref, payload);
+        const remoto = await runTransaction(firestore, async (tx) => {
+          if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) {
+            throw new Error('conta alterada durante a sincronização');
+          }
+          const snap = await tx.get(ref);
+          const dados = snap.exists() ? snap.data() : undefined;
 
-        await sqlite.runAsync(
-          `UPDATE receitas
-           SET sync_status = 'sincronizado'
-           WHERE id = ? AND atualizado_em = ?`,
-          [r.id, r.atualizado_em],
-        );
+          if (typeof dados?.excluido_em === 'string') return dados;
+          if (r.excluido_em) {
+            tx.set(ref, { excluido_em: r.excluido_em, atualizado_em: r.atualizado_em });
+          } else if (typeof dados?.atualizado_em === 'string' && dados.atualizado_em > r.atualizado_em) {
+            return dados;
+          } else if (!dados || Object.keys(dados).length !== Object.keys(payload).length
+            || Object.entries(payload).some(([campo, valor]) => dados[campo] !== valor)) {
+            tx.set(ref, payload);
+          }
+          return null;
+        });
+
+        if (typeof remoto?.excluido_em === 'string') {
+          await aplicarLancamentoRemoto(
+            `UPDATE receitas SET excluido_em = ?, atualizado_em = ?, sync_status = 'sincronizado'
+              WHERE id = ? AND atualizado_em = ? AND excluido_em IS ?`,
+            [remoto.excluido_em, remoto.atualizado_em, r.id, r.atualizado_em, r.excluido_em],
+          );
+        } else if (remoto) {
+          await aplicarLancamentoRemoto(
+            `UPDATE receitas SET valor_centavos = ?, data = ?, titulo = ?, descricao = ?,
+                   atualizado_em = ?, sync_status = 'sincronizado'
+              WHERE id = ? AND atualizado_em = ? AND excluido_em IS NULL`,
+            [remoto.valor_centavos, remoto.data, remoto.titulo, remoto.descricao ?? null,
+              remoto.atualizado_em, r.id, r.atualizado_em],
+          );
+        } else {
+          const resultado = await sqlite.runAsync(
+            `UPDATE receitas SET sync_status = 'sincronizado'
+              WHERE id = ? AND atualizado_em = ? AND excluido_em IS ?`,
+            [r.id, r.atualizado_em, r.excluido_em],
+          );
+          mudouLocal ||= r.excluido_em != null && resultado.changes > 0;
+        }
       } catch (e) {
         if (!negadoPelaNuvem(e)) throw e;
-        acessoNegado = true;
+        registrarAcessoNegado(e, { tipo: 'Receita', id: r.id, revisao: r.atualizado_em });
       }
     }
 
@@ -389,7 +492,7 @@ export async function sincronizarPendentes(): Promise<boolean> {
       dados: Record<string, any>,
       categoriaConflito: string | null,
     ) => {
-      await sqlite.runAsync(
+      await aplicarLancamentoRemoto(
         `UPDATE despesas
          SET valor_centavos = ?, data = ?, titulo = ?, descricao = ?,
              categoria_id = ?, fixa_ou_variavel = ?, essencial = ?,
@@ -411,14 +514,13 @@ export async function sincronizarPendentes(): Promise<boolean> {
         ],
       );
 
-      mudouLocal = true;
     };
 
     const aplicarLapideRemota = async (
       d: Despesa,
       dados: Record<string, any>,
     ) => {
-      const resultado = await sqlite.runAsync(
+      await aplicarLancamentoRemoto(
         `UPDATE despesas
          SET excluido_em = ?, atualizado_em = ?,
              sync_status = 'sincronizado'
@@ -430,10 +532,10 @@ export async function sincronizarPendentes(): Promise<boolean> {
         ],
       );
 
-      mudouLocal ||= resultado.changes > 0;
     };
 
     for (const d of despesas) {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) throw new Error('conta alterada durante a sincronização');
       try {
         const ref = doc(firestore, 'usuarios', uid, 'despesas', d.id);
 
@@ -480,6 +582,9 @@ export async function sincronizarPendentes(): Promise<boolean> {
         };
 
         const resultado = await runTransaction(firestore, async (tx) => {
+          if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) {
+            throw new Error('conta alterada durante a sincronização');
+          }
           const remoto = await tx.get(ref);
 
           if (!remoto.exists()) {
@@ -555,37 +660,58 @@ export async function sincronizarPendentes(): Promise<boolean> {
         );
       } catch (e) {
         if (!negadoPelaNuvem(e)) throw e;
-        acessoNegado = true;
+        registrarAcessoNegado(e, { tipo: 'Despesa', id: d.id, revisao: d.atualizado_em });
+      }
+    }
+
+    const alertas = await sqlite.getAllAsync<AlertaSaldo>(
+      "SELECT * FROM alertas_emitidos WHERE sync_status = 'pendente'",
+    );
+    for (const { id, mes, anterior_centavos, saldo_centavos, criado_em } of alertas) {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) return mudouLocal;
+      try {
+        const ref = doc(firestore, 'usuarios', uid, 'alertas_emitidos', id);
+        await runTransaction(firestore, async (tx) => {
+          if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) {
+            throw new Error('conta alterada durante a sincronização');
+          }
+          if (!(await tx.get(ref)).exists()) {
+            tx.set(ref, { mes, anterior_centavos, saldo_centavos, criado_em });
+          }
+        });
+        await sqlite.runAsync("UPDATE alertas_emitidos SET sync_status = 'sincronizado' WHERE id = ?", [id]);
+      } catch (e) {
+        if (!negadoPelaNuvem(e)) throw e;
+        registrarAcessoNegado(e, { tipo: 'Alerta de saldo', id, revisao: criado_em });
       }
     }
   } catch (e) {
     // Falha de catálogo é explícita; os demais erros mantêm o comportamento atual.
     if (e instanceof FalhaLeituraCatalogoSincronizacao) throw e;
     // UC01 EX04 / UC02 EX03: falhas de rede interrompem a fila e mantêm as pendências.
-    if (negadoPelaNuvem(e)) acessoNegado = true;
-  } finally {
-    emAndamento = false;
+    if (negadoPelaNuvem(e)) registrarAcessoNegado(e);
+    else opcoes.aoFalhar?.(e);
   }
 
   return mudouLocal;
 }
 
 
-export function sincronizarEmSegundoPlano() {
-  void sincronizarPendentes().catch((erro) => {
+export function sincronizarEmSegundoPlano(reenviarSeOcupado = false) {
+  void sincronizarPendentes({ aguardar: reenviarSeOcupado }).then((mudou) => {
+    if (mudou) avisarBaseAtualizada();
+  }).catch((erro) => {
     if (erro instanceof FalhaLeituraCatalogoSincronizacao) {
       // Mantém as pendências para a próxima tentativa; não altera dados locais.
       console.warn(
         'Sincronização em segundo plano: falha ao ler o catálogo local. As pendências foram preservadas para a próxima tentativa.',
-        erro,
       );
       return;
     }
 
-    // Erro inesperado: registra com o objeto original para preservar o stack.
+    // Não registra detalhes do SDK nem dados dos lançamentos.
     console.error(
       'Sincronização em segundo plano: falha inesperada. As pendências foram preservadas para a próxima tentativa.',
-      erro,
     );
   });
 }
@@ -605,86 +731,128 @@ export interface ResultadoRestauracao {
  * Idempotente e transacional. Preserva linhas locais, salvo quando um marcador remoto
  * registra a exclusão da despesa (RN07).
  */
-export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
+async function aguardarAuthResolvida(): Promise<void> {
+  const autenticacao = auth as unknown as { authStateReady?: () => Promise<void> };
+  if (typeof autenticacao.authStateReady === 'function') {
+    try {
+      await autenticacao.authStateReady();
+    } catch {
+      // Sem sessão restaurável: currentUser decide o fluxo.
+    }
+  }
+}
+
+/**
+ * Restaura da nuvem (usuarios/{uid}/...) para a base local, ao entrar numa conta.
+ *
+ * Ordem: categorias -> séries -> receitas -> despesas. Documentos cuja categoria
+ * ainda não pôde ser resolvida vão para `restauracao_pendente` com o payload
+ * original; nunca são gravados como "Sem categoria" por falta de vínculo.
+ * Categorias próprias diferentes com o mesmo nome não são fundidas.
+ */
+export async function restaurarDaNuvem(
+  opcoes: { servidor?: boolean; uidEsperado?: string } = {},
+): Promise<ResultadoRestauracao> {
+  await aguardarAuthResolvida();
   const user = auth.currentUser;
-  if (!user) throw new FalhaRestauracao('sem conta');
+  if (!user?.emailVerified || (opcoes.uidEsperado && user.uid !== opcoes.uidEsperado)) {
+    throw new FalhaRestauracao('sem conta confirmada');
+  }
+  const uid = user.uid;
+  return serializarImportacao(uid, () => restaurarParaUid(uid, opcoes.servidor === true));
+}
+
+async function restaurarParaUid(uid: string, servidor: boolean): Promise<ResultadoRestauracao> {
+  if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) throw new FalhaRestauracao('conta alterada');
   try {
-    const [snapSeries, snapReceitas, snapDespesas] = await Promise.all([
-      getDocs(collection(firestore, 'usuarios', user.uid, 'recorrencias')),
-      getDocs(collection(firestore, 'usuarios', user.uid, 'receitas')),
-      getDocs(collection(firestore, 'usuarios', user.uid, 'despesas')),
+    const ler = servidor ? getDocsFromServer : getDocs;
+    const [snapSeries, snapReceitas, snapDespesas, snapCategorias, snapAlertas, saldoRemoto] = await Promise.all([
+      ler(collection(firestore, 'usuarios', uid, 'recorrencias')),
+      ler(collection(firestore, 'usuarios', uid, 'receitas')),
+      ler(collection(firestore, 'usuarios', uid, 'despesas')),
+      ler(collection(firestore, 'usuarios', uid, 'categorias')),
+      servidor ? ler(collection(firestore, 'usuarios', uid, 'alertas_emitidos')) : null,
+      lerSaldoInicialRemoto(uid),
     ]);
-    const sqlite = await getDb();
+    const sqlite = await getDbDoDono(uid);
     const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0 };
 
     await sqlite.withExclusiveTransactionAsync(async (tx) => {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) {
+        throw new FalhaRestauracao('conta alterada durante a restauração');
+      }
+
+      await restaurarSaldoInicial(tx, saldoRemoto);
+      const mapaCategorias = await restaurarCategoriasDaNuvem(tx, snapCategorias.docs);
+      const categoriasLocais = await tx.getAllAsync<Categoria>(
+        `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local
+           FROM categorias c
+           LEFT JOIN categorias_estado e ON e.categoria_id = c.id`,
+      );
       const conhecidas = new Set(
         (await tx.getAllAsync<{ id: string }>('SELECT id FROM recorrencias')).map((r) => r.id),
       );
 
-      // Catálogo local lido uma única vez por restauração. Inclui tombstones;
-      // o resolvedor os trata como referência inválida.
-      const categoriasLocais = await tx.getAllAsync<Categoria>(
-        'SELECT * FROM categorias',
-      );
+      type CategoriaResolvida =
+        | { status: 'ok'; id: string | null }
+        | { status: 'pendente' };
 
-      // Proteção apenas contra ausência de categorias ativas. IDs de outros
-      // dispositivos que não existam localmente continuam virando NULL: a
-      // sincronização de categorias cross-device ainda não existe.
-      const temCategoriaAtiva = categoriasLocais.some(
-        (c) => c.excluido_em === null,
-      );
-
-      if (!temCategoriaAtiva) {
-        // Espelha exatamente as condições de elegibilidade dos laços abaixo:
-        // - séries já conhecidas ou com campos inválidos são ignoradas;
-        // - séries só contam quando o tipo é 'despesa', inclusive inativas;
-        // - lápides de despesas usam o caminho especial e não consomem categoria;
-        // - despesas com valor <= 0, data/título inválidos são ignoradas.
-        const serieComCategoria = snapSeries.docs.some((d) => {
-          if (conhecidas.has(d.id)) return false;
-          const x = d.data();
-          if (typeof x.excluido_em === 'string') return false;
-          if (
-            typeof x.intervalo !== 'number' ||
-            typeof x.unidade !== 'string' ||
-            typeof x.inicio !== 'string'
-          ) {
-            return false;
-          }
-          if (
-            typeof x.valor_centavos !== 'number' ||
-            typeof x.titulo !== 'string'
-          ) {
-            return false;
-          }
-          return x.tipo === 'despesa' && x.categoria_id != null;
-        });
-
-        const despesaComCategoria = snapDespesas.docs.some((d) => {
-          const x = d.data();
-          if (typeof x.excluido_em === 'string') return false;
-          if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) {
-            return false;
-          }
-          if (typeof x.data !== 'string' || typeof x.titulo !== 'string') {
-            return false;
-          }
-          return x.categoria_id != null;
-        });
-
-        if (serieComCategoria || despesaComCategoria) {
-          throw new FalhaRestauracao(MENSAGEM_RESTAURACAO_SEM_CATALOGO);
+      const resolverCategoria = (valor: unknown): CategoriaResolvida => {
+        if (valor == null) return { status: 'ok', id: null };
+        if (typeof valor !== 'string') return { status: 'pendente' };
+        if (mapaCategorias.has(valor)) {
+          return { status: 'ok', id: mapaCategorias.get(valor) ?? null };
         }
-      }
-
-      const idCategoriaRemota = (valor: unknown): string | null => {
-        const resultado = resolverCategoriaRemota(valor, categoriasLocais);
-        return resultado.tipo === 'valida' ? resultado.id : null;
+        const local = categoriasLocais.find((c) => c.id === valor);
+        if (local) return { status: 'ok', id: local.excluido_em ? null : local.id };
+        const nomePadrao = nomeNormalizadoCategoriaPadraoPorSlug(valor);
+        if (nomePadrao) {
+          const localPadrao = categoriasLocais.find(
+            (c) => c.padrao === 1 && c.nome_normalizado === nomePadrao,
+          );
+          if (localPadrao) {
+            return { status: 'ok', id: localPadrao.excluido_em ? null : localPadrao.id };
+          }
+        }
+        const resolvida = resolverCategoriaRemota(valor, categoriasLocais);
+        if (resolvida.tipo === 'valida') return { status: 'ok', id: resolvida.id };
+        return { status: 'pendente' };
       };
 
-      // Exclusão remota da série também exclui logicamente as ocorrências locais:
-      // preserva valores/histórico e deixa as lápides pendentes para o próximo envio.
+      const categoriaIdTexto = (valor: unknown): string | null =>
+        typeof valor === 'string' ? valor : null;
+
+      const timestampRemoto = (x: any, fallback = new Date().toISOString()) =>
+        typeof x.atualizado_em === 'string' ? x.atualizado_em : fallback;
+
+      const registrarDespesaPendente = async (
+        id: string,
+        x: any,
+      ) => {
+        await registrarPendente(tx, {
+          tipo: 'despesa',
+          id,
+          categoriaId: categoriaIdTexto(x.categoria_id),
+          motivo: 'categoria_nao_resolvida',
+          payload: x,
+          atualizadoEm: timestampRemoto(x),
+        });
+      };
+
+      const registrarSeriePendente = async (
+        id: string,
+        x: any,
+      ) => {
+        await registrarPendente(tx, {
+          tipo: 'recorrencia',
+          id,
+          categoriaId: categoriaIdTexto(x.categoria_id),
+          motivo: 'categoria_nao_resolvida',
+          payload: x,
+          atualizadoEm: timestampRemoto(x),
+        });
+      };
+
       const marcarOcorrenciasLocaisDaSerie = async (
         tipo: 'receita' | 'despesa',
         serieId: string,
@@ -700,80 +868,74 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
         );
       };
 
-      for (const d of snapSeries.docs) {
-        const x = d.data();
+      const aplicarSerie = async (
+        id: string,
+        x: any,
+        categoria: string | null,
+      ): Promise<void> => {
         const tombstones = typeof x.excluido_em === 'string';
 
-        if (conhecidas.has(d.id)) {
+        if (conhecidas.has(id)) {
           if (tombstones) {
-            const ts =
-              typeof x.atualizado_em === 'string'
-                ? x.atualizado_em
-                : x.excluido_em;
+            const ts = timestampRemoto(x, x.excluido_em as string);
             await tx.runAsync(
               `UPDATE recorrencias
                   SET excluido_em = ?, ativa = 0,
                       sync_status = 'sincronizado', atualizado_em = ?
-                WHERE id = ?`,
-              [x.excluido_em, ts, d.id],
+                WHERE id = ? AND (excluido_em IS NOT ? OR sync_status = 'pendente')`,
+              [x.excluido_em, ts, id, x.excluido_em],
             );
             await marcarOcorrenciasLocaisDaSerie(
               x.tipo === 'despesa' ? 'despesa' : 'receita',
-              d.id,
-              x.excluido_em,
+              id,
+              x.excluido_em as string,
               ts,
             );
           }
-          continue;
+          if (tombstones || !servidor) return;
         }
 
-        if (typeof x.intervalo !== 'number' || typeof x.unidade !== 'string' || typeof x.inicio !== 'string') continue;
-        if (typeof x.valor_centavos !== 'number' || typeof x.titulo !== 'string') continue;
-        // Preserva o tipo: sem ele, uma série de despesa viraria série de receita (DEFAULT 'receita').
+        if (typeof x.intervalo !== 'number' || typeof x.unidade !== 'string' || typeof x.inicio !== 'string') return;
+        if (typeof x.valor_centavos !== 'number' || typeof x.titulo !== 'string') return;
+
         const tipo = x.tipo === 'despesa' ? 'despesa' : 'receita';
         const classificacao = tipo === 'despesa';
-        await tx.runAsync(
-          `INSERT OR IGNORE INTO recorrencias
+        const r = await tx.runAsync(
+          `INSERT INTO recorrencias
             (id, tipo, intervalo, unidade, inicio, termino, ativa, valor_centavos, titulo, descricao,
              categoria_id, fixa_ou_variavel, essencial, sync_status, atualizado_em, excluido_em)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             intervalo = excluded.intervalo, unidade = excluded.unidade, inicio = excluded.inicio,
+             termino = excluded.termino, ativa = excluded.ativa, valor_centavos = excluded.valor_centavos,
+             titulo = excluded.titulo, descricao = excluded.descricao, categoria_id = excluded.categoria_id,
+             fixa_ou_variavel = excluded.fixa_ou_variavel, essencial = excluded.essencial,
+             atualizado_em = excluded.atualizado_em, sync_status = 'sincronizado'
+           WHERE recorrencias.tipo = excluded.tipo AND recorrencias.excluido_em IS NULL
+             AND excluded.atualizado_em > recorrencias.atualizado_em`,
           [
-            d.id, tipo, x.intervalo, x.unidade, x.inicio, x.termino ?? null,
+            id, tipo, x.intervalo, x.unidade, x.inicio, x.termino ?? null,
             tombstones ? 0 : x.ativa === false ? 0 : 1,
             x.valor_centavos, x.titulo, x.descricao ?? null,
-            classificacao ? idCategoriaRemota(x.categoria_id) : null,
+            tombstones || !classificacao ? null : categoria,
             classificacao && (x.fixa_ou_variavel === 'fixa' || x.fixa_ou_variavel === 'variavel') ? x.fixa_ou_variavel : null,
             classificacao && typeof x.essencial === 'number' && (x.essencial === 0 || x.essencial === 1) ? x.essencial
               : classificacao && typeof x.essencial === 'boolean' ? (x.essencial ? 1 : 0) : null,
-            x.atualizado_em ?? new Date().toISOString(),
+            timestampRemoto(x),
             tombstones ? x.excluido_em : null,
           ],
         );
-        conhecidas.add(d.id);
-        resultado.recorrencias++;
-      }
+        conhecidas.add(id);
+        resultado.recorrencias += r.changes;
+      };
 
-      for (const d of snapReceitas.docs) {
-        const x = d.data();
-        if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) continue;
-        if (typeof x.data !== 'string' || typeof x.titulo !== 'string') continue;
-        const ts = typeof x.atualizado_em === 'string' ? x.atualizado_em : new Date().toISOString();
-        const serie = typeof x.recorrencia_id === 'string' && conhecidas.has(x.recorrencia_id) ? x.recorrencia_id : null;
-        const r = await tx.runAsync(
-          `INSERT OR IGNORE INTO receitas
-            (id, valor_centavos, data, titulo, descricao, recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
-           VALUES (?, ?, ?, ?, ?, ?, 'sincronizado', NULL, ?, ?)`,
-          [d.id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, serie, x.criado_em ?? ts, ts],
-        );
-        if (r.changes > 0) resultado.receitas++;
-      }
-
-      // Despesas: INSERT OR IGNORE preserva lápides e edições locais (despesa excluída não reaparece).
-      // Categoria indisponível no catálogo local → NULL (EX08).
-      for (const d of snapDespesas.docs) {
-        const x = d.data();
+      const aplicarDespesa = async (
+        id: string,
+        x: any,
+        categoria: string | null,
+      ): Promise<void> => {
         if (typeof x.excluido_em === 'string') {
-          const ts = typeof x.atualizado_em === 'string' ? x.atualizado_em : x.excluido_em;
+          const ts = timestampRemoto(x, x.excluido_em);
           await tx.runAsync(
             `INSERT INTO despesas
               (id, valor_centavos, data, titulo, sync_status, excluido_em, criado_em, atualizado_em)
@@ -782,31 +944,176 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
                excluido_em = excluded.excluido_em,
                atualizado_em = excluded.atualizado_em,
                sync_status = 'sincronizado'`,
-            [d.id, x.excluido_em, ts],
+            [id, x.excluido_em, ts],
           );
+          await removerPendente(tx, 'despesa', id);
+          return;
+        }
+
+        if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) return;
+        if (typeof x.data !== 'string' || typeof x.titulo !== 'string') return;
+        const ts = timestampRemoto(x);
+        const serie = typeof x.recorrencia_id === 'string' && conhecidas.has(x.recorrencia_id)
+          ? x.recorrencia_id
+          : null;
+        const fixa = x.fixa_ou_variavel === 'fixa' || x.fixa_ou_variavel === 'variavel' ? x.fixa_ou_variavel : null;
+        const essencial = typeof x.essencial === 'boolean' ? (x.essencial ? 1 : 0) : x.essencial === 0 || x.essencial === 1 ? x.essencial : null;
+        const r = await tx.runAsync(
+          `INSERT INTO despesas
+            (id, valor_centavos, data, titulo, descricao, categoria_id, fixa_ou_variavel, essencial,
+             recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', NULL, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             valor_centavos = excluded.valor_centavos, data = excluded.data, titulo = excluded.titulo,
+             descricao = excluded.descricao, categoria_id = excluded.categoria_id,
+             fixa_ou_variavel = excluded.fixa_ou_variavel, essencial = excluded.essencial,
+             recorrencia_id = excluded.recorrencia_id, atualizado_em = excluded.atualizado_em,
+             sync_status = 'sincronizado'
+           WHERE ? AND despesas.excluido_em IS NULL AND excluded.atualizado_em > despesas.atualizado_em`,
+          [id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, categoria, fixa, essencial, serie, x.criado_em ?? ts, ts, Number(servidor)],
+        );
+        if (r.changes > 0) resultado.despesas++;
+        await removerPendente(tx, 'despesa', id);
+      };
+
+      const idsNoSnapshot = new Set([
+        ...snapSeries.docs.map((d) => `recorrencia:${d.id}`),
+        ...snapDespesas.docs.map((d) => `despesa:${d.id}`),
+      ]);
+
+      // Retoma registros que ficaram aguardando categoria, quando o vínculo já
+      // existe. Registros presentes no snapshot são tratados pelo fluxo normal.
+      const pendentes = await listarPendentes(tx, ['recorrencia', 'despesa']);
+      for (const pendente of pendentes) {
+        if (idsNoSnapshot.has(`${pendente.tipo}:${pendente.id}`)) continue;
+        let dados: any;
+        try {
+          dados = JSON.parse(pendente.payload) as any;
+        } catch {
+          continue;
+        }
+
+        if (pendente.tipo === 'recorrencia') {
+          const cat = resolverCategoria(dados.categoria_id);
+          if (cat.status === 'pendente') continue;
+          await aplicarSerie(pendente.id, dados, cat.id);
+          if (conhecidas.has(pendente.id)) {
+            await removerPendente(tx, 'recorrencia', pendente.id);
+          }
+        } else {
+          const cat = resolverCategoria(dados.categoria_id);
+          if (cat.status === 'pendente') continue;
+          await aplicarDespesa(pendente.id, dados, cat.id);
+        }
+      }
+
+      for (const d of snapSeries.docs) {
+        const x = d.data() as any;
+        const tombstones = typeof x.excluido_em === 'string';
+
+        if (!servidor && conhecidas.has(d.id)) {
+          if (tombstones) await aplicarSerie(d.id, x, null);
+          continue;
+        }
+
+        if (typeof x.intervalo !== 'number' || typeof x.unidade !== 'string' || typeof x.inicio !== 'string') continue;
+        if (typeof x.valor_centavos !== 'number' || typeof x.titulo !== 'string') continue;
+
+        const classificacao = x.tipo === 'despesa';
+        if (!tombstones && classificacao && x.categoria_id != null) {
+          const cat = resolverCategoria(x.categoria_id);
+          if (cat.status === 'pendente') {
+            await registrarSeriePendente(d.id, x);
+            continue;
+          }
+          await aplicarSerie(d.id, x, cat.id);
+        } else {
+          await aplicarSerie(d.id, x, null);
+        }
+      }
+
+      for (const d of snapReceitas.docs) {
+        const x = d.data() as any;
+        if (typeof x.excluido_em === 'string') {
+          const r = await tx.runAsync(
+            `INSERT INTO receitas
+              (id, valor_centavos, data, titulo, sync_status, excluido_em, criado_em, atualizado_em)
+             VALUES (?, 1, '', '', 'sincronizado', ?, '', ?)
+             ON CONFLICT(id) DO UPDATE SET
+               excluido_em = excluded.excluido_em, atualizado_em = excluded.atualizado_em,
+               sync_status = 'sincronizado'
+             WHERE receitas.excluido_em IS NOT excluded.excluido_em
+                OR receitas.sync_status = 'pendente'`,
+            [d.id, x.excluido_em, timestampRemoto(x, x.excluido_em)],
+          );
+          resultado.receitas += r.changes;
+          continue;
+        }
+        if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) continue;
+        if (typeof x.data !== 'string' || typeof x.titulo !== 'string') continue;
+        const ts = timestampRemoto(x);
+        const serie = typeof x.recorrencia_id === 'string' && conhecidas.has(x.recorrencia_id) ? x.recorrencia_id : null;
+        const r = await tx.runAsync(
+          `INSERT INTO receitas
+            (id, valor_centavos, data, titulo, descricao, recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
+           VALUES (?, ?, ?, ?, ?, ?, 'sincronizado', NULL, ?, ?)
+           ON CONFLICT(id) DO UPDATE SET
+             valor_centavos = excluded.valor_centavos, data = excluded.data, titulo = excluded.titulo,
+             descricao = excluded.descricao, recorrencia_id = excluded.recorrencia_id,
+             atualizado_em = excluded.atualizado_em, sync_status = 'sincronizado'
+           WHERE ? AND receitas.excluido_em IS NULL AND excluded.atualizado_em > receitas.atualizado_em`,
+          [d.id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, serie, x.criado_em ?? ts, ts, Number(servidor)],
+        );
+        if (r.changes > 0) resultado.receitas++;
+      }
+
+      for (const d of snapDespesas.docs) {
+        const x = d.data() as any;
+
+        if (typeof x.excluido_em === 'string') {
+          await aplicarDespesa(d.id, x, null);
           continue;
         }
 
         if (typeof x.valor_centavos !== 'number' || x.valor_centavos <= 0) continue;
         if (typeof x.data !== 'string' || typeof x.titulo !== 'string') continue;
-        const ts = typeof x.atualizado_em === 'string' ? x.atualizado_em : new Date().toISOString();
-        const serie = typeof x.recorrencia_id === 'string' && conhecidas.has(x.recorrencia_id) ? x.recorrencia_id : null;
-        const categoria = idCategoriaRemota(x.categoria_id);
-        const fixa = x.fixa_ou_variavel === 'fixa' || x.fixa_ou_variavel === 'variavel' ? x.fixa_ou_variavel : null;
-        const essencial = typeof x.essencial === 'boolean' ? (x.essencial ? 1 : 0) : x.essencial === 0 || x.essencial === 1 ? x.essencial : null;
-        const r = await tx.runAsync(
-          `INSERT OR IGNORE INTO despesas
-            (id, valor_centavos, data, titulo, descricao, categoria_id, fixa_ou_variavel, essencial,
-             recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', NULL, ?, ?)`,
-          [d.id, x.valor_centavos, x.data, x.titulo, x.descricao ?? null, categoria, fixa, essencial, serie, x.criado_em ?? ts, ts],
+
+        const cat = resolverCategoria(x.categoria_id);
+        if (cat.status === 'pendente') {
+          await registrarDespesaPendente(d.id, x);
+          continue;
+        }
+        await aplicarDespesa(d.id, x, cat.id);
+      }
+      for (const d of snapAlertas?.docs ?? []) {
+        const x = d.data();
+        if (typeof x.mes !== 'string' || typeof x.criado_em !== 'string'
+          || !Number.isSafeInteger(x.anterior_centavos) || !Number.isSafeInteger(x.saldo_centavos)) continue;
+        await tx.runAsync(
+          `INSERT INTO alertas_emitidos
+            (id, mes, anterior_centavos, saldo_centavos, criado_em, sync_status, transicao)
+           SELECT ?, ?, ?, ?, ?, 'sincronizado', COALESCE(MAX(transicao), 0) + 1
+           FROM alertas_emitidos WHERE mes = ?
+           ON CONFLICT(id) DO NOTHING`,
+          [d.id, x.mes, x.anterior_centavos, x.saldo_centavos, x.criado_em, x.mes],
         );
-        if (r.changes > 0) resultado.despesas++;
+      }
+
+      if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) {
+        throw new FalhaRestauracao('conta alterada durante a restauração');
       }
     });
+
+    // A restauração local pode ter deixado documentos remotos fora do fluxo
+    // (conflito de nome, tombstone ou categoria sem uso). A varredura seguinte
+    // alcança toda a coleção e é idempotente; não altera dados financeiros.
+    const normalizacao = await normalizarCategoriasRemotas(uid, snapCategorias.docs);
+    if (normalizacao.acessoNegado) acessoNegado = true;
+
     return resultado;
   } catch (e) {
+    if (e instanceof FalhaRestauracao) throw e;
     if (negadoPelaNuvem(e)) acessoNegado = true;
-    throw new FalhaRestauracao(String(e));
+    throw new FalhaRestauracao('falha na restauração', { cause: e });
   }
 }

@@ -6,6 +6,7 @@ import type { Categoria } from '@/features/categorias/types';
 import { formatarBR, hojeISO } from '@/features/receitas/dates';
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 import type { FormValoresDespesa } from '@/features/despesas/types';
+import { MSG_DESPESA } from '@/features/despesas/validation';
 
 jest.mock('@/features/categorias/useCategoriasAtivas', () => ({
   useCategoriasAtivas: jest.fn(),
@@ -117,6 +118,16 @@ describe('Formulário de despesa', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockCategorias.mockReturnValue(retornoCategorias());
+  });
+
+  it('mascara o valor como moeda ao digitar um zero à direita', async () => {
+    await montar();
+
+    await digitar('Valor', '100,00');
+    expect(screen.getByLabelText('Valor').props.value).toBe('100,00');
+
+    await digitar('Valor', '100,000');
+    expect(screen.getByLabelText('Valor').props.value).toBe('1.000,00');
   });
 
   it('mostra os campos principais do formulário', async () => {
@@ -438,8 +449,73 @@ describe('Formulário de despesa', () => {
     await salvar();
 
     expect(screen.getByLabelText('Título').props.value).toBe('Aluguel');
-    expect(screen.getByLabelText('Valor').props.value).toBe('0');
+    expect(screen.getByLabelText('Valor').props.value).toBe('0,00');
     expect(onSalvar).not.toHaveBeenCalled();
+  });
+
+  it('preserva o sinal na digitação progressiva e não salva', async () => {
+    const { onSalvar } = await montar();
+
+    await preencherValido();
+
+    await digitar('Valor', '-');
+    expect(screen.getByLabelText('Valor').props.value).toBe('-');
+
+    await digitar('Valor', '-1');
+    expect(screen.getByLabelText('Valor').props.value).toBe('-0,01');
+
+    await digitar('Valor', '-1,00');
+    expect(screen.getByLabelText('Valor').props.value).toBe('-1,00');
+
+    await salvar();
+
+    expect(onSalvar).not.toHaveBeenCalled();
+    expect(screen.getByText(MSG_DESPESA.valorInvalido)).toBeTruthy();
+  });
+
+  it('rejeita valor negativo digitado e não salva', async () => {
+    const { onSalvar } = await montar();
+
+    await preencherValido();
+    await digitar('Valor', '-150,00');
+
+    expect(screen.getByLabelText('Valor').props.value).toBe('-150,00');
+
+    await salvar();
+
+    expect(onSalvar).not.toHaveBeenCalled();
+    expect(screen.getByText(MSG_DESPESA.valorInvalido)).toBeTruthy();
+  });
+
+  it('rejeita valor negativo colado com símbolo de moeda', async () => {
+    const { onSalvar } = await montar();
+
+    await preencherValido();
+    await digitar('Valor', 'R$ -150,00');
+
+    expect(screen.getByLabelText('Valor').props.value).toBe('-150,00');
+
+    await salvar();
+
+    expect(onSalvar).not.toHaveBeenCalled();
+    expect(screen.getByText(MSG_DESPESA.valorInvalido)).toBeTruthy();
+  });
+
+  it('rejeita valor negativo ao editar uma despesa', async () => {
+    const { onSalvar } = await montar({
+      inicial: FORM_BASE,
+      titulo: 'Editar despesa',
+    });
+
+    await digitar('Valor', '-150,00');
+
+    expect(screen.getByLabelText('Valor').props.value).toBe('-150,00');
+
+    await salvar();
+
+    expect(onSalvar).not.toHaveBeenCalled();
+    expect(screen.getByText(MSG_DESPESA.valorInvalido)).toBeTruthy();
+    expect(screen.getByText('Editar despesa')).toBeTruthy();
   });
 
   it('exibe erro geral de gravação', async () => {
@@ -596,4 +672,23 @@ it('preenche a data do dia em que o formulário é aberto', async () => {
   } finally {
     restaurarTempo();
   }
+});
+
+describe('Seletor Despesa/Receita', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCategorias.mockReturnValue(retornoCategorias());
+  });
+
+  it('no cadastro novo, tocar em "Receita" chama a troca de tipo', async () => {
+    const onTrocarTipo = jest.fn();
+    await montar({ onTrocarTipo });
+    await fireEvent.press(screen.getByRole('button', { name: 'Receita' }));
+    expect(onTrocarTipo).toHaveBeenCalledTimes(1);
+  });
+
+  it('na edição (sem troca de tipo), "Receita" fica desabilitado', async () => {
+    await montar();
+    expect(screen.getByRole('button', { name: 'Receita' })).toBeDisabled();
+  });
 });

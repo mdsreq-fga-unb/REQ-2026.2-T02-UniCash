@@ -3,11 +3,19 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Stack } from 'expo-router';
 
 import { getDb } from '@/db/database';
+import { iniciarConta } from '@/features/conta';
+import { resetarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { completarRecorrencias } from '@/features/receitas/service';
 import { completarRecorrenciasDespesas } from '@/features/despesas/service';
-import { sincronizarPendentes } from '@/features/receitas/sync';
+import { restaurarDaNuvem, sincronizarEmSegundoPlano, sincronizarPendentes } from '@/features/receitas/sync';
+import { observarConexaoSaldoInicial } from '@/features/saldoInicial/sync';
+import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
+import { iniciarSincronizacaoAutomatica } from '@/features/sincronizacao/service';
 import { cores, raio } from '@/lib/theme';
+
+iniciarConta();
+resetarContinuidadeSemConta();
 
 type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
 
@@ -16,6 +24,8 @@ type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
  * semeadura/mapeamento de categorias terminarem.
  */
 const TELAS_COM_BANCO = [
+  'configuracoes-financeiras',
+  'saldo-inicial',
   'categorias/index',
   'categorias/nova',
   'categorias/[id]/editar',
@@ -23,6 +33,7 @@ const TELAS_COM_BANCO = [
   'despesas/nova',
   'despesas/[id]/index',
   'despesas/[id]/editar',
+  'sincronizacao',
   'receitas/index',
   'receitas/nova',
   'receitas/[id]/index',
@@ -57,7 +68,10 @@ export default function RootLayout() {
 
         if (montado.current) {
           setEstado('pronto');
-          void rotinasPosInicializacao();
+          // A Home fica montada atrás da camada durante a preparação; ao liberar o guard e
+          // depois das rotinas (recorrências, restauração, sincronização), ela recalcula.
+          avisarBaseAtualizada();
+          void rotinasPosInicializacao().then(avisarBaseAtualizada);
         }
       } catch (erro) {
         console.warn('Falha na preparação inicial do banco local.', erro);
@@ -71,6 +85,16 @@ export default function RootLayout() {
   useEffect(() => {
     preparar();
   }, [preparar]);
+
+  useEffect(() => {
+    if (estado !== 'pronto') return;
+    const pararSincronizacao = iniciarSincronizacaoAutomatica();
+    const pararObservacaoSaldo = observarConexaoSaldoInicial(() => sincronizarEmSegundoPlano(true));
+    return () => {
+      pararObservacaoSaldo();
+      pararSincronizacao();
+    };
+  }, [estado]);
 
   return (
     <View style={estilos.raiz}>
@@ -122,6 +146,13 @@ async function rotinasPosInicializacao() {
     await completarRecorrenciasDespesas();
   } catch (erro) {
     console.warn('Falha ao completar as recorrências de despesas.', erro);
+  }
+
+  try {
+    await restaurarDaNuvem();
+  } catch (erro) {
+    // Sem conta, sem rede ou restauração adiada: o app segue offline-first.
+    console.warn('Falha ao restaurar os dados da nuvem.', erro);
   }
 
   try {

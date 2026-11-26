@@ -1,6 +1,6 @@
 
 /** Esquema da base local (RN06). Compartilhado pelo app e pelos testes. */
-import { PERCENTUAL_MAX_CENTESIMOS } from '@/features/categorias/limites';
+import { PERCENTUAL_MAX_CENTESIMOS, PERCENTUAL_MIN_CENTESIMOS } from '@/features/categorias/limites';
 
 /**
  * PRAGMAs de conexão/banco. Executar FORA de transação: journal_mode não pode
@@ -14,7 +14,7 @@ export const PRAGMAS_SQL = `
 
 /**
  * Limite técnico seguro para percentuais em centésimos (Number.MAX_SAFE_INTEGER).
- * Não é um limite de negócio: a faixa provisória de 0,01% a 100% é aplicada
+ * Não é um limite de negócio: a faixa definitiva de 1% a 100% é aplicada
  * separadamente por triggers aditivos (DDL_TRIGGER_PERCENTUAL).
  */
 export const LIMITE_PERCENTUAL_MAX = 9007199254740991;
@@ -22,11 +22,11 @@ export const LIMITE_PERCENTUAL_MAX = 9007199254740991;
 /**
  * DDL da tabela de categorias, parametrizado para reuso na migração 001
  * (reconstrução segura de bancos legados — ver migrations.ts).
- * A faixa de negócio (0,01% a 100%, provisória) NÃO é fixada por CHECK nesta
- * tabela: os triggers de DDL_TRIGGER_PERCENTUAL a aplicam sem bloquear a
- * abertura de bancos legados que ainda tenham percentuais acima de 100%.
- * Aqui exige-se apenas valor inteiro, positivo e seguro para o JavaScript
- * (até Number.MAX_SAFE_INTEGER).
+ * A faixa de negócio (1% a 100%) NÃO é fixada por CHECK nesta tabela: os
+ * triggers de DDL_TRIGGER_PERCENTUAL a aplicam sem bloquear a abertura de
+ * bancos legados que ainda tenham percentuais fora da faixa. Aqui exige-se
+ * apenas valor inteiro, positivo e seguro para o JavaScript (até
+ * Number.MAX_SAFE_INTEGER).
  */
 export const DDL_TABELA_CATEGORIAS = (tabela: string) => `
     CREATE TABLE IF NOT EXISTS ${tabela} (
@@ -196,10 +196,66 @@ const DDL_ESQUEMA_BASE = (recorrencias: string) => `
 /** Forma histórica v4, preservada para as migrations 001–004. */
 export const DDL_ESQUEMA = DDL_ESQUEMA_BASE(RECORRENCIAS_V4);
 
-/** Forma atual v5, usada por instalações novas e pela migration 005. */
+/** Forma v5, preservada para migrations e testes históricos. */
 export const DDL_ESQUEMA_V5 = DDL_ESQUEMA_BASE(DDL_RECORRENCIAS_V5);
 
-/** Triggers de faixa percentual (provisória 0,01%–100%). */
+/**
+ * Estado local explícito da categoria (v6).
+ * - `semeadura`: padrão recém-criada, nunca editada nem reconciliada com a nuvem.
+ * - `editado`: alteração local ainda não confirmada pela nuvem.
+ * - `sincronizado`: o conteúdo local corresponde ao último estado remoto confirmado.
+ *
+ * Fica em tabela própria para não alterar a tabela `categorias` já existente e
+ * para permitir migração aditiva, sem reconstrução nem perda de referências.
+ */
+export const DDL_TABELA_CATEGORIA_ESTADO = `
+    CREATE TABLE IF NOT EXISTS categorias_estado (
+      categoria_id TEXT PRIMARY KEY NOT NULL,
+      estado_local TEXT NOT NULL DEFAULT 'editado'
+        CONSTRAINT estado_local_valido
+        CHECK (estado_local IN ('semeadura', 'editado', 'sincronizado'))
+    );
+  `;
+
+/**
+ * Fila durável de restauração adiada. Registros remotos cuja categoria ainda
+ * não pôde ser resolvida ficam aqui, com o payload original, até que o vínculo
+ * seja resolvido. Nunca são gravados como "Sem categoria" por falta de vínculo.
+ */
+export const DDL_TABELA_RESTAURACAO_PENDENTE = `
+    CREATE TABLE IF NOT EXISTS restauracao_pendente (
+      tipo TEXT NOT NULL
+        CONSTRAINT tipo_pendente_valido
+        CHECK (tipo IN ('categoria', 'despesa', 'recorrencia')),
+      id TEXT NOT NULL,
+      categoria_id TEXT,
+      motivo TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      atualizado_em TEXT NOT NULL,
+      registrado_em TEXT NOT NULL,
+      PRIMARY KEY (tipo, id)
+    );
+  `;
+
+export const DDL_INDICES_V6 = [
+  `CREATE INDEX IF NOT EXISTS idx_restauracao_pendente_categoria
+     ON restauracao_pendente(categoria_id);`,
+  `CREATE INDEX IF NOT EXISTS idx_restauracao_pendente_tipo
+     ON restauracao_pendente(tipo);`,
+] as const;
+
+/** Forma atual v6: acrescenta estado local e fila de restauração adiada. */
+export const DDL_ESQUEMA_V6 = `
+    ${DDL_ESQUEMA_V5}
+
+    ${DDL_TABELA_CATEGORIA_ESTADO}
+
+    ${DDL_TABELA_RESTAURACAO_PENDENTE}
+
+    ${DDL_INDICES_V6.join('\n    ')}
+  `;
+
+/** Triggers de faixa percentual (definitiva 1%–100%). */
 export const TRIGGERS_PERCENTUAL = [
   'trg_categorias_percentual_insert',
   'trg_categorias_percentual_update',
@@ -210,7 +266,10 @@ export const DDL_TRIGGER_PERCENTUAL = `
     BEFORE INSERT ON categorias
     WHEN NEW.limite_tipo = 'percentual_renda'
       AND typeof(NEW.limite_percentual_centesimos) = 'integer'
-      AND NEW.limite_percentual_centesimos > ${PERCENTUAL_MAX_CENTESIMOS}
+      AND (
+        NEW.limite_percentual_centesimos < ${PERCENTUAL_MIN_CENTESIMOS}
+        OR NEW.limite_percentual_centesimos > ${PERCENTUAL_MAX_CENTESIMOS}
+      )
     BEGIN
       SELECT RAISE(ABORT, 'limite_percentual_faixa');
     END;
@@ -219,17 +278,71 @@ export const DDL_TRIGGER_PERCENTUAL = `
     BEFORE UPDATE OF limite_tipo, limite_percentual_centesimos ON categorias
     WHEN NEW.limite_tipo = 'percentual_renda'
       AND typeof(NEW.limite_percentual_centesimos) = 'integer'
-      AND NEW.limite_percentual_centesimos > ${PERCENTUAL_MAX_CENTESIMOS}
+      AND (
+        NEW.limite_percentual_centesimos < ${PERCENTUAL_MIN_CENTESIMOS}
+        OR NEW.limite_percentual_centesimos > ${PERCENTUAL_MAX_CENTESIMOS}
+      )
     BEGIN
       SELECT RAISE(ABORT, 'limite_percentual_faixa');
     END;
   `;
 
+export const DDL_SALDO_INICIAL = `
+    CREATE TABLE IF NOT EXISTS saldo_inicial (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      valor_centavos INTEGER NOT NULL CHECK (
+        typeof(valor_centavos) = 'integer' AND valor_centavos BETWEEN -9007199254740991 AND 9007199254740991
+      ),
+      mes_referencia TEXT NOT NULL CHECK (
+        mes_referencia GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+        AND substr(mes_referencia, 1, 4) <> '0000'
+        AND substr(mes_referencia, 6, 2) BETWEEN '01' AND '12'
+      ),
+      sync_status TEXT NOT NULL DEFAULT 'pendente' CHECK (sync_status IN ('pendente', 'sincronizado')),
+      revisao INTEGER NOT NULL DEFAULT 0
+    );
+  `;
+
+export const DDL_SALDO_MENSAL = `
+    CREATE TABLE IF NOT EXISTS saldo_inicial (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      mes TEXT NOT NULL,
+      valor_centavos INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS alertas_emitidos (
+      id TEXT PRIMARY KEY NOT NULL,
+      mes TEXT NOT NULL,
+      anterior_centavos INTEGER NOT NULL,
+      saldo_centavos INTEGER NOT NULL,
+      criado_em TEXT NOT NULL,
+      lido INTEGER NOT NULL DEFAULT 0,
+      sync_status TEXT NOT NULL DEFAULT 'pendente'
+    );
+  `;
+
+/** Migração 008: numera transições por mês sem alterar os IDs já enviados ao Firestore. */
+export const DDL_NUMERAR_ALERTAS = `
+  ALTER TABLE alertas_emitidos ADD COLUMN transicao INTEGER NOT NULL DEFAULT 0;
+  WITH numerados AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY mes ORDER BY criado_em, rowid) AS numero
+    FROM alertas_emitidos
+  )
+  UPDATE alertas_emitidos SET transicao = (
+    SELECT numero FROM numerados WHERE numerados.id = alertas_emitidos.id
+  );
+  CREATE UNIQUE INDEX idx_alertas_mes_transicao ON alertas_emitidos(mes, transicao);
+`;
+
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
 
-    ${DDL_ESQUEMA_V5}
+    ${DDL_ESQUEMA_V6}
 
     ${DDL_TRIGGER_PERCENTUAL}
+
+    ${DDL_SALDO_INICIAL}
+    ${DDL_SALDO_MENSAL}
+
+    ${DDL_NUMERAR_ALERTAS}
   `;

@@ -8,6 +8,10 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == uid;
     }
 
+    function donoConfirmado(uid) {
+      return dono(uid) && request.auth.token.email_verified == true;
+    }
+
     function dataValida(data) {
       return data is string
         && data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -75,7 +79,7 @@ service cloud.firestore {
           || d.recorrencia_id is string);
     }
 
-    function marcadorDespesaValido(d) {
+    function marcadorLancamentoValido(d) {
       return d.keys().hasOnly(['excluido_em', 'atualizado_em'])
         && d.excluido_em is string && d.excluido_em.size() > 0
         && d.atualizado_em is string && d.atualizado_em.size() > 0;
@@ -128,27 +132,263 @@ service cloud.firestore {
         && d.ativa == false;
     }
 
-    match /usuarios/{uid}/receitas/{id} {
-      allow read, delete: if dono(uid);
-      allow create, update: if dono(uid)
-        && receitaValida(request.resource.data);
+    // ---- UC10: perfil da conta (usuarios/{uid}) ----
+    // A senha nunca chega ao Firestore (fica no Firebase Authentication, RNF01); a política de senha
+    // vale no cliente e na configuração do Authentication. Aqui só se valida o e-mail.
+    function emailValido(e) {
+      return e is string
+        && e.size() <= 254
+        && e.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
     }
 
-    match /usuarios/{uid}/despesas/{id} {
+    function emailDoToken() {
+      return request.auth.token.email != null ? request.auth.token.email.lower() : '';
+    }
+
+    function perfilValido(d) {
+      return d.keys().hasOnly(['email', 'nome', 'criado_em', 'atualizado_em'])
+        && d.keys().hasAll(['email', 'criado_em'])
+        && emailValido(d.email)
+        && d.email.lower() == emailDoToken()
+        && (!('nome' in d) || (d.nome is string && d.nome.size() <= 80));
+    }
+
+    match /usuarios/{uid} {
       allow read: if dono(uid);
       allow create: if dono(uid)
-        && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
+        && perfilValido(request.resource.data)
+        && request.resource.data.criado_em == request.time;
       allow update: if dono(uid)
-        && !('excluido_em' in resource.data)
-        && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
+        && perfilValido(request.resource.data)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['criado_em']);
+      allow delete: if dono(uid) && request.auth.token.email_verified == false;
+    }
+
+    function chavePadraoValida(chave) {
+      return chave in [
+        'casa', 'alimentacao', 'mobilidade', 'estudos',
+        'saude', 'lazer', 'reserva_financeira'
+      ];
+    }
+
+    function nomePadrao(chave) {
+      return chave == 'casa' ? 'Casa'
+        : chave == 'alimentacao' ? 'Alimentação'
+        : chave == 'mobilidade' ? 'Mobilidade'
+        : chave == 'estudos' ? 'Estudos'
+        : chave == 'saude' ? 'Saúde'
+        : chave == 'lazer' ? 'Lazer'
+        : chave == 'reserva_financeira' ? 'Reserva financeira'
+        : '';
+    }
+
+    function nomeNormalizadoPadrao(chave) {
+      return chave == 'casa' ? 'casa'
+        : chave == 'alimentacao' ? 'alimentação'
+        : chave == 'mobilidade' ? 'mobilidade'
+        : chave == 'estudos' ? 'estudos'
+        : chave == 'saude' ? 'saúde'
+        : chave == 'lazer' ? 'lazer'
+        : chave == 'reserva_financeira' ? 'reserva financeira'
+        : '';
+    }
+
+    function limiteCategoriaValido(d) {
+      return (d.limite_tipo == null
+          && d.limite_centavos == null
+          && d.limite_percentual_centesimos == null)
+        || (d.limite_tipo == 'valor'
+          && d.limite_centavos is int
+          && d.limite_centavos > 0
+          && d.limite_centavos <= 99999999999
+          && d.limite_percentual_centesimos == null)
+        || (d.limite_tipo == 'percentual_renda'
+          && d.limite_centavos == null
+          && d.limite_percentual_centesimos is int
+          && d.limite_percentual_centesimos >= 100
+          && d.limite_percentual_centesimos <= 10000);
+    }
+
+    function categoriaBaseValida(d) {
+      return d.keys().hasOnly([
+          'padrao', 'chave', 'nome', 'nome_normalizado',
+          'limite_tipo', 'limite_centavos', 'limite_percentual_centesimos',
+          'excluido_em', 'criado_em', 'atualizado_em', 'aliases'
+        ])
+        && d.keys().hasAll([
+          'padrao', 'chave', 'nome', 'nome_normalizado',
+          'limite_tipo', 'limite_centavos', 'limite_percentual_centesimos',
+          'excluido_em', 'criado_em', 'atualizado_em', 'aliases'
+        ])
+        && d.padrao is bool
+        && (d.chave == null || d.chave is string)
+        && d.nome is string
+        && d.nome.size() >= 1
+        && d.nome.size() <= 30
+        && d.nome_normalizado is string
+        && d.nome_normalizado.size() >= 1
+        && d.nome_normalizado.size() <= 30
+        && limiteCategoriaValido(d)
+        && (d.excluido_em == null
+          || (d.excluido_em is string && d.excluido_em.size() > 0))
+        && d.criado_em is string && d.criado_em.size() > 0
+        && d.atualizado_em is string && d.atualizado_em.size() > 0
+        && d.aliases is list
+        && d.aliases.size() <= 64;
+    }
+
+    function categoriaAtivaValida(d) {
+      return categoriaBaseValida(d) && d.excluido_em == null;
+    }
+
+    function categoriaPropriaAtivaValida(d, id) {
+      return categoriaAtivaValida(d)
+        && d.padrao == false
+        && d.chave == null
+        && d.aliases.size() == 0
+        && !id.matches('^padrao_.*');
+    }
+
+    function categoriaPropriaTombstoneValida(d, id) {
+      return categoriaBaseValida(d)
+        && d.padrao == false
+        && d.chave == null
+        && d.aliases.size() == 0
+        && !id.matches('^padrao_.*')
+        && d.excluido_em is string
+        && d.excluido_em.size() > 0
+        && d.limite_tipo == null
+        && d.limite_centavos == null
+        && d.limite_percentual_centesimos == null;
+    }
+
+    /**
+     * Normalização one-way de tombstone legado: permite apenas limpar os
+     * campos de limite. Identidade, aliases, excluido_em e timestamps devem
+     * permanecer exatamente iguais, impedindo ressurreição ou reescrita.
+     */
+    function categoriaPropriaTombstoneNormalizavel(novo, atual, id) {
+      return categoriaBaseValida(novo)
+        && novo.padrao == false
+        && novo.chave == null
+        && novo.aliases.size() == 0
+        && !id.matches('^padrao_.*')
+        && atual.excluido_em is string
+        && atual.excluido_em.size() > 0
+        && novo.excluido_em == atual.excluido_em
+        && novo.nome == atual.nome
+        && novo.nome_normalizado == atual.nome_normalizado
+        && novo.criado_em == atual.criado_em
+        && novo.atualizado_em == atual.atualizado_em
+        && novo.limite_tipo == null
+        && novo.limite_centavos == null
+        && novo.limite_percentual_centesimos == null;
+    }
+
+    function categoriaPadraoValida(d, id) {
+      return categoriaAtivaValida(d)
+        && d.padrao == true
+        && chavePadraoValida(d.chave)
+        && id == 'padrao_' + d.chave
+        && d.nome == nomePadrao(d.chave)
+        && d.nome_normalizado == nomeNormalizadoPadrao(d.chave);
+    }
+
+    match /usuarios/{uid}/categorias/{categoriaId} {
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
+        && (
+          categoriaPadraoValida(request.resource.data, categoriaId)
+          || categoriaPropriaAtivaValida(request.resource.data, categoriaId)
+          || categoriaPropriaTombstoneValida(request.resource.data, categoriaId)
+        );
+      allow update: if donoConfirmado(uid)
+        && resource.data.excluido_em == null
+        && (
+          (
+            resource.data.padrao == true
+            && categoriaPadraoValida(request.resource.data, categoriaId)
+            && request.resource.data.nome == resource.data.nome
+            && request.resource.data.nome_normalizado == resource.data.nome_normalizado
+            && request.resource.data.chave == resource.data.chave
+            && request.resource.data.padrao == true
+            && request.resource.data.criado_em == resource.data.criado_em
+            && request.resource.data.aliases.toSet().hasAll(resource.data.aliases.toSet())
+          )
+          || (
+            resource.data.padrao == false
+            && (
+              categoriaPropriaAtivaValida(request.resource.data, categoriaId)
+              || categoriaPropriaTombstoneValida(request.resource.data, categoriaId)
+            )
+            && request.resource.data.padrao == false
+            && request.resource.data.chave == null
+            && request.resource.data.aliases.size() == 0
+            && request.resource.data.criado_em == resource.data.criado_em
+          )
+        );
+      // Exceção restrita para normalizar tombstone legado (issue #71).
+      allow update: if donoConfirmado(uid)
+        && categoriaPropriaTombstoneNormalizavel(
+          request.resource.data,
+          resource.data,
+          categoriaId
+        );
       allow delete: if false;
     }
 
+    match /usuarios/{uid}/saldo_inicial/{id} {
+      allow get: if donoConfirmado(uid) && id == 'atual';
+      allow create, update: if donoConfirmado(uid) && id == 'atual'
+        && request.resource.data.keys().hasOnly(['valor_centavos', 'mes_referencia'])
+        && request.resource.data.valor_centavos is int
+        && request.resource.data.valor_centavos >= -9007199254740991
+        && request.resource.data.valor_centavos <= 9007199254740991
+        && request.resource.data.mes_referencia is string
+        && request.resource.data.mes_referencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && !request.resource.data.mes_referencia.matches('^0000-.*$');
+    }
+
+    match /usuarios/{uid}/receitas/{id} {
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
+        && (receitaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
+      allow update: if donoConfirmado(uid)
+        && !('excluido_em' in resource.data)
+        && (receitaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
+      allow delete: if false;
+    }
+
+    match /usuarios/{uid}/despesas/{id} {
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
+        && (despesaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
+      allow update: if donoConfirmado(uid)
+        && !('excluido_em' in resource.data)
+        && (despesaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
+      allow delete: if false;
+    }
+
+    match /usuarios/{uid}/alertas_emitidos/{id} {
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
+        && id.matches('^[0-9a-f]{32}$')
+        && request.resource.data.keys().hasOnly(['mes', 'anterior_centavos', 'saldo_centavos', 'criado_em'])
+        && request.resource.data.mes is string
+        && request.resource.data.mes.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && request.resource.data.anterior_centavos is int
+        && request.resource.data.anterior_centavos >= 0
+        && request.resource.data.saldo_centavos is int
+        && request.resource.data.saldo_centavos < 0
+        && request.resource.data.criado_em is string;
+      allow update: if donoConfirmado(uid) && request.resource.data == resource.data;
+    }
+
     match /usuarios/{uid}/recorrencias/{id} {
-      allow read: if dono(uid);
-      allow create: if dono(uid)
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
         && (recorrenciaAtivaValida(request.resource.data) || recorrenciaTombstoneValida(request.resource.data));
-      allow update: if dono(uid)
+      allow update: if donoConfirmado(uid)
         && !('excluido_em' in resource.data)
         && (recorrenciaAtivaValida(request.resource.data) || recorrenciaTombstoneValida(request.resource.data));
       allow delete: if false;

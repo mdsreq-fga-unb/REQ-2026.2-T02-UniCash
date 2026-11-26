@@ -1,5 +1,5 @@
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 
 import { cores, raio } from '@/lib/theme';
 import { FiltroDespesas } from '@/components/despesas/FiltroDespesas';
@@ -20,6 +20,7 @@ import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
 import { nomeCategoriaPorId } from '@/features/despesas/categorias';
 import { useDespesas } from '@/features/despesas/useDespesas';
 import { MSG_DESPESA } from '@/features/despesas/validation';
+import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import {
   consumirAcessoNegado,
@@ -31,6 +32,7 @@ import {
   type Feedback,
 } from '@/lib/feedback';
 import type { FiltroDespesa } from '@/features/despesas/types';
+import { lerMesDeParametros } from '@/features/receitas/dates';
 
 function filtroMesCorrente(): FiltroDespesa {
   const hoje = new Date();
@@ -43,9 +45,20 @@ function filtroMesCorrente(): FiltroDespesa {
 }
 
 export default function ListaDespesas() {
-  const [filtro, setFiltro] = useState<FiltroDespesa>(filtroMesCorrente);
-  const [categoria, setCategoria] = useState<string | null>(null);
+  const params = useLocalSearchParams<{ categoriaId?: string; ano?: string; mes?: string }>();
+  const categoriaParam =
+    typeof params.categoriaId === 'string' && params.categoriaId.length > 0
+      ? params.categoriaId
+      : null;
+
+  // Vindo do resumo (UC03), abre no mês que estava selecionado lá.
+  const [filtro, setFiltro] = useState<FiltroDespesa>(() => {
+    const doResumo = lerMesDeParametros(params.ano, params.mes);
+    return doResumo ? { modo: 'mes', ...doResumo } : filtroMesCorrente();
+  });
+  const [categoria, setCategoria] = useState<string | null>(categoriaParam);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const parametroAplicado = useRef<string | null>(categoriaParam);
 
   const {
     itens: categorias,
@@ -79,10 +92,21 @@ export default function ListaDespesas() {
     }
   }, []);
 
+  useEffect(() => ouvirBaseAtualizada(() => {
+    void recarregar();
+    void atualizarPendentes();
+  }), [recarregar, atualizarPendentes]);
+
   // Ao focar: mostra mensagem pendente, recarrega e tenta sincronizar (EX03).
   useFocusEffect(
     useCallback(() => {
       let ativo = true;
+
+      // Atalho do UC06: aplica a categoria recebida por parâmetro uma única vez.
+      if (categoriaParam && parametroAplicado.current !== categoriaParam) {
+        parametroAplicado.current = categoriaParam;
+        setCategoria(categoriaParam);
+      }
 
       setFeedback(consumirFeedback());
       void atualizarPendentes();
@@ -131,7 +155,7 @@ export default function ListaDespesas() {
       return () => {
         ativo = false;
       };
-    }, [recarregar, recarregarCategorias, atualizarPendentes]),
+    }, [categoriaParam, recarregar, recarregarCategorias, atualizarPendentes]),
   );
 
   return (

@@ -20,6 +20,7 @@ import {
   formatarBR,
   mascararData,
 } from '@/features/receitas/dates';
+import { mascararValor } from '@/features/receitas/money';
 import {
   validarFormularioDespesa,
   type ErrosFormDespesa,
@@ -57,6 +58,8 @@ interface Props {
   onSalvar: (dados: DespesaInput) => void;
   onCancelar: () => void;
   onExcluir?: () => void;
+  /** Se informado (cadastro novo), tocar em "Receita" abre o formulário de receita. Na edição fica inerte. */
+  onTrocarTipo?: () => void;
 }
 
 const UNIDADES: {
@@ -90,6 +93,7 @@ export function DespesaForm({
   onSalvar,
   onCancelar,
   onExcluir,
+  onTrocarTipo,
 }: Props) {
   const [v, setV] = useState<FormValoresDespesa>(
     () => inicial ?? { ...FORM_DESPESA_VAZIO, data: formatarBR(hojeISO()) },
@@ -164,8 +168,11 @@ export function DespesaForm({
             valor="despesa"
             opcoes={[
               { valor: 'despesa', rotulo: 'Despesa' },
-              { valor: 'receita', rotulo: 'Receita', inerte: true },
+              { valor: 'receita', rotulo: 'Receita', inerte: !onTrocarTipo },
             ]}
+            onChange={(tipo) => {
+              if (tipo === 'receita') onTrocarTipo?.();
+            }}
           />
         </View>
 
@@ -181,7 +188,7 @@ export function DespesaForm({
           rotulo="Valor"
           prefixo="R$"
           value={v.valor}
-          onChangeText={(texto) => set('valor', texto)}
+          onChangeText={(texto) => set('valor', mascararValor(texto))}
           placeholder="0,00"
           keyboardType="decimal-pad"
           erro={erros.valor}

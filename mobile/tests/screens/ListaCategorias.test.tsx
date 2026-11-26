@@ -11,6 +11,7 @@ import { router } from '../helpers/expoRouterMock';
 import { categoriaLinha } from '../helpers/categorias';
 
 import { fixarHoje, restaurarTempo } from '../helpers/tempo';
+import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import type { TotaisMensaisPorCategoria } from '@/features/consumo/consulta';
 
 let mockEmFoco = true;
@@ -80,12 +81,36 @@ describe('Lista de categorias (fluxo A do UC06)', () => {
     expect(screen.getByText('Limite: 12,5% da renda')).toBeTruthy();
   });
 
-  it('não exibe contagem de lançamentos nem indicador de sincronização', async () => {
+  it('exibe a contagem real e o atalho para as despesas filtradas', async () => {
+    listar.mockResolvedValue([
+      categoriaLinha({ id: 'xyz', nome: 'Casa', total_lancamentos: 2 }),
+    ]);
+    await render(<ListaCategorias />);
+
+    expect(await screen.findByText('2 lançamentos')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Ver despesas da categoria Casa'));
+
+    expect(router.push).toHaveBeenCalledWith({
+      pathname: '/despesas',
+      params: { categoriaId: 'xyz' },
+    });
+  });
+
+  it('exibe zero lançamentos e mantém o atalho para o estado vazio', async () => {
+    listar.mockResolvedValue([
+      categoriaLinha({ id: 'xyz', nome: 'Casa', total_lancamentos: 0 }),
+    ]);
+    await render(<ListaCategorias />);
+
+    expect(await screen.findByText('Nenhum lançamento')).toBeTruthy();
+    expect(screen.getByLabelText('Ver despesas da categoria Casa')).toBeTruthy();
+  });
+
+  it('não exibe indicador de sincronização', async () => {
     listar.mockResolvedValue([categoriaLinha({ id: '1', sync_status: 'pendente' })]);
     await render(<ListaCategorias />);
 
     await screen.findByText('Casa');
-    expect(screen.queryByText(/lançamento/i)).toBeNull();
     expect(screen.queryByText('Sincronização pendente')).toBeNull();
   });
 
@@ -277,6 +302,19 @@ describe('Consumo na lista de categorias (UC09)', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'Mês anterior' }));
     expect(await screen.findByText('0% · Consumo baixo')).toBeTruthy();
     await act(async () => { responderOutubro(comGasto(5000)); await outubro; });
+    expect(screen.getByText('0% · Consumo baixo')).toBeTruthy();
+    expect(screen.queryByText('50% · Atenção')).toBeNull();
+  });
+
+  it('aplica só a atualização mais recente da base no mesmo mês', async () => {
+    await render(<ListaCategorias />);
+    await screen.findByText('80% · Próximo do limite');
+    let responder!: (totais: TotaisMensaisPorCategoria) => void;
+    const anterior = new Promise<TotaisMensaisPorCategoria>((resolve) => { responder = resolve; });
+    ler.mockReturnValueOnce(anterior).mockResolvedValueOnce(comGasto(0));
+    await act(async () => { avisarBaseAtualizada(); avisarBaseAtualizada(); });
+    expect(await screen.findByText('0% · Consumo baixo')).toBeTruthy();
+    await act(async () => { responder(comGasto(5000)); await anterior; });
     expect(screen.getByText('0% · Consumo baixo')).toBeTruthy();
     expect(screen.queryByText('50% · Atenção')).toBeNull();
   });
