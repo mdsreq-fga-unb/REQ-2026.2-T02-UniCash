@@ -1,3 +1,6 @@
+import { iniciarConta } from '@/features/conta';
+import { definirSessao } from '@/features/conta/sessao';
+import { criarSincronizacaoDoApp } from '@/features/conta/sync.app';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import ResumoFinanceiro from '@/app/index';
@@ -7,6 +10,12 @@ import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { router } from '../helpers/expoRouterMock';
 import { mesAnterior, nomeMes, proximoMes } from '@/features/receitas/dates';
 
+jest.mock('@/features/conta/auth.firebase', () => ({
+  criarAuthFirebase: jest.fn(),
+  iniciarObservadorDeSessao: jest.fn(),
+}));
+jest.mock('@/features/conta/service.firebase', () => ({ criarContaServiceFirebase: jest.fn() }));
+jest.mock('@/features/conta/sync.app', () => ({ criarSincronizacaoDoApp: jest.fn() }));
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/resumo/service', () => ({
@@ -229,19 +238,33 @@ describe('Tela de resumo financeiro (UC03)', () => {
   });
 
   describe('recálculo quando a base muda por fora da tela', () => {
-    it('restauração da nuvem: montado com base vazia, mostra os totais após o sinal', async () => {
-      calcular.mockResolvedValueOnce(
+    it('atualiza o saldo na mesma tela quando termina a restauração iniciada pelo login', async () => {
+      let terminarRestauracao!: () => void;
+      const restauracao = new Promise<void>((resolve) => { terminarRestauracao = resolve; });
+      const restaurar = jest.fn(() => restauracao);
+      (criarSincronizacaoDoApp as jest.Mock).mockReturnValue({
+        retomar: jest.fn().mockResolvedValue(undefined),
+        restaurarSeAparelhoVazio: restaurar,
+        suspender: jest.fn().mockResolvedValue(undefined),
+      });
+      calcular.mockResolvedValue(
         resumo({ totalReceitasCentavos: 0, totalDespesasCentavos: 0, saldoCentavos: 0, receitasPorDia: [], semLancamentos: true }),
       );
-      await render(<ResumoFinanceiro />);
-      expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
+      iniciarConta();
+      definirSessao({ status: 'ativa', uid: 'u1', email: 'teste@example.com' });
+      try {
+        await render(<ResumoFinanceiro />);
+        expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
+        expect(restaurar).toHaveBeenCalledWith('u1');
 
-      // a restauração preencheu a base; o layout avisa ao terminar as rotinas
-      calcular.mockResolvedValueOnce(resumo());
-      await act(async () => avisarBaseAtualizada());
+        calcular.mockResolvedValue(resumo());
+        await act(async () => terminarRestauracao());
 
-      await waitFor(() => expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65'));
-      expect(screen.queryByText('Nenhum lançamento ainda')).toBeNull();
+        await waitFor(() => expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65'));
+        expect(screen.queryByText('Nenhum lançamento ainda')).toBeNull();
+      } finally {
+        await act(async () => definirSessao({ status: 'sem-sessao' }));
+      }
     });
 
     it('EX01 durante a preparação: recalcula ao receber o sinal de pronto, sem tocar em "Tentar novamente"', async () => {

@@ -1,8 +1,12 @@
+import { criarSincronizacaoDoApp } from '@/features/conta/sync.app';
+import { sincronizarPendentes } from '@/features/receitas/sync';
+import { instalarBanco } from '../../helpers/fakeDb';
 import { adotarDadosLocais } from '@/features/conta/adocao.service';
-import { getDbLocal, getDbDoDono } from '@/db/database';
+import { getDb, getDbLocal, getDbDoDono } from '@/db/database';
 import { auth } from '@/lib/firebase';
 
-jest.mock('@/db/database', () => ({ getDbLocal: jest.fn(), getDbDoDono: jest.fn() }));
+jest.mock('@/db/database', () => ({ getDb: jest.fn(), getDbLocal: jest.fn(), getDbDoDono: jest.fn() }));
+jest.mock('@/features/receitas/sync', () => ({ sincronizarPendentes: jest.fn() }));
 jest.mock('@/lib/firebase', () => ({ auth: { currentUser: { uid: 'A', emailVerified: true } } }));
 
 function banco(uid?: string, linhas: Record<string, unknown>[] = []) {
@@ -63,7 +67,7 @@ it('adota o saldo inicial e mantém o ID e a sequência do alerta', async () => 
     if (sql === 'SELECT * FROM saldo_inicial') {
       return [{ id: 1, mes: '2026-11', valor_centavos: -2000 }];
     }
-    if (sql === 'SELECT * FROM alertas_emitidos') {
+    if (sql.startsWith('SELECT * FROM alertas_emitidos')) {
       return [{ id: 'alerta-local', mes: '2026-11', transicao: 1, sync_status: 'sincronizado' }];
     }
     return [];
@@ -78,4 +82,51 @@ it('adota o saldo inicial e mantém o ID e a sequência do alerta', async () => 
   expect(destino.runAsync).toHaveBeenCalledWith(
     expect.stringContaining('INSERT INTO alertas_emitidos'), ['alerta-local', '2026-11', 1, 'pendente'],
   );
+});
+
+it('mantém a referência da conta e renumera alertas locais conflitantes para o envio autorizado', async () => {
+  const local = instalarBanco();
+  const apiLocal = await getDb();
+  const conta = instalarBanco();
+  const apiConta = await getDb();
+  (getDbLocal as jest.Mock).mockResolvedValue(apiLocal);
+  (getDbDoDono as jest.Mock).mockResolvedValue({
+    ...apiConta,
+    withTransactionAsync: (fn: () => Promise<void>) => apiConta.withExclusiveTransactionAsync(fn),
+  });
+  local.sqlite.exec(`
+    INSERT INTO saldo_inicial VALUES (1, '2026-10', -2000);
+    INSERT INTO alertas_emitidos (id, mes, anterior_centavos, saldo_centavos, criado_em, transicao)
+    VALUES ('local-a', '2026-11', 0, -100, '2026-11-01', 1),
+           ('local-b', '2026-11', 0, -200, '2026-11-02', 2);
+  `);
+  conta.sqlite.exec(`
+    INSERT INTO saldo_inicial VALUES (1, '2026-11', 3000);
+    INSERT INTO alertas_emitidos (id, mes, anterior_centavos, saldo_centavos, criado_em, transicao, sync_status)
+    VALUES ('conta-a', '2026-11', 0, -300, '2026-11-03', 1, 'sincronizado');
+  `);
+  const servico = criarSincronizacaoDoApp();
+  await servico.marcarTodosComoPendentes();
+  await servico.marcarTodosComoPendentes();
+
+  expect(conta.sqlite.prepare('SELECT mes, valor_centavos FROM saldo_inicial').get())
+    .toEqual({ mes: '2026-11', valor_centavos: 3000 });
+  const pendentes = () => conta.sqlite.prepare(
+    "SELECT id, transicao FROM alertas_emitidos WHERE sync_status = 'pendente' ORDER BY transicao",
+  ).all();
+  const esperados = [
+    { id: 'conta-a', transicao: 1 },
+    { id: 'local-a', transicao: 2 },
+    { id: 'local-b', transicao: 3 },
+  ];
+  expect(pendentes()).toEqual(esperados);
+  (sincronizarPendentes as jest.Mock).mockImplementationOnce(async () => {
+    expect(pendentes()).toEqual(esperados);
+    conta.sqlite.exec("UPDATE alertas_emitidos SET sync_status = 'sincronizado'");
+  });
+  await expect(servico.sincronizar()).resolves.toBeUndefined();
+  expect(sincronizarPendentes).toHaveBeenCalledWith({ manual: true });
+  expect(await servico.contarPendentes()).toBe(0);
+  local.sqlite.close();
+  conta.sqlite.close();
 });
