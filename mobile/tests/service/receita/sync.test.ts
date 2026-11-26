@@ -1852,6 +1852,175 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
   });
 
   describe('UC16: retomada e restauração', () => {
+    it('aguarda a falha do envio em curso antes de repetir a consulta do catálogo', async () => {
+      await registrarDespesa({
+        data: '2026-10-16', valorCentavos: 1500, titulo: 'Despesa de teste',
+        descricao: null, categoriaId: null, fixaOuVariavel: null, essencial: null, recorrencia: null,
+      });
+      const preparar = banco.sqlite.prepare.bind(banco.sqlite);
+      let falhar = true;
+      const consulta = jest.spyOn(banco.sqlite, 'prepare').mockImplementation((sql: string) => {
+        if (falhar && sql === 'SELECT * FROM categorias') {
+          falhar = false;
+          throw new Error('falha temporária no catálogo');
+        }
+        return preparar(sql);
+      });
+
+      try {
+        const primeiro = sincronizarPendentes();
+        const repeticao = sincronizarPendentes({ manual: true });
+        await expect(primeiro).rejects.toThrow('falha temporária no catálogo');
+        await repeticao;
+        expect(banco.despesas()[0].sync_status).toBe('sincronizado');
+      } finally {
+        consulta.mockRestore();
+      }
+    });
+
+    it.each([null, 'categoria-desconhecida'])(
+      'reconcilia uma série remota mais recente com categoria %s',
+      async (categoriaId) => {
+        await registrarReceita(input({ recorrencia: { intervalo: 1, unidade: 'mes', termino: null } }));
+        const serie = banco.recorrencias()[0];
+        mockNuvem.set(`usuarios/u1/recorrencias/${serie.id}`, {
+          intervalo: 2, unidade: 'mes', inicio: serie.inicio, ativa: false,
+          valor_centavos: 3200, titulo: 'Série remota', categoria_id: categoriaId,
+          atualizado_em: '2999-01-01T00:00:00.000Z',
+        });
+
+        await sincronizarPendentes();
+
+        expect(banco.recorrencias()[0]).toMatchObject(categoriaId
+          ? { titulo: serie.titulo, sync_status: 'pendente' }
+          : { titulo: 'Série remota', intervalo: 2, ativa: 0, sync_status: 'sincronizado' });
+      },
+    );
+
+    it('envia o marcador de exclusão de uma série que nunca chegou à nuvem', async () => {
+      await registrarReceita(input({ recorrencia: { intervalo: 1, unidade: 'mes', termino: null } }));
+      const serie = banco.recorrencias()[0];
+      const excluidoEm = '2026-11-26T00:00:00.000Z';
+      banco.sqlite.prepare('UPDATE recorrencias SET excluido_em = ?, ativa = 0 WHERE id = ?')
+        .run(excluidoEm, serie.id);
+
+      await sincronizarPendentes();
+
+      expect(mockNuvem.get(`usuarios/u1/recorrencias/${serie.id}`))
+        .toMatchObject({ excluido_em: excluidoEm, ativa: false });
+    });
+
+    it('mantém o alerta pendente quando o Firestore recusa o envio', async () => {
+      await registrarReceita(input({ data: '2026-10-16', valorCentavos: 1000 }));
+      await registrarDespesa({
+        data: '2026-10-16', valorCentavos: 1500, titulo: 'Despesa de teste',
+        descricao: null, categoriaId: null, fixaOuVariavel: null, essencial: null, recorrencia: null,
+      });
+      const [alerta] = await consultarAlertas();
+      const ref = `usuarios/u1/alertas_emitidos/${alerta.id}`;
+      mockCaminhosRejeitados.add(ref);
+
+      await sincronizarPendentes();
+
+      expect(consumirAcessoNegado()).toBe(true);
+      expect(mockNuvem.has(ref)).toBe(false);
+      expect(banco.sqlite.prepare('SELECT sync_status FROM alertas_emitidos WHERE id = ?').get(alerta.id))
+        .toEqual({ sync_status: 'pendente' });
+    });
+
+    it('ignora alertas remotos com dados inválidos', async () => {
+      const alerta = {
+        mes: '2026-11', anterior_centavos: 10, saldo_centavos: -5,
+        criado_em: '2026-11-26T00:00:00.000Z',
+      };
+      const invalidos = [
+        { ...alerta, mes: null },
+        { ...alerta, criado_em: null },
+        { ...alerta, anterior_centavos: 1.5 },
+        { ...alerta, saldo_centavos: 1.5 },
+      ];
+      invalidos.forEach((dados, indice) => mockNuvem.set(`usuarios/u1/alertas_emitidos/${indice}`, dados));
+
+      await restaurarDaNuvem({ servidor: true, uidEsperado: 'u1' });
+
+      expect(banco.sqlite.prepare('SELECT id FROM alertas_emitidos').all()).toEqual([]);
+    });
+
+    it.each(['recorrencia', 'receita', 'despesa', 'alerta'])(
+      'aborta o envio de %s se a conta mudar antes da transação remota',
+      async (tipo) => {
+        const despesa: DespesaInput = {
+          data: '2026-10-16', valorCentavos: 1500, titulo: 'Despesa de teste',
+          descricao: null, categoriaId: null, fixaOuVariavel: null, essencial: null, recorrencia: null,
+        };
+        let caminhoPendente: string;
+        if (tipo === 'despesa') {
+          await registrarDespesa(despesa);
+          caminhoPendente = `usuarios/u1/despesas/${banco.despesas()[0].id}`;
+        } else if (tipo === 'alerta') {
+          await registrarReceita(input({ valorCentavos: 1000 }));
+          await registrarDespesa(despesa);
+          const [alerta] = await consultarAlertas();
+          caminhoPendente = `usuarios/u1/alertas_emitidos/${alerta.id}`;
+          banco.sqlite.exec("UPDATE receitas SET sync_status = 'sincronizado'");
+          banco.sqlite.exec("UPDATE despesas SET sync_status = 'sincronizado'");
+        } else if (tipo === 'recorrencia') {
+          await registrarReceita(input({ recorrencia: { intervalo: 1, unidade: 'mes', termino: null } }));
+          caminhoPendente = `usuarios/u1/recorrencias/${banco.recorrencias()[0].id}`;
+        } else {
+          await registrarReceita(input());
+          caminhoPendente = caminho(banco.receitas()[0].id);
+        }
+        mockAntesDaTransacao = () => { mockUsuario = { uid: 'u2', emailVerified: true }; };
+        const aoFalhar = jest.fn();
+
+        await sincronizarPendentes({ aoFalhar });
+
+        expect(aoFalhar).toHaveBeenCalledWith(new Error('conta alterada durante a sincronização'));
+        expect(mockNuvem.size).toBe(0);
+
+        mockUsuario = { uid: 'u1', emailVerified: true };
+        await sincronizarPendentes();
+        expect(mockNuvem.has(caminhoPendente)).toBe(true);
+      },
+    );
+
+    it('aplica a exclusão remota de uma receita com edição local pendente', async () => {
+      await registrarReceita(input());
+      const { id } = banco.receitas()[0];
+      const excluidoEm = '2026-11-26T00:00:00.000Z';
+      mockNuvem.set(caminho(id), { excluido_em: excluidoEm, atualizado_em: excluidoEm });
+
+      await expect(sincronizarPendentes()).resolves.toBe(true);
+
+      expect(banco.receitas()[0]).toMatchObject({
+        excluido_em: excluidoEm, atualizado_em: excluidoEm, sync_status: 'sincronizado',
+      });
+      expect(mockOrdemEscritas).toEqual([]);
+    });
+
+    it('reverte a restauração se a conta mudar antes do commit local', async () => {
+      mockNuvem.set('usuarios/u1/alertas_emitidos/alerta', {
+        mes: '2026-11', anterior_centavos: 10, saldo_centavos: -5,
+        criado_em: '2026-11-26T00:00:00.000Z',
+      });
+      const preparar = banco.sqlite.prepare.bind(banco.sqlite);
+      const consulta = jest.spyOn(banco.sqlite, 'prepare').mockImplementation((sql: string) => {
+        if (sql.includes('INSERT INTO alertas_emitidos')) {
+          mockUsuario = { uid: 'u2', emailVerified: true };
+        }
+        return preparar(sql);
+      });
+
+      try {
+        await expect(restaurarDaNuvem({ servidor: true, uidEsperado: 'u1' }))
+          .rejects.toThrow('conta alterada durante a restauração');
+        expect(banco.sqlite.prepare('SELECT id FROM alertas_emitidos').all()).toEqual([]);
+      } finally {
+        consulta.mockRestore();
+      }
+    });
+
     it('retoma após interrupção e não regrava cada item já confirmado', async () => {
       await registrarReceita(input({ titulo: 'Primeira' }));
       await registrarReceita(input({ titulo: 'Segunda' }));
