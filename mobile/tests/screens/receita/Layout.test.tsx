@@ -16,6 +16,7 @@ const ROTAS_COM_BANCO = [
   'despesas/nova',
   'despesas/[id]/index',
   'despesas/[id]/editar',
+  'sincronizacao',
   'receitas/index',
   'receitas/nova',
   'receitas/[id]/index',
@@ -94,6 +95,9 @@ jest.mock('@/features/despesas/service', () => ({
 jest.mock('@/features/receitas/sync', () => ({
   restaurarDaNuvem: jest.fn(),
   sincronizarPendentes: jest.fn(),
+}));
+jest.mock('@/features/sincronizacao/service', () => ({
+  iniciarSincronizacaoAutomatica: () => () => {},
 }));
 jest.mock('@/features/conta', () =>
   ({ iniciarConta: jest.fn()
@@ -438,7 +442,7 @@ describe('Layout raiz: gate de inicialização', () => {
 
   // ---------------------------------------------------------------- rotas
 
-  it('protege as 11 rotas com SQLite e mantém a Home fora do guard', async () => {
+  it('protege as rotas com SQLite e mantém a Home fora do guard', async () => {
     mockGetDb.mockReturnValue(adiar().promessa);
     estadoNavegador.rotaAtiva = 'despesas/index';
 
