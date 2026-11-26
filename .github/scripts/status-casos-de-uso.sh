@@ -32,14 +32,16 @@ else
   alvo=test
 fi
 
-# Issues: as de "Closes #N" e as citadas como #N no corpo do PR.
+# Issues: as vinculadas pelo GitHub ("Closes #N") e as citadas com palavra-chave explícita,
+# como "Relacionado a #N" ou "Refs #N". Um "#N" solto (exemplo, tabela) não move nada.
+REFERENCIA='(close[sd]?|fix(e[sd])?|resolve[sd]?|relacionad[oa] a|refs?)[[:space:]]*:?[[:space:]]*#[0-9]+'
 mapfile -t issues < <({
   jq -r '.closingIssuesReferences.nodes[].number' <<<"$pr_json"
-  jq -r '.body // ""' <<<"$pr_json" | grep -oE '(^|[^&[:alnum:]])#[0-9]+' | grep -oE '[0-9]+' || true
+  jq -r '.body // ""' <<<"$pr_json" | grep -ioE "$REFERENCIA" | grep -oE '[0-9]+$' || true
 } | sort -un)
 
 if [[ ${#issues[@]} -eq 0 ]]; then
-  echo "PR #$PR não cita issues; nada a mover."
+  echo "PR #$PR não referencia issues; nada a mover."
   exit 0
 fi
 
