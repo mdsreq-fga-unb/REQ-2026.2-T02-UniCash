@@ -34,6 +34,7 @@ export function SecaoNotificacoes({ preferencias, permissao }: Props) {
           {TIPOS_ALERTA.map((tipo) => (
             <ItemInterruptor
               key={tipo}
+              testID={`interruptor-${tipo}`}
               rotulo={ROTULOS_ALERTA[tipo]}
               valor={n.valores[tipo]}
               desabilitado={n.gravando !== null}

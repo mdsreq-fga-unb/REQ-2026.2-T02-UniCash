@@ -12,9 +12,7 @@ env:
 - runFlow: ../subflows/abrir-conquistas.yaml
 - openLink: ${DEEP_LINK}perfil
 - tapOn:
-    text: "Conquistas"
-    role: switch
-    optional: true
+    id: "interruptor-conquistas"
 - tapOn:
     text: "Allow|Permitir"
     optional: true
