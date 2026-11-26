@@ -32,6 +32,7 @@ import {
   excluirCategoria,
   semearCategoriasPadrao,
 } from '@/features/categorias/service';
+import { lerSaldoInicial } from '@/features/saldoInicial/service';
 import type { Categoria } from '@/features/categorias/types';
 
 // Firestore em memória: o que está em mockNuvem é o que "está na nuvem".
@@ -2277,6 +2278,15 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
   });
 
   describe('restauração da nuvem', () => {
+    it('integra o documento único do saldo inicial à restauração da conta', async () => {
+      const dados = { valor_centavos: -12550, mes_referencia: '2026-11' };
+      mockNuvem.set('usuarios/u1/saldo_inicial/atual', dados);
+
+      await restaurarDaNuvem();
+
+      expect(await lerSaldoInicial()).toMatchObject({ ...dados, sync_status: 'sincronizado' });
+    });
+
     it('recupera receitas e séries num aparelho limpo, já como sincronizadas', async () => {
       await registrarReceita(input({ recorrencia: { intervalo: 1, unidade: 'mes', termino: '2026-12-16' } }));
       await registrarReceita(input({ titulo: 'Avulsa' }));

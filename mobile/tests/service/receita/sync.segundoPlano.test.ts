@@ -5,6 +5,8 @@ import {
   sincronizarEmSegundoPlano,
   sincronizarPendentes,
 } from '@/features/receitas/sync';
+import { lerSaldoInicial, salvarSaldoInicial } from '@/features/saldoInicial/service';
+import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { registrarDespesa } from '@/features/despesas/service';
 import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
 import { categoriaLinha } from '../../helpers/categorias';
@@ -141,6 +143,34 @@ describe('sincronizarEmSegundoPlano', () => {
 
     await new Promise((r) => setTimeout(r, 0));
     expect(getDb).toHaveBeenCalled();
+  });
+
+  it('reenvia uma edição do saldo inicial solicitada durante outra sincronização', async () => {
+    banco = instalarBanco();
+    mockUsuario = { uid: 'u1', emailVerified: true };
+    const dados = { valor_centavos: -100, mes_referencia: '2026-11' };
+    await salvarSaldoInicial(dados);
+
+    const avisar = jest.fn();
+    const cancelar = ouvirBaseAtualizada(avisar);
+    const gravarNaNuvem = mockNuvem.set.bind(mockNuvem);
+    const gravacao = jest.spyOn(mockNuvem, 'set').mockImplementationOnce((caminho, payload) => {
+      banco.sqlite.exec("UPDATE saldo_inicial SET valor_centavos = 0, revisao = revisao + 1 WHERE id = 1");
+      sincronizarEmSegundoPlano(true);
+      return gravarNaNuvem(caminho, payload);
+    });
+
+    try {
+      await sincronizarPendentes();
+      await aguardarSegundoPlano();
+      expect(mockNuvem.get('usuarios/u1/saldo_inicial/atual')).toEqual({ ...dados, valor_centavos: 0 });
+      expect(await lerSaldoInicial()).toMatchObject({ valor_centavos: 0, sync_status: 'sincronizado' });
+      expect(avisar).toHaveBeenCalledTimes(1);
+    } finally {
+      gravacao.mockRestore();
+      cancelar();
+      banco.sqlite.close();
+    }
   });
 
   it('rejeita com FalhaLeituraCatalogoSincronizacao, preserva a despesa e permite nova tentativa', async () => {
