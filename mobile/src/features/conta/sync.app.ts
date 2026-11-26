@@ -15,7 +15,7 @@ import { ErroConta } from './types';
  * receitas, despesas e recorrências em usuarios/{uid}/... com o estado `sync_status`
  * ('pendente' | 'sincronizado'). As categorias ainda não sincronizam e ficam de fora.
  */
-const TABELAS = ['receitas', 'despesas', 'recorrencias', 'saldo_inicial'] as const;
+const TABELAS = ['receitas', 'despesas', 'recorrencias', 'alertas_emitidos', 'saldo_inicial'] as const;
 
 /**
  * Só as tabelas que existem neste esquema: a base pode ainda não ter `despesas` (antes do merge com a

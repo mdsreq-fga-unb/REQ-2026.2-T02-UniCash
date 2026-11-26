@@ -1,4 +1,5 @@
 import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
+import type { SQLiteBindParams } from 'expo-sqlite';
 import { serializarImportacao } from '@/features/conta/operacoes-locais';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -12,6 +13,7 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { auth, db as firestore } from '@/lib/firebase';
+import { registrarTransicoes, type AlertaSaldo } from '@/features/saldo/alertas';
 import { getDbDoDono } from '@/db/database';
 import type { Receita } from './types';
 import { resolverCategoriaRemota } from '@/features/despesas/categorias';
@@ -135,6 +137,13 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
     } catch (e) {
       if (!negadoPelaNuvem(e)) throw e;
       acessoNegado = true;
+    }
+
+    async function aplicarLancamentoRemoto(sql: string, valores: SQLiteBindParams) {
+      await sqlite.withExclusiveTransactionAsync(async (tx) => {
+        const resultado = await registrarTransicoes(tx, () => tx.runAsync(sql, valores));
+        mudouLocal ||= resultado.changes > 0;
+      });
     }
 
     // Categorias primeiro: séries/despesas dependem do catálogo reconciliado.
@@ -369,11 +378,11 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
             typeof d.atualizado_em === 'string' &&
             d.atualizado_em > r.atualizado_em
           ) {
-            await sqlite.runAsync(
+            await aplicarLancamentoRemoto(
               `UPDATE receitas
                SET valor_centavos = ?, data = ?, titulo = ?, descricao = ?,
                    sync_status = 'sincronizado', atualizado_em = ?
-               WHERE id = ?`,
+               WHERE id = ? AND atualizado_em = ? AND excluido_em IS NULL`,
               [
                 d.valor_centavos,
                 d.data,
@@ -381,10 +390,10 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
                 d.descricao ?? null,
                 d.atualizado_em,
                 r.id,
+                r.atualizado_em,
               ],
             );
 
-            mudouLocal = true;
             continue;
           }
         }
@@ -449,7 +458,7 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
       dados: Record<string, any>,
       categoriaConflito: string | null,
     ) => {
-      await sqlite.runAsync(
+      await aplicarLancamentoRemoto(
         `UPDATE despesas
          SET valor_centavos = ?, data = ?, titulo = ?, descricao = ?,
              categoria_id = ?, fixa_ou_variavel = ?, essencial = ?,
@@ -471,14 +480,13 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
         ],
       );
 
-      mudouLocal = true;
     };
 
     const aplicarLapideRemota = async (
       d: Despesa,
       dados: Record<string, any>,
     ) => {
-      const resultado = await sqlite.runAsync(
+      await aplicarLancamentoRemoto(
         `UPDATE despesas
          SET excluido_em = ?, atualizado_em = ?,
              sync_status = 'sincronizado'
@@ -490,7 +498,6 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
         ],
       );
 
-      mudouLocal ||= resultado.changes > 0;
     };
 
     for (const d of despesas) {
@@ -618,6 +625,17 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
         if (!negadoPelaNuvem(e)) throw e;
         acessoNegado = true;
       }
+    }
+
+    const alertas = await sqlite.getAllAsync<AlertaSaldo>(
+      "SELECT * FROM alertas_emitidos WHERE sync_status = 'pendente'",
+    );
+    for (const { id, mes, anterior_centavos, saldo_centavos, criado_em } of alertas) {
+      if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) return mudouLocal;
+      await setDoc(doc(firestore, 'usuarios', uid, 'alertas_emitidos', id), {
+        mes, anterior_centavos, saldo_centavos, criado_em,
+      });
+      await sqlite.runAsync("UPDATE alertas_emitidos SET sync_status = 'sincronizado' WHERE id = ?", [id]);
     }
   } catch (e) {
     // Falha de catálogo é explícita; os demais erros mantêm o comportamento atual.

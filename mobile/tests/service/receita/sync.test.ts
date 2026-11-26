@@ -1,3 +1,5 @@
+import { consultarAlertas } from '@/features/saldo/alertas';
+import { consultarResumoMensal } from '@/features/saldo/service';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   completarRecorrencias,
@@ -1771,6 +1773,31 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       mockRedeFora = true; // permission-denied / unavailable
       await sincronizarPendentes();
       expect(banco.receitas()[0].sync_status).toBe('pendente');
+    });
+  });
+
+  it('envia o alerta sem duplicar e recalcula o saldo após restaurar os lançamentos', async () => {
+    await registrarReceita(input({ data: '2026-10-16', valorCentavos: 1000 }));
+    await registrarDespesa({
+      data: '2026-10-16', valorCentavos: 1500, titulo: 'Despesa de teste',
+      descricao: null, categoriaId: null, fixaOuVariavel: null, essencial: null, recorrencia: null,
+    });
+    const [alerta] = await consultarAlertas();
+    const ref = `usuarios/u1/alertas_emitidos/${alerta.id}`;
+    mockRedeFora = true;
+    await sincronizarPendentes();
+    expect(mockNuvem.has(ref)).toBe(false);
+
+    mockRedeFora = false;
+    await sincronizarPendentes();
+    await sincronizarPendentes();
+    expect(mockNuvem.get(ref)).toMatchObject({ saldo_centavos: -500, anterior_centavos: 1000 });
+    expect(mockOrdemEscritas.filter((path) => path === ref)).toEqual([ref]);
+
+    banco = instalarBanco();
+    await expect(restaurarDaNuvem()).resolves.toMatchObject({ receitas: 1, despesas: 1 });
+    await expect(consultarResumoMensal('2026-10-01')).resolves.toMatchObject({
+      receitas: 1000, despesas: 1500, saldo: -500,
     });
   });
 

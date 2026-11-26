@@ -2,7 +2,7 @@ import { serializarImportacao } from './operacoes-locais';
 import { getDbLocal, getDbDoDono } from '@/db/database';
 import { auth } from '@/lib/firebase';
 
-const TABELAS = ['categorias', 'categorias_estado', 'recorrencias', 'receitas', 'despesas', 'saldo_inicial'] as const;
+const TABELAS = ['categorias', 'categorias_estado', 'recorrencias', 'receitas', 'despesas', 'saldo_inicial', 'alertas_emitidos'] as const;
 type Valor = string | number | null | Uint8Array;
 type Linha = Record<string, Valor>;
 const META = `CREATE TABLE IF NOT EXISTS uc10_adocao (
@@ -34,10 +34,11 @@ async function copiarDadosLocais(uid: string): Promise<void> {
     if (reserva && reserva.uid !== uid) return;
     exigirDono(uid);
     for (const tabela of TABELAS) {
-      dados.set(tabela, await tx.getAllAsync<Linha>(`SELECT * FROM ${tabela}`));
+      const ordem = tabela === 'alertas_emitidos' ? ' ORDER BY mes, transicao' : '';
+      dados.set(tabela, await tx.getAllAsync<Linha>(`SELECT * FROM ${tabela}${ordem}`));
     }
     if (![...dados.values()].some(linhas => linhas.length)) return;
-    await tx.runAsync('INSERT OR IGNORE INTO uc10_adocao (id, uid) VALUES (1, ?)', uid);
+    await tx.runAsync('INSERT OR IGNORE INTO uc10_adocao (id, uid) VALUES (1, ?)', [uid]);
   });
   if (!dados.size) return;
   exigirDono(uid);
@@ -68,12 +69,21 @@ async function copiarDadosLocais(uid: string): Promise<void> {
         if ('categoria_id' in linha && idsCategorias.has(linha.categoria_id)) {
           linha.categoria_id = idsCategorias.get(linha.categoria_id)!;
         }
+        if (tabela === 'alertas_emitidos') {
+          const ultima = await tx.getFirstAsync<{ numero: number | null }>(
+            'SELECT MAX(transicao) AS numero FROM alertas_emitidos WHERE mes = ?', [linha.mes],
+          );
+          linha.transicao = (ultima?.numero ?? 0) + 1;
+        }
         const colunas = Object.keys(linha);
-        // Não sobrescreve dados existentes: conflito aborta toda a cópia.
-        await tx.runAsync(`INSERT INTO ${tabela} (${colunas.map(c => '"' + c.replace(/"/g, '""') + '"').join(', ')}) VALUES (${colunas.map(() => '?').join(', ')})`, colunas.map(c => linha[c]));
+        // A referência da conta prevalece; o mesmo ID de alerta já representa o mesmo evento.
+        const conflito = tabela === 'saldo_inicial' || tabela === 'alertas_emitidos'
+          ? ' ON CONFLICT(id) DO NOTHING'
+          : '';
+        await tx.runAsync(`INSERT INTO ${tabela} (${colunas.map(c => '"' + c.replace(/"/g, '""') + '"').join(', ')}) VALUES (${colunas.map(() => '?').join(', ')})${conflito}`, colunas.map(c => linha[c]));
       }
     }
     exigirDono(uid);
-    await tx.runAsync('INSERT INTO uc10_adocao (id, uid) VALUES (1, ?)', uid);
+    await tx.runAsync('INSERT INTO uc10_adocao (id, uid) VALUES (1, ?)', [uid]);
   });
 }

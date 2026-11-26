@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
+import { registrarTransicoes } from '@/features/saldo/alertas';
 import { adicionarDias, adicionarIntervalo, adicionarMeses, hojeISO } from './dates';
 import type { EscopoSerie, Receita, ReceitaInput, Recorrencia } from './types';
 
@@ -29,7 +30,7 @@ async function transacao<T>(fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> 
     const db = await getDb();
     let resultado!: T;
     await db.withExclusiveTransactionAsync(async (tx) => {
-      resultado = await fn(tx as unknown as SQLiteDatabase);
+      resultado = await registrarTransicoes(tx, () => fn(tx));
     });
     return resultado;
   } catch (e) {

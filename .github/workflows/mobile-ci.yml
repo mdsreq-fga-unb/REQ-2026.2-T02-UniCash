@@ -50,6 +50,8 @@ jobs:
       - run: npm run typecheck
       # Testes automatizados (unitários, serviço com SQLite em memória e telas), com cobertura
       - run: npm test -- --ci --coverage
+      - name: Verificar cobertura do UC04
+        run: npm test -- --config jest.uc04.config.js --ci --runInBand
       # Build: empacota o app (bundle JS) sem gastar a cota de builds do EAS
       - run: npx expo export --platform android
       - name: Publicar cobertura
