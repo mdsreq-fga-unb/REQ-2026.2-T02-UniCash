@@ -196,11 +196,9 @@ describe('sincronizarEmSegundoPlano', () => {
       await aguardarSegundoPlano();
 
       expect(warn).toHaveBeenCalledTimes(1);
-      const [mensagem, erroRegistrado] = warn.mock.calls[0];
+      const [mensagem, detalhe] = warn.mock.calls[0];
       expect(mensagem).toMatch(/catálogo/i);
-      expect(erroRegistrado).toBeInstanceOf(
-        FalhaLeituraCatalogoSincronizacao,
-      );
+      expect(detalhe).toBeUndefined();
       expect(error).not.toHaveBeenCalled();
       expect(rejeicaoNaoTratada).toBe(false);
       expect(getDb).toHaveBeenCalledTimes(1);
@@ -232,10 +230,9 @@ describe('sincronizarEmSegundoPlano', () => {
       await aguardarSegundoPlano();
 
       expect(error).toHaveBeenCalledTimes(1);
-      const [mensagem, erroRegistrado] = error.mock.calls[0];
+      const [mensagem, detalhe] = error.mock.calls[0];
       expect(mensagem).toMatch(/inesperada/i);
-      expect(erroRegistrado).toBeInstanceOf(Error);
-      expect((erroRegistrado as Error).message).toMatch(/autenticação/);
+      expect(detalhe).toBeUndefined();
       expect(warn).not.toHaveBeenCalled();
       expect(rejeicaoNaoTratada).toBe(false);
       expect(consumirAcessoNegado()).toBe(false);
