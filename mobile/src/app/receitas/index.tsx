@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -7,6 +7,7 @@ import { FiltroReceitas } from '@/components/receitas/FiltroReceitas';
 import { ReceitaItem } from '@/components/receitas/ReceitaItem';
 import { formatarBRL } from '@/features/receitas/money';
 import { consumirFeedback, type Feedback } from '@/lib/feedback';
+import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import { useReceitas } from '@/features/receitas/useReceitas';
 import {
@@ -41,6 +42,11 @@ export default function ListaReceitas() {
       // indicador é informativo
     }
   }, []);
+
+  useEffect(() => ouvirBaseAtualizada(() => {
+    void recarregar();
+    void atualizarPendentes();
+  }), [recarregar, atualizarPendentes]);
 
   // Ao voltar de outra tela: mostra mensagem pendente, recarrega e tenta sincronizar (EX05).
   useFocusEffect(

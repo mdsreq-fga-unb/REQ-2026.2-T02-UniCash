@@ -1,16 +1,20 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { cores, raio } from '@/lib/theme';
-import { mesAnterior, nomeMes, proximoMes } from '@/features/receitas/dates';
+import { mesAnterior, nomeMes, primeiroDiaDoMes, proximoMes } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
-import { formatarSaldo, percentualMeta, rotuloDia } from '@/features/resumo/format';
+import { percentualMeta, rotuloDia } from '@/features/resumo/format';
 import { useResumo } from '@/features/resumo/useResumo';
 import { ajustarFimDaJanela, MSG_FALHA_EVOLUCAO, type EvolucaoMensal } from '@/features/evolucao/service';
 import { useEvolucao } from '@/features/evolucao/useEvolucao';
 import { GraficoEvolucao } from '@/components/resumo/GraficoEvolucao';
+import { PainelSaldo } from '@/components/saldo/PainelSaldo';
+
+import { useSessao } from '@/features/conta/sessao';
+import { continuarSemContaNestaSessao } from '@/features/conta/onboarding';
 
 function mesCorrente() {
   const n = new Date();
@@ -18,9 +22,16 @@ function mesCorrente() {
 }
 
 /** Resumo financeiro inicial (UC03, RF11, RF40). Somente leitura; calculado na base local. */
-export default function ResumoFinanceiro() {
+export default function Home() {
+  const sessao = useSessao();
+  if (sessao.status !== 'ativa' && !continuarSemContaNestaSessao()) return <Redirect href="/conta/cadastro" />;
+  return <ResumoFinanceiro key={sessao.status === 'ativa' ? sessao.uid : 'local'} />;
+}
+
+function ResumoFinanceiro() {
   // Passo 2: o mês corrente é o período padrão (RN12).
   const [periodo, setPeriodo] = useState(mesCorrente);
+  const inicio = primeiroDiaDoMes(periodo.ano, periodo.mes);
   // UC07: último mês da janela do gráfico. Começa no mês selecionado e só se desloca quando
   // o mês escolhido fica fora dos 6 exibidos (FA05).
   const [fimJanela, setFimJanela] = useState(mesCorrente);
@@ -82,6 +93,15 @@ export default function ResumoFinanceiro() {
           </Pressable>
         </View>
 
+        {resumoDoPeriodo && !falhou && (
+          <PainelSaldo
+            key={inicio}
+            inicio={inicio}
+            receitas={resumoDoPeriodo.totalReceitasCentavos}
+            despesas={resumoDoPeriodo.totalDespesasCentavos}
+          />
+        )}
+
         {falhou ? (
           <View style={estilos.vazio}>
             <Text style={estilos.erro}>{MSG_FALHA_CALCULO}</Text>
@@ -116,17 +136,8 @@ export default function ResumoFinanceiro() {
 }
 
 function Conteudo({ resumo }: { resumo: ResumoMensal }) {
-  const saldoNegativo = resumo.saldoCentavos < 0;
   return (
     <View>
-      <View style={estilos.cartaoSaldo}>
-        <Text style={estilos.rotuloClaro}>Saldo do mês</Text>
-        <Text style={estilos.saldo} testID="saldo">
-          {formatarSaldo(resumo.saldoCentavos)}
-        </Text>
-        <Text style={estilos.rotuloClaro}>{saldoNegativo ? 'Saídas maiores que entradas' : 'Entradas menos saídas'}</Text>
-      </View>
-
       <View style={estilos.linha}>
         <View style={estilos.cartao}>
           <Text style={estilos.rotulo}>Receitas</Text>
@@ -279,6 +290,15 @@ function Atalhos({ ano, mes, mostrarNovos }: { ano: number; mes: number; mostrar
         <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Categorias</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/sincronizacao')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Sincronização</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/configuracoes-financeiras')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Configurações financeiras</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/conta')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Conta</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -329,9 +349,6 @@ const estilos = StyleSheet.create({
   seta: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   setaTexto: { fontSize: 26, color: cores.primaria, fontWeight: '700' },
   mes: { fontSize: 16, fontWeight: '700', color: cores.marinho, flexShrink: 1, textAlign: 'center' },
-  cartaoSaldo: { backgroundColor: cores.marinho, borderRadius: raio.cartao, padding: 18, marginBottom: 12 },
-  rotuloClaro: { fontSize: 12, color: cores.claro },
-  saldo: { fontSize: 28, fontWeight: '800', color: cores.branco, marginVertical: 4 },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
   cartao: {
     flexGrow: 1,

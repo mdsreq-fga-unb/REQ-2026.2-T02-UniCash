@@ -12,6 +12,9 @@ import {
 } from '@/features/categorias/limites';
 import {
   DDL_ESQUEMA,
+  DDL_SALDO_INICIAL,
+  DDL_SALDO_MENSAL,
+  DDL_NUMERAR_ALERTAS,
   DDL_INDICES_DESPESAS,
   DDL_INDICES_V6,
   DDL_RECORRENCIAS_V5,
@@ -25,7 +28,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 7;
+export const VERSAO_ESQUEMA = 9;
 
 export interface RegistroInvalido {
   id: string;
@@ -131,6 +134,8 @@ const MIGRACOES: Migracao[] = [
   { versao: 5, executar: migrar005 },
   { versao: 6, executar: migrar006 },
   { versao: 7, executar: migrar007 },
+  { versao: 8, executar: migrar008 },
+  { versao: 9, executar: migrar009 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -407,7 +412,7 @@ async function tabelasQueReferenciam(tx: SQLiteDatabase, tabela: string): Promis
  * objeto ou estrutura divergente aborta, preservando tudo — a versão não é
  * marcada e o banco permanece como está.
  */
-async function prepararInstalacaoNova(tx: SQLiteDatabase): Promise<void> {
+async function prepararInstalacaoNova(tx: SQLiteDatabase, despesasLegadas = false): Promise<void> {
   const objetos = (
     await tx.getAllAsync<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type IN ('table', 'view', 'trigger') AND name NOT LIKE 'sqlite_%'",
@@ -417,12 +422,9 @@ async function prepararInstalacaoNova(tx: SQLiteDatabase): Promise<void> {
   if (objetos.length === 0) return; // banco realmente vazio
 
   const inesperados = objetos.filter(
-    (n) =>
-      n !== 'recorrencias' &&
-      n !== 'receitas' &&
-      n !== 'despesas' &&
-      n !== 'categorias_estado' &&
-      n !== 'restauracao_pendente',
+    (n) => !['recorrencias', 'receitas', 'despesas', 'saldo_inicial', 'alertas_emitidos',
+      'categorias_estado', 'restauracao_pendente'].includes(n) &&
+      !(despesasLegadas && n === 'despesas_uc04_legadas'),
   );
   if (inesperados.length > 0) {
     throw new EstruturaLegadaInesperada(
@@ -598,13 +600,29 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
   // preservando tudo — a versão não é marcada.
   if (versao === 0 && !(await existeTabela(db, 'categorias'))) {
     await db.withExclusiveTransactionAsync(async (tx) => {
-      await prepararInstalacaoNova(tx);
+      const colunasDespesas = await tx.getAllAsync<{ name: string; type: string }>('PRAGMA table_info(despesas)');
+      const despesasLegadas = colunasDespesas.map(({ name, type }) => `${name}:${type}`).join(',') ===
+        'id:INTEGER,valor_centavos:INTEGER,data:TEXT';
+      if (despesasLegadas) {
+        await tx.execAsync('DROP INDEX IF EXISTS idx_despesas_data; ALTER TABLE despesas RENAME TO despesas_uc04_legadas;');
+      }
+      await prepararInstalacaoNova(tx, despesasLegadas);
       await tx.execAsync(DDL_ESQUEMA);
       await garantirColunasRecorrencias(tx);
       await garantirTabelaDespesas(tx);
+      if (despesasLegadas) {
+        await tx.execAsync(`
+          INSERT INTO despesas (id, valor_centavos, data, titulo, criado_em, atualizado_em)
+          SELECT 'uc04-' || id, valor_centavos, data, 'Despesa importada',
+                 data || 'T00:00:00.000Z', data || 'T00:00:00.000Z'
+          FROM despesas_uc04_legadas;
+          DROP TABLE despesas_uc04_legadas;
+        `);
+      }
       await garantirColunaExcluidoEmRecorrencias(tx);
       await garantirTabelasV6(tx);
       await aplicarTriggersPercentual(tx);
+      await consolidarSaldoInicial(tx);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
     return;
@@ -726,26 +744,29 @@ async function garantirTabelasV6(tx: SQLiteDatabase): Promise<void> {
   for (const ddl of DDL_INDICES_V6) await tx.execAsync(ddl);
 }
 
+async function inicializarEstadoCategorias(tx: SQLiteDatabase): Promise<void> {
+  await garantirTabelasV6(tx);
+
+  await tx.runAsync(
+    `INSERT INTO categorias_estado (categoria_id, estado_local)
+     SELECT id,
+       CASE
+         WHEN padrao = 1
+           AND excluido_em IS NULL
+           AND limite_tipo IS NULL
+           AND criado_em = atualizado_em
+         THEN 'semeadura'
+         ELSE 'editado'
+       END
+     FROM categorias
+     WHERE 1
+     ON CONFLICT(categoria_id) DO NOTHING`,
+  );
+}
+
 async function migrar006(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
-    await garantirTabelasV6(tx);
-
-    await tx.runAsync(
-      `INSERT INTO categorias_estado (categoria_id, estado_local)
-       SELECT id,
-         CASE
-           WHEN padrao = 1
-             AND excluido_em IS NULL
-             AND limite_tipo IS NULL
-             AND criado_em = atualizado_em
-           THEN 'semeadura'
-           ELSE 'editado'
-         END
-       FROM categorias
-       WHERE 1
-       ON CONFLICT(categoria_id) DO NOTHING`,
-    );
-
+    await inicializarEstadoCategorias(tx);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }
@@ -844,10 +865,57 @@ async function normalizarPercentuaisLegados(tx: SQLiteDatabase): Promise<void> {
  */
 async function migrar007(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
+    if (!(await existeTabela(tx, 'categorias_estado'))) await inicializarEstadoCategorias(tx);
     await substituirTriggersPercentualDefinitivos(tx);
     await normalizarPercentuaisLegados(tx);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
+}
+
+/** 008 — integra saldo e alertas após as migrações de categorias. */
+async function migrar008(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    if (!(await existeTabela(tx, 'categorias_estado'))) {
+      await inicializarEstadoCategorias(tx);
+      await substituirTriggersPercentualDefinitivos(tx);
+      await normalizarPercentuaisLegados(tx);
+    }
+    await tx.execAsync(DDL_SALDO_MENSAL);
+    const colunas = await tx.getAllAsync<{ name: string }>('PRAGMA table_info(alertas_emitidos)');
+    if (!colunas.some(({ name }) => name === 'transicao')) {
+      await tx.execAsync(DDL_NUMERAR_ALERTAS);
+    }
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+
+/** 009 — converte o saldo provisório do UC04 para o contrato do UC08. */
+async function migrar009(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await consolidarSaldoInicial(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+async function consolidarSaldoInicial(tx: SQLiteDatabase): Promise<void> {
+  const colunas = await tx.getAllAsync<{ name: string }>('PRAGMA table_info(saldo_inicial)');
+  if (colunas.some(({ name }) => name === 'mes')) {
+    await tx.execAsync('ALTER TABLE saldo_inicial RENAME TO saldo_inicial_uc04');
+    await tx.execAsync(DDL_SALDO_INICIAL);
+    await tx.execAsync(`
+      INSERT INTO saldo_inicial (id, valor_centavos, mes_referencia)
+      SELECT id, valor_centavos, mes FROM saldo_inicial_uc04;
+      DROP TABLE saldo_inicial_uc04;
+    `);
+  }
+  // Instalações de prévia do UC08 tinham a tabela definitiva, mas ainda não tinham alertas.
+  await tx.execAsync(DDL_SALDO_INICIAL);
+  await tx.execAsync(DDL_SALDO_MENSAL);
+  const alertas = await tx.getAllAsync<{ name: string }>('PRAGMA table_info(alertas_emitidos)');
+  if (!alertas.some(({ name }) => name === 'transicao')) {
+    await tx.execAsync(DDL_NUMERAR_ALERTAS);
+  }
 }
 
 function validarColunaTabela(

@@ -13,3 +13,7 @@ export const useLocalSearchParams = jest.fn(() => ({ id: 'abc' }));
 export function useFocusEffect(cb: () => void) {
   React.useEffect(cb, [cb]);
 }
+
+export function Redirect({ href }: { href: string }) {
+  return React.createElement(require('react-native').Text, null, `redirect:${href}`);
+}

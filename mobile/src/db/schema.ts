@@ -287,6 +287,52 @@ export const DDL_TRIGGER_PERCENTUAL = `
     END;
   `;
 
+export const DDL_SALDO_INICIAL = `
+    CREATE TABLE IF NOT EXISTS saldo_inicial (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      valor_centavos INTEGER NOT NULL CHECK (
+        typeof(valor_centavos) = 'integer' AND valor_centavos BETWEEN -9007199254740991 AND 9007199254740991
+      ),
+      mes_referencia TEXT NOT NULL CHECK (
+        mes_referencia GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+        AND substr(mes_referencia, 1, 4) <> '0000'
+        AND substr(mes_referencia, 6, 2) BETWEEN '01' AND '12'
+      ),
+      sync_status TEXT NOT NULL DEFAULT 'pendente' CHECK (sync_status IN ('pendente', 'sincronizado')),
+      revisao INTEGER NOT NULL DEFAULT 0
+    );
+  `;
+
+export const DDL_SALDO_MENSAL = `
+    CREATE TABLE IF NOT EXISTS saldo_inicial (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      mes TEXT NOT NULL,
+      valor_centavos INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS alertas_emitidos (
+      id TEXT PRIMARY KEY NOT NULL,
+      mes TEXT NOT NULL,
+      anterior_centavos INTEGER NOT NULL,
+      saldo_centavos INTEGER NOT NULL,
+      criado_em TEXT NOT NULL,
+      lido INTEGER NOT NULL DEFAULT 0,
+      sync_status TEXT NOT NULL DEFAULT 'pendente'
+    );
+  `;
+
+/** Migração 008: numera transições por mês sem alterar os IDs já enviados ao Firestore. */
+export const DDL_NUMERAR_ALERTAS = `
+  ALTER TABLE alertas_emitidos ADD COLUMN transicao INTEGER NOT NULL DEFAULT 0;
+  WITH numerados AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY mes ORDER BY criado_em, rowid) AS numero
+    FROM alertas_emitidos
+  )
+  UPDATE alertas_emitidos SET transicao = (
+    SELECT numero FROM numerados WHERE numerados.id = alertas_emitidos.id
+  );
+  CREATE UNIQUE INDEX idx_alertas_mes_transicao ON alertas_emitidos(mes, transicao);
+`;
+
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
@@ -294,4 +340,9 @@ export const ESQUEMA_SQL = `
     ${DDL_ESQUEMA_V6}
 
     ${DDL_TRIGGER_PERCENTUAL}
+
+    ${DDL_SALDO_INICIAL}
+    ${DDL_SALDO_MENSAL}
+
+    ${DDL_NUMERAR_ALERTAS}
   `;

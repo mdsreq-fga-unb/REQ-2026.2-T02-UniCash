@@ -12,6 +12,16 @@ import {
 import { mesAnterior, nomeMes, proximoMes } from '@/features/receitas/dates';
 import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { router } from '../helpers/expoRouterMock';
+import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
+import { instalarBanco } from '../helpers/fakeDb';
+
+// A tela inicial exige sessão ou a escolha de continuar sem conta (UC10); aqui, sem conta.
+jest.mock('@/features/conta/auth.firebase', () => ({
+  criarAuthFirebase: jest.fn(),
+  iniciarObservadorDeSessao: jest.fn(),
+}));
+jest.mock('@/features/conta/service.firebase', () => ({ criarContaServiceFirebase: jest.fn() }));
+jest.mock('@/features/conta/sync.app', () => ({ criarSincronizacaoDoApp: jest.fn() }));
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
@@ -63,8 +73,10 @@ const barra = (m: { ano: number; mes: number }) => screen.getByTestId(`barra-${m
 const alturaDe = (testID: string) => StyleSheet.flatten(screen.getByTestId(testID).props.style).height;
 
 describe('Evolução mensal na tela do resumo (UC07)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    await salvarContinuidadeSemConta();
+    instalarBanco();
     resumir.mockImplementation(async (ano: number, mes: number) => resumo(ano, mes));
     evoluir.mockImplementation(async (ano: number, mes: number) => serie(ano, mes));
   });
@@ -213,7 +225,7 @@ describe('Evolução mensal na tela do resumo (UC07)', () => {
     await render(<ResumoFinanceiro />);
 
     expect(await screen.findByText(MSG_FALHA_EVOLUCAO)).toBeTruthy();
-    expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 10,00');
+    expect(await screen.findByTestId('total-receitas')).toHaveTextContent('R$ 10,00');
     expect(screen.getByRole('button', { name: 'Categorias' })).toBeTruthy();
   });
 

@@ -1,3 +1,5 @@
+import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
+beforeEach(async () => { await salvarContinuidadeSemConta(); });
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import Home from '@/app';
 import { calcularResumo } from '@/features/resumo/service';

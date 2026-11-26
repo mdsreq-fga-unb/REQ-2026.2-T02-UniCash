@@ -4,60 +4,66 @@ Cadeia: **requisito → caso de uso (fluxo) → código → teste → resultado.
 Os caminhos são relativos a `mobile/`. As siglas de requisitos vêm dos comentários do código
 (`src/**`) e do `tests/MANUAL.md`; os textos completos estão em `engenharia_de_requisitos`.
 
-As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 registra o **UC06 — Gerenciar categorias**; a seção 5 registra o **UC03 — Consultar resumo financeiro**; a seção 6 registra o **UC07 — Consultar evolução mensal**.
+As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 registra o **UC06 — Gerenciar categorias**; a seção 5 registra o **UC10 — Conta e sessão**.
+
+A seção 6 registra o **UC03 — Consultar resumo financeiro**.
+
+A seção 7 registra o **UC07 — Consultar evolução mensal**.
 
 ## 1. Regras de negócio e requisitos não funcionais
 
 | Requisito | Fluxo do UC01 | Código | Teste automatizado | Teste manual |
 |---|---|---|---|---|
-| RN06 – base local | todos | `src/db/schema.ts`, `src/db/database.ts` | `tests/service/*` (SQLite em memória, `helpers/fakeDb.ts`) | 3.2 |
-| RN07 – exclusão e conflito na nuvem (RN07) | D, sincronização | `src/features/receitas/service.ts` (`excluirReceita`), `src/features/receitas/sync.ts` | `tests/service/sync.test.ts`, `tests/service/serie.test.ts` | 3.2 |
-| RN08 – data, título e valor obrigatórios | A, C | `src/features/receitas/validation.ts` | `tests/unit/validation.test.ts`, `tests/screens/ReceitaForm.test.tsx` | 3.3 |
-| RN09 – valor | A, C | `src/features/receitas/validation.ts`, `src/features/receitas/money.ts` | `tests/unit/validation.test.ts`, `tests/unit/money.test.ts`, `tests/screens/ReceitaForm.test.tsx` | 3.3 |
-| RN10 – título e descrição | A, C | `src/features/receitas/validation.ts` | `tests/unit/validation.test.ts`, `tests/screens/ReceitaForm.test.tsx` | 3.3 |
-| RN11 – operação composta em uma transação | A, C, D | `src/features/receitas/service.ts` (`transacao`) | `tests/service/atomicidade.test.ts` | 3.1 |
-| RN12 – listagem por período, mais recente primeiro, sem excluídas | B | `src/features/receitas/service.ts` (`listarReceitas`), `src/features/receitas/useReceitas.ts` | `tests/service/consulta.test.ts`, `tests/screens/ListaReceitas.test.tsx`, `tests/screens/FiltroReceitas.test.tsx`, `tests/screens/FiltroReceitas.extras.test.tsx` | – |
-| RN19 – recorrência válida | A, C | `src/features/receitas/validation.ts` | `tests/unit/validation.test.ts`, `tests/service/recorrencia.test.ts`, `tests/screens/ReceitaForm.test.tsx` | – |
-| RN20 – editar qualquer campo | C | `src/features/receitas/service.ts` (`editarReceita`), `src/app/receitas/[id]/editar.tsx` | `tests/service/editar.test.ts`, `tests/service/serie.test.ts`, `tests/service/edicaoSerie.extras.test.ts`, `tests/screens/EditarReceita.test.tsx` | – |
+| RN06 – base local | todos | `src/db/schema.ts`, `src/db/database.ts` | `tests/service/receita/*` (SQLite em memória, `helpers/fakeDb.ts`) | 3.2 |
+| RN07 – exclusão e conflito na nuvem (RN07) | D, sincronização | `src/features/receitas/service.ts` (`excluirReceita`), `src/features/receitas/sync.ts` | `tests/service/receita/sync.test.ts`, `tests/service/receita/serie.test.ts` | 3.2 |
+| RN08 – data, título e valor obrigatórios | A, C | `src/features/receitas/validation.ts` | `tests/unit/validation.test.ts`, `tests/screens/receita/ReceitaForm.test.tsx` | 3.3 |
+| RN09 – valor | A, C | `src/features/receitas/validation.ts`, `src/features/receitas/money.ts` | `tests/unit/validation.test.ts`, `tests/unit/money.test.ts`, `tests/screens/receita/ReceitaForm.test.tsx` | 3.3 |
+| RN10 – título e descrição | A, C | `src/features/receitas/validation.ts` | `tests/unit/validation.test.ts`, `tests/screens/receita/ReceitaForm.test.tsx` | 3.3 |
+| RN11 – operação composta em uma transação | A, C, D | `src/features/receitas/service.ts` (`transacao`) | `tests/service/receita/atomicidade.test.ts` | 3.1 |
+| RN12 – listagem por período, mais recente primeiro, sem excluídas | B | `src/features/receitas/service.ts` (`listarReceitas`), `src/features/receitas/useReceitas.ts` | `tests/service/receita/consulta.test.ts`, `tests/screens/receita/ListaReceitas.test.tsx`, `tests/screens/receita/FiltroReceitas.test.tsx`, `tests/screens/receita/FiltroReceitas.extras.test.tsx` | – |
+| RN19 – recorrência válida | A, C | `src/features/receitas/validation.ts` | `tests/unit/validation.test.ts`, `tests/service/receita/recorrencia.test.ts`, `tests/screens/receita/ReceitaForm.test.tsx` | – |
+| RN20 – editar qualquer campo | C | `src/features/receitas/service.ts` (`editarReceita`), `src/app/receitas/[id]/editar.tsx` | `tests/service/receita/editar.test.ts`, `tests/service/receita/serie.test.ts`, `tests/service/receita/edicaoSerie.extras.test.ts`, `tests/screens/receita/EditarReceita.test.tsx` | – |
 | RNF03 – Security Rules | sincronização | `firestore.rules` | `tests/rules/firestore.rules.test.ts` (`npm run test:rules`) | – |
-| RNF05 – atomicidade | A, C, D | `src/features/receitas/service.ts` | `tests/service/atomicidade.test.ts` | – |
-| RNF14 – usuário identifica o motivo do erro | A | `src/components/receitas/ReceitaForm.tsx`, `src/features/receitas/validation.ts` | `tests/screens/ReceitaForm.test.tsx` (mensagens) | 3.3 |
-| RNF26 – sem duplicidade na geração de séries | A, abertura do app | `src/features/receitas/service.ts` (`completarRecorrencias`), `src/app/_layout.tsx` | `tests/service/recorrencia.test.ts`, `tests/screens/Layout.test.tsx`, `tests/service/sync.test.ts` | – |
-| RNF27 – registro em até 3 etapas | A | `src/app/receitas/nova.tsx`, `src/components/receitas/ReceitaForm.tsx` | `tests/screens/NovaReceita.test.tsx` | 3.4 |
+| RNF05 – atomicidade | A, C, D | `src/features/receitas/service.ts` | `tests/service/receita/atomicidade.test.ts` | – |
+| RNF14 – usuário identifica o motivo do erro | A | `src/components/receitas/ReceitaForm.tsx`, `src/features/receitas/validation.ts` | `tests/screens/receita/ReceitaForm.test.tsx` (mensagens) | 3.3 |
+| RNF26 – sem duplicidade na geração de séries | A, abertura do app | `src/features/receitas/service.ts` (`completarRecorrencias`), `src/app/_layout.tsx` | `tests/service/receita/recorrencia.test.ts`, `tests/screens/receita/Layout.test.tsx`, `tests/service/receita/sync.test.ts` | – |
+| RNF27 – registro em até 3 etapas | A | `src/app/receitas/nova.tsx`, `src/components/receitas/ReceitaForm.tsx` | `tests/screens/receita/NovaReceita.test.tsx` | 3.4 |
 | RNF34 – base local principal | todos | `src/db/database.ts` | `tests/setup.ts`, `tests/helpers/fakeDb.ts` | – |
-| RNF35 — Persistir localmente com durabilidade | A | `src/features/receitas/service.ts`, `src/app/receitas/nova.tsx` | `tests/service/atomicidade.test.ts` (simulado) | 3.1 |
+| RNF35 — Persistir localmente com durabilidade | A | `src/features/receitas/service.ts`, `src/app/receitas/nova.tsx` | `tests/service/receita/atomicidade.test.ts` (simulado) | 3.1 |
 
 ## 2. Fluxos e exceções do caso de uso
 
 | Fluxo / exceção | Código | Teste automatizado | Teste manual |
 |---|---|---|---|
-| A – registrar receita | `src/app/receitas/nova.tsx`, `src/components/receitas/ReceitaForm.tsx`, `service.ts` (`registrarReceita`) | `tests/screens/NovaReceita.test.tsx`, `tests/screens/ReceitaForm.test.tsx`, `tests/service/registrar.test.ts` | 3.1, 3.4 |
-| B – consultar e filtrar | `src/app/receitas/index.tsx`, `src/components/receitas/FiltroReceitas.tsx`, `src/components/receitas/ReceitaItem.tsx` | `tests/screens/ListaReceitas.test.tsx`, `tests/screens/ListaReceitas.sincronizacao.test.tsx`, `tests/screens/FiltroReceitas*.test.tsx`, `tests/screens/ReceitaItem.test.tsx` | – |
-| B3 – detalhe | `src/app/receitas/[id]/index.tsx` | `tests/screens/DetalheReceita.test.tsx`, `tests/screens/Voltar.test.tsx` | – |
-| C – editar | `src/app/receitas/[id]/editar.tsx` | `tests/screens/EditarReceita.test.tsx`, `tests/screens/Voltar.test.tsx` | – |
-| D – excluir | `src/components/receitas/useExclusao.tsx`, `src/components/receitas/OpcoesModal.tsx` | `tests/screens/DetalheReceita.test.tsx`, `tests/screens/useExclusao.test.tsx` | – |
-| FA08 – alcance em série (esta / próximas / todas) | `src/components/receitas/useExclusao.tsx`, `src/app/receitas/[id]/editar.tsx`, `service.ts` | `tests/service/serie.test.ts`, `tests/service/edicaoSerie.extras.test.ts`, `tests/screens/EditarReceita.test.tsx`, `tests/screens/DetalheReceita.test.tsx` | – |
-| EX01 – dados inválidos | `src/features/receitas/validation.ts`, `src/components/receitas/ReceitaForm.tsx` | `tests/unit/validation.test.ts`, `tests/screens/ReceitaForm.test.tsx`, `tests/screens/NovaReceita.test.tsx` | 3.3 |
-| EX02 – período invertido | `src/components/receitas/FiltroReceitas.tsx` | `tests/screens/FiltroReceitas.test.tsx` | – |
-| EX03 – falha ao gravar | `nova.tsx`, `[id]/editar.tsx`, `useExclusao.tsx`, `service.ts` | `tests/screens/NovaReceita.test.tsx`, `tests/screens/EditarReceita.test.tsx`, `tests/screens/DetalheReceita.test.tsx`, `tests/service/atomicidade.test.ts` | 3.1 |
-| EX04 – sem conexão | `src/features/receitas/sync.ts`, `src/app/receitas/nova.tsx` | `tests/service/sync.test.ts` | 3.2 |
-| EX05 – atualização vinda da nuvem | `src/features/receitas/sync.ts`, `src/app/receitas/index.tsx` | `tests/service/sync.test.ts`, `tests/screens/ListaReceitas.sincronizacao.test.tsx` | 3.2 |
-| EX06 – receita já excluída | `service.ts`, `[id]/index.tsx`, `[id]/editar.tsx`, `useExclusao.tsx` | `tests/service/editar.test.ts`, `tests/screens/DetalheReceita.test.tsx`, `tests/screens/EditarReceita.test.tsx` | – |
-| EX07 – acesso negado | `src/features/receitas/sync.ts` (`consumirAcessoNegado`), `src/app/receitas/index.tsx`, `validation.ts` (`MSG.acessoNegado`) | `tests/service/sync.test.ts`, `tests/screens/ListaReceitas.test.tsx` | – |
-| EX08 – falha de leitura local | `service.ts`, `src/features/receitas/useReceitas.ts`, `[id]/index.tsx`, `[id]/editar.tsx` | `tests/service/leitura.test.ts`, `tests/screens/ListaReceitas.test.tsx`, `tests/screens/DetalheReceita.test.tsx`, `tests/screens/EditarReceita.test.tsx` | – |
-| Restauração da nuvem | `src/features/receitas/sync.ts` (`restaurarDaNuvem`) | `tests/service/sync.test.ts` | 3.2 (passo 5) |
+| A – registrar receita | `src/app/receitas/nova.tsx`, `src/components/receitas/ReceitaForm.tsx`, `service.ts` (`registrarReceita`) | `tests/screens/receita/NovaReceita.test.tsx`, `tests/screens/receita/ReceitaForm.test.tsx`, `tests/service/receita/registrar.test.ts` | 3.1, 3.4 |
+| B – consultar e filtrar | `src/app/receitas/index.tsx`, `src/components/receitas/FiltroReceitas.tsx`, `src/components/receitas/ReceitaItem.tsx` | `tests/screens/receita/ListaReceitas.test.tsx`, `tests/screens/receita/ListaReceitas.sincronizacao.test.tsx`, `tests/screens/receita/FiltroReceitas*.test.tsx`, `tests/screens/receita/ReceitaItem.test.tsx` | – |
+| B3 – detalhe | `src/app/receitas/[id]/index.tsx` | `tests/screens/receita/DetalheReceita.test.tsx`, `tests/screens/receita/Voltar.test.tsx` | – |
+| C – editar | `src/app/receitas/[id]/editar.tsx` | `tests/screens/receita/EditarReceita.test.tsx`, `tests/screens/receita/Voltar.test.tsx` | – |
+| D – excluir | `src/components/receitas/useExclusao.tsx`, `src/components/receitas/OpcoesModal.tsx` | `tests/screens/receita/DetalheReceita.test.tsx`, `tests/screens/receita/useExclusao.test.tsx` | – |
+| FA08 – alcance em série (esta / próximas / todas) | `src/components/receitas/useExclusao.tsx`, `src/app/receitas/[id]/editar.tsx`, `service.ts` | `tests/service/receita/serie.test.ts`, `tests/service/receita/edicaoSerie.extras.test.ts`, `tests/screens/receita/EditarReceita.test.tsx`, `tests/screens/receita/DetalheReceita.test.tsx` | – |
+| EX01 – dados inválidos | `src/features/receitas/validation.ts`, `src/components/receitas/ReceitaForm.tsx` | `tests/unit/validation.test.ts`, `tests/screens/receita/ReceitaForm.test.tsx`, `tests/screens/receita/NovaReceita.test.tsx` | 3.3 |
+| EX02 – período invertido | `src/components/receitas/FiltroReceitas.tsx` | `tests/screens/receita/FiltroReceitas.test.tsx` | – |
+| EX03 – falha ao gravar | `nova.tsx`, `[id]/editar.tsx`, `useExclusao.tsx`, `service.ts` | `tests/screens/receita/NovaReceita.test.tsx`, `tests/screens/receita/EditarReceita.test.tsx`, `tests/screens/receita/DetalheReceita.test.tsx`, `tests/service/receita/atomicidade.test.ts` | 3.1 |
+| EX04 – sem conexão | `src/features/receitas/sync.ts`, `src/app/receitas/nova.tsx` | `tests/service/receita/sync.test.ts` | 3.2 |
+| EX05 – atualização vinda da nuvem | `src/features/receitas/sync.ts`, `src/app/receitas/index.tsx` | `tests/service/receita/sync.test.ts`, `tests/screens/receita/ListaReceitas.sincronizacao.test.tsx` | 3.2 |
+| EX06 – receita já excluída | `service.ts`, `[id]/index.tsx`, `[id]/editar.tsx`, `useExclusao.tsx` | `tests/service/receita/editar.test.ts`, `tests/screens/receita/DetalheReceita.test.tsx`, `tests/screens/receita/EditarReceita.test.tsx` | – |
+| EX07 – acesso negado | `src/features/receitas/sync.ts` (`consumirAcessoNegado`), `src/app/receitas/index.tsx`, `validation.ts` (`MSG.acessoNegado`) | `tests/service/receita/sync.test.ts`, `tests/screens/receita/ListaReceitas.test.tsx` | – |
+| EX08 – falha de leitura local | `service.ts`, `src/features/receitas/useReceitas.ts`, `[id]/index.tsx`, `[id]/editar.tsx` | `tests/service/receita/leitura.test.ts`, `tests/screens/receita/ListaReceitas.test.tsx`, `tests/screens/receita/DetalheReceita.test.tsx`, `tests/screens/receita/EditarReceita.test.tsx` | – |
+| Restauração da nuvem | `src/features/receitas/sync.ts` (`restaurarDaNuvem`) | `tests/service/receita/sync.test.ts` | 3.2 (passo 5) |
 
-A tela de login/cadastro, que chamaria `restaurarDaNuvem()` e faria a pergunta sobre enviar os dados locais,
-ainda não existe no código.
+A tela de conta (UC10) já existe: a restauração em aparelho novo é chamada por `src/features/conta/sync.app.ts`
+(`restaurarSeAparelhoVazio`) e a pergunta sobre enviar os dados locais está em `src/app/conta/confirmar-email.tsx`.
+Os testes e as decisões estão na seção 5. Como a sincronização passou a exigir e-mail confirmado e a poder ser pausada
+(UC10, FA01), `sincronizarPendentes()` tem hoje duas condições a mais; a seção 5.1 registra os testes.
 
 ## 3. Resultados de validação
 
-### 3.1 Automatizados (`npm test -- --coverage`)
+### 3.1 Automatizados (`npm test -- --ci --coverage`)
 
 | Data | Suítes | Testes | Statements | Branches | Funções | Linhas | Responsável |
 |---|---|---|---|---|---|---|---|
 | 2026-11-13 (antes dos testes de cobertura final) | 19 de 19 | 255 de 255 | 96,72% | 91,87% | 96,42% | 98,32% | |
-| | | | | | | | |
+| 2026-11-23 (UC01, UC06 e UC10 juntos; `npx jest --ci --coverage`) | 48 de 48 | 573 de 573 | 99,08% | 97,92% | 96,46% | 99,27% | |
 
 Escopo da cobertura: `src/**/*.{ts,tsx}`, exceto `src/lib/firebase.ts`, `src/db/database.ts`,
 `src/features/receitas/types.ts` (só tipos) e `src/app/index.tsx` (tela inicial sem regra de negócio).
@@ -67,7 +73,7 @@ Métricas: statements, branches, funções e linhas.
 
 | Data | Suítes | Testes | Resultado | Responsável |
 |---|---|---|---|---|
-| | | | | |
+| 2026-11-23 | 2 de 2 | 63 (57 aprovados, 6 ignorados) | Aprovado. Os 6 ignorados são o grupo `perfil: alteração (UC11)` (`describe.skip`) | |
 
 ### 3.3 Manuais (`tests/MANUAL.md`, seção 3)
 
@@ -268,11 +274,131 @@ O problema B3 conhecido é que `PRAGMA foreign_keys = ON` não é herdado pela c
 
 Portanto, não há impacto demonstrado na funcionalidade da UC06 e nenhuma correção de arquitetura foi feita nesta etapa.
 
-## 5. UC03 — Consultar resumo financeiro
+---
+
+## 5. UC10 — Conta e sessão
+
+Fonte: caso de uso **UC10 — Conta e sessão** (RF01, RF02, RF06, RF31). Escopo desta entrega: cadastro, entrada, recuperação de senha, encerramento de sessão e confirmação do e-mail sobre o Firebase Authentication, perfil em `usuarios/{uid}` e ligação com a sincronização existente (`src/features/receitas/sync.ts`). Todos os testes abaixo foram **escritos**; os resultados de execução estão na seção 5.3.
+
+Atualização de 23/11/2026: a seção registra as quatro decisões técnicas da seção 5.4 (sincronização só com e-mail confirmado, prazo das ligações do Firebase, página padrão de redefinição, regra do FA01) e o que a branch implementa para elas.
+
+### 5.1. Requisitos funcionais, regras de negócio e requisitos não funcionais
+
+| Requisito | Fluxo do UC10 | Código | Teste automatizado | Situação |
+|---|---|---|---|---|
+| RF01 — cadastrar usuário | A, E | `src/app/conta/cadastro.tsx`, `src/app/conta/confirmar-email.tsx`, `src/features/conta/auth.firebase.ts` (`signUp`, `checkEmailVerified`, `resendVerification`), `src/features/conta/service.firebase.ts` (`cadastrar`), `validation.ts` | `tests/screens/CadastroConta.test.tsx`, `tests/screens/ConfirmarEmail.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/servico-conta.test.ts`, `tests/unit/validation-conta.test.ts`, `tests/rules/conta.rules.test.ts` | Testado. Prazo da ligação: o do Firebase (decisão 5.4); a interface ainda cita 5 minutos — ajuste pendente (5.5) |
+| RF02 — autenticar | B | `src/app/conta/entrar.tsx`, `auth.firebase.ts` (`signIn`, observador de sessão), `service.firebase.ts` (`entrar`) | `tests/screens/EntrarConta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/servico-conta.test.ts`, `tests/service/conta/simulado-conta.test.ts` | Testado. `entrar` só autentica; quem retoma a sincronização é o observador de sessão (`index.ts`) |
+| RF06 — encerrar sessão | D | `src/app/conta/index.tsx`, `auth.firebase.ts` (`signOut`), `service.firebase.ts` (`sair`: suspende a sincronização e depois invalida a sessão) | `tests/screens/Conta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` | Testado |
+| RF31 — recuperar senha | C | `src/app/conta/recuperar-senha.tsx`, `src/app/conta/redefinir-senha.tsx`, `auth.firebase.ts` (`sendPasswordReset`, `confirmPasswordReset`) | `tests/screens/RecuperarSenha.test.tsx`, `tests/screens/RedefinirSenha.test.tsx`, `tests/service/conta/auth-conta.test.ts` | Testado. Decisão: a redefinição acontece na página padrão do Firebase; a rota `redefinir-senha` fica no código sem uso no fluxo atual (5.4). Texto de prazo na interface: ver 5.5 |
+| RF61 — uso sem conta | todos | `src/app/conta/cadastro.tsx`, `entrar.tsx` ("Continuar sem conta") | `tests/screens/CadastroConta.test.tsx`, `tests/screens/EntrarConta.test.tsx` | Testado; roteiro 3.2 do UC10 |
+| RF62 — sincronização (contrato) | B4, E6, FA01 | `src/features/conta/sync.ts` (porta), `sync.app.ts` (adaptador sobre `features/receitas/sync.ts`), `index.ts` | `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/index-conta.test.ts`, `tests/unit/sync-conta.test.ts` | Testado com o sync da UC01 simulado por mock |
+| RF62 — sincronizar só com e-mail confirmado (decisão 5.4, item 1) | B4, E, EX11 | `src/features/receitas/sync.ts` (`sincronizarPendentes`: sem `user.emailVerified` não envia, nem em envio manual) | `tests/service/receita/sync.test.ts` ("e-mail não confirmado…", "e-mail confirmado depois…"), `tests/service/receita/sync.segundoPlano.test.ts` ("com e-mail não confirmado…"), mocks com `emailVerified: true` em `sync.extras.test.ts` e `sync.restauracaoRede.extras.test.ts` | Implementado/testado. `restaurarDaNuvem()` continua conferindo só `currentUser`: só é chamada com sessão ativa (e-mail confirmado) |
+| RF62 — envio automático pausado (FA01, decisão 5.4, item 4) | A, E5-E6, FA01 | `service.firebase.ts` (`cadastrar` pausa depois de criar a conta; `enviarDadosDoAparelho` e `sincronizarAgora` exigem sessão ativa), `sync.app.ts` (`pausarEnvioAutomatico`, `sincronizar` como envio manual), `features/receitas/sync.ts` (`definirEnvioAutomatico`, `sincronizarPendentes({ manual })`), `src/db/schema.ts` (tabela `preferencias`) | `tests/service/conta/servico-conta.test.ts` ("envio automático (FA01)"), `tests/service/conta/sync-app-conta.test.ts` ("pausar o envio automático (FA01)"), `tests/service/receita/sync.test.ts` ("envio automático pausado (FA01)"), `tests/screens/ConfirmarEmail.test.tsx` | Implementado/testado. Limitações em 5.4 (sem botão dedicado) |
+| Política de senha — regra a incluir no catálogo (A4) | A, C | `src/features/conta/validation.ts` (`senhaNaPolitica`, `validarCadastro`, `validarSenhaNova`), `firebase-erros.ts` | `tests/unit/validation-conta.test.ts` (7 e 8 caracteres e cada classe ausente), `tests/screens/CadastroConta.test.tsx`, `tests/screens/RedefinirSenha.test.tsx`, `tests/unit/firebase-erros-conta.test.ts` | Cliente testado; no servidor depende de configuração no Console (5.5). Número da regra: definir no catálogo |
+| Confirmação do e-mail — regra a incluir no catálogo (A6, E, EX11) | A, B, E | `auth.firebase.ts` (`sessaoDe`, `signIn`, `checkEmailVerified`), `confirmar-email.tsx` | `tests/service/conta/auth-conta.test.ts`, `tests/screens/EntrarConta.test.tsx`, `tests/screens/ConfirmarEmail.test.tsx` | Testado. Número da regra: definir no catálogo |
+| RN06 — conta opcional, base local | todos | `sync.app.ts` (`suspender` não altera dados), `service.firebase.ts` (`sair`), `index.ts` | `tests/screens/Conta.test.tsx`, `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` | Testado; roteiros 3.3 e 3.4 |
+| RNF01 — senha protegida | A, C | Firebase Authentication (hash); `auth.firebase.ts` nunca grava senha | `tests/service/conta/auth-conta.test.ts` (perfil sem senha), `tests/rules/conta.rules.test.ts` (senha recusada no perfil) | Testado no que cabe ao app |
+| RNF02 — serviço de autenticação e sessão | B, D | `auth.firebase.ts`, `sessao.ts` | `tests/service/conta/auth-conta.test.ts`, `tests/unit/sessao-conta.test.ts` | Testado |
+| RNF03 — acesso só ao próprio perfil | A, EX10 | `firestore.rules` (`match /usuarios/{uid}`) | `tests/rules/conta.rules.test.ts` (`npm run test:rules`) | Leitura e criação testadas no Emulator; **atualização do perfil pendente** (UC11, ver 5.5) |
+| RNF04 — validação no cliente e no servidor | A, C | `validation.ts`, `firebase-erros.ts`, `firestore.rules` | `tests/unit/validation-conta.test.ts`, `tests/unit/firebase-erros-conta.test.ts`, `tests/rules/conta.rules.test.ts` | Cliente e e-mail testados; política de senha no servidor depende do Console (5.5) |
+| RNF14 — mensagens sem dados sensíveis | todos | `erros.ts`, `firebase-erros.ts` | `tests/unit/erros-conta.test.ts`, `tests/unit/firebase-erros-conta.test.ts`, `tests/service/conta/auth-conta.test.ts` | Testado |
+| RNF26, RNF36 — pendências e reenvio | E6, EX08 | `sync.app.ts`, `features/receitas/sync.ts` | `tests/service/conta/sync-app-conta.test.ts`, `tests/screens/ConfirmarEmail.test.tsx` | Testado. `sync.app.ts` só consulta as tabelas que existem no esquema (receitas, recorrências e, após o merge com a UC02, despesas) |
+| RNF30 — Emulator Suite | — | `src/lib/firebase.ts` (`EXPO_PUBLIC_USE_EMULATOR`) | `tests/rules/conta.rules.test.ts` | Testado |
+| RNF32 — finalidade do tratamento de dados | A2 | `src/app/conta/cadastro.tsx` | `tests/screens/CadastroConta.test.tsx` | Testado; texto a ajustar após a validação da mudança da D12 (5.5) |
+| RNF33 — acessibilidade WCAG 2.1 AA | A, B | `src/components/conta/*` | — | **Manual** (roteiro 3.7 do UC10) |
+| RNF34 — operação sem conexão | D, FA04 | `auth.firebase.ts` (`signOut`) | `tests/service/conta/simulado-conta.test.ts`, `tests/screens/Conta.test.tsx` | Testado; roteiro 3.4 |
+| RNF38 — paleta "Tesouraria Teal" | todos | `src/components/conta/*`, `src/lib/theme` | — | **Manual** (roteiro 3.7) |
+| RNF40 — restauração em aparelho novo | FA02 | `sync.app.ts` (`restaurarSeAparelhoVazio`), `features/receitas/sync.ts` (`restaurarDaNuvem`) | `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/index-conta.test.ts` | Testado com mock; roteiro 3.6 |
+
+### 5.2. Fluxos e exceções
+
+| Fluxo / exceção | Código | Teste automatizado | Situação |
+|---|---|---|---|
+| A — cadastrar | `cadastro.tsx`, `auth.firebase.ts` (`signUp`), `service.firebase.ts` (`cadastrar`) | `tests/screens/CadastroConta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/servico-conta.test.ts`, `tests/rules/conta.rules.test.ts` | Implementado/testado |
+| B — autenticar | `entrar.tsx`, `auth.firebase.ts` (`signIn`) | `tests/screens/EntrarConta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` | Implementado/testado |
+| C — recuperar senha | `recuperar-senha.tsx`, `redefinir-senha.tsx` | `tests/screens/RecuperarSenha.test.tsx`, `tests/screens/RedefinirSenha.test.tsx`, `tests/service/conta/auth-conta.test.ts` | Implementado/testado; redefinição pela página do Firebase (5.4) |
+| D — encerrar sessão | `index.tsx`, `auth.firebase.ts`, `service.firebase.ts` (`sair`) | `tests/screens/Conta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` | Implementado/testado |
+| E — confirmar e-mail | `confirmar-email.tsx`, `auth.firebase.ts` (`checkEmailVerified`) | `tests/screens/ConfirmarEmail.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` | Implementado/testado |
+| E6 — enviar os dados do aparelho | `confirmar-email.tsx`, `service.firebase.ts` (`enviarDadosDoAparelho`: exige sessão ativa, marca como pendentes e envia como pedido da pessoa), `sync.app.ts` | `tests/screens/ConfirmarEmail.test.tsx`, `tests/service/conta/servico-conta.test.ts`, `tests/service/conta/sync-app-conta.test.ts` | Implementado/testado; libera o envio automático pausado |
+| FA01 — dados do aparelho não enviados | `confirmar-email.tsx` ("Não enviar"), `service.firebase.ts` (`cadastrar` já deixa o envio pausado), `sync.app.ts`, `features/receitas/sync.ts` | `tests/screens/ConfirmarEmail.test.tsx`, `tests/service/conta/servico-conta.test.ts`, `tests/service/conta/sync-app-conta.test.ts`, `tests/service/receita/sync.test.ts` | Implementado/testado. Regra decidida em 5.4: os registros seguintes só sincronizam se a pessoa pedir a sincronização |
+| FA02 — aparelho novo ou reinstalado | `sync.app.ts`, `index.ts` | `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/index-conta.test.ts` | Testado com mock |
+| FA03 — alterações pendentes ao sair | `index.tsx`, `sync.app.ts` (`contarPendentes`) | `tests/screens/Conta.test.tsx`, `tests/service/conta/sync-app-conta.test.ts` | Implementado/testado. "Sincronizar e sair" é um envio pedido pela pessoa (libera o envio automático) |
+| FA04 — sair sem conexão | `auth.firebase.ts` | `tests/service/conta/simulado-conta.test.ts`, `tests/service/conta/auth-conta.test.ts` | Implementado/testado |
+| FA05 — cancelamento | `cadastro.tsx`, `entrar.tsx`, `recuperar-senha.tsx` | `tests/screens/CadastroConta.test.tsx`, `tests/screens/EntrarConta.test.tsx`, `tests/screens/RecuperarSenha.test.tsx` | Implementado/testado |
+| FA06 — conta já com sessão ativa | `index.tsx` | `tests/screens/Conta.test.tsx` | Implementado/testado |
+| FA07 — reenvio da confirmação | `confirmar-email.tsx`, `auth.firebase.ts` (`resendVerification`) | `tests/screens/ConfirmarEmail.test.tsx`, `tests/service/conta/auth-conta.test.ts` | Implementado/testado |
+| EX01 — dados do cadastro inválidos | `validation.ts`, `cadastro.tsx` | `tests/unit/validation-conta.test.ts`, `tests/screens/CadastroConta.test.tsx` | Implementado/testado |
+| EX02 — e-mail já utilizado | `firebase-erros.ts`, `cadastro.tsx` | `tests/screens/CadastroConta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/simulado-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` (cadastro que falha não pausa nada) | Implementado/testado |
+| EX03 — sem conexão (cadastro, confirmação, recuperação) | `firebase-erros.ts`, telas | `tests/screens/CadastroConta.test.tsx`, `tests/screens/ConfirmarEmail.test.tsx`, `tests/screens/RecuperarSenha.test.tsx`, `tests/screens/RedefinirSenha.test.tsx`, `tests/service/conta/auth-conta.test.ts` | Implementado/testado |
+| EX04 — credenciais rejeitadas | `entrar.tsx`, `erros.ts` | `tests/screens/EntrarConta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/unit/erros-conta.test.ts` | Implementado/testado |
+| EX05 — sem conexão na entrada | `entrar.tsx`, `erros.ts` | `tests/screens/EntrarConta.test.tsx`, `tests/unit/erros-conta.test.ts` | Implementado/testado |
+| EX06 — ligação temporária inválida | `confirmar-email.tsx`, `redefinir-senha.tsx` | `tests/screens/ConfirmarEmail.test.tsx`, `tests/screens/RedefinirSenha.test.tsx`, `tests/service/conta/auth-conta.test.ts` | Implementado/testado |
+| EX07 — falha ao criar conta ou perfil | `auth.firebase.ts` (desfaz a conta) | `tests/screens/CadastroConta.test.tsx`, `tests/service/conta/auth-conta.test.ts` | Implementado/testado |
+| EX08 — falha na sincronização inicial | `confirmar-email.tsx`, `sync.app.ts` | `tests/screens/ConfirmarEmail.test.tsx`, `tests/service/conta/servico-conta.test.ts`, `tests/service/conta/sync-app-conta.test.ts` | Implementado/testado |
+| EX09 — falha ao invalidar a sessão | `index.tsx`, `auth.firebase.ts`, `service.firebase.ts` | `tests/screens/Conta.test.tsx`, `tests/service/conta/servico-conta.test.ts` | Implementado/testado |
+| EX10 — dados recusados pelas Security Rules | `firebase-erros.ts`, `firestore.rules` | `tests/screens/CadastroConta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/unit/firebase-erros-conta.test.ts`, `tests/rules/conta.rules.test.ts` | Implementado/testado |
+| EX11 — e-mail ainda não confirmado | `entrar.tsx`, `confirmar-email.tsx`, `receitas/sync.ts` (não sincroniza) | `tests/screens/EntrarConta.test.tsx`, `tests/screens/ConfirmarEmail.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/receita/sync.test.ts` | Implementado/testado |
+
+### 5.3. Resultados
+
+Preencher com a data e os números de cada execução (data, responsável e link do CI na seção 3.4).
+
+| Data | Comando | Suítes | Testes | Statements | Branches | Funções | Linhas | Resultado |
+|---|---|---|---|---|---|---|---|---|
+| 2026-11-23 | `npx jest --ci --coverage` | 48 de 48 | 573 de 573 | 99,08% | 97,92% | 96,46% | 99,27% | **Aprovado** |
+| 2026-11-23 | `npm run test:rules` | 2 de 2 | 57 aprovados, 6 ignorados (de 63) | – | – | – | – | **Aprovado.** Os 6 ignorados são o grupo `perfil: alteração (UC11)`; as 4 falhas de recorrências do UC01 não apareceram |
+| 2026-11-23 | `npm run typecheck` | – | – | – | – | – | – | **Sem apontamentos** |
+| 2026-11-23 | `npm run lint` | – | – | – | – | – | – | **Sem apontamentos** |
+
+Responsável e link do CI: preencher. Cobertura dos arquivos do UC10 abaixo de 100%: `app/conta/confirmar-email.tsx` (97,22% das instruções, 81,81% dos ramos), `app/conta/index.tsx` (94,87%), `recuperar-senha.tsx` (95%), `redefinir-senha.tsx` (95,65%), `components/conta/CampoSenha.tsx` (60%), `features/conta/auth.firebase.ts` (98,64%; 86,95% dos ramos), `service.simulado.ts` (95,34%) e `sync.app.ts` (80% dos ramos). O restante de `src/` está em 100%.
+
+Prova manual (ainda não executada): roteiros 3.1 a 3.8 do UC10 em `tests/MANUAL.md`. Registro das execuções e evidências na issue do UC10 (data, responsável, aparelho e casos aprovados).
+
+### 5.4. Decisões técnicas (23/11/2026)
+
+Texto das decisões para o `decisoes.md`: `DECISOES.uc10.md`.
+
+| # | Decisão | Escolha | Efeito na branch |
+|---|---|---|---|
+| 1 | Impedir a sincronização antes de confirmar o e-mail | **Fazer**: `sincronizarPendentes()` só roda com `user.emailVerified` | Implementado em `features/receitas/sync.ts`. Vale também para o envio manual. Mocks de `tests/service/receita/sync.test.ts`, `sync.segundoPlano.test.ts`, `sync.extras.test.ts` e `sync.restauracaoRede.extras.test.ts` ajustados |
+| 2 | Prazo de 5 minutos das ligações (RF01, RF31) | **Aceitar o prazo do Firebase** (o Authentication não permite configurá-lo) | RF01, RF31 e o texto da regra deixam de fixar 5 minutos. **O código e os testes ainda citam 5 minutos** (5.5) |
+| 3 | Link de redefinição de senha | **Aceitar a página padrão do Firebase** | Nenhuma página de redirecionamento. `redefinir-senha.tsx` permanece no código, sem uso no fluxo. `EXPO_PUBLIC_AUTH_CONTINUE_URL` segue opcional. Roteiro 3.5 já descreve esse caminho |
+| 4 | FA01: os registros feitos depois de recusar o envio sincronizam? | **Só se a pessoa pedir a sincronização** | Ver abaixo |
+
+**Como o FA01 funciona na branch**
+
+- `cadastrar` pausa o envio automático logo depois de criar a conta, antes de qualquer pergunta. Se a pessoa fechar o app sem responder, nada sobe. A pausa fica no AsyncStorage (chave `envio_automatico_pausado:<uid>`) e vale depois de reiniciar o app.
+- "Não enviar" só segue para a tela inicial: os registros atuais e os futuros ficam pendentes no aparelho.
+- A pessoa libera o envio pedindo a sincronização: "Enviar meus dados" (pergunta pós-confirmação) ou "Sincronizar e sair" (Conta → Sair, quando há pendências). Esse envio é `manual`, sobe tudo o que está pendente e religa o envio automático dali em diante.
+- `retomar()` (observador de sessão) não libera a pausa.
+- `enviarDadosDoAparelho` e `sincronizarAgora` exigem sessão ativa e não chamam `retomar()` antes, porque ele ocupa a trava do envio em segundo plano e faria o envio manual ser descartado.
+
+**Limitações conhecidas do FA01**
+
+- A pausa é armazenada por UID no AsyncStorage; validação integrada pendente.
+- Não existe botão "Sincronizar agora" na tela Conta. Depois de "Não enviar", o único caminho de interface é Conta → Sair → "Sincronizar e sair", que também encerra a sessão.
+
+### 5.5. Pendências e decisões em aberto
+
+- **Interface e testes ainda citam 5 minutos** (consequência da decisão 2): `confirmar-email.tsx` (subtítulo e aviso de reenvio), `recuperar-senha.tsx`, `validation.ts` (`PRAZO_LIGACAO_MINUTOS`) e os testes `tests/screens/ConfirmarEmail.test.tsx`, `tests/screens/RecuperarSenha.test.tsx`, `tests/unit/validation-conta.test.ts`. O texto deve dizer apenas que a ligação tem prazo de validade e pode ser reenviada.
+- **Regra de atualização do perfil (UC11):** no Emulator, a regra `allow update` de `usuarios/{uid}` dá erro de avaliação para toda atualização feita pelo próprio dono (a criação, usada no cadastro do UC10, passa). Já foram descartadas a comparação do `criado_em` e o valor do Timestamp usado na preparação do teste. Causa não identificada. O grupo `perfil: alteração (UC11)` de `tests/rules/conta.rules.test.ts` está em `describe.skip` e deve ser reativado quando a regra for corrigida, antes de o UC11 gravar o e-mail novo no perfil (`confirmEmailChange`).
+- **Testes de recorrência de `tests/rules/firestore.rules.test.ts` (UC01):** as 4 falhas registradas antes (`RNF03 › o mesmo vale para as recorrências` e três de `recorrências (RN19)`) não apareceram na execução de 23/11/2026 (`test:rules`: 57 aprovados, 6 ignorados). Resolvido; o job de rules não deve ficar vermelho por elas.
+- **Campo `tipo` no envio das séries (a verificar):** o `firestore.rules` exige `tipo` nas recorrências e o `sincronizarPendentes()` desta branch envia a série sem `tipo`. Os testes de rules passam porque montam o próprio documento; o envio real não foi coberto por eles. Se o merge com a `develop` não trouxer o `tipo` no envio, as séries seriam negadas no Firebase real e, como o envio das séries vem antes das receitas, as receitas pendentes também não subiriam. Conferir no roteiro 3.8 do UC10.
+- **Política de senha no servidor (RNF04):** as Security Rules não veem a senha. Vale no cliente; no servidor depende de Authentication → Settings → Password policy (pode exigir o Identity Platform).
+- **Mudança em relação à D12/R07:** o cadastro passa a pedir e-mail e senha. Registrar em `decisoes.md` (`DECISOES.uc10.md`), validar com a cliente e as representantes e ajustar RF01, RF31 e RNF32; a política de senha e a confirmação do e-mail entram no catálogo como regras de negócio (texto proposto no mesmo arquivo; os números das regras dependem do catálogo).
+- **Autenticação sem conexão, dados locais ao sair, limite de tentativas:** assumidos no caso de uso (primeira entrada exige conexão; a base local permanece; sem limite próprio).
+- **Restauração em aparelho novo:** `restaurarDaNuvem()` falha se a nuvem tem despesas com categoria e o aparelho ainda não tem categorias ativas (`MENSAGEM_RESTAURACAO_SEM_CATALOGO`). A semeadura das categorias padrão precisa ocorrer antes; se falhar, a tentativa seguinte ocorre na próxima entrada.
+- **Categorias:** ainda não sincronizam (UC06); por isso `sync.app.ts` não as inclui ao marcar pendentes.
+- **Resíduo de teste:** `tests/service/conta/index-conta.test.ts` cria o mock `liberarEnvioAutomatico`, que não existe na porta `SincronizacaoPort`. Inofensivo; pode ser removido.
+- **Execução e fechamento:** rodar a seção 5.3, os roteiros manuais, abrir o PR e atualizar o DoD Nível 1 na issue. Anexar o resultado do CI na seção 3.4.
+
+Conferido na branch: `src/app/_layout.tsx` chama `iniciarConta()` e `tests/screens/receita/Layout.test.tsx` mocka `@/features/conta`; o `@ts-expect-error` do `getReactNativePersistence` está em `src/lib/firebase.ts`.
+
+## 6. UC03 — Consultar resumo financeiro
 
 Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
 
-### 5.1. Requisitos e regras
+### 6.1. Requisitos e regras
 
 | Requisito | Fluxo do UC03 | Código | Teste automatizado | Teste manual |
 |---|---|---|---|---|
@@ -288,7 +414,7 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 | RNF20 – telas adaptadas a tamanhos de celular | passo 4 | `src/app/index.tsx` (estilos com `flexWrap`/`flexBasis`, comentário RNF20) | – (layout não é renderizado no Jest) | 4.3 |
 | RNF03 – Security Rules | – | não se aplica: o resumo não lê nem grava na nuvem | – | – |
 
-### 5.2. Fluxos e exceções
+### 6.2. Fluxos e exceções
 
 | Fluxo / exceção | Código | Teste automatizado | Teste manual |
 |---|---|---|---|
@@ -310,9 +436,9 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 `/tutorial` mostra "Tutorial em breve"; ligar quando os casos de uso de metas e tutorial forem entregues.
 A visão por dia está em lista, provisória até a escolha entre lista e calendário com a cliente.
 
-### 5.3. Resultados de validação
+### 6.3. Resultados de validação
 
-#### 5.3.1. Automatizados (`npm test -- --ci --coverage`)
+#### 6.3.1. Automatizados (`npm test -- --ci --coverage`)
 
 | Data | Suítes | Testes | `features/resumo` (statements / branches / funções / linhas) | `src/app/index.tsx` | Responsável |
 |---|---|---|---|---|---|
@@ -322,7 +448,7 @@ A visão por dia está em lista, provisória até a escolha entre lista e calend
 
 Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.tsx`: 90% statements, 70% branches, 85% funções, 90% linhas.
 
-#### 5.3.2. Manuais (`tests/MANUAL.md`, seção 4)
+#### 6.3.2. Manuais (`tests/MANUAL.md`, seção 4)
 
 | Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
 |---|---|---|---|---|---|
@@ -332,12 +458,12 @@ Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.ts
 | 4.4 RNF07 – precisão | | | | | |
 | 4.5 Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |
 
-## 6. UC07 — Consultar evolução mensal
+## 7. UC07 — Consultar evolução mensal
 
 Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
 O gráfico fica na tela do resumo (UC03) e compartilha com ele o mês selecionado.
 
-### 6.1. Requisitos e regras
+### 7.1. Requisitos e regras
 
 | Requisito | Fluxo do UC07 | Código | Teste automatizado | Teste manual |
 |---|---|---|---|---|
@@ -351,7 +477,7 @@ O gráfico fica na tela do resumo (UC03) e compartilha com ele o mês selecionad
 | RF55 – atalho para o tutorial | FA02 | `src/app/index.tsx` (`EstadoVazio` do resumo; a seção do gráfico some) | `tests/screens/Evolucao.test.tsx` ("FA02…") | 5.1 (passo 1) |
 | RNF03 – Security Rules | – | não se aplica: o gráfico não lê nem grava na nuvem | – | – |
 
-### 6.2. Fluxos e exceções
+### 7.2. Fluxos e exceções
 
 | Fluxo / exceção | Código | Teste automatizado | Teste manual |
 |---|---|---|---|
@@ -370,17 +496,18 @@ O gráfico fica na tela do resumo (UC03) e compartilha com ele o mês selecionad
 **Biblioteca de gráficos:** nenhuma. As barras são `View` do React Native, sem dependência nova (funciona no Expo Go),
 e cada mês é um botão com rótulo de acessibilidade que informa os valores.
 
-### 6.3. Resultados de validação
+### 7.3. Resultados de validação
 
-#### 6.3.1. Automatizados (`npm test -- --ci --coverage`)
+#### 7.3.1. Automatizados (`npm test -- --ci --coverage`)
 
 | Data | Suítes | Testes | `features/evolucao` (statements / branches / funções / linhas) | Responsável |
 |---|---|---|---|---|
 | 2026-11-24 | 77 de 77 | 1358 de 1358 | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-26 (após integrar a `develop` com UC03, UC04, UC10 e UC16) | 106 de 106 | 1765 de 1765 | 100% / 100% / 100% / 100% | dantescarpati |
 
 Limites mínimos em `jest.config.js` para `src/**/evolucao/**` (e `src/**/resumo/**`, que inclui o gráfico): 90% statements, 70% branches, 85% funções, 90% linhas.
 
-#### 6.3.2. Manuais (`tests/MANUAL.md`, seção 5)
+#### 7.3.2. Manuais (`tests/MANUAL.md`, seção 5)
 
 | Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
 |---|---|---|---|---|---|

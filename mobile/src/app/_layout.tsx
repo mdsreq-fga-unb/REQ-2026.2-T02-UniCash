@@ -3,12 +3,19 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { Stack } from 'expo-router';
 
 import { getDb } from '@/db/database';
+import { iniciarConta } from '@/features/conta';
+import { resetarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { completarRecorrencias } from '@/features/receitas/service';
 import { completarRecorrenciasDespesas } from '@/features/despesas/service';
-import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync';
+import { restaurarDaNuvem, sincronizarEmSegundoPlano, sincronizarPendentes } from '@/features/receitas/sync';
+import { observarConexaoSaldoInicial } from '@/features/saldoInicial/sync';
 import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
+import { iniciarSincronizacaoAutomatica } from '@/features/sincronizacao/service';
 import { cores, raio } from '@/lib/theme';
+
+iniciarConta();
+resetarContinuidadeSemConta();
 
 type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
 
@@ -17,6 +24,8 @@ type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
  * semeadura/mapeamento de categorias terminarem.
  */
 const TELAS_COM_BANCO = [
+  'configuracoes-financeiras',
+  'saldo-inicial',
   'categorias/index',
   'categorias/nova',
   'categorias/[id]/editar',
@@ -24,6 +33,7 @@ const TELAS_COM_BANCO = [
   'despesas/nova',
   'despesas/[id]/index',
   'despesas/[id]/editar',
+  'sincronizacao',
   'receitas/index',
   'receitas/nova',
   'receitas/[id]/index',
@@ -75,6 +85,16 @@ export default function RootLayout() {
   useEffect(() => {
     preparar();
   }, [preparar]);
+
+  useEffect(() => {
+    if (estado !== 'pronto') return;
+    const pararSincronizacao = iniciarSincronizacaoAutomatica();
+    const pararObservacaoSaldo = observarConexaoSaldoInicial(() => sincronizarEmSegundoPlano(true));
+    return () => {
+      pararObservacaoSaldo();
+      pararSincronizacao();
+    };
+  }, [estado]);
 
   return (
     <View style={estilos.raiz}>
