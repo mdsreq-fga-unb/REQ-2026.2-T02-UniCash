@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 
 /**
  * Security Rules no Firebase Emulator Suite.
@@ -682,5 +682,43 @@ describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
     const ref = cat(db('u1'));
     await assertSucceeds(setDoc(ref, categoria()));
     await assertFails(deleteDoc(ref));
+  });
+});
+
+describe('UC08 — saldo inicial', () => {
+  const saldo = { valor_centavos: -12550, mes_referencia: '2026-11' };
+  const ref = (firestore: ReturnType<typeof db>, uid = 'dono', id = 'atual') =>
+    doc(firestore, 'usuarios', uid, 'saldo_inicial', id);
+
+  it('permite consultar e substituir o documento único do dono confirmado', async () => {
+    const proprio = ref(db('dono'));
+    await assertSucceeds(setDoc(proprio, saldo));
+    await assertSucceeds(setDoc(proprio, { ...saldo, valor_centavos: 0 }));
+    await assertSucceeds(setDoc(proprio, { ...saldo, valor_centavos: Number.MAX_SAFE_INTEGER }));
+    await assertSucceeds(getDoc(proprio));
+    await assertFails(setDoc(ref(db('dono'), 'dono', 'outro'), saldo));
+    await assertFails(getDoc(ref(db('dono'), 'dono', 'outro')));
+    await assertFails(getDocs(collection(db('dono'), 'usuarios', 'dono', 'saldo_inicial')));
+  });
+
+  it('isola contas e rejeita usuários sem confirmação', async () => {
+    await assertSucceeds(setDoc(ref(db('dono')), saldo));
+    await assertFails(getDoc(ref(db('outra'))));
+    await assertFails(setDoc(ref(db('outra')), saldo));
+    await assertFails(getDoc(ref(anonimo())));
+    const naoConfirmado = env.authenticatedContext('dono', { email_verified: false }).firestore();
+    await assertFails(getDoc(ref(naoConfirmado)));
+    await assertFails(setDoc(ref(naoConfirmado), saldo));
+  });
+
+  it.each([
+    { valor_centavos: 1.5 },
+    { valor_centavos: Number.MAX_SAFE_INTEGER + 1 },
+    { mes_referencia: '2026-13' },
+    { mes_referencia: '0000-01' },
+    { mes_referencia: '2026-1' },
+    { sync_status: 'pendente' },
+  ])('rejeita dados fora do contrato: %j', async (extra) => {
+    await assertFails(setDoc(ref(db('dono')), { ...saldo, ...extra }));
   });
 });

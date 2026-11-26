@@ -1,7 +1,7 @@
 import { getDb } from '@/db/database';
 import { adicionarMeses, parseBR } from '@/features/receitas/dates';
 import { VALOR_MAXIMO_CENTAVOS } from '@/features/receitas/money';
-import { registrarTransicoes } from './alertas';
+import { salvarSaldoInicial as salvarReferencia } from '@/features/saldoInicial/service';
 import { calcularSaldo, calcularSaldoAnterior, indicadorSaldo } from './calculo';
 
 export type TotaisDoMes = { receitas: number; despesas: number };
@@ -21,7 +21,7 @@ export async function consultarResumoMensal(inicio: string, totaisDoMes?: Totais
     inicial: number | null;
   }>(
     `WITH referencia AS (
-       SELECT mes, valor_centavos FROM saldo_inicial WHERE id = 1
+       SELECT mes_referencia AS mes, valor_centavos FROM saldo_inicial WHERE id = 1
      ), lancamentos AS (
        SELECT data, valor_centavos AS receitas, 0 AS despesas FROM receitas
        WHERE excluido_em IS NULL AND data >= ? AND data < ?
@@ -62,12 +62,5 @@ export async function salvarSaldoInicial({ mes, centavos }: SaldoInicial) {
       !Number.isSafeInteger(centavos) || Math.abs(centavos) > VALOR_MAXIMO_CENTAVOS) {
     throw new RangeError('Saldo inicial inválido');
   }
-  const db = await getDb();
-  await db.withExclusiveTransactionAsync(async (tx) => {
-    await registrarTransicoes(tx, () => tx.runAsync(
-      `INSERT INTO saldo_inicial (id, mes, valor_centavos) VALUES (1, ?, ?)
-     ON CONFLICT(id) DO UPDATE SET mes = excluded.mes, valor_centavos = excluded.valor_centavos`,
-      [mes, centavos],
-    ));
-  });
+  await salvarReferencia({ mes_referencia: mes, valor_centavos: centavos });
 }

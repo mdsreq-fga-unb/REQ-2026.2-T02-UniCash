@@ -337,6 +337,18 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /usuarios/{uid}/saldo_inicial/{id} {
+      allow get: if donoConfirmado(uid) && id == 'atual';
+      allow create, update: if donoConfirmado(uid) && id == 'atual'
+        && request.resource.data.keys().hasOnly(['valor_centavos', 'mes_referencia'])
+        && request.resource.data.valor_centavos is int
+        && request.resource.data.valor_centavos >= -9007199254740991
+        && request.resource.data.valor_centavos <= 9007199254740991
+        && request.resource.data.mes_referencia is string
+        && request.resource.data.mes_referencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && !request.resource.data.mes_referencia.matches('^0000-.*$');
+    }
+
     match /usuarios/{uid}/receitas/{id} {
       allow read, delete: if donoConfirmado(uid);
       allow create, update: if donoConfirmado(uid)

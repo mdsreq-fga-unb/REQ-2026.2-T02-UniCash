@@ -3,6 +3,7 @@ import { Button, Text, View } from 'react-native';
 import { Campo } from '@/components/receitas/Campo';
 import { centavosParaTexto, parseValor } from '@/features/receitas/money';
 import { salvarSaldoInicial } from '@/features/saldo/service';
+import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 
 type Props = {
   inicio: string;
@@ -36,6 +37,7 @@ export function FormularioSaldo({ inicio, valorInicial, aoSalvar, aoCancelar }: 
     try {
       await salvarSaldoInicial({ mes: inicio.slice(0, 7), centavos: negativo ? -centavos : centavos });
       aoSalvar();
+      sincronizarEmSegundoPlano(true);
     } catch {
       setErro('Não foi possível salvar o saldo inicial. Tente novamente.');
     } finally {

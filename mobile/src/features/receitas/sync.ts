@@ -1,3 +1,4 @@
+import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import type { SQLiteBindParams } from 'expo-sqlite';
 import { serializarImportacao } from '@/features/conta/operacoes-locais';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -31,6 +32,7 @@ import {
   removerPendente,
 } from '@/db/restauracaoPendente';
 import type { Categoria } from '@/features/categorias/types';
+import { enviarSaldoInicial, lerSaldoInicialRemoto, restaurarSaldoInicial } from '@/features/saldoInicial/sync';
 import type { Despesa } from '@/features/despesas/types';
 
 type RecorrenciaSync = {
@@ -58,6 +60,7 @@ const ENVIO_PAUSADO = 'unicash:envio_automatico_pausado';
 const pausasNaoPersistidas = new Set<string>();
 
 let emAndamento = false;
+let reenvioSolicitado = false;
 let acessoNegado = false;
 
 /** Falha ao restaurar os dados da nuvem; a base local não é alterada (transação revertida). */
@@ -128,6 +131,13 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
     const sqlite = await getDbDoDono(uid);
 
     if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) return false;
+
+    try {
+      if (await enviarSaldoInicial(sqlite, uid)) mudouLocal = true;
+    } catch (e) {
+      if (!negadoPelaNuvem(e)) throw e;
+      acessoNegado = true;
+    }
 
     async function aplicarLancamentoRemoto(sql: string, valores: SQLiteBindParams) {
       await sqlite.withExclusiveTransactionAsync(async (tx) => {
@@ -634,14 +644,24 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
     if (negadoPelaNuvem(e)) acessoNegado = true;
   } finally {
     emAndamento = false;
+    if (reenvioSolicitado) {
+      reenvioSolicitado = false;
+      sincronizarEmSegundoPlano();
+    }
   }
 
   return mudouLocal;
 }
 
 
-export function sincronizarEmSegundoPlano() {
-  void sincronizarPendentes().catch((erro) => {
+export function sincronizarEmSegundoPlano(reenviarSeOcupado = false) {
+  if (reenviarSeOcupado && emAndamento) {
+    reenvioSolicitado = true;
+    return;
+  }
+  void sincronizarPendentes().then((mudouLocal) => {
+    if (mudouLocal) avisarBaseAtualizada();
+  }).catch((erro) => {
     if (erro instanceof FalhaLeituraCatalogoSincronizacao) {
       // Mantém as pendências para a próxima tentativa; não altera dados locais.
       console.warn(
@@ -704,11 +724,12 @@ export async function restaurarDaNuvem(): Promise<ResultadoRestauracao> {
 async function restaurarParaUid(uid: string): Promise<ResultadoRestauracao> {
   if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) throw new FalhaRestauracao('conta alterada');
   try {
-    const [snapSeries, snapReceitas, snapDespesas, snapCategorias] = await Promise.all([
+    const [snapSeries, snapReceitas, snapDespesas, snapCategorias, saldoRemoto] = await Promise.all([
       getDocs(collection(firestore, 'usuarios', uid, 'recorrencias')),
       getDocs(collection(firestore, 'usuarios', uid, 'receitas')),
       getDocs(collection(firestore, 'usuarios', uid, 'despesas')),
       getDocs(collection(firestore, 'usuarios', uid, 'categorias')),
+      lerSaldoInicialRemoto(uid),
     ]);
     const sqlite = await getDbDoDono(uid);
     const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0 };
@@ -718,6 +739,7 @@ async function restaurarParaUid(uid: string): Promise<ResultadoRestauracao> {
         throw new FalhaRestauracao('conta alterada durante a restauração');
       }
 
+      await restaurarSaldoInicial(tx, saldoRemoto);
       const mapaCategorias = await restaurarCategoriasDaNuvem(tx, snapCategorias.docs);
       const categoriasLocais = await tx.getAllAsync<Categoria>(
         `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local

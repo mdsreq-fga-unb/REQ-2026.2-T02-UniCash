@@ -12,7 +12,7 @@ jest.mock('firebase/firestore', () => ({
     throw Object.assign(new Error('unavailable'), { code: 'unavailable' });
   },
   setDoc: jest.fn(),
-  getDoc: jest.fn(),
+  getDoc: jest.fn(async () => ({ data: () => undefined })),
   deleteDoc: jest.fn(),
 }));
 
