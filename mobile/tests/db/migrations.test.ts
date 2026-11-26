@@ -2320,7 +2320,7 @@ describe('Migração 011 (UC14, preferências de notificação)', () => {
   it('instalação nova já cria a tabela', async () => {
     const sqlite = novoSqlite();
     await migrarSeNecessario(criarAdaptador(sqlite));
-    expect(versao(sqlite)).toBe(11);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(temTabela(sqlite)).toBe(true);
   });
 
@@ -2332,10 +2332,38 @@ describe('Migração 011 (UC14, preferências de notificação)', () => {
     await migrarSeNecessario(criarAdaptador(sqlite));
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(11);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(temTabela(sqlite)).toBe(true);
     expect(() =>
       sqlite.exec("INSERT INTO preferencias_notificacao VALUES ('u1', 'aproximacao', 1, '2026-11-26T00:00:00Z', 'local')"),
+    ).toThrow(/CHECK/);
+  });
+});
+
+describe('Migração 012 (UC13, emissão de notificações de conquistas)', () => {
+  const colunas = (sqlite: Database.Database) =>
+    sqlite.prepare('PRAGMA table_info(conquistas_emitidas)').all().map((c: any) => [c.name, c.pk]);
+
+  it('instalação nova já cria a tabela', async () => {
+    const sqlite = novoSqlite();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    expect(versao(sqlite)).toBe(12);
+    expect(colunas(sqlite)).toEqual([
+      ['chave', 1], ['status', 0], ['criado_em', 0], ['atualizado_em', 0],
+    ]);
+  });
+
+  it('banco na versão 11 ganha a tabela, de forma idempotente', async () => {
+    const sqlite = novoSqlite();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    sqlite.exec('DROP TABLE conquistas_emitidas; PRAGMA user_version = 11;');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(12);
+    expect(() =>
+      sqlite.exec("INSERT INTO conquistas_emitidas VALUES ('primeira-meta', 'outro', 'x', 'x')"),
     ).toThrow(/CHECK/);
   });
 });

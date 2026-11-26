@@ -11,6 +11,7 @@ import {
   PERCENTUAL_MIN_CENTESIMOS,
 } from '@/features/categorias/limites';
 import {
+  DDL_CONQUISTAS_EMITIDAS,
   DDL_ESQUEMA,
   DDL_PREFERENCIAS_LOCAIS,
   DDL_PREFERENCIAS_NOTIFICACAO,
@@ -30,7 +31,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 11;
+export const VERSAO_ESQUEMA = 12;
 
 export interface RegistroInvalido {
   id: string;
@@ -140,6 +141,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 9, executar: migrar009 },
   { versao: 10, executar: migrar010 },
   { versao: 11, executar: migrar011 },
+  { versao: 12, executar: migrar012 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -614,6 +616,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await tx.execAsync(DDL_ESQUEMA);
       await tx.execAsync(DDL_PREFERENCIAS_LOCAIS);
       await tx.execAsync(DDL_PREFERENCIAS_NOTIFICACAO);
+      await tx.execAsync(DDL_CONQUISTAS_EMITIDAS);
       await garantirColunasRecorrencias(tx);
       await garantirTabelaDespesas(tx);
       if (despesasLegadas) {
@@ -936,6 +939,14 @@ async function migrar010(db: SQLiteDatabase, versaoDestino: number): Promise<voi
 async function migrar011(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await tx.execAsync(DDL_PREFERENCIAS_NOTIFICACAO);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/** 012 — UC13: registro de emissão das notificações de conquistas (RF46). */
+async function migrar012(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.execAsync(DDL_CONQUISTAS_EMITIDAS);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

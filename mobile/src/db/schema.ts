@@ -365,3 +365,13 @@ export const DDL_PREFERENCIAS_NOTIFICACAO = `
     PRIMARY KEY (uid, tipo)
   );
 `;
+
+/** UC13 (RF46): emissão da notificação de cada selo. Selos e pontos são derivados; só a emissão é gravada (RN07). */
+export const DDL_CONQUISTAS_EMITIDAS = `
+  CREATE TABLE IF NOT EXISTS conquistas_emitidas (
+    chave TEXT PRIMARY KEY NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('emitida', 'pendente')),
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL
+  );
+`;
