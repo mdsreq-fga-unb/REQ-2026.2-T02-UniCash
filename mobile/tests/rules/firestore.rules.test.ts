@@ -115,10 +115,15 @@ const cat = (d: any, uid = 'u1', id = 'uuid-cat') =>
   doc(d, 'usuarios', uid, 'categorias', id);
 
 describe('RNF03: acesso só ao próprio uid', () => {
-  it('o dono grava, lê e exclui as próprias receitas', async () => {
+  it('o dono grava, lê e registra a exclusão das próprias receitas', async () => {
     await assertSucceeds(setDoc(rec(db('u1')), receita()));
     await assertSucceeds(getDoc(rec(db('u1'))));
-    await assertSucceeds(deleteDoc(rec(db('u1'))));
+    const ref = rec(db('u1'));
+    const timestamp = '2026-11-26T12:00:00.000Z';
+    await assertFails(setDoc(ref, { excluido_em: timestamp }));
+    await assertSucceeds(setDoc(ref, { excluido_em: timestamp, atualizado_em: timestamp }));
+    await assertFails(setDoc(ref, receita()));
+    await assertFails(deleteDoc(ref));
   });
 
   it('outro usuário não lê, não grava e não exclui', async () => {

@@ -79,7 +79,7 @@ service cloud.firestore {
           || d.recorrencia_id is string);
     }
 
-    function marcadorDespesaValido(d) {
+    function marcadorLancamentoValido(d) {
       return d.keys().hasOnly(['excluido_em', 'atualizado_em'])
         && d.excluido_em is string && d.excluido_em.size() > 0
         && d.atualizado_em is string && d.atualizado_em.size() > 0;
@@ -350,18 +350,22 @@ service cloud.firestore {
     }
 
     match /usuarios/{uid}/receitas/{id} {
-      allow read, delete: if donoConfirmado(uid);
-      allow create, update: if donoConfirmado(uid)
-        && receitaValida(request.resource.data);
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
+        && (receitaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
+      allow update: if donoConfirmado(uid)
+        && !('excluido_em' in resource.data)
+        && (receitaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
+      allow delete: if false;
     }
 
     match /usuarios/{uid}/despesas/{id} {
       allow read: if donoConfirmado(uid);
       allow create: if donoConfirmado(uid)
-        && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
+        && (despesaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
       allow update: if donoConfirmado(uid)
         && !('excluido_em' in resource.data)
-        && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
+        && (despesaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
       allow delete: if false;
     }
 
