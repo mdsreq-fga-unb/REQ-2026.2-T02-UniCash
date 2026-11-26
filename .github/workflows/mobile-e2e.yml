@@ -1,12 +1,12 @@
 name: Mobile E2E (Maestro)
 
 # Testes ponta a ponta com Maestro, com prints e vídeo como artefatos (issue #133).
-# Roda num PR quando ele recebe a label "e2e" (e a cada novo push enquanto ela estiver lá),
-# ou manualmente em Actions > Mobile E2E (Maestro) > Run workflow (depois que este arquivo estiver na main).
+# Roda num PR só quando a label "e2e" é adicionada (outras labels e novos pushes não disparam;
+# para rodar de novo, tire e recoloque a label), ou manualmente em Actions > Mobile E2E (Maestro) > Run workflow (depois que este arquivo estiver na main).
 # Cada execução gasta um build Android da cota gratuita da organização sevenspecs no EAS.
 on:
   pull_request:
-    types: [labeled, synchronize]
+    types: [labeled]
   workflow_dispatch: {}
 
 concurrency:
@@ -16,7 +16,7 @@ concurrency:
 jobs:
   e2e:
     name: Maestro UC13 (Android)
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'e2e')
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'e2e'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     defaults:

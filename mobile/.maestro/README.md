@@ -22,7 +22,7 @@ Os fluxos daqui rodam o app de verdade num emulador ou aparelho Android e geram 
 
 Não precisa de emulador local. O workflow `.github/workflows/mobile-e2e.yml` compila um APK com o perfil `e2e-test` do `eas.json` (cota gratuita do EAS), liga um emulador Android no runner do GitHub e roda `.maestro/rodar-ci.sh`.
 
-- **Num PR**: adicione a label `e2e`. Enquanto ela estiver no PR, cada push roda de novo.
+- **Num PR**: adicione a label `e2e`. Outras labels e novos pushes não disparam; para rodar de novo, tire e recoloque a label.
 - **Manual**: Actions > Mobile E2E (Maestro) > Run workflow (depois que o arquivo estiver na `main`).
 
 Os prints, o vídeo (`uc13.mp4`) e o relatório JUnit ficam no artefato `e2e-uc13` da execução; é só baixar e anexar ao PR ou à documentação. Os jobs Maestro do EAS Workflows exigem plano pago, por isso o EAS só faz o build.
