@@ -353,3 +353,15 @@ export const DDL_PREFERENCIAS_LOCAIS = `
     valor INTEGER NOT NULL CHECK (valor IN (0, 1))
   );
 `;
+
+/** UC14 (RF58, D25): preferências de notificação por dono, com estado de sincronização (RN06, RNF03). */
+export const DDL_PREFERENCIAS_NOTIFICACAO = `
+  CREATE TABLE IF NOT EXISTS preferencias_notificacao (
+    uid TEXT NOT NULL,
+    tipo TEXT NOT NULL CHECK (tipo IN ('limite', 'conquistas')),
+    ativo INTEGER NOT NULL CHECK (ativo IN (0, 1)),
+    atualizado_em TEXT NOT NULL,
+    estado_sync TEXT NOT NULL CHECK (estado_sync IN ('local', 'pendente', 'sincronizado', 'erro')),
+    PRIMARY KEY (uid, tipo)
+  );
+`;

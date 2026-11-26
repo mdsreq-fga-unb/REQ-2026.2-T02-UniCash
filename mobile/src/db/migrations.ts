@@ -13,6 +13,7 @@ import {
 import {
   DDL_ESQUEMA,
   DDL_PREFERENCIAS_LOCAIS,
+  DDL_PREFERENCIAS_NOTIFICACAO,
   DDL_SALDO_INICIAL,
   DDL_SALDO_MENSAL,
   DDL_NUMERAR_ALERTAS,
@@ -29,7 +30,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 10;
+export const VERSAO_ESQUEMA = 11;
 
 export interface RegistroInvalido {
   id: string;
@@ -138,6 +139,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 8, executar: migrar008 },
   { versao: 9, executar: migrar009 },
   { versao: 10, executar: migrar010 },
+  { versao: 11, executar: migrar011 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -611,6 +613,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await prepararInstalacaoNova(tx, despesasLegadas);
       await tx.execAsync(DDL_ESQUEMA);
       await tx.execAsync(DDL_PREFERENCIAS_LOCAIS);
+      await tx.execAsync(DDL_PREFERENCIAS_NOTIFICACAO);
       await garantirColunasRecorrencias(tx);
       await garantirTabelaDespesas(tx);
       if (despesasLegadas) {
@@ -925,6 +928,14 @@ async function consolidarSaldoInicial(tx: SQLiteDatabase): Promise<void> {
 async function migrar010(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await tx.execAsync(DDL_PREFERENCIAS_LOCAIS);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/** 011 — UC14: preferências de notificação por dono (D25). */
+async function migrar011(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.execAsync(DDL_PREFERENCIAS_NOTIFICACAO);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

@@ -2312,3 +2312,30 @@ it('migra v8 do UC04 sem perder saldo provisório nem a numeração do alerta', 
   expect(sqlite.prepare('SELECT id, transicao FROM alertas_emitidos').get()).toEqual({ id: 'a', transicao: 1 });
   sqlite.close();
 });
+
+describe('Migração 011 (UC14, preferências de notificação)', () => {
+  const temTabela = (sqlite: Database.Database) =>
+    !!sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'preferencias_notificacao'").get();
+
+  it('instalação nova já cria a tabela', async () => {
+    const sqlite = novoSqlite();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    expect(versao(sqlite)).toBe(11);
+    expect(temTabela(sqlite)).toBe(true);
+  });
+
+  it('banco na versão 10 ganha a tabela, de forma idempotente', async () => {
+    const sqlite = novoSqlite();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    sqlite.exec('DROP TABLE preferencias_notificacao; PRAGMA user_version = 10;');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(11);
+    expect(temTabela(sqlite)).toBe(true);
+    expect(() =>
+      sqlite.exec("INSERT INTO preferencias_notificacao VALUES ('u1', 'aproximacao', 1, '2026-11-26T00:00:00Z', 'local')"),
+    ).toThrow(/CHECK/);
+  });
+});
