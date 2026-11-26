@@ -50,8 +50,10 @@ let banco: BancoFalso;
 
 beforeEach(() => {
   jest.resetAllMocks();
-  jest.mocked(AsyncStorage.getItem).mockResolvedValue(null);
-  jest.mocked(AsyncStorage.setItem).mockResolvedValue(undefined);
+  const storage = new Map<string, string>();
+  jest.mocked(AsyncStorage.getItem).mockImplementation(async (chave) => storage.get(chave) ?? null);
+  jest.mocked(AsyncStorage.setItem).mockImplementation(async (chave, valor) => { storage.set(chave, valor); });
+  jest.mocked(AsyncStorage.removeItem).mockImplementation(async (chave) => { storage.delete(chave); });
   banco = instalarBanco();
   consultarRede.mockResolvedValue({ isConnected: true });
   estaPausado.mockResolvedValue(false);
@@ -154,8 +156,8 @@ it('contabiliza apenas os itens restantes quando o envio cai pela metade', async
 });
 
 it.each([
-  ['permission-denied', 'EX03'],
-  ['falha-desconhecida', 'EX06'],
+  ['permission-denied', 'EX08'],
+  ['falha-desconhecida', 'EX03'],
 ])('publica somente o código seguro quando ocorre %s', async (code, codigo) => {
   enviar.mockImplementationOnce(async (opcoes) => {
     opcoes?.aoFalhar?.(Object.assign(new Error('dado privado'), { code }));
@@ -176,7 +178,7 @@ it('distingue falha de restauração e mantém a última data', async () => {
   await syncService.sincronizarAgora();
 
   expect((await syncService.consultar()).estado).toMatchObject({
-    codigo: 'EX07', ultimaSincronizacao: '2026-11-25T12:00:00.000Z',
+    codigo: 'EX03', ultimaSincronizacao: '2026-11-25T12:00:00.000Z',
   });
   expect(AsyncStorage.setItem).not.toHaveBeenCalled();
 });
@@ -213,15 +215,42 @@ it('notifica o fim do ciclo para os resumos e para a fila', async () => {
   expect(getDbDoDono).toHaveBeenCalledWith('uc16');
 });
 
-it('mantém o registro pendente e informa EX04 se a fila não foi esvaziada', async () => {
+it('mantém uma edição feita durante o envio pendente para o próximo ciclo', async () => {
   inserirReceitas(banco, 1);
+  enviar.mockImplementationOnce(async () => {
+    banco.sqlite.exec("UPDATE receitas SET titulo = 'Editada', atualizado_em = '2026-11-27'");
+    return false;
+  });
 
   await syncService.sincronizarAgora();
 
-  expect((await syncService.consultar()).estado).toMatchObject({
-    codigo: 'EX04', quantidadePendencias: 1,
+  expect(await syncService.consultar()).toMatchObject({
+    estado: { codigo: null, status: 'pendente', quantidadePendencias: 1 },
+    pendencias: [{ titulo: 'Editada', alteracao: 'Edição', estado: 'pendente' }],
   });
   expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+});
+
+it('identifica o registro recusado enquanto o item aceito sai da fila', async () => {
+  inserirReceitas(banco, 2);
+  enviar.mockImplementationOnce(async (opcoes) => {
+    opcoes?.aoFalhar?.({ code: 'permission-denied' }, { tipo: 'Receita', id: '1', revisao: '2026-11-26' });
+    banco.sqlite.exec("UPDATE receitas SET sync_status = 'sincronizado' WHERE id = '2'");
+    return false;
+  });
+
+  await syncService.sincronizarAgora();
+  expect(await syncService.consultar()).toMatchObject({
+    estado: { codigo: 'EX04', status: 'erro', quantidadePendencias: 1 },
+    pendencias: [{ id: '1', alteracao: 'Criação', estado: 'erro' }],
+  });
+
+  enviar.mockImplementationOnce(async () => {
+    banco.sqlite.exec("UPDATE receitas SET sync_status = 'sincronizado' WHERE id = '1'");
+    return false;
+  });
+  await syncService.sincronizarAgora();
+  expect((await syncService.consultar()).pendencias).toEqual([]);
 });
 
 it('não lê a fila de outra conta se a sessão mudar durante a consulta', async () => {

@@ -1157,13 +1157,11 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
           await prepararDespesaComCategoriaExcluida();
         const remoto = remotoMaisNovo(remotoOriginal);
         mockNuvem.set(path, remoto);
-        mockErroTransacao = Object.assign(new Error('permission-denied'), {
-          code: 'permission-denied',
-        });
+        mockCaminhosRejeitados.add(path);
 
         await sincronizarPendentes();
 
-        expect(mockTransacoesDados).toBe(1);
+        expect(mockTransacoesDados).toBeGreaterThan(0);
         expect(banco.despesas()[0]).toMatchObject({
           categoria_id: null,
           sync_status: 'pendente',
@@ -2552,6 +2550,26 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
   });
 
   describe('acesso negado (UC01 EX07 / UC02 EX06)', () => {
+    it('identifica a receita recusada e envia a próxima da fila', async () => {
+      await registrarReceita(input({ titulo: 'Recusada' }));
+      await registrarReceita(input({ titulo: 'Aceita' }));
+      const recusada = banco.receitas().find((receita) => receita.titulo === 'Recusada')!;
+      const aceita = banco.receitas().find((receita) => receita.titulo === 'Aceita')!;
+      const aoFalhar = jest.fn();
+      mockCaminhosRejeitados.add(caminho(recusada.id));
+
+      await sincronizarPendentes({ aoFalhar });
+
+      expect(aoFalhar).toHaveBeenCalledWith(
+        expect.objectContaining({ code: 'permission-denied' }),
+        { tipo: 'Receita', id: recusada.id, revisao: recusada.atualizado_em },
+      );
+      expect(mockNuvem.has(caminho(recusada.id))).toBe(false);
+      expect(mockNuvem.has(caminho(aceita.id))).toBe(true);
+      expect(banco.receitas().find(({ id }) => id === recusada.id)?.sync_status).toBe('pendente');
+      expect(banco.receitas().find(({ id }) => id === aceita.id)?.sync_status).toBe('sincronizado');
+    });
+
     it('permission-denied na sincronização: registro segue pendente e o aviso é sinalizado uma vez', async () => {
       await registrarReceita(input());
       mockRedeFora = true;

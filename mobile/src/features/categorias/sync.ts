@@ -864,6 +864,7 @@ async function aplicarRemotaNaTransacao(
 export async function sincronizarCategoriasPendentes(
   db: SQLiteDatabase,
   uid: string,
+  aoRecusar?: (erro: unknown, categoria: Categoria) => void,
 ): Promise<{ mudouLocal: boolean }> {
   const pendentes = await db.getAllAsync<Categoria>(
     `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local
@@ -934,6 +935,10 @@ export async function sincronizarCategoriasPendentes(
         return { acao: 'local' as const };
       }
       return { acao: 'remota' as const, remota };
+    }).catch((erro: unknown) => {
+      if (!aoRecusar || (erro as { code?: string } | null)?.code !== 'permission-denied') throw erro;
+      aoRecusar(erro, categoria);
+      return { acao: 'ignorada' as const };
     });
 
     if (decisao.acao === 'ignorada') continue;

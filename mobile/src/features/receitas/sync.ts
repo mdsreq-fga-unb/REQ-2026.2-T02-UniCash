@@ -1,4 +1,4 @@
-import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
+import type { ItemFila } from '@/features/sincronizacao/fila';
 import type { SQLiteBindParams } from 'expo-sqlite';
 import { serializarImportacao } from '@/features/conta/operacoes-locais';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -105,7 +105,7 @@ export interface OpcoesSincronizacao {
   manual?: boolean;
   /** O UC16 aguarda o envio em curso antes de iniciar um ciclo próprio. */
   aguardar?: boolean;
-  aoFalhar?: (erro: unknown) => void;
+  aoFalhar?: (erro: unknown, item?: Pick<ItemFila, 'tipo' | 'id' | 'revisao'>) => void;
 }
 
 /**
@@ -132,9 +132,10 @@ export async function sincronizarPendentes(opcoes: OpcoesSincronizacao = {}): Pr
 }
 
 async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promise<boolean> {
-  function registrarAcessoNegado(erro: unknown) {
+  function registrarAcessoNegado(erro: unknown, item?: Pick<ItemFila, 'tipo' | 'id' | 'revisao'>) {
     acessoNegado = true;
-    opcoes.aoFalhar?.(erro);
+    if (item) opcoes.aoFalhar?.(erro, item);
+    else opcoes.aoFalhar?.(erro);
   }
   let mudouLocal = false;
 
@@ -164,7 +165,9 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
     }
 
     // Categorias primeiro: séries/despesas dependem do catálogo reconciliado.
-    const categoriasSync = await sincronizarCategoriasPendentes(sqlite, uid);
+    const categoriasSync = await sincronizarCategoriasPendentes(sqlite, uid, (erro, categoria) => {
+      registrarAcessoNegado(erro, { tipo: 'Categoria', id: categoria.id, revisao: categoria.atualizado_em });
+    });
     if (categoriasSync.mudouLocal) mudouLocal = true;
 
     // Catálogo carregado no máximo uma vez por sincronização e compartilhado
@@ -367,7 +370,7 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
         // Um registro rejeitado não bloqueia os demais; ele segue pendente.
         if (!negadoPelaNuvem(e)) throw e;
         seriesNaoConfirmadas.add(s.id);
-        registrarAcessoNegado(e);
+        registrarAcessoNegado(e, { tipo: 'Recorrência', id: s.id, revisao: s.atualizado_em });
       }
     }
 
@@ -450,7 +453,7 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
         }
       } catch (e) {
         if (!negadoPelaNuvem(e)) throw e;
-        registrarAcessoNegado(e);
+        registrarAcessoNegado(e, { tipo: 'Receita', id: r.id, revisao: r.atualizado_em });
       }
     }
 
@@ -657,7 +660,7 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
         );
       } catch (e) {
         if (!negadoPelaNuvem(e)) throw e;
-        registrarAcessoNegado(e);
+        registrarAcessoNegado(e, { tipo: 'Despesa', id: d.id, revisao: d.atualizado_em });
       }
     }
 
@@ -679,7 +682,7 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
         await sqlite.runAsync("UPDATE alertas_emitidos SET sync_status = 'sincronizado' WHERE id = ?", [id]);
       } catch (e) {
         if (!negadoPelaNuvem(e)) throw e;
-        registrarAcessoNegado(e);
+        registrarAcessoNegado(e, { tipo: 'Alerta de saldo', id, revisao: criado_em });
       }
     }
   } catch (e) {
