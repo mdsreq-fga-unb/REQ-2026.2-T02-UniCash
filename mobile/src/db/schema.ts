@@ -346,3 +346,10 @@ export const ESQUEMA_SQL = `
 
     ${DDL_NUMERAR_ALERTAS}
   `;
+
+export const DDL_PREFERENCIAS_LOCAIS = `
+  CREATE TABLE IF NOT EXISTS preferencias_locais (
+    chave TEXT PRIMARY KEY NOT NULL,
+    valor INTEGER NOT NULL CHECK (valor IN (0, 1))
+  );
+`;

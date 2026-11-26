@@ -15,6 +15,11 @@ RUN npm ci
 
 COPY . .
 
+# Sincroniza o volume de node_modules com o package-lock.json a cada subida
+COPY docker-entrypoint.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
+
 EXPOSE 8081
 
 CMD ["npx", "expo", "start", "--host", "lan"]

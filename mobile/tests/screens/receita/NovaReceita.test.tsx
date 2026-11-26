@@ -4,7 +4,7 @@ import { FalhaPersistencia, registrarReceita } from '@/features/receitas/service
 import { consumirFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 import { MSG } from '@/features/receitas/validation';
-import { router } from '../../helpers/expoRouterMock';
+import { router, useLocalSearchParams } from '../../helpers/expoRouterMock';
 
 jest.mock('expo-router', () => require('../../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
@@ -80,6 +80,25 @@ describe('Nova receita (fluxo A, protótipo F4)', () => {
       expect(router.back).not.toHaveBeenCalled();
       expect(sincronizarEmSegundoPlano).not.toHaveBeenCalled();
       expect(consumirFeedback()).toBeNull();
+    });
+
+    it('permite voltar à etapa do tutorial após falha no registro', async () => {
+      // O parâmetro permanece disponível durante as renderizações do formulário.
+      const parametros = jest.mocked(useLocalSearchParams);
+      const anteriores = parametros.getMockImplementation();
+      parametros.mockImplementation(() => ({ id: 'abc', tutorial: '1' }));
+      try {
+        registrar.mockRejectedValueOnce(new FalhaPersistencia('disco'));
+        await render(<Nova />);
+        await preencherValido();
+        await salvar();
+        expect(await screen.findByText(MSG.falhaSalvar)).toBeTruthy();
+        await fireEvent.press(screen.getByText('Voltar à etapa'));
+        expect(router.back).toHaveBeenCalledTimes(1);
+        expect(registrar).toHaveBeenCalledTimes(1);
+      } finally {
+        if (anteriores) parametros.mockImplementation(anteriores);
+      }
     });
 
     it('permite tentar de novo e a mensagem de erro some em caso de sucesso', async () => {

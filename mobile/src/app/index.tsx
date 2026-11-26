@@ -10,6 +10,10 @@ import { percentualMeta, rotuloDia } from '@/features/resumo/format';
 import { useResumo } from '@/features/resumo/useResumo';
 import { IndicadoresConsumo } from '@/components/consumo/IndicadoresConsumo';
 import { useConsumoMensal } from '@/features/consumo/useConsumoMensal';
+import { AcaoTutorial } from '@/components/tutorial/Interface';
+import { EntradaTutorial } from '@/components/tutorial/EntradaTutorial';
+import { MSG_ABERTURA_TUTORIAL } from '@/features/tutorial/conteudo';
+import { useOfertaTutorial } from '@/features/tutorial/useOfertaTutorial';
 import { PainelSaldo } from '@/components/saldo/PainelSaldo';
 
 import { useSessao } from '@/features/conta/sessao';
@@ -27,8 +31,10 @@ export default function Home() {
   return <ResumoFinanceiro key={sessao.status === 'ativa' ? sessao.uid : 'local'} />;
 }
 
-function ResumoFinanceiro() {
+export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean }) {
+
   // Passo 2: o mês corrente é o período padrão (RN12).
+  const ofertaTutorial = useOfertaTutorial(!noTutorial);
   const [periodo, setPeriodo] = useState(mesCorrente);
   const inicio = primeiroDiaDoMes(periodo.ano, periodo.mes);
   const consumo = useConsumoMensal(inicio.slice(0, 7));
@@ -44,12 +50,37 @@ function ResumoFinanceiro() {
     }, [recarregar]),
   );
 
+  if (ofertaTutorial.verificando) {
+    return (
+      <SafeAreaView style={estilos.tela}>
+        <ActivityIndicator color={cores.primaria} accessibilityLabel="Preparando resumo" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <ScrollView contentContainerStyle={estilos.conteudo}>
-        <Text style={estilos.titulo} accessibilityRole="header">
-          Resumo financeiro
-        </Text>
+        <View style={estilos.cabecalho}>
+          <Text style={estilos.titulo} accessibilityRole="header">
+            Resumo financeiro
+          </Text>
+          {noTutorial ? (
+            <Pressable onPress={() => router.back()} style={estilos.ajuda} accessibilityRole="button">
+              <Text style={estilos.botaoContornoTexto}>Voltar ao tutorial</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => router.push('/ajuda')} style={estilos.ajuda} accessibilityRole="button">
+              <Text style={estilos.botaoContornoTexto}>Ajuda</Text>
+            </Pressable>
+          )}
+        </View>
+        {ofertaTutorial.falhou && (
+          <View style={estilos.secao}>
+            <Text style={estilos.erro} accessibilityRole="alert">{MSG_ABERTURA_TUTORIAL}</Text>
+            <AcaoTutorial texto="Tentar novamente" onPress={ofertaTutorial.tentarNovamente} />
+          </View>
+        )}
 
         <View style={estilos.seletor}>
           <Pressable
@@ -93,18 +124,20 @@ function ResumoFinanceiro() {
           </View>
         ) : !resumoDoPeriodo ? (
           <ActivityIndicator color={cores.primaria} style={{ marginTop: 32 }} testID="carregando" />
-        ) : resumoDoPeriodo.semLancamentos ? (
+        ) : resumoDoPeriodo.semLancamentos && !noTutorial ? (
           <EstadoVazio />
         ) : (
           <Conteudo resumo={resumoDoPeriodo} />
         )}
 
-        <View style={estilos.vazio}>
-          <Text accessibilityRole="header" style={estilos.titulo}>Consumo por categoria</Text>
-          <IndicadoresConsumo estado={consumo.estado} aoTentarNovamente={consumo.tentarNovamente} />
-        </View>
+        {!noTutorial && (
+          <View style={estilos.vazio}>
+            <Text accessibilityRole="header" style={estilos.titulo}>Consumo por categoria</Text>
+            <IndicadoresConsumo estado={consumo.estado} aoTentarNovamente={consumo.tentarNovamente} />
+          </View>
+        )}
 
-        <Atalhos ano={periodo.ano} mes={periodo.mes} />
+        {!noTutorial && <Atalhos ano={periodo.ano} mes={periodo.mes} />}
       </ScrollView>
     </SafeAreaView>
   );
@@ -218,9 +251,7 @@ function EstadoVazio() {
       <Text style={estilos.vazioTexto}>
         Registre receitas e despesas para ver aqui o saldo e os totais do mês.
       </Text>
-      <Pressable onPress={() => router.push('/tutorial')} style={estilos.botao} accessibilityRole="button">
-        <Text style={estilos.botaoTexto}>Ver tutorial</Text>
-      </Pressable>
+      <EntradaTutorial texto="Ver tutorial" />
       <View style={estilos.linha}>
         <Pressable onPress={() => router.push('/receitas/nova')} style={estilos.botaoContorno} accessibilityRole="button">
           <Text style={estilos.botaoContornoTexto}>Registrar receita</Text>
@@ -242,7 +273,9 @@ function EstadoVazio() {
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
-  titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  ajuda: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, marginBottom: 12 },
+  titulo: { flexShrink: 1, fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
   seletor: {
     flexDirection: 'row',
     alignItems: 'center',

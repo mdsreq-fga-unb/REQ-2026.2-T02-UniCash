@@ -37,6 +37,7 @@ interface Props {
   erroGeral?: string | null;
   onSalvar: (dados: ReceitaInput) => void;
   onCancelar: () => void;
+  textoCancelar?: string;
   /** Se informado, o rodapé mostra "Excluir lançamento" no lugar de "Cancelar" (tela de edição). */
   onExcluir?: () => void;
   /** Se informado (cadastro novo), tocar em "Despesa" abre o formulário de despesa. Na edição fica inerte. */
@@ -59,7 +60,7 @@ function resumoRepeticao(v: FormValores): string {
 
 /** Formulário único para registrar e editar (A e C), conforme os protótipos F4 e F5. */
 export function ReceitaForm({
-  titulo, textoSalvar, inicial, emSerie, salvando, erroGeral, onSalvar, onCancelar, onExcluir, onTrocarTipo,
+  titulo, textoSalvar, inicial, emSerie, salvando, erroGeral, onSalvar, onCancelar, textoCancelar = 'Cancelar', onExcluir, onTrocarTipo,
 }: Props) {
   const [v, setV] = useState<FormValores>(inicial ?? FORM_VAZIO);
   const [erros, setErros] = useState<ErrosForm>({});
@@ -184,7 +185,7 @@ export function ReceitaForm({
           </Pressable>
         ) : (
           <Pressable onPress={onCancelar} disabled={salvando} style={estilos.secundario} accessibilityRole="button">
-            <Text style={estilos.secundarioTexto}>Cancelar</Text>
+            <Text style={estilos.secundarioTexto}>{textoCancelar}</Text>
           </Pressable>
         )}
       </View>
