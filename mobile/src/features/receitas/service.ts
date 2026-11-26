@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
+import { avisarMudancaLancamentos } from '@/features/conquistas/gatilhos';
 import { registrarTransicoes } from '@/features/saldo/alertas';
 import { adicionarDias, adicionarIntervalo, adicionarMeses, hojeISO } from './dates';
 import type { EscopoSerie, Receita, ReceitaInput, Recorrencia } from './types';
@@ -32,6 +33,8 @@ async function transacao<T>(fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> 
     await db.withExclusiveTransactionAsync(async (tx) => {
       resultado = await registrarTransicoes(tx, () => fn(tx));
     });
+    // UC13: reavaliar conquistas depois do commit (selos acompanham os dados, FA08).
+    avisarMudancaLancamentos();
     return resultado;
   } catch (e) {
     if (e instanceof ReceitaIndisponivel) throw e;

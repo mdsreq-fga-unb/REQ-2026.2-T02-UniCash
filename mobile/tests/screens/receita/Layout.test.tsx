@@ -24,6 +24,8 @@ const ROTAS_COM_BANCO = [
   'receitas/nova',
   'receitas/[id]/index',
   'receitas/[id]/editar',
+  'conquistas/index',
+  'conquistas/[chave]',
 ] as const;
 
 interface EstadoMockNavegador {
@@ -86,6 +88,8 @@ const estadoNavegador = (
   jest.requireMock('expo-router') as { __estadoMock: EstadoMockNavegador }
 ).__estadoMock;
 
+// UC13: a avaliação de conquistas tem testes próprios; aqui só importa a ordem da preparação.
+jest.mock('@/features/conquistas/emissao', () => ({ avaliarEEmitir: jest.fn(async () => {}) }));
 jest.mock('@/features/categorias/service', () => ({
   semearCategoriasPadrao: jest.fn(),
 }));
