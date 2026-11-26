@@ -16,9 +16,9 @@ import {
   type User,
 } from 'firebase/auth';
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
-import { obterRemocaoConfirmada } from '@/db/database';
 import { auth, db, firebaseConfigurado } from '@/lib/firebase';
 import { comTimeout, traduzirErroFirebase } from './firebase-erros';
+import { marcarEmailParaReconciliar } from './perfil';
 import { definirSessao, obterSessao } from './sessao';
 import { ErroConta, type AuthService, type SessionState } from './types';
 
@@ -38,17 +38,7 @@ function sessaoDe(u: User | null): SessionState {
 export function iniciarObservadorDeSessao(): () => void {
   // Sem as variáveis EXPO_PUBLIC_FIREBASE_*, `auth` é um stub offline sem observador: a sessão fica "sem-sessao".
   if (!firebaseConfigurado) return () => {};
-  return onAuthStateChanged(auth, async (u) => {
-    const sessao = sessaoDe(u);
-    if (sessao.status === 'sem-sessao') {
-      definirSessao(sessao);
-      return;
-    }
-    const removida = await obterRemocaoConfirmada(sessao.uid).catch(() => true);
-    if (auth.currentUser?.uid === sessao.uid) {
-      definirSessao(removida ? { status: 'sem-sessao' } : sessao);
-    }
-  });
+  return onAuthStateChanged(auth, (u) => definirSessao(sessaoDe(u)));
 }
 
 /** Usuário do Firebase atual, mesmo sem e-mail confirmado (necessário para reenviar e verificar a ligação). */
@@ -116,10 +106,6 @@ export function criarAuthFirebase(): AuthService {
         throw traduzirErroFirebase(e); // EX04, EX05
       }
       if (!u.emailVerified) throw new ErroConta('email-nao-confirmado'); // EX11
-      if (await obterRemocaoConfirmada(u.uid)) {
-        await fbSignOut(auth);
-        throw new ErroConta('credenciais');
-      }
       definirSessao(sessaoDe(u));
     },
 
@@ -207,13 +193,19 @@ export function criarAuthFirebase(): AuthService {
           throw new ErroConta('email-nao-confirmado');
         }
         if (auth.currentUser?.uid !== u.uid) throw new ErroConta('credenciais');
-        await u.getIdToken(true);
-        await comTimeout(updateDoc(doc(db, 'usuarios', u.uid), {
-          email: u.email,
-          atualizado_em: serverTimestamp(),
-        }));
-        if (auth.currentUser?.uid !== u.uid) throw new ErroConta('credenciais');
+        // O Auth já confirmou: o perfil (lido da sessão, inclusive offline) passa a mostrar o novo
+        // e-mail mesmo que a gravação no Firestore falhe. A gravação pendente é reconciliada depois.
         definirSessao(sessaoDe(u));
+        const email = u.email;
+        try {
+          await u.getIdToken(true);
+          await comTimeout(updateDoc(doc(db, 'usuarios', u.uid), {
+            email,
+            atualizado_em: serverTimestamp(),
+          }));
+        } catch {
+          await marcarEmailParaReconciliar(u.uid, email);
+        }
       } catch (e) {
         throw traduzirErroFirebase(e);
       }

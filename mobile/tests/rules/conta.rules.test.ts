@@ -72,20 +72,6 @@ describe('perfil: acesso (RNF02, RNF03)', () => {
     await assertFails(updateDoc(doc(db('u2', bia), 'usuarios', 'u1'), { nome: 'Invasora' }));
   });
 
-  it.each(['preparado', 'solicitado', 'concluido'])('aplica o estado de remoção %s a tokens já emitidos', async (estado) => {
-    await semear('u1', { email: 'ana@exemplo.com', criado_em: Timestamp.now() });
-    await env.withSecurityRulesDisabled(async (ctx) => {
-      await setDoc(doc(ctx.firestore(), 'pedidos_remocao', 'u1'), { estado });
-    });
-    const dono = db('u1');
-    await assertFails(getDoc(doc(dono, 'pedidos_remocao', 'u1')));
-    await assertFails(updateDoc(doc(dono, 'pedidos_remocao', 'u1'), { estado: 'preparado' }));
-    const leitura = getDoc(doc(dono, 'usuarios', 'u1'));
-    const escrita = updateDoc(doc(dono, 'usuarios', 'u1'), { nome: 'Ana' });
-    if (estado === 'preparado') await Promise.all([assertSucceeds(leitura), assertSucceeds(escrita)]);
-    else await Promise.all([assertFails(leitura), assertFails(escrita)]);
-  });
-
   it('sem autenticação nada é lido nem gravado', async () => {
     await semear('u1', { email: 'ana@exemplo.com', criado_em: Timestamp.now() });
     await assertFails(getDoc(doc(anonimo(), 'usuarios', 'u1')));

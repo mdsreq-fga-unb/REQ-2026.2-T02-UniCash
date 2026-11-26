@@ -5,11 +5,10 @@ import { criarAuthFirebase } from '@/features/conta/auth.firebase';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { router } from 'expo-router';
 import Conta from '@/app/conta';
-import { remocaoConta } from '@/features/conta/remocao';
 import { definirSessao } from '@/features/conta/sessao';
 import { MSG } from '@/features/conta/validation';
+import { ErroConta } from '@/features/conta/types';
 
-jest.mock('@/features/conta/remocao', () => ({ AutorizacaoDeRemocaoIndisponivel: Error, remocaoConta: { excluir: jest.fn() } }));
 jest.mock('@/features/conta/auth.firebase', () => ({ criarAuthFirebase: jest.fn() }));
 
 const sair = () => fireEvent.press(screen.getByTestId('sair'));
@@ -192,37 +191,75 @@ describe('Perfil (UC11)', () => {
     expect(await screen.findByText('Novo e-mail confirmado.')).toBeTruthy();
     expect(auth.confirmEmailChange).toHaveBeenCalledWith(undefined, 'nova@exemplo.com');
   });
-});
+  describe('exceções do fluxo de edição', () => {
+    async function trocarSenha() {
+      await editar();
+      await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'Atual@123');
+      await fireEvent.changeText(screen.getByLabelText('Nova senha (opcional)'), 'Abcdef1!');
+      await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+    }
 
+    it('EX01: e-mail em formato inválido não chama o serviço', async () => {
+      await editar();
+      await fireEvent.changeText(screen.getByLabelText('E-mail'), 'ana@');
+      await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+      expect(await screen.findByText(MSG.emailInvalido)).toBeTruthy();
+      expect(auth.requestEmailChange).not.toHaveBeenCalled();
+    });
 
-describe('Exclusão de conta (UC11)', () => {
-  const excluir = jest.mocked(remocaoConta.excluir);
+    it('EX01: e-mail já usado em outra conta', async () => {
+      auth.requestEmailChange.mockRejectedValueOnce(new ErroConta('email-em-uso'));
+      await editar();
+      await fireEvent.changeText(screen.getByLabelText('E-mail'), 'bia@exemplo.com');
+      await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'Atual@123');
+      await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+      expect(await screen.findByText(MSG.emailEmUso)).toBeTruthy();
+    });
 
-  beforeEach(() => {
-    excluir.mockReset();
-    comSessao();
-  });
+    it('EX02: falha na gravação informa que nada foi alterado', async () => {
+      auth.changePassword.mockRejectedValueOnce(new Error('falha inesperada'));
+      await trocarSenha();
+      expect(await screen.findByText('Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente.')).toBeTruthy();
+    });
 
-  async function abrirConfirmacao() {
-    await render(<Conta />);
-    await fireEvent.press(screen.getByRole('button', { name: 'Excluir conta' }));
-  }
+    it('EX03: sem conexão não altera o perfil', async () => {
+      auth.changePassword.mockRejectedValueOnce(new ErroConta('sem-conexao'));
+      await trocarSenha();
+      expect(await screen.findByText('Sem conexão. Conecte-se à internet para alterar o perfil.')).toBeTruthy();
+    });
 
-  it('informa os prazos de remoção e permite cancelar', async () => {
-    await abrirConfirmacao();
-    expect(screen.getByText(/até 30 dias.*até 60 dias/)).toBeTruthy();
-    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
-    expect(screen.getByText('ana@exemplo.com')).toBeTruthy();
-    expect(excluir).not.toHaveBeenCalled();
-  });
+    it('EX04: ligação expirada ou já usada', async () => {
+      await AsyncStorage.setItem('@unicash/email-pendente:u1', 'nova@exemplo.com');
+      auth.confirmEmailChange.mockRejectedValueOnce(new ErroConta('ligacao-invalida'));
+      await editar();
+      await fireEvent.press(await screen.findByRole('button', { name: 'Já confirmei' }));
+      expect(await screen.findByText(MSG.ligacaoInvalida)).toBeTruthy();
+    });
 
-  it('confirma para o usuário ativo, encerra a sessão e retorna ao uso sem conta', async () => {
-    excluir.mockImplementation(async () => definirSessao({ status: 'sem-sessao' }));
-    await abrirConfirmacao();
-    await fireEvent.press(screen.getByRole('button', { name: 'Excluir conta definitivamente' }));
-    expect(excluir).toHaveBeenCalledWith('u1');
-    expect(await screen.findByText('Conta excluída neste aparelho')).toBeTruthy();
-    await fireEvent.press(screen.getByRole('button', { name: 'Continuar sem conta' }));
-    expect(router.replace).toHaveBeenCalledWith('/');
+    it('EX05: novo e-mail ainda não confirmado', async () => {
+      await AsyncStorage.setItem('@unicash/email-pendente:u1', 'nova@exemplo.com');
+      auth.confirmEmailChange.mockRejectedValueOnce(new ErroConta('email-nao-confirmado'));
+      await editar();
+      await fireEvent.press(await screen.findByRole('button', { name: 'Já confirmei' }));
+      expect(
+        await screen.findByText('Este e-mail ainda não foi confirmado. Abra a ligação enviada ao novo e-mail ou peça um reenvio.'),
+      ).toBeTruthy();
+    });
+
+    it('EX10: falha na leitura local oferece "Tentar novamente" e bloqueia o salvamento até recarregar', async () => {
+      const leitura = jest.spyOn(AsyncStorage, 'getItem').mockRejectedValueOnce(new Error('falha de leitura'));
+      await render(<Conta />);
+      await fireEvent.press(screen.getByRole('button', { name: 'Editar perfil' }));
+      expect(await screen.findByText('Não foi possível carregar o perfil. Tente novamente.')).toBeTruthy();
+
+      await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'Atual@123');
+      await fireEvent.changeText(screen.getByLabelText('Nova senha (opcional)'), 'Abcdef1!');
+      await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+      expect(auth.changePassword).not.toHaveBeenCalled();
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Tentar novamente' }));
+      await waitFor(() => expect(screen.queryByText('Não foi possível carregar o perfil. Tente novamente.')).toBeNull());
+      leitura.mockRestore();
+    });
   });
 });

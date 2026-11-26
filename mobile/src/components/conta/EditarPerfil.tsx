@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Aviso } from '@/components/conta/Aviso';
 import { Botao } from '@/components/conta/Botao';
 import { CampoSenha } from '@/components/conta/CampoSenha';
@@ -24,19 +24,32 @@ export function EditarPerfil({ perfil, voltar }: { perfil: Perfil; voltar: () =>
   const [erroAtual, setErroAtual] = useState<string>();
   const [erro, setErro] = useState<string>();
   const [aviso, setAviso] = useState<string>();
+  const [falhaLeitura, setFalhaLeitura] = useState(false);
   const executando = useRef(false);
+  const montado = useRef(true);
 
-  useEffect(() => {
-    let ativo = true;
-    AsyncStorage.getItem(chave).then(
-      (valor) => { if (ativo) setPendente(valor); },
-      () => { if (ativo) setErro('Não foi possível carregar a troca de e-mail pendente.'); },
-    ).finally(() => { if (ativo) setCarregando(false); });
-    return () => { ativo = false; };
-  }, [chave]);
+  useEffect(() => () => { montado.current = false; }, []);
+
+  // EX10: falha na leitura local do perfil (troca de e-mail pendente), com "Tentar novamente".
+  const lerPendente = useCallback(
+    () =>
+      AsyncStorage.getItem(chave).then(
+        (valor) => { if (montado.current) setPendente(valor); },
+        () => { if (montado.current) setFalhaLeitura(true); },
+      ).finally(() => { if (montado.current) setCarregando(false); }),
+    [chave],
+  );
+
+  useEffect(() => { void lerPendente(); }, [lerPendente]);
+
+  function tentarLerDeNovo() {
+    setCarregando(true);
+    setFalhaLeitura(false);
+    void lerPendente();
+  }
 
   async function executar(acao: 'salvar' | 'reenviar' | 'confirmar') {
-    if (carregando || executando.current) return;
+    if (carregando || falhaLeitura || executando.current) return;
     const sessao = obterSessao();
     if (sessao.status !== 'ativa' || sessao.uid !== perfil.uid) return;
 
@@ -105,7 +118,7 @@ export function EditarPerfil({ perfil, voltar }: { perfil: Perfil; voltar: () =>
       else if (codigo === 'email-nao-confirmado') {
         setErro('Este e-mail ainda não foi confirmado. Abra a ligação enviada ao novo e-mail ou peça um reenvio.');
       } else {
-        setErro('Não foi possível concluir a operação. Tente novamente.');
+        setErro('Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente.'); // EX02
       }
     } finally {
       setSenhaAtual('');
@@ -117,6 +130,12 @@ export function EditarPerfil({ perfil, voltar }: { perfil: Perfil; voltar: () =>
 
   return (
     <TelaConta titulo="Editar perfil" onVoltar={() => { if (!carregando) voltar(); }}>
+      {falhaLeitura && (
+        <>
+          <Aviso tipo="erro" texto="Não foi possível carregar o perfil. Tente novamente." />
+          <Botao rotulo="Tentar novamente" tipo="contorno" onPress={tentarLerDeNovo} />
+        </>
+      )}
       <Campo rotulo="E-mail" value={email} onChangeText={setEmail} erro={erroEmail}
         keyboardType="email-address" autoCapitalize="none" autoCorrect={false} editable={!carregando} />
       <CampoSenha rotulo="Senha atual" value={senhaAtual} onChangeText={setSenhaAtual}
