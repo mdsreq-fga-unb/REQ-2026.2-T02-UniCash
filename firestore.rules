@@ -133,6 +133,38 @@ service cloud.firestore {
         && d.ativa == false;
     }
 
+    // ---- UC10: perfil da conta (usuarios/{uid}) ----
+    // A senha nunca chega ao Firestore (fica no Firebase Authentication, RNF01); a política de senha
+    // vale no cliente e na configuração do Authentication. Aqui só se valida o e-mail.
+    function emailValido(e) {
+      return e is string
+        && e.size() <= 254
+        && e.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+    }
+
+    function emailDoToken() {
+      return request.auth.token.email != null ? request.auth.token.email.lower() : '';
+    }
+
+    function perfilValido(d) {
+      return d.keys().hasOnly(['email', 'nome', 'criado_em', 'atualizado_em'])
+        && d.keys().hasAll(['email', 'criado_em'])
+        && emailValido(d.email)
+        && d.email.lower() == emailDoToken()
+        && (!('nome' in d) || (d.nome is string && d.nome.size() <= 80));
+    }
+
+    match /usuarios/{uid} {
+      allow read: if dono(uid);
+      allow create: if dono(uid)
+        && perfilValido(request.resource.data)
+        && request.resource.data.criado_em == request.time;
+      allow update: if dono(uid)
+        && perfilValido(request.resource.data)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['criado_em']);
+      allow delete: if dono(uid) && request.auth.token.email_verified == false;
+    }
+
     function chavePadraoValida(chave) {
       return chave in [
         'casa', 'alimentacao', 'mobilidade', 'estudos',
@@ -264,14 +296,14 @@ service cloud.firestore {
     }
 
     match /usuarios/{uid}/categorias/{categoriaId} {
-      allow read: if dono(uid);
-      allow create: if dono(uid)
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
         && (
           categoriaPadraoValida(request.resource.data, categoriaId)
           || categoriaPropriaAtivaValida(request.resource.data, categoriaId)
           || categoriaPropriaTombstoneValida(request.resource.data, categoriaId)
         );
-      allow update: if dono(uid)
+      allow update: if donoConfirmado(uid)
         && resource.data.excluido_em == null
         && (
           (
@@ -297,7 +329,7 @@ service cloud.firestore {
           )
         );
       // Exceção restrita para normalizar tombstone legado (issue #71).
-      allow update: if dono(uid)
+      allow update: if donoConfirmado(uid)
         && categoriaPropriaTombstoneNormalizavel(
           request.resource.data,
           resource.data,
@@ -353,26 +385,26 @@ service cloud.firestore {
     }
 
     match /usuarios/{uid}/receitas/{id} {
-      allow read, delete: if dono(uid);
-      allow create, update: if dono(uid)
+      allow read, delete: if donoConfirmado(uid);
+      allow create, update: if donoConfirmado(uid)
         && receitaValida(request.resource.data);
     }
 
     match /usuarios/{uid}/despesas/{id} {
-      allow read: if dono(uid);
-      allow create: if dono(uid)
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
         && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
-      allow update: if dono(uid)
+      allow update: if donoConfirmado(uid)
         && !('excluido_em' in resource.data)
         && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
       allow delete: if false;
     }
 
     match /usuarios/{uid}/recorrencias/{id} {
-      allow read: if dono(uid);
-      allow create: if dono(uid)
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
         && (recorrenciaAtivaValida(request.resource.data) || recorrenciaTombstoneValida(request.resource.data));
-      allow update: if dono(uid)
+      allow update: if donoConfirmado(uid)
         && !('excluido_em' in resource.data)
         && (recorrenciaAtivaValida(request.resource.data) || recorrenciaTombstoneValida(request.resource.data));
       allow delete: if false;

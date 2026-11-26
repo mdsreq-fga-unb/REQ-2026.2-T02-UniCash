@@ -1,30 +1,49 @@
 import * as SQLite from 'expo-sqlite';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { auth } from '@/lib/firebase';
 import { PRAGMAS_SQL } from './schema';
 import { migrarSeNecessario } from './migrations';
 
-let dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+const ULTIMO_DONO = 'unicash:ultimo_dono_local';
+const bancos = new Map<string, Promise<SQLite.SQLiteDatabase>>();
 
-/** Base local principal (RN06, RNF34). Abre uma única vez e aplica migrações versionadas. */
-export function getDb(): Promise<SQLite.SQLiteDatabase> {
-  if (!dbPromise) {
-    dbPromise = abrir().catch((e) => {
-      dbPromise = null;
-      throw e;
-    });
-  }
-
-  return dbPromise;
+/** Nome injetivo e seguro para o sistema de arquivos; nunca reutiliza a base legada. */
+export function nomeBancoDoDono(uid: string): string {
+  return `unicash-conta-${Array.from(uid, c => c.codePointAt(0)!.toString(16)).join('-')}.db`;
 }
 
-/** Cria o esquema e atualiza bancos de versões anteriores. */
-async function abrir() {
-  const db = await SQLite.openDatabaseAsync('unicash.db');
-  // PRAGMAs fora de transação: journal_mode não pode ser alterado dentro dela.
-  await db.execAsync(PRAGMAS_SQL);
-  // Migrações versionadas: instalação nova e bancos legados terminam consistentes
-  // em VERSAO_ESQUEMA, ou a abertura falha de forma controlada (rollback total,
-  // sem perda de dados). Em caso de falha, getDb() limpa o cache e a próxima
-  // chamada tenta novamente — o erro deve ser tratado pela camada de interface.
-  await migrarSeNecessario(db);
-  return db;
+function abrirBanco(nome: string): Promise<SQLite.SQLiteDatabase> {
+  let promessa = bancos.get(nome);
+  if (!promessa) {
+    promessa = (async () => {
+      const db = await SQLite.openDatabaseAsync(nome);
+      await db.execAsync(PRAGMAS_SQL);
+      await migrarSeNecessario(db);
+      return db;
+    })().catch(e => { bancos.delete(nome); throw e; });
+    bancos.set(nome, promessa);
+  }
+  return promessa;
+}
+
+export function getDbLocal(): Promise<SQLite.SQLiteDatabase> {
+  return abrirBanco('unicash.db');
+}
+
+/** Operações remotas sempre capturam explicitamente o proprietário. */
+export function getDbDoDono(uid: string): Promise<SQLite.SQLiteDatabase> {
+  if (!uid) throw new Error('UID ausente');
+  return abrirBanco(nomeBancoDoDono(uid));
+}
+
+/** Sem sessão, mantém a última base local disponível. A base legada não sobe automaticamente. */
+export async function getDb(): Promise<SQLite.SQLiteDatabase> {
+  await auth.authStateReady();
+  const usuario = auth.currentUser;
+  if (usuario?.emailVerified) {
+    await AsyncStorage.setItem(ULTIMO_DONO, usuario.uid);
+    return getDbDoDono(usuario.uid);
+  }
+  const ultimo = await AsyncStorage.getItem(ULTIMO_DONO);
+  return ultimo ? getDbDoDono(ultimo) : getDbLocal();
 }
