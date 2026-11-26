@@ -1,4 +1,8 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { iniciarConta } from '@/features/conta';
+import { definirSessao } from '@/features/conta/sessao';
+import { criarSincronizacaoDoApp } from '@/features/conta/sync.app';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import ResumoFinanceiro from '@/app/index';
 import ResumoNoTutorial from '@/app/tutorial/resumo';
 import { BancoPronto } from '@/db/Preparacao';
@@ -6,12 +10,18 @@ import { deveOferecerTutorial } from '@/features/tutorial/estado';
 import { MSG_ABERTURA_TUTORIAL } from '@/features/tutorial/conteudo';
 import { confirmarAberturaTutorial, PRAZO_ABERTURA_TUTORIAL_MS } from '@/features/tutorial/navegacao';
 import { calcularResumo, FalhaCalculo, MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
-import { act } from '@testing-library/react-native';
+import { instalarBanco } from '../helpers/fakeDb';
 import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { router } from '../helpers/expoRouterMock';
 import { mesAnterior, nomeMes, proximoMes } from '@/features/receitas/dates';
 
 jest.mock('@/features/tutorial/estado');
+jest.mock('@/features/conta/auth.firebase', () => ({
+  criarAuthFirebase: jest.fn(),
+  iniciarObservadorDeSessao: jest.fn(),
+}));
+jest.mock('@/features/conta/service.firebase', () => ({ criarContaServiceFirebase: jest.fn() }));
+jest.mock('@/features/conta/sync.app', () => ({ criarSincronizacaoDoApp: jest.fn() }));
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/resumo/service', () => ({
@@ -42,16 +52,19 @@ function resumo(extra: Partial<ResumoMensal> = {}): ResumoMensal {
   };
 }
 
+beforeEach(async () => { await salvarContinuidadeSemConta(); });
+
 describe('Tela de resumo financeiro (UC03)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    instalarBanco();
   });
 
   it('abre no mês corrente e mostra saldo, receitas, despesas, metas e receitas por dia (RF40, RF11)', async () => {
     calcular.mockResolvedValue(resumo());
     await render(<ResumoFinanceiro />);
 
-    expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('R$ 925,65');
     expect(calcular).toHaveBeenCalledWith(atual.ano, atual.mes);
     expect(screen.getByTestId('mes-selecionado')).toHaveTextContent(nomeMes(atual.ano, atual.mes));
     expect(screen.getByTestId('total-receitas')).toHaveTextContent('R$ 1.500,00');
@@ -63,10 +76,10 @@ describe('Tela de resumo financeiro (UC03)', () => {
   });
 
   it('saldo negativo aparece com sinal de menos', async () => {
-    calcular.mockResolvedValue(resumo({ totalReceitasCentavos: 0, saldoCentavos: -3000, receitasPorDia: [] }));
+    calcular.mockResolvedValue(resumo({ totalReceitasCentavos: 0, totalDespesasCentavos: 3000, saldoCentavos: -3000, receitasPorDia: [] }));
     await render(<ResumoFinanceiro />);
-    expect(await screen.findByTestId('saldo')).toHaveTextContent('− R$ 30,00');
-    expect(screen.getByText('Saídas maiores que entradas')).toBeTruthy();
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('−R$ 30,00');
+    expect(screen.getByText('Sem receitas no mês')).toBeTruthy();
   });
 
   it('FA01: mês sem receitas mostra total zero e aviso na visão por dia', async () => {
@@ -111,7 +124,7 @@ describe('Tela de resumo financeiro (UC03)', () => {
   it('ao trocar de mês, não mostra os valores do mês anterior sob o título novo enquanto recalcula', async () => {
     calcular.mockResolvedValueOnce(resumo());
     await render(<ResumoFinanceiro />);
-    expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('R$ 925,65');
 
     // o cálculo do mês seguinte fica pendente até resolvermos manualmente
     const seguinte = proximoMes(atual.ano, atual.mes);
@@ -124,8 +137,8 @@ describe('Tela de resumo financeiro (UC03)', () => {
     expect(screen.queryByTestId('saldo')).toBeNull();
     expect(screen.queryByTestId('total-receitas')).toBeNull();
 
-    concluir(resumo({ ...seguinte, saldoCentavos: -100, totalReceitasCentavos: 0, receitasPorDia: [] }));
-    expect(await screen.findByTestId('saldo')).toHaveTextContent('− R$ 1,00');
+    concluir(resumo({ ...seguinte, saldoCentavos: -100, totalReceitasCentavos: 0, totalDespesasCentavos: 100, receitasPorDia: [] }));
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('−R$ 1,00');
     expect(screen.queryByTestId('carregando')).toBeNull();
   });
 
@@ -142,7 +155,7 @@ describe('Tela de resumo financeiro (UC03)', () => {
     await render(<ResumoFinanceiro />);
 
     expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
-    expect(screen.queryByTestId('saldo')).toBeNull();
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('R$ 0,00');
     await fireEvent.press(screen.getByText('Ver tutorial'));
     expect(router.push).toHaveBeenCalledWith({
       pathname: '/tutorial', params: { origem: 'manual', tentativa: expect.any(String) },
@@ -163,7 +176,7 @@ describe('Tela de resumo financeiro (UC03)', () => {
     expect(screen.queryByTestId('saldo')).toBeNull();
 
     await fireEvent.press(screen.getByText('Tentar novamente'));
-    expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('R$ 925,65');
     expect(screen.queryByText(MSG_FALHA_CALCULO)).toBeNull();
     expect(calcular).toHaveBeenCalledTimes(2);
     expect(calcular).toHaveBeenLastCalledWith(atual.ano, atual.mes);
@@ -234,19 +247,33 @@ describe('Tela de resumo financeiro (UC03)', () => {
   });
 
   describe('recálculo quando a base muda por fora da tela', () => {
-    it('restauração da nuvem: montado com base vazia, mostra os totais após o sinal', async () => {
-      calcular.mockResolvedValueOnce(
+    it('atualiza o saldo na mesma tela quando termina a restauração iniciada pelo login', async () => {
+      let terminarRestauracao!: () => void;
+      const restauracao = new Promise<void>((resolve) => { terminarRestauracao = resolve; });
+      const restaurar = jest.fn(() => restauracao);
+      (criarSincronizacaoDoApp as jest.Mock).mockReturnValue({
+        retomar: jest.fn().mockResolvedValue(undefined),
+        restaurarSeAparelhoVazio: restaurar,
+        suspender: jest.fn().mockResolvedValue(undefined),
+      });
+      calcular.mockResolvedValue(
         resumo({ totalReceitasCentavos: 0, totalDespesasCentavos: 0, saldoCentavos: 0, receitasPorDia: [], semLancamentos: true }),
       );
-      await render(<ResumoFinanceiro />);
-      expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
+      iniciarConta();
+      definirSessao({ status: 'ativa', uid: 'u1', email: 'teste@example.com' });
+      try {
+        await render(<ResumoFinanceiro />);
+        expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
+        expect(restaurar).toHaveBeenCalledWith('u1');
 
-      // a restauração preencheu a base; o layout avisa ao terminar as rotinas
-      calcular.mockResolvedValueOnce(resumo());
-      await act(async () => avisarBaseAtualizada());
+        calcular.mockResolvedValue(resumo());
+        await act(async () => terminarRestauracao());
 
-      expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
-      expect(screen.queryByText('Nenhum lançamento ainda')).toBeNull();
+        await waitFor(() => expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65'));
+        expect(screen.queryByText('Nenhum lançamento ainda')).toBeNull();
+      } finally {
+        await act(async () => definirSessao({ status: 'sem-sessao' }));
+      }
     });
 
     it('EX01 durante a preparação: recalcula ao receber o sinal de pronto, sem tocar em "Tentar novamente"', async () => {
@@ -257,7 +284,7 @@ describe('Tela de resumo financeiro (UC03)', () => {
       calcular.mockResolvedValueOnce(resumo());
       await act(async () => avisarBaseAtualizada());
 
-      expect(await screen.findByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+      await waitFor(() => expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65'));
       expect(screen.queryByText(MSG_FALHA_CALCULO)).toBeNull();
     });
 
@@ -290,10 +317,13 @@ describe('Tela de resumo financeiro (UC03)', () => {
 
 
 describe('Resumo aberto pela etapa do tutorial (UC15)', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    instalarBanco();
+  });
 
   it.each([
-    { vazio: false, saldo: '+ R$ 925,65', receitas: 'R$ 1.500,00', despesas: 'R$ 574,35' },
+    { vazio: false, saldo: 'R$ 925,65', receitas: 'R$ 1.500,00', despesas: 'R$ 574,35' },
     { vazio: true, saldo: 'R$ 0,00', receitas: 'R$ 0,00', despesas: 'R$ 0,00' },
   ])('mostra os totais calculados e volta à etapa (base vazia: $vazio)', async ({ vazio, saldo, receitas, despesas }) => {
     calcular.mockResolvedValue(vazio ? resumo({
@@ -324,13 +354,13 @@ describe('Resumo aberto pela etapa do tutorial (UC15)', () => {
     expect(await screen.findByRole('alert', {}, {
       timeout: PRAZO_ABERTURA_TUTORIAL_MS + 1000,
     })).toHaveTextContent(MSG_ABERTURA_TUTORIAL);
-    expect(screen.getByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+    expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(router.push).toHaveBeenCalledTimes(2);
     const { tentativa } = router.push.mock.lastCall![0].params;
     await act(() => confirmarAberturaTutorial(tentativa));
     expect(screen.queryByText(MSG_ABERTURA_TUTORIAL)).toBeNull();
-    expect(screen.getByTestId('saldo')).toHaveTextContent('+ R$ 925,65');
+    expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65');
   });
 });

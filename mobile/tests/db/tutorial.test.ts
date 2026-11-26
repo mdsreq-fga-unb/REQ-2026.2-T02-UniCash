@@ -1,5 +1,5 @@
 import { getDb } from '@/db/database';
-import { migrarSeNecessario } from '@/db/migrations';
+import { migrarSeNecessario, VERSAO_ESQUEMA } from '@/db/migrations';
 import {
   deveOferecerTutorial,
   registrarTutorialOferecido,
@@ -11,14 +11,14 @@ describe('UC15 — preferências locais', () => {
 
   beforeEach(async () => {
     banco = instalarBanco();
-    banco.sqlite.pragma('user_version = 7');
+    banco.sqlite.pragma('user_version = 9');
     await migrarSeNecessario(await getDb());
   });
 
   afterEach(() => banco.sqlite.close());
 
   it('oferece no primeiro acesso e mantém uma única chave persistida após regravações', async () => {
-    expect(banco.sqlite.pragma('user_version', { simple: true })).toBe(8);
+    expect(banco.sqlite.pragma('user_version', { simple: true })).toBe(VERSAO_ESQUEMA);
     const antes = banco.instantaneo();
     await expect(deveOferecerTutorial()).resolves.toBe(true);
     await Promise.all([registrarTutorialOferecido(), registrarTutorialOferecido()]);
