@@ -294,17 +294,8 @@ export const DDL_INDICES_METAS = [
   'CREATE INDEX IF NOT EXISTS idx_metas_sync ON metas(sync_status);',
 ] as const;
 
-/** Forma v8: preservada para a migração 008 e testes históricos. */
-export const DDL_ESQUEMA_V8 = `
-    ${DDL_ESQUEMA_V6}
-
-    ${DDL_TABELA_METAS}
-
-    ${DDL_INDICES_METAS.join('\n    ')}
-  `;
-
 /**
- * DDL da tabela de metas v9 (UC12 + issue #106).
+ * DDL da tabela de metas final (UC12 + issue #106).
  *
  * `inicio` e `categoria_id` são anuláveis para acomodar registros legados sem
  * backfill fictício. A coerência por tipo é garantida por CHECK de tabela:
@@ -389,7 +380,7 @@ export const DDL_INDICES_METAS_V9 = [
      ON metas(categoria_id) WHERE excluido_em IS NULL;`,
 ] as const;
 
-/** Forma atual v9: extensão da UC12 para metas de gasto e investimento. */
+/** Forma final (v10): extensão da UC12 para metas de gasto e investimento. */
 export const DDL_ESQUEMA_V9 = `
     ${DDL_ESQUEMA_V6}
 
@@ -430,6 +421,36 @@ export const DDL_TRIGGER_PERCENTUAL = `
     END;
   `;
 
+export const DDL_SALDO_MENSAL = `
+    CREATE TABLE IF NOT EXISTS saldo_inicial (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      mes TEXT NOT NULL,
+      valor_centavos INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS alertas_emitidos (
+      id TEXT PRIMARY KEY NOT NULL,
+      mes TEXT NOT NULL,
+      anterior_centavos INTEGER NOT NULL,
+      saldo_centavos INTEGER NOT NULL,
+      criado_em TEXT NOT NULL,
+      lido INTEGER NOT NULL DEFAULT 0,
+      sync_status TEXT NOT NULL DEFAULT 'pendente'
+    );
+  `;
+
+/** Migração 008: numera transições por mês sem alterar os IDs já enviados ao Firestore. */
+export const DDL_NUMERAR_ALERTAS = `
+  ALTER TABLE alertas_emitidos ADD COLUMN transicao INTEGER NOT NULL DEFAULT 0;
+  WITH numerados AS (
+    SELECT id, ROW_NUMBER() OVER (PARTITION BY mes ORDER BY criado_em, rowid) AS numero
+    FROM alertas_emitidos
+  )
+  UPDATE alertas_emitidos SET transicao = (
+    SELECT numero FROM numerados WHERE numerados.id = alertas_emitidos.id
+  );
+  CREATE UNIQUE INDEX idx_alertas_mes_transicao ON alertas_emitidos(mes, transicao);
+`;
+
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
@@ -437,4 +458,8 @@ export const ESQUEMA_SQL = `
     ${DDL_ESQUEMA_V9}
 
     ${DDL_TRIGGER_PERCENTUAL}
+
+    ${DDL_SALDO_MENSAL}
+
+    ${DDL_NUMERAR_ALERTAS}
   `;

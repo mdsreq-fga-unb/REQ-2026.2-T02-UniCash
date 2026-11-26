@@ -99,7 +99,9 @@ jest.mock('@/features/receitas/sync', () => ({
   restaurarDaNuvem: jest.fn(),
   sincronizarPendentes: jest.fn(),
 }));
-jest.mock('@/features/conta', () => ({ iniciarConta: jest.fn() }));
+jest.mock('@/features/conta', () =>
+  ({ iniciarConta: jest.fn()
+}));
 
 const mockGetDb = getDb as jest.Mock;
 const mockSemear = semearCategoriasPadrao as jest.Mock;

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import {
   VERSAO_ESQUEMA,
+  BancoUc12SemUc04,
   EstruturaLegadaInesperada,
   FalhaMigracao,
   ResiduoDeMigracao,
@@ -9,7 +10,11 @@ import {
 } from '@/db/migrations';
 import {
   DDL_ESQUEMA_V6,
-  DDL_ESQUEMA_V8,
+  DDL_ESQUEMA_V9,
+  DDL_INDICES_METAS,
+  DDL_NUMERAR_ALERTAS,
+  DDL_SALDO_MENSAL,
+  DDL_TABELA_METAS,
   DDL_TRIGGER_PERCENTUAL,
   PRAGMAS_SQL,
 } from '@/db/schema';
@@ -53,45 +58,104 @@ const existeTabela = (sqlite: Database.Database, nome: string) =>
       .get(nome) as any
   ).n > 0;
 
-describe('migração 008 — metas', () => {
-  it('instalação nova cria metas e grava a versão atual', async () => {
+const colunasMetas = (sqlite: Database.Database): string[] =>
+  (sqlite.prepare('PRAGMA table_info(metas)').all() as { name: string }[]).map((c) => c.name);
+
+const criarBaseUc06 = (): Database.Database => {
+  const sqlite = new Database(':memory:');
+  sqlite.exec(PRAGMAS_SQL);
+  sqlite.exec(DDL_ESQUEMA_V6);
+  sqlite.exec(DDL_TRIGGER_PERCENTUAL);
+  return sqlite;
+};
+
+/** Banco v8 legítimo da UC04, sem metas. */
+const bancoUc04V8 = (): Database.Database => {
+  const sqlite = criarBaseUc06();
+  sqlite.exec(DDL_SALDO_MENSAL);
+  sqlite.exec(DDL_NUMERAR_ALERTAS);
+  sqlite.exec('PRAGMA user_version = 8');
+  return sqlite;
+};
+
+/** Banco v9 após a criação inicial da tabela de metas da UC12. */
+const bancoMetasBaseV9 = (): Database.Database => {
+  const sqlite = bancoUc04V8();
+  sqlite.exec(DDL_TABELA_METAS);
+  for (const ddl of DDL_INDICES_METAS) sqlite.exec(ddl);
+  sqlite.exec('PRAGMA user_version = 9');
+  return sqlite;
+};
+
+/** Banco de desenvolvimento criado pela antiga UC12 008, sem a 008 da UC04. */
+const bancoUc12AntigoV8 = (): Database.Database => {
+  const sqlite = criarBaseUc06();
+  sqlite.exec(DDL_TABELA_METAS);
+  for (const ddl of DDL_INDICES_METAS) sqlite.exec(ddl);
+  sqlite.exec('PRAGMA user_version = 8');
+  return sqlite;
+};
+
+/** Banco de desenvolvimento com a antiga extensão UC12 009, mas sem UC04. */
+const bancoUc12AntigoV9 = (): Database.Database => {
+  const sqlite = criarBaseUc06();
+  sqlite.exec(DDL_ESQUEMA_V9);
+  sqlite.exec('PRAGMA user_version = 9');
+  return sqlite;
+};
+
+const inserirMetaBase = (
+  sqlite: Database.Database,
+  id: string,
+  extra: { tipo?: string; criadoEm?: string; prazo?: string } = {},
+) => {
+  sqlite
+    .prepare(
+      `INSERT INTO metas
+        (id, objetivo, tipo, valor_alvo_centavos, prazo, sync_status,
+         excluido_em, criado_em, atualizado_em)
+       VALUES (?, ?, ?, 100000, ?, 'pendente', NULL, ?, ?)`,
+    )
+    .run(
+      id,
+      `Meta ${id}`,
+      extra.tipo ?? 'investimento',
+      extra.prazo ?? '2027-12-31',
+      extra.criadoEm ?? '2026-01-10T12:00:00.000Z',
+      '2026-01-10T12:00:00.000Z',
+    );
+};
+
+describe('migrações 008 UC04 + 009/010 UC12', () => {
+  it('instalação nova chega à versão 10 com UC04 e colunas finais de metas', async () => {
     const sqlite = new Database(':memory:');
     sqlite.exec(PRAGMAS_SQL);
     await migrarSeNecessario(criarAdaptador(sqlite));
 
     expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+    expect(existeTabela(sqlite, 'saldo_inicial')).toBe(true);
+    expect(existeTabela(sqlite, 'alertas_emitidos')).toBe(true);
     expect(existeTabela(sqlite, 'metas')).toBe(true);
+    expect(colunasMetas(sqlite)).toEqual(
+      expect.arrayContaining([
+        'inicio',
+        'categoria_id',
+        'valor_acumulado_centavos',
+        'valor_acumulado_atualizado_em',
+      ]),
+    );
     const indices = (
       sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'metas'").all() as {
         name: string;
       }[]
     ).map((i) => i.name);
-    expect(indices).toEqual(expect.arrayContaining(['idx_metas_prazo', 'idx_metas_sync']));
+    expect(indices).toEqual(
+      expect.arrayContaining(['idx_metas_prazo', 'idx_metas_sync', 'idx_metas_categoria']),
+    );
   });
 
-  it('é idempotente e preserva metas existentes', async () => {
-    const sqlite = new Database(':memory:');
-    sqlite.exec(PRAGMAS_SQL);
-    const db = criarAdaptador(sqlite);
-    await migrarSeNecessario(db);
-    sqlite
-      .prepare(
-        `INSERT INTO metas
-          (id, objetivo, tipo, valor_alvo_centavos, prazo, sync_status, excluido_em, criado_em, atualizado_em)
-         VALUES ('m1', 'Viagem', 'investimento', 100000, '2027-12-31', 'pendente', NULL, 't', 't')`,
-      )
-      .run();
-
-    await migrarSeNecessario(db);
-    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
-    expect((sqlite.prepare('SELECT COUNT(*) AS n FROM metas').get() as any).n).toBe(1);
-  });
-
-  it('banco v7 recebe a tabela metas sem perder dados existentes', async () => {
-    const sqlite = new Database(':memory:');
-    sqlite.exec(PRAGMAS_SQL);
-    sqlite.exec(DDL_ESQUEMA_V6);
-    sqlite.exec(DDL_TRIGGER_PERCENTUAL);
+  it('v7 → 008 UC04 → 009 metas → 010 extensão preserva lançamentos', async () => {
+    const sqlite = criarBaseUc06();
     sqlite.exec('PRAGMA user_version = 7');
     sqlite
       .prepare(
@@ -102,119 +166,60 @@ describe('migração 008 — metas', () => {
     await migrarSeNecessario(criarAdaptador(sqlite));
 
     expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+    expect(existeTabela(sqlite, 'saldo_inicial')).toBe(true);
+    expect(existeTabela(sqlite, 'alertas_emitidos')).toBe(true);
     expect(existeTabela(sqlite, 'metas')).toBe(true);
-    expect((sqlite.prepare("SELECT COUNT(*) AS n FROM despesas WHERE id = 'd1'").get() as any).n).toBe(1);
+    expect(sqlite.prepare("SELECT COUNT(*) AS n FROM despesas WHERE id = 'd1'").get()).toEqual({
+      n: 1,
+    });
     expect(sqlite.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
   });
 
-  it('falha ao validar índice faz rollback da tabela e mantém a versão 7', async () => {
-    const sqlite = new Database(':memory:');
-    sqlite.exec(PRAGMAS_SQL);
-    sqlite.exec(DDL_ESQUEMA_V6);
-    sqlite.exec(DDL_TRIGGER_PERCENTUAL);
-    sqlite.exec('CREATE INDEX idx_metas_sync ON despesas(sync_status)');
-    sqlite.exec('PRAGMA user_version = 7');
-
-    await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toBeInstanceOf(
-      FalhaMigracao,
-    );
-    expect(versao(sqlite)).toBe(7);
-    expect(existeTabela(sqlite, 'metas')).toBe(false);
-    expect(
-      (sqlite.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'idx_metas_prazo'").get() as any).n,
-    ).toBe(0);
-    expect(sqlite.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
-  });
-
-  it('tabela metas incompatível aborta sem avançar a versão', async () => {
-    const sqlite = new Database(':memory:');
-    sqlite.exec(PRAGMAS_SQL);
-    sqlite.exec(DDL_ESQUEMA_V6);
-    sqlite.exec(DDL_TRIGGER_PERCENTUAL);
-    sqlite.exec('CREATE TABLE metas (id TEXT PRIMARY KEY)');
-    sqlite.exec('PRAGMA user_version = 7');
-
-    await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toBeInstanceOf(
-      EstruturaLegadaInesperada,
-    );
-    expect(versao(sqlite)).toBe(7);
-  });
-});
-
-describe('migração 009 — extensão das metas', () => {
-  function bancoV8(): Database.Database {
-    const sqlite = new Database(':memory:');
-    sqlite.exec(PRAGMAS_SQL);
-    sqlite.exec(DDL_ESQUEMA_V8);
-    sqlite.exec(DDL_TRIGGER_PERCENTUAL);
-    sqlite.exec('PRAGMA user_version = 8');
-    return sqlite;
-  }
-
-  const inserirMeta = (
-    sqlite: Database.Database,
-    id: string,
-    extra: { tipo?: string; criadoEm?: string; prazo?: string } = {},
-  ) => {
+  it('banco v8 da UC04 preserva saldo/alerta e recebe metas na 009/010', async () => {
+    const sqlite = bancoUc04V8();
     sqlite
       .prepare(
-        `INSERT INTO metas
-          (id, objetivo, tipo, valor_alvo_centavos, prazo, sync_status,
-           excluido_em, criado_em, atualizado_em)
-         VALUES (?, ?, ?, 100000, ?, 'pendente', NULL, ?, ?)`,
+        "INSERT INTO saldo_inicial (id, mes, valor_centavos) VALUES (1, '2026-10', 5000)",
       )
-      .run(
-        id,
-        `Meta ${id}`,
-        extra.tipo ?? 'investimento',
-        extra.prazo ?? '2027-12-31',
-        extra.criadoEm ?? '2026-01-10T12:00:00.000Z',
-        '2026-01-10T12:00:00.000Z',
-      );
-  };
+      .run();
+    sqlite
+      .prepare(
+        `INSERT INTO alertas_emitidos
+          (id, mes, anterior_centavos, saldo_centavos, criado_em, transicao)
+         VALUES ('a1', '2026-10', 1, -1, '2026-10-01T00:00:00Z', 1)`,
+      )
+      .run();
 
-  it('instalação nova já nasce na versão 9 com as colunas novas', async () => {
-    const sqlite = new Database(':memory:');
-    sqlite.exec(PRAGMAS_SQL);
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(9);
-    const colunas = (sqlite.prepare('PRAGMA table_info(metas)').all() as { name: string }[]).map(
-      (c) => c.name,
-    );
-    expect(colunas).toEqual(
-      expect.arrayContaining([
-        'inicio',
-        'categoria_id',
-        'valor_acumulado_centavos',
-        'valor_acumulado_atualizado_em',
-      ]),
-    );
-    expect(
-      (
-        sqlite
-          .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'idx_metas_categoria'")
-          .get() as any
-      ).n,
-    ).toBe(1);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+    expect(sqlite.prepare('SELECT * FROM saldo_inicial').get()).toMatchObject({
+      mes: '2026-10',
+      valor_centavos: 5000,
+    });
+    expect(sqlite.prepare('SELECT * FROM alertas_emitidos').get()).toMatchObject({
+      id: 'a1',
+      transicao: 1,
+    });
+    expect(existeTabela(sqlite, 'metas')).toBe(true);
   });
 
-  it('v8 → v9 preserva metas e deriva início somente de criado_em válido', async () => {
-    const sqlite = bancoV8();
-    inserirMeta(sqlite, 'm1', { criadoEm: '2026-02-03T10:00:00.000Z' });
-    inserirMeta(sqlite, 'm2', {
+  it('v9 com metas iniciais → v10 preserva metas e deriva início só de criado_em válido', async () => {
+    const sqlite = bancoMetasBaseV9();
+    inserirMetaBase(sqlite, 'm1', { criadoEm: '2026-02-03T10:00:00.000Z' });
+    inserirMetaBase(sqlite, 'm2', {
       tipo: 'gasto',
       criadoEm: 'data-invalida',
       prazo: '2027-06-30',
     });
-    inserirMeta(sqlite, 'm3', {
+    inserirMetaBase(sqlite, 'm3', {
       criadoEm: '2028-01-01T00:00:00.000Z',
       prazo: '2027-12-31',
     });
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(9);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(sqlite.prepare('SELECT * FROM metas WHERE id = ?').get('m1')).toMatchObject({
       inicio: '2026-02-03',
       categoria_id: null,
@@ -235,8 +240,8 @@ describe('migração 009 — extensão das metas', () => {
   });
 
   it('é idempotente e preserva metas já completas', async () => {
-    const sqlite = bancoV8();
-    inserirMeta(sqlite, 'm1');
+    const sqlite = bancoMetasBaseV9();
+    inserirMetaBase(sqlite, 'm1');
     const db = criarAdaptador(sqlite);
     await migrarSeNecessario(db);
 
@@ -254,7 +259,7 @@ describe('migração 009 — extensão das metas', () => {
 
     await migrarSeNecessario(db);
 
-    expect(versao(sqlite)).toBe(9);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(sqlite.prepare('SELECT * FROM metas WHERE id = ?').get('m2')).toMatchObject({
       inicio: '2027-01-01',
       valor_acumulado_centavos: 0,
@@ -262,34 +267,40 @@ describe('migração 009 — extensão das metas', () => {
     });
   });
 
-  it('recria índice ausente sem alterar dados', async () => {
-    const sqlite = bancoV8();
-    inserirMeta(sqlite, 'm1');
-    const db = criarAdaptador(sqlite);
-    await migrarSeNecessario(db);
+  it('conflito de índice na 009 mantém a versão 8 da UC04 e remove a tabela metas', async () => {
+    const sqlite = criarBaseUc06();
+    sqlite.exec('CREATE INDEX idx_metas_sync ON despesas(sync_status)');
+    sqlite.exec('PRAGMA user_version = 7');
 
-    sqlite.exec('DROP INDEX idx_metas_categoria');
-    sqlite.exec('PRAGMA user_version = 8');
-    await migrarSeNecessario(db);
-
-    expect(versao(sqlite)).toBe(9);
-    expect(
-      (
-        sqlite
-          .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'idx_metas_categoria'")
-          .get() as any
-      ).n,
-    ).toBe(1);
-    expect(sqlite.prepare('SELECT COUNT(*) AS n FROM metas').get()).toEqual({ n: 1 });
+    await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toBeInstanceOf(
+      FalhaMigracao,
+    );
+    expect(versao(sqlite)).toBe(8);
+    expect(existeTabela(sqlite, 'saldo_inicial')).toBe(true);
+    expect(existeTabela(sqlite, 'alertas_emitidos')).toBe(true);
+    expect(existeTabela(sqlite, 'metas')).toBe(false);
+    expect(sqlite.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
   });
 
-  it('falha após copiar/renomear faz rollback completo da reconstrução', async () => {
-    const sqlite = bancoV8();
-    inserirMeta(sqlite, 'm1');
+  it('tabela metas incompatível na 009 aborta após a 008, sem apagar dados', async () => {
+    const sqlite = criarBaseUc06();
+    sqlite.exec('CREATE TABLE metas (id TEXT PRIMARY KEY)');
+    sqlite.exec('PRAGMA user_version = 7');
+
+    await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toBeInstanceOf(
+      EstruturaLegadaInesperada,
+    );
+    expect(versao(sqlite)).toBe(8);
+    expect(colunasMetas(sqlite)).toEqual(['id']);
+  });
+
+  it('falha após copiar/renomear na 010 faz rollback e mantém a versão 9', async () => {
+    const sqlite = bancoMetasBaseV9();
+    inserirMetaBase(sqlite, 'm1');
     const db = criarAdaptador(sqlite);
     const execOriginal = db.execAsync.bind(db);
     (db as any).execAsync = async (sql: string) => {
-      if (sql.includes('ALTER TABLE metas_nova_009 RENAME TO metas')) {
+      if (sql.includes('ALTER TABLE metas_nova_010 RENAME TO metas')) {
         throw new Error('falha simulada na renomeação');
       }
       return execOriginal(sql);
@@ -297,12 +308,9 @@ describe('migração 009 — extensão das metas', () => {
 
     await expect(migrarSeNecessario(db)).rejects.toThrow('falha simulada na renomeação');
 
-    expect(versao(sqlite)).toBe(8);
-    const colunas = (sqlite.prepare('PRAGMA table_info(metas)').all() as { name: string }[]).map(
-      (c) => c.name,
-    );
-    expect(colunas).toHaveLength(9);
-    expect(colunas).not.toContain('inicio');
+    expect(versao(sqlite)).toBe(9);
+    expect(colunasMetas(sqlite)).toHaveLength(9);
+    expect(colunasMetas(sqlite)).not.toContain('inicio');
     expect(sqlite.prepare('SELECT * FROM metas WHERE id = ?').get('m1')).toMatchObject({
       objetivo: 'Meta m1',
       valor_alvo_centavos: 100000,
@@ -310,28 +318,110 @@ describe('migração 009 — extensão das metas', () => {
     expect(
       (
         sqlite
-          .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'metas_nova_009'")
+          .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name = 'metas_nova_010'")
           .get() as any
       ).n,
     ).toBe(0);
     expect(sqlite.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
   });
 
-  it('resíduo de migração aborta e mantém versão e dados intactos', async () => {
-    const sqlite = bancoV8();
-    inserirMeta(sqlite, 'm1');
-    sqlite.exec('CREATE TABLE metas_nova_009 (id TEXT PRIMARY KEY)');
+  it('resíduo da reconstrução aborta e mantém versão e dados intactos', async () => {
+    const sqlite = bancoMetasBaseV9();
+    inserirMetaBase(sqlite, 'm1');
+    sqlite.exec('CREATE TABLE metas_nova_010 (id TEXT PRIMARY KEY)');
 
     await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toBeInstanceOf(
       ResiduoDeMigracao,
     );
 
-    expect(versao(sqlite)).toBe(8);
+    expect(versao(sqlite)).toBe(9);
     expect(sqlite.prepare('SELECT COUNT(*) AS n FROM metas').get()).toEqual({ n: 1 });
-    expect(
-      (sqlite.prepare('PRAGMA table_info(metas)').all() as { name: string }[]).some(
-        (c) => c.name === 'inicio',
-      ),
-    ).toBe(false);
+    expect(colunasMetas(sqlite)).not.toContain('inicio');
+  });
+});
+
+describe('bancos de desenvolvimento com UC12 antiga e sem UC04', () => {
+  it('v8 antiga UC12 é reparada com a 008 da UC04 e segue até a versão 10', async () => {
+    const sqlite = bancoUc12AntigoV8();
+    inserirMetaBase(sqlite, 'm1', { criadoEm: '2026-03-04T10:00:00.000Z' });
+    const antes = sqlite.prepare('SELECT * FROM metas WHERE id = ?').get('m1') as any;
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+    expect(existeTabela(sqlite, 'saldo_inicial')).toBe(true);
+    expect(existeTabela(sqlite, 'alertas_emitidos')).toBe(true);
+    expect(sqlite.prepare('SELECT * FROM metas WHERE id = ?').get('m1')).toMatchObject({
+      objetivo: antes.objetivo,
+      valor_alvo_centavos: antes.valor_alvo_centavos,
+      inicio: '2026-03-04',
+    });
+    expect(sqlite.prepare('PRAGMA integrity_check').get()).toEqual({ integrity_check: 'ok' });
+  });
+
+  it('v9 antiga UC12 com extensão também é reparada e preserva valor acumulado', async () => {
+    const sqlite = bancoUc12AntigoV9();
+    sqlite
+      .prepare(
+        `INSERT INTO metas
+          (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
+           valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
+           excluido_em, criado_em, atualizado_em)
+         VALUES ('m1', 'Reserva', 'investimento', 100000, '2027-12-31', '2026-01-01',
+                 NULL, 50000, '2026-02-01T00:00:00Z', 'sincronizado', NULL,
+                 '2026-01-01T00:00:00Z', '2026-02-01T00:00:00Z')`,
+      )
+      .run();
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+    expect(existeTabela(sqlite, 'saldo_inicial')).toBe(true);
+    expect(sqlite.prepare('SELECT * FROM metas WHERE id = ?').get('m1')).toMatchObject({
+      valor_acumulado_centavos: 50000,
+      valor_acumulado_atualizado_em: '2026-02-01T00:00:00Z',
+    });
+  });
+
+  it('v8 antiga UC12 com metas incompatíveis aborta antes da 008 da UC04', async () => {
+    const sqlite = criarBaseUc06();
+    sqlite.exec('CREATE TABLE metas (id TEXT PRIMARY KEY)');
+    sqlite.exec('PRAGMA user_version = 8');
+
+    await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toBeInstanceOf(
+      EstruturaLegadaInesperada,
+    );
+
+    expect(versao(sqlite)).toBe(8);
+    expect(existeTabela(sqlite, 'saldo_inicial')).toBe(false);
+    expect(existeTabela(sqlite, 'alertas_emitidos')).toBe(false);
+    expect(colunasMetas(sqlite)).toEqual(['id']);
+  });
+
+  it('v8 sem metas e sem UC04 aborta com erro explícito, sem alterar o banco', async () => {
+    const sqlite = criarBaseUc06();
+    sqlite.exec('PRAGMA user_version = 8');
+
+    await expect(migrarSeNecessario(criarAdaptador(sqlite))).rejects.toBeInstanceOf(
+      BancoUc12SemUc04,
+    );
+
+    expect(versao(sqlite)).toBe(8);
+    expect(existeTabela(sqlite, 'metas')).toBe(false);
+    expect(existeTabela(sqlite, 'saldo_inicial')).toBe(false);
+    expect(existeTabela(sqlite, 'alertas_emitidos')).toBe(false);
+  });
+
+  it('v8 com apenas uma tabela UC04 é completado com segurança', async () => {
+    const sqlite = criarBaseUc06();
+    sqlite.exec('CREATE TABLE saldo_inicial (id INTEGER PRIMARY KEY CHECK (id = 1), mes TEXT NOT NULL, valor_centavos INTEGER NOT NULL)');
+    sqlite.exec('PRAGMA user_version = 8');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+    expect(existeTabela(sqlite, 'saldo_inicial')).toBe(true);
+    expect(existeTabela(sqlite, 'alertas_emitidos')).toBe(true);
+    expect(existeTabela(sqlite, 'metas')).toBe(true);
   });
 });

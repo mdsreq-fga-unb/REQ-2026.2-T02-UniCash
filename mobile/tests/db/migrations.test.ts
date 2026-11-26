@@ -15,6 +15,7 @@ import {
 import {
   DDL_ESQUEMA,
   DDL_ESQUEMA_V5,
+  DDL_SALDO_MENSAL,
   DDL_TRIGGER_PERCENTUAL,
   PRAGMAS_SQL,
 } from '@/db/schema';
@@ -2209,4 +2210,64 @@ describe('migração 005: tombstone de recorrências', () => {
     });
     expect(bancoIntegro(sqlite)).toBe(true);
   });
+});
+
+describe('Migração 006 do UC04', () => {
+  it('preserva os lançamentos da versão preliminar do resumo', async () => {
+    const sqlite = novoSqlite();
+    sqlite.exec(`
+      CREATE TABLE despesas (
+        id INTEGER PRIMARY KEY,
+        valor_centavos INTEGER NOT NULL CHECK (valor_centavos > 0),
+        data TEXT NOT NULL
+      );
+      CREATE INDEX idx_despesas_data ON despesas(data);
+      INSERT INTO despesas VALUES (7, 4650, '2026-11-21');
+    `);
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+    expect(sqlite.prepare('SELECT id, titulo, valor_centavos FROM despesas').all()).toEqual([
+      { id: 'uc04-7', titulo: 'Despesa importada', valor_centavos: 4650 },
+    ]);
+    sqlite.close();
+  });
+});
+
+it('integra saldo em um banco v7 do UC06 sem alterar o catálogo', async () => {
+  const sqlite = novoSqlite();
+  sqlite.exec(DDL_ESQUEMA);
+  await migrarSeNecessario(criarAdaptador(sqlite));
+  inserirCategoria(sqlite, { id: 'cat-v7', nome: 'Categoria v7' });
+  const categoriasAntes = linhasCategorias(sqlite);
+  sqlite.exec('DROP TABLE alertas_emitidos; DROP TABLE saldo_inicial; PRAGMA user_version = 7;');
+
+  await migrarSeNecessario(criarAdaptador(sqlite));
+
+  expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+  expect(linhasCategorias(sqlite)).toEqual(categoriasAntes);
+  expect(sqlite.prepare('SELECT COUNT(*) AS n FROM saldo_inicial').get()).toEqual({ n: 0 });
+  expect(sqlite.prepare('SELECT transicao FROM alertas_emitidos').all()).toEqual([]);
+  sqlite.close();
+});
+
+it('numera alertas legados e impede duplicidade da transição no mesmo mês', async () => {
+  const sqlite = novoSqlite();
+  sqlite.exec(DDL_ESQUEMA_V5);
+  sqlite.exec(DDL_SALDO_MENSAL);
+  sqlite.exec(`
+    PRAGMA user_version = 7;
+    INSERT INTO alertas_emitidos (id, mes, anterior_centavos, saldo_centavos, criado_em)
+    VALUES ('a', '2026-11', 0, -100, '2026-11-01'),
+           ('b', '2026-11', 0, -200, '2026-11-02'),
+           ('c', '2026-12', 0, -100, '2026-12-01');
+  `);
+  await migrarSeNecessario(criarAdaptador(sqlite));
+  expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+  expect(sqlite.prepare('SELECT id, transicao FROM alertas_emitidos ORDER BY id').all())
+    .toEqual([{ id: 'a', transicao: 1 }, { id: 'b', transicao: 2 }, { id: 'c', transicao: 1 }]);
+  expect(() => sqlite.exec(`
+    INSERT INTO alertas_emitidos (id, mes, anterior_centavos, saldo_centavos, criado_em, transicao)
+    VALUES ('d', '2026-11', 0, -300, '2026-11-03', 2);
+  `)).toThrow(/UNIQUE constraint failed/);
+  sqlite.close();
 });

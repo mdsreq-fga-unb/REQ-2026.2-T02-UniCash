@@ -426,6 +426,36 @@ describe('recorrências (RN19)', () => {
   });
 });
 
+describe('UC04: alertas emitidos', () => {
+  const id = 'a'.repeat(32);
+  const alerta = { mes: '2026-11', anterior_centavos: 0, saldo_centavos: -100, criado_em: '2026-11-01T10:00:00.000Z' };
+  const ref = (d: ReturnType<typeof db>) => doc(d, 'usuarios', 'u1', 'alertas_emitidos', id);
+
+  it('aceita reenvio idêntico do dono e impede alteração do evento', async () => {
+    await assertSucceeds(setDoc(ref(db('u1')), alerta));
+    await assertSucceeds(setDoc(ref(db('u1')), alerta));
+    await assertSucceeds(getDoc(ref(db('u1'))));
+    await assertFails(setDoc(ref(db('u1')), { ...alerta, saldo_centavos: -200 }));
+    await assertFails(deleteDoc(ref(db('u1'))));
+  });
+
+  it('impede leitura e emissão pela conta titular sem e-mail confirmado', async () => {
+    const verificado = ref(db('u1'));
+    const pendente = ref(env.authenticatedContext('u1', { email_verified: false }).firestore());
+    await assertFails(setDoc(pendente, alerta));
+    await assertSucceeds(setDoc(verificado, alerta));
+    await assertFails(getDoc(pendente));
+  });
+
+  it('valida a transição e restringe o acesso ao dono', async () => {
+    await assertFails(setDoc(ref(db('u1')), { ...alerta, anterior_centavos: -1 }));
+    await assertFails(setDoc(ref(db('u1')), { ...alerta, saldo_centavos: 0 }));
+    await assertFails(setDoc(ref(db('u2')), alerta));
+    await assertFails(getDoc(ref(anonimo())));
+    await assertSucceeds(setDoc(ref(db('u1')), alerta));
+    await assertFails(getDoc(ref(db('u2'))));
+  });
+});
 describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
   it('o dono cria, lê e atualiza categoria própria', async () => {
     const ref = cat(db('u1'));
