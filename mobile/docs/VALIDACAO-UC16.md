@@ -2,20 +2,18 @@
 
 ## Aplicação
 
-Na raiz do repositório, sobre a revisão correspondente ao `develop.zip`:
+Na raiz do repositório, na branch da UC16:
 
 ```sh
-git apply --check /caminho/unicash-uc16.patch
-git apply /caminho/unicash-uc16.patch
 cd mobile
 npm ci
 npm run typecheck
 npm run lint
-npm test -- --runInBand
+npm test -- --runInBand --coverage
 npm run test:rules
 ```
 
-Use o Firebase de desenvolvimento ou o Emulator Suite com as regras deste patch. A versão que grava a exclusão lógica de receita requer as regras novas. Exclusões físicas feitas por versões antigas não deixam um marcador que outro aparelho possa receber.
+Use o Firebase de desenvolvimento ou o Emulator Suite com as regras desta branch. A versão que grava a exclusão lógica de receita requer as regras novas. Exclusões físicas feitas por versões antigas não deixam um marcador que outro aparelho possa receber.
 
 ## Contrato e rastreabilidade
 
@@ -30,22 +28,24 @@ Use o Firebase de desenvolvimento ou o Emulator Suite com as regras deste patch.
 
 A data da tela representa o último ciclo UC16 que concluiu o envio e a leitura do servidor com a fila resolvida. O SQLite mantém os estados de envio `pendente` e `sincronizado`. O estado geral informa também falta de conexão e erros.
 
-### Proposta de códigos públicos para validar com o time
-
-O checklist identifica EX01 a EX08, mas o material recebido não contém a tabela oficial desses códigos. O catálogo aplicado está em `features/sincronizacao/contrato.ts`.
+### Códigos do UC16
 
 | Código | Condição |
 | --- | --- |
-| EX01 | Sessão confirmada indisponível |
-| EX02 | Sem conexão ou servidor temporariamente indisponível |
-| EX03 | Permissão recusada pelo Firestore |
-| EX04 | Pendências restantes após o ciclo |
-| EX05 | Falha na consulta local |
-| EX06 | Envio interrompido |
-| EX07 | Restauração falhou ou deixou itens aguardando vínculo |
-| EX08 | Conta mudou durante a consulta |
+| EX01 | Sem conexão ao sincronizar |
+| EX02 | Sessão inválida ou expirada |
+| EX03 | Falha no envio ou na conclusão do ciclo |
+| EX04 | Registro recusado pelas regras do servidor |
+| EX05 | Envio interrompido, com reenvio na próxima tentativa |
+| EX06 | Conflito entre alterações locais e remotas |
+| EX07 | Falha na leitura local do estado ou da fila |
+| EX08 | Acesso rejeitado ou mudança de conta durante a operação |
 
-As mensagens da tela usam apenas o catálogo. Conteúdo de exceções do SDK e do SQLite fica fora da interface.
+A fila diferencia criação, edição e exclusão lógica. A recusa é associada à versão do item e persistida localmente por conta. O botão de retry inicia um novo ciclo da fila. Alterações feitas durante o envio continuam pendentes para o próximo ciclo.
+
+A combinação por campo com ordem lógica (RN07/EX06) fica como integração posterior, a alinhar com o time. A versão atual mantém a escolha por registro via `atualizado_em` e a precedência da exclusão.
+
+A evidência em aparelho de reconexão, restauração e conferência em 320 e 430 dp permanece pendente.
 
 ## Roteiro de prova manual no Expo Go ou APK
 
@@ -60,6 +60,6 @@ Use uma conta confirmada de teste e dados fictícios. Com um aparelho físico e 
 
 Para a evidência do DoD, grave os passos 2–5 e anote as larguras verificadas. O roteiro não registra uma execução em aparelho.
 
-## Integrações pendentes no snapshot
+## Integrações pendentes
 
-O `develop.zip` tem saldo inicial apenas local e o progresso de metas ainda é um placeholder no resumo. A restauração do saldo inicial depende da integração do UC08. O recálculo de metas, pontos e selos depende das implementações dessas funcionalidades. O patch aciona o recálculo do saldo e dos totais já disponíveis no resumo e restaura os alertas de saldo emitidos.
+A branch inclui a restauração do saldo inicial do UC08. A sincronização recalcula os totais disponíveis no Resumo e restaura os alertas de saldo. A integração com o recálculo de metas, pontos e selos permanece pendente.
