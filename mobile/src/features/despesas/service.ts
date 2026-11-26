@@ -4,7 +4,7 @@ import { registrarTransicoes } from '@/features/saldo/alertas';
 import {
   adicionarDias,
   adicionarIntervalo,
-  inicioAoMoverOcorrencia,
+  posicaoNaSerie,
 } from '../receitas/dates';
 import type {
   Despesa,
@@ -176,27 +176,49 @@ async function gerarOcorrencias(
 
     if (data > limite) break;
 
-    await tx.runAsync(
-      `INSERT OR IGNORE INTO despesas
-        (id, valor_centavos, data, titulo, descricao, categoria_id,
-         fixa_ou_variavel, essencial, recorrencia_id, sync_status,
-         excluido_em, criado_em, atualizado_em)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', NULL, ?, ?)`,
-      [
-        `${rec.id}_${data}`,
-        rec.valor_centavos,
-        data,
-        rec.titulo,
-        rec.descricao,
-        rec.categoria_id,
-        rec.fixa_ou_variavel,
-        rec.essencial,
-        rec.id,
-        ts,
-        ts,
-      ],
-    );
+    await inserirOcorrencia(tx, rec, data, ts);
   }
+}
+
+/** Grava uma ocorrência da série (id determinístico: não duplica se já existir). */
+async function inserirOcorrencia(
+  tx: SQLiteDatabase,
+  rec: {
+    id: string;
+    intervalo: number;
+    unidade: 'dia' | 'mes' | 'ano';
+    inicio: string;
+    termino: string | null;
+    valor_centavos: number;
+    titulo: string;
+    descricao: string | null;
+    categoria_id: string | null;
+    fixa_ou_variavel: 'fixa' | 'variavel' | null;
+    essencial: 0 | 1 | null;
+  },
+  data: string,
+  ts: string,
+) {
+  await tx.runAsync(
+    `INSERT OR IGNORE INTO despesas
+      (id, valor_centavos, data, titulo, descricao, categoria_id,
+       fixa_ou_variavel, essencial, recorrencia_id, sync_status,
+       excluido_em, criado_em, atualizado_em)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', NULL, ?, ?)`,
+    [
+      `${rec.id}_${data}`,
+      rec.valor_centavos,
+      data,
+      rec.titulo,
+      rec.descricao,
+      rec.categoria_id,
+      rec.fixa_ou_variavel,
+      rec.essencial,
+      rec.id,
+      ts,
+      ts,
+    ],
+  );
 }
 // ---------------------------------------------------------------- séries
 
@@ -258,6 +280,7 @@ async function criarSerie(
     rec,
     horizonte < rec.inicio ? rec.inicio : horizonte,
   );
+  return rec;
 }
 // ---------------------------------------------------------------- cadastro
 
@@ -526,14 +549,18 @@ export function editarDespesa(
 
     // A repetição mudou: encerra a série antiga e cria outra.
     if (escopo === 'proximas') {
+      // Corta a série antiga na data mais cedo entre a antiga e a nova: ao mover para trás,
+      // as ocorrências antigas a partir da nova data sairiam duplicadas com a série nova.
+      const corte = input.data < atual.data ? input.data : atual.data;
+
       await tx.runAsync(
         `${LAPIDE}
          WHERE recorrencia_id = ? AND data >= ?
            AND excluido_em IS NULL`,
-        [ts, ts, rec.id, atual.data],
+        [ts, ts, rec.id, corte],
       );
 
-      await encerrarSerieAntes(tx, rec, atual.data, ts);
+      await encerrarSerieAntes(tx, rec, corte, ts);
 
       await criarSerie(tx, { ...input, recorrencia: r }, ts);
     } else {
@@ -545,15 +572,28 @@ export function editarDespesa(
 
       await desativarSerie(tx, rec.id, ts);
 
-      const inicio = mudouData
-        ? inicioAoMoverOcorrencia(rec, atual.data, input.data)
-        : rec.inicio;
+      if (!mudouData) {
+        await criarSerie(
+          tx,
+          { ...input, data: rec.inicio, recorrencia: r },
+          ts,
+        );
+      } else {
+        // A série nova começa exatamente na data escolhida (a grade segue o dia dela, então
+        // 31/05 continua 31/05). As ocorrências que vinham antes da editada são gravadas
+        // contando para trás a partir da nova data.
+        const anteriores = posicaoNaSerie(rec, atual.data) ?? 0;
+        const nova = await criarSerie(tx, { ...input, recorrencia: r }, ts);
 
-      await criarSerie(
-        tx,
-        { ...input, data: inicio, recorrencia: r },
-        ts,
-      );
+        for (let k = 1; k <= anteriores; k++) {
+          await inserirOcorrencia(
+            tx,
+            nova,
+            adicionarIntervalo(input.data, -k * r.intervalo, r.unidade),
+            ts,
+          );
+        }
+      }
     }
   });
 }

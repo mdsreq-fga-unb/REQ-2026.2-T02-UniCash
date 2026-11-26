@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
 import { registrarTransicoes } from '@/features/saldo/alertas';
-import { adicionarDias, adicionarIntervalo, adicionarMeses, hojeISO, inicioAoMoverOcorrencia } from './dates';
+import { adicionarDias, adicionarIntervalo, adicionarMeses, hojeISO, posicaoNaSerie } from './dates';
 import type { EscopoSerie, Receita, ReceitaInput, Recorrencia } from './types';
 
 const MAX_OCORRENCIAS = 3700;
@@ -89,12 +89,7 @@ async function gerarOcorrencias(tx: SQLiteDatabase, rec: Recorrencia, limite: st
   for (let k = 0; k < MAX_OCORRENCIAS; k++) {
     const data = adicionarIntervalo(rec.inicio, k * rec.intervalo, rec.unidade);
     if (data > limite) break;
-    await tx.runAsync(
-      `INSERT OR IGNORE INTO receitas
-        (id, valor_centavos, data, titulo, descricao, recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
-       VALUES (?, ?, ?, ?, ?, ?, 'pendente', NULL, ?, ?)`,
-      [`${rec.id}_${data}`, rec.valor_centavos, data, rec.titulo, rec.descricao, rec.id, ts, ts],
-    );
+    await inserirOcorrencia(tx, rec, data, ts);
   }
 }
 
@@ -142,6 +137,16 @@ async function criarSerie(tx: SQLiteDatabase, d: DadosSerie, ts: string) {
   );
   const horizonte = rec.termino ?? adicionarMeses(hojeISO(), HORIZONTE_MESES);
   await gerarOcorrencias(tx, rec, horizonte < rec.inicio ? rec.inicio : horizonte);
+  return rec;
+}
+
+async function inserirOcorrencia(tx: SQLiteDatabase, rec: Recorrencia, data: string, ts: string) {
+  await tx.runAsync(
+    `INSERT OR IGNORE INTO receitas
+      (id, valor_centavos, data, titulo, descricao, recorrencia_id, sync_status, excluido_em, criado_em, atualizado_em)
+     VALUES (?, ?, ?, ?, ?, ?, 'pendente', NULL, ?, ?)`,
+    [`${rec.id}_${data}`, rec.valor_centavos, data, rec.titulo, rec.descricao, rec.id, ts, ts],
+  );
 }
 
 /** Série deixa de existir a partir de `dataCorte` (exclusive no que já foi gerado antes dela). */
@@ -287,16 +292,29 @@ export function editarReceita(id: string, input: ReceitaInput, escopo: EscopoSer
 
     // Série com nova repetição: refaz a série
     if (escopo === 'proximas') {
+      // Corta a série antiga na data mais cedo entre a antiga e a nova: ao mover para trás,
+      // as ocorrências antigas a partir da nova data sairiam duplicadas com a série nova.
+      const corte = input.data < atual.data ? input.data : atual.data;
       await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND data >= ? AND excluido_em IS NULL`, [
-        ts, ts, rec.id, atual.data,
+        ts, ts, rec.id, corte,
       ]);
-      await encerrarSerieAntes(tx, rec, atual.data, ts);
+      await encerrarSerieAntes(tx, rec, corte, ts);
       await criarSerie(tx, { ...input, recorrencia: r }, ts);
     } else {
       await tx.runAsync(`${LAPIDE} WHERE recorrencia_id = ? AND excluido_em IS NULL`, [ts, ts, rec.id]);
       await desativarSerie(tx, rec.id, ts);
-      const inicio = mudouData ? inicioAoMoverOcorrencia(rec, atual.data, input.data) : rec.inicio;
-      await criarSerie(tx, { ...input, data: inicio, recorrencia: r }, ts);
+      if (!mudouData) {
+        await criarSerie(tx, { ...input, data: rec.inicio, recorrencia: r }, ts);
+      } else {
+        // A série nova começa exatamente na data escolhida (a grade segue o dia dela, então
+        // 31/05 continua 31/05). As ocorrências que vinham antes da editada são gravadas
+        // contando para trás a partir da nova data.
+        const anteriores = posicaoNaSerie(rec, atual.data) ?? 0;
+        const nova = await criarSerie(tx, { ...input, recorrencia: r }, ts);
+        for (let k = 1; k <= anteriores; k++) {
+          await inserirOcorrencia(tx, nova, adicionarIntervalo(input.data, -k * r.intervalo, r.unidade), ts);
+        }
+      }
     }
   });
 }

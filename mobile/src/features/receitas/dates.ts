@@ -98,21 +98,19 @@ export function lerMesDeParametros(ano: unknown, mes: unknown): { ano: number; m
 }
 
 /**
- * Novo início de uma série quando uma ocorrência dela muda de data com o alcance "todas":
- * a série inteira se desloca, mantendo a posição da ocorrência editada. Se a ocorrência não está
- * na grade da série (ex.: já tinha sido movida sozinha), a série passa a começar na nova data.
+ * Posição (0 = primeira) de `data` na grade da série, contando a partir do início; null se a data
+ * não cai na grade (ex.: a ocorrência já tinha sido movida sozinha).
  */
-export function inicioAoMoverOcorrencia(
+export function posicaoNaSerie(
   serie: { inicio: string; intervalo: number; unidade: UnidadeRecorrencia },
-  dataAtual: string,
-  dataNova: string,
-): string {
-  for (let k = 0; k < 2000; k++) {
-    const data = adicionarIntervalo(serie.inicio, k * serie.intervalo, serie.unidade);
-    if (data === dataAtual) return adicionarIntervalo(dataNova, -k * serie.intervalo, serie.unidade);
-    if (data > dataAtual) break;
+  data: string,
+): number | null {
+  for (let k = 0; k < 4000; k++) {
+    const atual = adicionarIntervalo(serie.inicio, k * serie.intervalo, serie.unidade);
+    if (atual === data) return k;
+    if (atual > data) return null;
   }
-  return dataNova;
+  return null;
 }
 
 /** Intervalo [inicio, fim) que cobre qualquer data: filtro "Todo o período" das listas. */
