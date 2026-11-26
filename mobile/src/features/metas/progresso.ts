@@ -1,11 +1,12 @@
 import { hojeISO } from '@/features/receitas/dates';
 import type { PeriodoMensal } from './periodo';
-import { periodoAtualDaMeta } from './periodo';
+import { periodoAtualDaMeta, situacaoDaVigencia } from './periodo';
 import type {
   Meta,
   MetaTipo,
   SituacaoPrazo,
   SituacaoProgresso,
+  SituacaoVigencia,
 } from './types';
 
 /**
@@ -26,6 +27,7 @@ export interface ProgressoMeta {
   prazo: string;
   situacaoProgresso: SituacaoProgresso;
   situacaoPrazo: SituacaoPrazo;
+  situacaoVigencia: SituacaoVigencia;
   progressoIndisponivel: boolean;
   /** Mês consultado; nulo para investimento ou legado sem início. */
   periodo: PeriodoMensal | null;
@@ -52,7 +54,7 @@ export const calculadoraIndisponivel: ValorRealizadoCalculator = {
  * uma casa decimal e não altera a classificação.
  */
 export function calcularProgresso(
-  meta: Pick<Meta, 'id' | 'tipo' | 'prazo' | 'valor_alvo_centavos'>,
+  meta: Pick<Meta, 'id' | 'tipo' | 'inicio' | 'prazo' | 'valor_alvo_centavos'>,
   valorRealizadoCentavos: number,
   hoje: string = hojeISO(),
   periodo: PeriodoMensal | null = null,
@@ -75,6 +77,7 @@ export function calcularProgresso(
     prazo: meta.prazo,
     situacaoProgresso: situacaoDoProgresso(meta.tipo, alvo, valorRealizadoCentavos),
     situacaoPrazo: situacaoDoPrazo(meta.prazo, hoje),
+    situacaoVigencia: situacaoDaVigencia(meta.inicio, meta.prazo, hoje),
     progressoIndisponivel: false,
     periodo,
   };
@@ -116,8 +119,33 @@ export async function calcularProgressoDaMeta(
   hoje: string = hojeISO(),
   periodo: PeriodoMensal | null = null,
 ): Promise<ProgressoMeta> {
+  const vigencia = situacaoDaVigencia(meta.inicio, meta.prazo, hoje);
   const periodoEfetivo =
-    meta.tipo === 'gasto' ? (periodo ?? periodoAtualDaMeta(meta, hoje)) : null;
+    vigencia === 'futura'
+      ? null
+      : meta.tipo === 'gasto'
+        ? (periodo ?? periodoAtualDaMeta(meta, hoje))
+        : null;
+
+  // Uma meta futura ainda não está em execução: não consulta despesas nem
+  // apresenta zero artificial. O período atual também não existe.
+  if (vigencia === 'futura') {
+    return {
+      metaId: meta.id,
+      tipo: meta.tipo,
+      valorAlvoCentavos: meta.valor_alvo_centavos,
+      valorRealizadoCentavos: null,
+      valorRestanteCentavos: null,
+      percentual: null,
+      prazo: meta.prazo,
+      situacaoProgresso: 'indisponivel',
+      situacaoPrazo: situacaoDoPrazo(meta.prazo, hoje),
+      situacaoVigencia: vigencia,
+      progressoIndisponivel: true,
+      periodo: null,
+    };
+  }
+
   const valor = await calculadora.calcular(meta, periodoEfetivo);
 
   if (valor === null || valor === undefined) {
@@ -131,6 +159,7 @@ export async function calcularProgressoDaMeta(
       prazo: meta.prazo,
       situacaoProgresso: 'indisponivel',
       situacaoPrazo: situacaoDoPrazo(meta.prazo, hoje),
+      situacaoVigencia: vigencia,
       progressoIndisponivel: true,
       periodo: periodoEfetivo,
     };
@@ -160,6 +189,19 @@ export function rotuloSituacaoProgresso(situacao: SituacaoProgresso): string {
 
 export function rotuloSituacaoPrazo(situacao: SituacaoPrazo): string {
   return situacao === 'vencida' ? 'Prazo vencido' : 'Prazo em vigor';
+}
+
+export function rotuloSituacaoVigencia(situacao: SituacaoVigencia): string {
+  switch (situacao) {
+    case 'indefinida':
+      return 'Início não informado';
+    case 'futura':
+      return 'Ainda não iniciada';
+    case 'em_vigor':
+      return 'Em vigor';
+    case 'encerrada':
+      return 'Encerrada';
+  }
 }
 
 /** @deprecated use rotuloSituacaoProgresso. */

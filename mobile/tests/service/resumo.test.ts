@@ -272,6 +272,19 @@ describe('Resumo financeiro (UC03)', () => {
       });
     });
 
+    it('meta com início futuro no mês não é apresentada como zero', async () => {
+      inserirCategoria('c1');
+      inserirMeta({ id: 'futura', inicio: '2026-10-20', prazo: '2026-12-31' });
+
+      const [meta] = await progressoMetasDoMes(2026, 10);
+      expect(meta).toMatchObject({
+        id: 'futura',
+        realizadoCentavos: null,
+        situacaoProgresso: 'indisponivel',
+        situacaoVigencia: 'futura',
+      });
+    });
+
     it('prazo vencido é independente da situação do progresso', async () => {
       inserirCategoria('c1');
       inserirMeta({ prazo: '2026-10-10' });

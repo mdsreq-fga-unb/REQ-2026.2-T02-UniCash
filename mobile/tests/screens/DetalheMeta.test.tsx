@@ -33,6 +33,9 @@ const meta = {
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
   atualizado_em: '2026-01-01T00:00:00Z',
+  revisao: 1,
+  campos_revisao: '{}',
+  base_sincronizacao: null,
 };
 
 const progresso = (extra: Record<string, unknown> = {}) => ({
@@ -45,6 +48,7 @@ const progresso = (extra: Record<string, unknown> = {}) => ({
   prazo: '2027-12-31',
   situacaoProgresso: 'em_andamento' as const,
   situacaoPrazo: 'em_vigor' as const,
+  situacaoVigencia: 'em_vigor' as const,
   progressoIndisponivel: false,
   periodo: null,
   ...extra,
@@ -124,6 +128,34 @@ describe('Detalhe da meta (UC12)', () => {
     await render(<DetalheMeta />);
     expect((await screen.findAllByText(MSG_META.categoriaRemovida)).length).toBeGreaterThan(0);
     expect(screen.getByText('Corrigir categoria')).toBeTruthy();
+  });
+
+  it('meta futura é exibida como ainda não iniciada, sem progresso artificial', async () => {
+    usarMeta.mockReturnValue(
+      retorno({
+        meta: {
+          ...meta,
+          tipo: 'gasto',
+          categoria_id: 'c1',
+          categoria_nome: 'Mercado',
+          inicio: '2027-01-10',
+        },
+        progresso: progresso({
+          tipo: 'gasto',
+          valorRealizadoCentavos: null,
+          valorRestanteCentavos: null,
+          percentual: null,
+          situacaoProgresso: 'indisponivel',
+          situacaoVigencia: 'futura',
+          progressoIndisponivel: true,
+          periodo: null,
+        }),
+      }),
+    );
+    await render(<DetalheMeta />);
+    expect(await screen.findByText('Meta ainda não iniciada.')).toBeTruthy();
+    expect(screen.getByText(/Situação da vigência: Ainda não iniciada/)).toBeTruthy();
+    expect(screen.queryByText(/0,0%/)).toBeNull();
   });
 
   it('navega para edição', async () => {

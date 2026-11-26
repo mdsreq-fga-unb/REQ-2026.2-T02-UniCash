@@ -389,6 +389,18 @@ export const DDL_ESQUEMA_V9 = `
     ${DDL_INDICES_METAS_V9.join('\n    ')}
   `;
 
+/**
+ * Migração 011: metadados de merge por campo. A base local guarda a última
+ * versão sincronizada (`base_sincronizacao`), um relógio lógico global
+ * (`revisao`) e a revisão de cada campo alterado (`campos_revisao`).
+ * Colunas anuláveis/default preservam bancos e registros legados.
+ */
+export const DDL_COLUNAS_REVISAO_METAS = [
+  'ALTER TABLE metas ADD COLUMN revisao INTEGER NOT NULL DEFAULT 0 CHECK (revisao >= 0);',
+  "ALTER TABLE metas ADD COLUMN campos_revisao TEXT NOT NULL DEFAULT '{}';",
+  'ALTER TABLE metas ADD COLUMN base_sincronizacao TEXT;',
+] as const;
+
 /** Triggers de faixa percentual (definitiva 1%–100%). */
 export const TRIGGERS_PERCENTUAL = [
   'trg_categorias_percentual_insert',
@@ -456,6 +468,8 @@ export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
 
     ${DDL_ESQUEMA_V9}
+
+    ${DDL_COLUNAS_REVISAO_METAS.join('\n    ')}
 
     ${DDL_TRIGGER_PERCENTUAL}
 

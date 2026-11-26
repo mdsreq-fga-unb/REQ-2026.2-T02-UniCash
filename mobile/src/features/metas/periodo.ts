@@ -5,7 +5,7 @@ import {
   primeiroDiaDoMes,
   proximoMes,
 } from '@/features/receitas/dates';
-import type { Meta } from './types';
+import type { Meta, SituacaoVigencia } from './types';
 
 /** Período mensal consultável de uma meta de gasto. Datas ISO inclusivas. */
 export interface PeriodoMensal {
@@ -67,9 +67,22 @@ export function periodosDaMeta(meta: Pick<Meta, 'inicio' | 'prazo'>): PeriodoMen
   return periodos;
 }
 
+/** Situação temporal da meta; o início e o prazo final são inclusivos. */
+export function situacaoDaVigencia(
+  inicio: string | null,
+  prazo: string,
+  hoje: string = hojeISO(),
+): SituacaoVigencia {
+  if (!inicio) return 'indefinida';
+  if (hoje < inicio) return 'futura';
+  if (hoje > prazo) return 'encerrada';
+  return 'em_vigor';
+}
+
 /**
- * Mês exibido por padrão: o mês corrente, limitado ao primeiro/último mês da
- * vigência. Metas legadas sem início não têm período.
+ * Mês exibido por padrão: o mês corrente, limitado ao último mês da vigência.
+ * Metas futuras e legadas sem início não têm período atual; uma meta encerrada
+ * permanece consultável no último mês.
  */
 export function periodoAtualDaMeta(
   meta: Pick<Meta, 'inicio' | 'prazo'>,
@@ -77,14 +90,11 @@ export function periodoAtualDaMeta(
 ): PeriodoMensal | null {
   if (!meta.inicio) return null;
   if (meta.inicio > meta.prazo) return null;
+  if (hoje < meta.inicio) return null;
 
-  const inicio = mesDaData(meta.inicio);
   const fim = mesDaData(meta.prazo);
   const atual = mesDaData(hoje);
-
-  let alvo = atual;
-  if (antesDe(atual, inicio)) alvo = inicio;
-  else if (depoisDe(atual, fim)) alvo = fim;
+  const alvo = depoisDe(atual, fim) ? fim : atual;
 
   return periodoDoMes(meta, alvo.ano, alvo.mes);
 }
@@ -99,13 +109,6 @@ export function periodoSeguinte(periodo: PeriodoMensal): { ano: number; mes: num
 
 export function rotuloPeriodo(periodo: Pick<PeriodoMensal, 'ano' | 'mes'>): string {
   return nomeMes(periodo.ano, periodo.mes);
-}
-
-function antesDe(
-  a: { ano: number; mes: number },
-  b: { ano: number; mes: number },
-): boolean {
-  return a.ano < b.ano || (a.ano === b.ano && a.mes < b.mes);
 }
 
 function depoisDe(

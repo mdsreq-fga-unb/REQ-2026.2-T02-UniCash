@@ -14,6 +14,7 @@ import {
   DDL_ESQUEMA,
   DDL_SALDO_MENSAL,
   DDL_NUMERAR_ALERTAS,
+  DDL_COLUNAS_REVISAO_METAS,
   DDL_INDICES_DESPESAS,
   DDL_INDICES_METAS,
   DDL_INDICES_METAS_V9,
@@ -31,7 +32,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 10;
+export const VERSAO_ESQUEMA = 11;
 
 export interface RegistroInvalido {
   id: string;
@@ -148,6 +149,7 @@ interface Migracao {
  * A 009 adiciona a tabela inicial de metas da UC12.
  * A 010 estende `metas` com início, categoria e valor acumulado declarado,
  * preservando os dados da 009 e mantendo registros legados incompletos.
+ * A 011 adiciona os metadados locais de merge por campo da RN07.
  */
 const MIGRACOES: Migracao[] = [
   { versao: 1, executar: migrar001 },
@@ -160,6 +162,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 8, executar: migrar008 },
   { versao: 9, executar: migrar009 },
   { versao: 10, executar: migrar010 },
+  { versao: 11, executar: migrar011 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -699,6 +702,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirColunaExcluidoEmRecorrencias(tx);
       await garantirTabelasV6(tx);
       await garantirTabelaMetasV9(tx);
+      await garantirColunasMetasRevisao(tx);
       await aplicarTriggersPercentual(tx);
       await tx.execAsync(DDL_SALDO_MENSAL);
       await tx.execAsync(DDL_NUMERAR_ALERTAS);
@@ -1018,6 +1022,17 @@ const CONSTRAINTS_METAS_V9 = [
 
 const INDICES_METAS_V9 = ['idx_metas_prazo', 'idx_metas_sync', 'idx_metas_categoria'] as const;
 
+const COLUNAS_REVISAO_METAS: ColunaTabela[] = [
+  { nome: 'revisao', tipo: 'INTEGER', notnull: 1, defaultValue: '0', pk: 0 },
+  { nome: 'campos_revisao', tipo: 'TEXT', notnull: 1, defaultValue: "'{}'", pk: 0 },
+  { nome: 'base_sincronizacao', tipo: 'TEXT', notnull: 0, defaultValue: null, pk: 0 },
+];
+
+const COLUNAS_METAS_FINAL: ColunaTabela[] = [
+  ...COLUNAS_METAS_V9,
+  ...COLUNAS_REVISAO_METAS,
+];
+
 async function validarTabelaMetas(tx: SQLiteDatabase): Promise<void> {
   const tabela = await tx.getFirstAsync<{ sql: string | null }>(
     "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'metas'",
@@ -1120,7 +1135,11 @@ async function migrar009(db: SQLiteDatabase, versaoDestino: number): Promise<voi
         coluna.name,
       ),
     );
-    if (temColunaV10) {
+    if (info.length === COLUNAS_METAS_FINAL.length) {
+      await validarTabelaMetasFinal(tx);
+      await criarIndicesMetasV9(tx);
+      await validarIndicesMetasV9(tx);
+    } else if (temColunaV10) {
       await validarTabelaMetasV9(tx);
       await criarIndicesMetasV9(tx);
       await validarIndicesMetasV9(tx);
@@ -1192,8 +1211,86 @@ async function validarIndicesMetasV9(tx: SQLiteDatabase): Promise<void> {
   }
 }
 
+async function validarTabelaMetasFinal(tx: SQLiteDatabase): Promise<void> {
+  const tabela = await tx.getFirstAsync<{ sql: string | null }>(
+    "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'metas'",
+  );
+  if (!tabela?.sql) throw new FalhaMigracao('tabela "metas" ausente');
+
+  const info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(metas)');
+  if (info.length !== COLUNAS_METAS_FINAL.length) {
+    throw new EstruturaLegadaInesperada(
+      `"metas" tem ${info.length} colunas; o esquema canônico final tem ${COLUNAS_METAS_FINAL.length}`,
+      'metas',
+    );
+  }
+  const porNome = new Map(info.map((coluna) => [coluna.name, coluna]));
+  for (const coluna of COLUNAS_METAS_FINAL) {
+    const atual = porNome.get(coluna.nome);
+    if (!atual) {
+      throw new EstruturaLegadaInesperada(`coluna "${coluna.nome}" ausente em "metas"`, 'metas');
+    }
+    validarColunaTabela('metas', coluna, atual);
+  }
+  const extras = info.filter((coluna) => !COLUNAS_METAS_FINAL.some((c) => c.nome === coluna.name));
+  if (extras.length > 0) {
+    throw new EstruturaLegadaInesperada(
+      `coluna(s) inesperada(s) em "metas": [${extras.map((c) => c.name).join(', ')}]`,
+      'metas',
+    );
+  }
+
+  const faltantes = CONSTRAINTS_METAS_V9.filter((nome) => !tabela.sql!.includes(nome));
+  if (faltantes.length > 0) {
+    throw new EstruturaLegadaInesperada(
+      `constraints ausentes em "metas" final: [${faltantes.join(', ')}]`,
+      'metas',
+    );
+  }
+}
+
 async function criarIndicesMetasV9(tx: SQLiteDatabase): Promise<void> {
   for (const ddl of DDL_INDICES_METAS_V9) await tx.execAsync(ddl);
+}
+
+/**
+ * 011 — metadados locais de merge por campo. Aditiva e idempotente.
+ * Bancos com a forma 009/010 recebem as três colunas com defaults; registros
+ * existentes permanecem intactos e passam a usar o fallback legado até a
+ * primeira sincronização.
+ */
+/** @internal Exportada para testes; não faz parte da API de produção. */
+export async function garantirColunasMetasRevisao(tx: SQLiteDatabase): Promise<void> {
+  if (!(await existeTabela(tx, 'metas'))) {
+    await garantirTabelaMetasV9(tx);
+  }
+
+  let info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(metas)');
+  const temColunaRevisao = info.some((coluna) =>
+    COLUNAS_REVISAO_METAS.some((esperada) => esperada.nome === coluna.name),
+  );
+  if (!temColunaRevisao) {
+    await validarTabelaMetasV9(tx);
+  }
+
+  const existentes = new Set(info.map((coluna) => coluna.name));
+  for (let i = 0; i < COLUNAS_REVISAO_METAS.length; i++) {
+    const coluna = COLUNAS_REVISAO_METAS[i];
+    if (!existentes.has(coluna.nome)) {
+      await tx.execAsync(DDL_COLUNAS_REVISAO_METAS[i]);
+    }
+  }
+
+  info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(metas)');
+  const faltantes = COLUNAS_REVISAO_METAS.filter(
+    (esperada) => !info.some((coluna) => coluna.name === esperada.nome),
+  );
+  if (faltantes.length > 0) {
+    throw new FalhaMigracao(
+      `coluna(s) de revisão ausente(s) após ALTER TABLE: [${faltantes.map((c) => c.nome).join(', ')}]`,
+    );
+  }
+  await validarTabelaMetasFinal(tx);
 }
 
 /**
@@ -1223,6 +1320,13 @@ export async function garantirTabelaMetasV9(tx: SQLiteDatabase): Promise<void> {
       coluna.name,
     ),
   );
+
+  if (info.length === COLUNAS_METAS_FINAL.length) {
+    await validarTabelaMetasFinal(tx);
+    await criarIndicesMetasV9(tx);
+    await validarIndicesMetasV9(tx);
+    return;
+  }
 
   if (temColunaV9) {
     await validarTabelaMetasV9(tx);
@@ -1272,6 +1376,17 @@ export async function garantirTabelaMetasV9(tx: SQLiteDatabase): Promise<void> {
 async function migrar010(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await garantirTabelaMetasV9(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/**
+ * 011 — metadados locais de merge por campo da RN07. Transacional e
+ * idempotente; não altera dados financeiros existentes.
+ */
+async function migrar011(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await garantirColunasMetasRevisao(tx);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

@@ -26,6 +26,9 @@ const meta = (extra: Record<string, unknown> = {}) => ({
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
   atualizado_em: '2026-01-01T00:00:00Z',
+  revisao: 1,
+  campos_revisao: '{}',
+  base_sincronizacao: null,
   ...extra,
 });
 
@@ -97,6 +100,7 @@ describe('Lista de metas (UC12)', () => {
             prazo: '2027-12-31',
             situacaoProgresso: 'proximo_do_limite',
             situacaoPrazo: 'em_vigor',
+            situacaoVigencia: 'em_vigor',
             progressoIndisponivel: false,
             periodo: { ano: 2026, mes: 11, inicio: '2026-11-01', fim: '2026-11-30' },
           },
@@ -105,7 +109,34 @@ describe('Lista de metas (UC12)', () => {
     );
     await render(<ListaMetas />);
     expect(await screen.findByText(/R\$ 850,00 de R\$ 1.000,00 \(85,0%\)/)).toBeTruthy();
-    expect(screen.getByText(/Próximo do limite · Prazo em vigor/)).toBeTruthy();
+    expect(screen.getByText(/Próximo do limite · Em vigor · Prazo em vigor/)).toBeTruthy();
+  });
+
+  it('meta futura é identificada e não mostra 0,0% como execução', async () => {
+    usarMetas.mockReturnValue(
+      retorno({
+        itens: [meta({ tipo: 'gasto', categoria_id: 'c1', inicio: '2027-01-10' })] as never,
+        progressos: {
+          m1: {
+            metaId: 'm1',
+            tipo: 'gasto',
+            valorAlvoCentavos: 100_000,
+            valorRealizadoCentavos: null,
+            valorRestanteCentavos: null,
+            percentual: null,
+            prazo: '2027-12-31',
+            situacaoProgresso: 'indisponivel',
+            situacaoPrazo: 'em_vigor',
+            situacaoVigencia: 'futura',
+            progressoIndisponivel: true,
+            periodo: null,
+          },
+        },
+      }),
+    );
+    await render(<ListaMetas />);
+    expect(await screen.findByText(/Meta ainda não iniciada/)).toBeTruthy();
+    expect(screen.queryByText(/0,0%/)).toBeNull();
   });
 
   it('navega para detalhe e para o cadastro', async () => {

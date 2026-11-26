@@ -6,12 +6,17 @@ import {
   primeiroDiaDoMes,
   proximoMes,
 } from '@/features/receitas/dates';
-import type { MetaTipo, SituacaoPrazo, SituacaoProgresso } from '@/features/metas/types';
+import type {
+  MetaTipo,
+  SituacaoPrazo,
+  SituacaoProgresso,
+  SituacaoVigencia,
+} from '@/features/metas/types';
 import {
   situacaoDoPrazo,
   situacaoDoProgresso,
 } from '@/features/metas/progresso';
-import { periodoDoMes } from '@/features/metas/periodo';
+import { periodoDoMes, situacaoDaVigencia } from '@/features/metas/periodo';
 
 /**
  * Cálculos do resumo financeiro (UC03, RF11, RF40).
@@ -47,6 +52,7 @@ export interface ProgressoMeta {
   realizadoCentavos: number | null;
   situacaoProgresso: SituacaoProgresso;
   situacaoPrazo: SituacaoPrazo;
+  situacaoVigencia: SituacaoVigencia;
 }
 
 export interface ResumoMensal {
@@ -140,9 +146,11 @@ async function metasDoPeriodo(
 
   for (const meta of metas) {
     const situacaoPrazo = situacaoDoPrazo(meta.prazo, hoje);
+    const situacaoVigencia = situacaoDaVigencia(meta.inicio, meta.prazo, hoje);
+    const futura = situacaoVigencia === 'futura';
 
     if (meta.tipo === 'investimento') {
-      const realizado = meta.valor_acumulado_centavos;
+      const realizado = futura ? null : meta.valor_acumulado_centavos;
       resultado.push({
         id: meta.id,
         titulo: meta.objetivo,
@@ -154,6 +162,21 @@ async function metasDoPeriodo(
             ? 'indisponivel'
             : situacaoDoProgresso('investimento', meta.valor_alvo_centavos, realizado),
         situacaoPrazo,
+        situacaoVigencia,
+      });
+      continue;
+    }
+
+    if (futura) {
+      resultado.push({
+        id: meta.id,
+        titulo: meta.objetivo,
+        tipo: meta.tipo,
+        alvoCentavos: meta.valor_alvo_centavos,
+        realizadoCentavos: null,
+        situacaoProgresso: 'indisponivel',
+        situacaoPrazo,
+        situacaoVigencia,
       });
       continue;
     }
@@ -192,6 +215,7 @@ async function metasDoPeriodo(
           ? 'indisponivel'
           : situacaoDoProgresso('gasto', meta.valor_alvo_centavos, realizado),
       situacaoPrazo,
+      situacaoVigencia,
     });
   }
 

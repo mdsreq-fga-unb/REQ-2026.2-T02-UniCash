@@ -12,6 +12,7 @@ import { formatarPercentual, rotuloSync, rotuloTipoMeta } from '@/features/metas
 import {
   rotuloSituacaoPrazo,
   rotuloSituacaoProgresso,
+  rotuloSituacaoVigencia,
   situacaoDoPrazo,
 } from '@/features/metas/progresso';
 import {
@@ -20,6 +21,7 @@ import {
   periodoDoMes,
   periodoSeguinte,
   rotuloPeriodo,
+  situacaoDaVigencia,
 } from '@/features/metas/periodo';
 import { formatarBR, formatarDataHora, hojeISO } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
@@ -96,6 +98,10 @@ export default function DetalheMeta() {
   const indisponivel = !progresso || progresso.progressoIndisponivel;
   const situacaoPrazo =
     progresso?.situacaoPrazo ?? situacaoDoPrazo(meta.prazo, hojeISO());
+  const situacaoVigencia =
+    progresso?.situacaoVigencia ??
+    situacaoDaVigencia(meta.inicio, meta.prazo, hojeISO());
+  const futura = situacaoVigencia === 'futura';
   const periodo = progresso?.periodo ?? (meta.tipo === 'gasto' ? periodoAtualDaMeta(meta) : null);
   const anterior = periodo ? periodoAnterior(periodo) : null;
   const seguinte = periodo ? periodoSeguinte(periodo) : null;
@@ -175,7 +181,23 @@ export default function DetalheMeta() {
 
         <View style={estilos.secao}>
           <Text style={estilos.secaoTitulo}>Progresso</Text>
-          {indisponivel ? (
+          {futura ? (
+            <>
+              <Text style={estilos.textoSuave}>Meta ainda não iniciada.</Text>
+              <Text style={estilos.textoSuave}>
+                Início: {meta.inicio ? formatarBR(meta.inicio) : 'não disponível'}
+              </Text>
+              <Text style={estilos.textoSuave}>
+                Situação da vigência: {rotuloSituacaoVigencia(situacaoVigencia)}
+              </Text>
+              <Text style={estilos.textoSuave}>
+                Situação do progresso: {rotuloSituacaoProgresso('indisponivel')}
+              </Text>
+              <Text style={estilos.textoSuave}>
+                Situação do prazo: {rotuloSituacaoPrazo(situacaoPrazo)}
+              </Text>
+            </>
+          ) : indisponivel ? (
             <>
               <Text style={estilos.textoSuave}>
                 {meta.tipo === 'investimento'
@@ -189,6 +211,9 @@ export default function DetalheMeta() {
               <Text style={estilos.textoSuave}>Percentual: indisponível</Text>
               <Text style={estilos.textoSuave}>
                 Situação do progresso: {rotuloSituacaoProgresso('indisponivel')}
+              </Text>
+              <Text style={estilos.textoSuave}>
+                Situação da vigência: {rotuloSituacaoVigencia(situacaoVigencia)}
               </Text>
               <Text style={estilos.textoSuave}>
                 Situação do prazo: {rotuloSituacaoPrazo(situacaoPrazo)}
@@ -218,6 +243,9 @@ export default function DetalheMeta() {
               </Text>
               <Text style={estilos.textoSuave}>
                 Situação do progresso: {rotuloSituacaoProgresso(progresso.situacaoProgresso)}
+              </Text>
+              <Text style={estilos.textoSuave}>
+                Situação da vigência: {rotuloSituacaoVigencia(progresso.situacaoVigencia)}
               </Text>
               <Text style={estilos.textoSuave}>
                 Situação do prazo: {rotuloSituacaoPrazo(progresso.situacaoPrazo)}

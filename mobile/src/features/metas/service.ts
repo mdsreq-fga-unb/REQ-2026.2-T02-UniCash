@@ -3,6 +3,13 @@ import { getDb } from '@/db/database';
 import { hojeISO } from '@/features/receitas/dates';
 import { gerarId } from '@/features/receitas/service';
 import { notificarAlteracaoMeta } from './integracoes';
+import {
+  CAMPOS_META,
+  parseCamposRevisao,
+  serializarCamposRevisao,
+  type CampoMeta,
+  type CamposRevisao,
+} from './merge';
 import type { Meta, MetaInput } from './types';
 import {
   derivarInicioDeCriadoEm,
@@ -34,6 +41,12 @@ export class FalhaLeituraMeta extends Error {}
 export class FalhaPersistenciaMeta extends Error {}
 
 const agora = () => new Date().toISOString();
+
+function revisoesIniciais(): string {
+  const campos: CamposRevisao = {};
+  for (const campo of CAMPOS_META) campos[campo] = 1;
+  return serializarCamposRevisao(campos);
+}
 
 async function transacao<T>(fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> {
   try {
@@ -85,8 +98,9 @@ export async function criarMeta(input: MetaInput): Promise<string> {
       `INSERT INTO metas
         (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
          valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
-         excluido_em, criado_em, atualizado_em)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', NULL, ?, ?)`,
+         excluido_em, criado_em, atualizado_em, revisao, campos_revisao,
+         base_sincronizacao)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pendente', NULL, ?, ?, ?, ?, NULL)`,
       [
         id,
         dados.objetivo,
@@ -99,6 +113,8 @@ export async function criarMeta(input: MetaInput): Promise<string> {
         acumuladoAtualizadoEm,
         ts,
         ts,
+        1,
+        revisoesIniciais(),
       ],
     );
     return id;
@@ -167,12 +183,33 @@ export async function editarMeta(id: string, input: MetaInput): Promise<void> {
           ? ts
           : atual.valor_acumulado_atualizado_em;
 
+    const campos = parseCamposRevisao(atual.campos_revisao);
+    const mudancas: CampoMeta[] = [];
+    if (atual.objetivo !== dados.objetivo) mudancas.push('objetivo');
+    if (atual.valor_alvo_centavos !== dados.valorAlvoCentavos) {
+      mudancas.push('valor_alvo_centavos');
+    }
+    if (atual.prazo !== dados.prazo) mudancas.push('prazo');
+    if (atual.inicio !== inicio) mudancas.push('inicio');
+    if (atual.categoria_id !== dados.categoriaId) mudancas.push('categoria_id');
+    if (
+      atual.valor_acumulado_centavos !== valorAcumulado
+      || atual.valor_acumulado_atualizado_em !== acumuladoAtualizadoEm
+    ) {
+      mudancas.push('valor_acumulado');
+    }
+
+    const revisaoAtual = atual.revisao ?? 0;
+    const novaRevisao = mudancas.length > 0 ? revisaoAtual + 1 : revisaoAtual;
+    for (const campo of mudancas) campos[campo] = novaRevisao;
+    const camposRevisao = serializarCamposRevisao(campos);
+
     await tx.runAsync(
       `UPDATE metas
           SET objetivo = ?, tipo = ?, valor_alvo_centavos = ?, prazo = ?,
               inicio = ?, categoria_id = ?, valor_acumulado_centavos = ?,
               valor_acumulado_atualizado_em = ?, sync_status = 'pendente',
-              atualizado_em = ?
+              atualizado_em = ?, revisao = ?, campos_revisao = ?
         WHERE id = ? AND excluido_em IS NULL`,
       [
         dados.objetivo,
@@ -184,6 +221,8 @@ export async function editarMeta(id: string, input: MetaInput): Promise<void> {
         valorAcumulado,
         acumuladoAtualizadoEm,
         ts,
+        novaRevisao,
+        camposRevisao,
         id,
       ],
     );

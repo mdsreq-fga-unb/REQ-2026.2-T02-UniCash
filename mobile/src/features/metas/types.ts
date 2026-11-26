@@ -21,6 +21,9 @@ export type SituacaoProgresso =
 /** Situação do prazo da meta. O prazo final é inclusivo. */
 export type SituacaoPrazo = 'em_vigor' | 'vencida';
 
+/** Situação temporal da vigência, independente do progresso. */
+export type SituacaoVigencia = 'indefinida' | 'futura' | 'em_vigor' | 'encerrada';
+
 export interface Meta {
   id: string;
   objetivo: string;
@@ -43,6 +46,12 @@ export interface Meta {
   excluido_em: string | null;
   criado_em: string;
   atualizado_em: string;
+  /** Relógio lógico local; cresce a cada edição e no merge remoto. */
+  revisao: number;
+  /** JSON com a revisão lógica de cada campo alterado. */
+  campos_revisao: string;
+  /** Snapshot remoto da última sincronização, usado no merge de três vias. */
+  base_sincronizacao: string | null;
   /** Presentes nas leituras que fazem join com o catálogo de categorias. */
   categoria_nome?: string | null;
   categoria_excluida_em?: string | null;

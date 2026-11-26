@@ -354,11 +354,27 @@ service cloud.firestore {
           ));
     }
 
+    function camposRevisaoValido(m) {
+      return m is map
+        && m.keys().hasOnly([
+          'objetivo', 'valor_alvo_centavos', 'prazo', 'inicio',
+          'categoria_id', 'valor_acumulado'
+        ])
+        && (!('objetivo' in m) || (m.objetivo is int && m.objetivo >= 0))
+        && (!('valor_alvo_centavos' in m)
+          || (m.valor_alvo_centavos is int && m.valor_alvo_centavos >= 0))
+        && (!('prazo' in m) || (m.prazo is int && m.prazo >= 0))
+        && (!('inicio' in m) || (m.inicio is int && m.inicio >= 0))
+        && (!('categoria_id' in m) || (m.categoria_id is int && m.categoria_id >= 0))
+        && (!('valor_acumulado' in m)
+          || (m.valor_acumulado is int && m.valor_acumulado >= 0));
+    }
+
     function metaValida(d) {
       return d.keys().hasOnly([
           'objetivo', 'tipo', 'valor_alvo_centavos', 'prazo',
           'inicio', 'categoria_id', 'valor_acumulado_centavos',
-          'valor_acumulado_atualizado_em',
+          'valor_acumulado_atualizado_em', 'revisao', 'campos_revisao',
           'criado_em', 'atualizado_em', 'excluido_em'
         ])
         && d.keys().hasAll([
@@ -389,6 +405,10 @@ service cloud.firestore {
           || (d.valor_acumulado_atualizado_em is string
             && d.valor_acumulado_atualizado_em.size() > 0))
         && metaCoerente(d)
+        && (!('revisao' in d) || (d.revisao is int && d.revisao >= 0))
+        && (!('campos_revisao' in d)
+          || d.campos_revisao == null
+          || camposRevisaoValido(d.campos_revisao))
         && d.criado_em is string && d.criado_em.size() > 0
         && d.atualizado_em is string && d.atualizado_em.size() > 0
         && (!('excluido_em' in d)

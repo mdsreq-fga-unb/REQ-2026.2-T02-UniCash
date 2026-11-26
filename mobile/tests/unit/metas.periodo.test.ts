@@ -5,6 +5,7 @@ import {
   periodoSeguinte,
   periodosDaMeta,
   rotuloPeriodo,
+  situacaoDaVigencia,
   ultimoDiaDoMes,
 } from '@/features/metas/periodo';
 import type { Meta } from '@/features/metas/types';
@@ -55,14 +56,10 @@ describe('períodos mensais da meta (UC12)', () => {
     expect(periodoAtualDaMeta(meta(null, '2027-01-10'), '2026-11-25')).toBeNull();
   });
 
-  it('mês corrente é limitado ao primeiro/último mês da vigência', () => {
+  it('meta futura não tem período atual; meta encerrada fica no último mês', () => {
     const futuro = meta('2027-01-10', '2027-03-20');
-    expect(periodoAtualDaMeta(futuro, '2026-11-25')).toMatchObject({
-      ano: 2027,
-      mes: 1,
-      inicio: '2027-01-10',
-      fim: '2027-01-31',
-    });
+    expect(periodoAtualDaMeta(futuro, '2026-11-25')).toBeNull();
+    expect(periodoAtualDaMeta(meta('2027-01-10', '2027-03-20'), '2027-01-09')).toBeNull();
 
     const passado = meta('2026-01-10', '2026-03-20');
     expect(periodoAtualDaMeta(passado, '2026-11-25')).toMatchObject({
@@ -71,6 +68,14 @@ describe('períodos mensais da meta (UC12)', () => {
       inicio: '2026-03-01',
       fim: '2026-03-20',
     });
+  });
+
+  it('distingue vigência futura, em vigor, encerrada e indefinida', () => {
+    expect(situacaoDaVigencia('2027-01-10', '2027-03-20', '2026-11-25')).toBe('futura');
+    expect(situacaoDaVigencia('2027-01-10', '2027-03-20', '2027-01-10')).toBe('em_vigor');
+    expect(situacaoDaVigencia('2026-01-10', '2026-03-20', '2026-03-20')).toBe('em_vigor');
+    expect(situacaoDaVigencia('2026-01-10', '2026-03-20', '2026-03-21')).toBe('encerrada');
+    expect(situacaoDaVigencia(null, '2026-03-20', '2026-02-01')).toBe('indefinida');
   });
 
   it('rótulo e navegação entre meses', () => {

@@ -3,6 +3,13 @@ import { doc, runTransaction } from 'firebase/firestore';
 import { db as firestore } from '@/lib/firebase';
 import type { Meta, MetaTipo } from './types';
 import {
+  CAMPOS_META,
+  mergeMetaRemota,
+  parseCamposRevisao,
+  type CampoMeta,
+  type ResultadoMergeMeta,
+} from './merge';
+import {
   contarCaracteres,
   dataISOValida,
   tipoMetaValido,
@@ -22,6 +29,10 @@ export interface MetaRemota {
   excluido_em: string | null;
   criado_em: string;
   atualizado_em: string;
+  /** Relógio lógico global do documento; ausente em legado. */
+  revisao?: number;
+  /** Revisão lógica por campo; ausente em legado. */
+  campos_revisao?: Record<string, number> | null;
   /**
    * Documento remoto sem todos os campos da issue #106. Nesse caso, valores
    * locais já conhecidos são preservados em vez de apagados por ausência.
@@ -113,6 +124,30 @@ export function normalizarMetaRemota(docId: string, dados: unknown): MetaRemota 
   const excluidoEm = d.excluido_em == null ? null : texto(d.excluido_em);
   if (d.excluido_em != null && !excluidoEm) return null;
 
+  let revisao = 0;
+  if (d.revisao != null) {
+    if (!Number.isSafeInteger(d.revisao) || (d.revisao as number) < 0) return null;
+    revisao = d.revisao as number;
+  }
+
+  let camposRevisao: Record<string, number> | null = null;
+  if (d.campos_revisao != null) {
+    if (typeof d.campos_revisao !== 'object' || Array.isArray(d.campos_revisao)) return null;
+    camposRevisao = {};
+    for (const [campo, valorCampo] of Object.entries(
+      d.campos_revisao as Record<string, unknown>,
+    )) {
+      if (
+        !CAMPOS_META.includes(campo as CampoMeta)
+        || !Number.isSafeInteger(valorCampo)
+        || (valorCampo as number) < 0
+      ) {
+        return null;
+      }
+      camposRevisao[campo] = valorCampo as number;
+    }
+  }
+
   const camposNovos = [
     'inicio',
     'categoria_id',
@@ -133,6 +168,8 @@ export function normalizarMetaRemota(docId: string, dados: unknown): MetaRemota 
     excluido_em: excluidoEm,
     criado_em: criadoEm,
     atualizado_em: atualizadoEm,
+    revisao,
+    campos_revisao: camposRevisao,
     legado,
   };
 }
@@ -150,6 +187,8 @@ export function payloadMetaRemota(meta: Meta): MetaRemota {
     excluido_em: meta.excluido_em ?? null,
     criado_em: meta.criado_em,
     atualizado_em: meta.atualizado_em,
+    revisao: meta.revisao ?? 0,
+    campos_revisao: parseCamposRevisao(meta.campos_revisao),
   };
 }
 
@@ -208,6 +247,31 @@ async function lerMetaPorId(tx: SQLiteDatabase, id: string): Promise<Meta | null
   return tx.getFirstAsync<Meta>('SELECT * FROM metas WHERE id = ?', [id]);
 }
 
+/** Base de sincronização local; JSON inválido/legado extremo vira null. */
+export function baseDeMeta(meta: Meta): MetaRemota | null {
+  if (!meta.base_sincronizacao) return null;
+  try {
+    return normalizarMetaRemota(meta.id, JSON.parse(meta.base_sincronizacao));
+  } catch {
+    return null;
+  }
+}
+
+/** Snapshot remoto serializado para a base local, sem a flag transitória `legado`. */
+export function serializarBaseRemota(remota: MetaRemota): string {
+  const copia: Partial<MetaRemota> = { ...remota };
+  delete copia.legado;
+  return JSON.stringify(copia);
+}
+
+function metaComMerge(local: Meta, merge: ResultadoMergeMeta): Meta {
+  return {
+    ...local,
+    ...merge.valores,
+    sync_status: merge.sincronizado ? 'sincronizado' : 'pendente',
+  };
+}
+
 /**
  * Uma meta de gasto que aponta para categoria inexistente/excluída é mantida,
  * mas sem vínculo — nunca com uma referência inválida. O progresso fica
@@ -234,8 +298,9 @@ async function inserirMetaRemota(
     `INSERT INTO metas
       (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
        valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
-       excluido_em, criado_em, atualizado_em)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', ?, ?, ?)`,
+       excluido_em, criado_em, atualizado_em, revisao, campos_revisao,
+       base_sincronizacao)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'sincronizado', ?, ?, ?, ?, ?, ?)`,
     [
       docId,
       remota.objetivo,
@@ -249,6 +314,9 @@ async function inserirMetaRemota(
       remota.excluido_em,
       remota.criado_em,
       remota.atualizado_em,
+      remota.revisao ?? 0,
+      JSON.stringify(remota.campos_revisao ?? {}),
+      serializarBaseRemota(remota),
     ],
   );
 }
@@ -263,7 +331,8 @@ async function atualizarMetaRemota(
         SET objetivo = ?, tipo = ?, valor_alvo_centavos = ?, prazo = ?,
             inicio = ?, categoria_id = ?, valor_acumulado_centavos = ?,
             valor_acumulado_atualizado_em = ?, sync_status = 'sincronizado',
-            excluido_em = ?, atualizado_em = ?
+            excluido_em = ?, atualizado_em = ?, revisao = ?,
+            campos_revisao = ?, base_sincronizacao = ?
       WHERE id = ?`,
     [
       remota.objetivo,
@@ -276,7 +345,55 @@ async function atualizarMetaRemota(
       remota.valor_acumulado_atualizado_em,
       remota.excluido_em,
       remota.atualizado_em,
+      remota.revisao ?? 0,
+      JSON.stringify(remota.campos_revisao ?? {}),
+      serializarBaseRemota(remota),
       id,
+    ],
+  );
+}
+
+async function atualizarBaseRemota(
+  tx: SQLiteDatabase,
+  id: string,
+  remota: MetaRemota,
+): Promise<void> {
+  await tx.runAsync(
+    'UPDATE metas SET base_sincronizacao = ? WHERE id = ?',
+    [serializarBaseRemota(remota), id],
+  );
+}
+
+async function atualizarMetaComMerge(
+  tx: SQLiteDatabase,
+  local: Meta,
+  merge: ResultadoMergeMeta,
+  base: MetaRemota,
+): Promise<void> {
+  const meta = metaComMerge(local, merge);
+  await tx.runAsync(
+    `UPDATE metas
+        SET objetivo = ?, valor_alvo_centavos = ?, prazo = ?, inicio = ?,
+            categoria_id = ?, valor_acumulado_centavos = ?,
+            valor_acumulado_atualizado_em = ?, sync_status = ?,
+            excluido_em = ?, atualizado_em = ?, revisao = ?,
+            campos_revisao = ?, base_sincronizacao = ?
+      WHERE id = ?`,
+    [
+      meta.objetivo,
+      meta.valor_alvo_centavos,
+      meta.prazo,
+      meta.inicio,
+      meta.categoria_id,
+      meta.valor_acumulado_centavos,
+      meta.valor_acumulado_atualizado_em,
+      meta.sync_status,
+      meta.excluido_em,
+      meta.atualizado_em,
+      meta.revisao,
+      meta.campos_revisao,
+      serializarBaseRemota(base),
+      meta.id,
     ],
   );
 }
@@ -284,6 +401,10 @@ async function atualizarMetaRemota(
 /**
  * Aplica um documento remoto na base local, sem rede.
  * A exclusão local nunca é ressuscitada por uma edição remota.
+ *
+ * Quando existe base sincronizada, o merge é campo a campo. Sem base
+ * (registro legado/nunca sincronizado), mantém-se o fallback por registro
+ * para não inventar um ancestral que não existe.
  */
 export async function aplicarMetaRemota(
   tx: SQLiteDatabase,
@@ -331,12 +452,35 @@ export async function aplicarMetaRemota(
   }
 
   if (local.excluido_em) {
+    // Tombstone local continua vencendo edição remota; a base é atualizada
+    // para que a próxima rodada não perca a referência da nuvem.
+    const baseLocal = baseDeMeta(local);
+    if (!baseLocal || serializarBaseRemota(baseLocal) !== serializarBaseRemota(normalizada)) {
+      await atualizarBaseRemota(tx, docId, normalizada);
+    }
     return { status: 'mantida', remotaVenceu: false };
+  }
+
+  const baseLocal = baseDeMeta(local);
+  if (baseLocal) {
+    const merge = mergeMetaRemota(local, normalizada, baseLocal);
+    const baseMudou = serializarBaseRemota(baseLocal) !== serializarBaseRemota(normalizada);
+    const statusDesejado = merge.sincronizado ? 'sincronizado' : 'pendente';
+    if (merge.mudouLocal || baseMudou || local.sync_status !== statusDesejado) {
+      await atualizarMetaComMerge(tx, local, merge, normalizada);
+      return { status: 'aplicada', remotaVenceu: merge.remotaVenceu };
+    }
+    return { status: 'mantida', remotaVenceu: merge.remotaVenceu };
   }
 
   const venceu =
     opcoes.forcarRemota === true || decidirMetaRemota(local, normalizada) === 'remota';
-  if (!venceu) return { status: 'mantida', remotaVenceu: false };
+  if (!venceu) {
+    // Sem base, preserva o local, mas registra a versão remota para permitir
+    // merge por campo na próxima sincronização.
+    await atualizarBaseRemota(tx, docId, normalizada);
+    return { status: 'mantida', remotaVenceu: false };
+  }
 
   await atualizarMetaRemota(tx, docId, normalizada);
   return { status: 'aplicada', remotaVenceu: true };
@@ -405,13 +549,14 @@ export async function sincronizarMetasPendentes(
 
   for (const meta of pendentes) {
     const ref = doc(firestore, 'usuarios', uid, 'metas', meta.id);
-    const payload = payloadMetaRemota(meta);
+    const payloadLocal = payloadMetaRemota(meta);
+    const baseLocal = baseDeMeta(meta);
 
     const decisao = await runTransaction(firestore, async (tx) => {
       const snap = await tx.get(ref);
       if (!snap.exists()) {
-        tx.set(ref, payload);
-        return { tipo: 'enviado' as const };
+        tx.set(ref, payloadLocal);
+        return { tipo: 'enviado' as const, payload: payloadLocal };
       }
 
       const remota = normalizarMetaRemota(meta.id, snap.data());
@@ -423,10 +568,22 @@ export async function sincronizarMetasPendentes(
       }
 
       if (meta.excluido_em) {
-        tx.set(ref, payload);
-        return { tipo: 'enviado' as const };
+        tx.set(ref, payloadLocal);
+        return { tipo: 'enviado' as const, payload: payloadLocal };
       }
 
+      if (baseLocal) {
+        const merge = mergeMetaRemota(meta, remota, baseLocal);
+        if (merge.sincronizado) {
+          return { tipo: 'remota' as const, remota };
+        }
+        const mergedPayload = payloadMetaRemota(metaComMerge(meta, merge));
+        tx.set(ref, mergedPayload);
+        return { tipo: 'enviado' as const, payload: mergedPayload };
+      }
+
+      // Sem base confiável (legado/nunca sincronizado): preserva o fallback
+      // por registro para não inventar um ancestral.
       if (remota.atualizado_em > meta.atualizado_em) {
         return { tipo: 'remota' as const, remota };
       }
@@ -437,39 +594,47 @@ export async function sincronizarMetasPendentes(
         return { tipo: 'remota' as const, remota };
       }
 
-      tx.set(ref, payload);
-      return { tipo: 'enviado' as const };
+      tx.set(ref, payloadLocal);
+      return { tipo: 'enviado' as const, payload: payloadLocal };
     });
 
     if (decisao.tipo === 'ignorada') continue;
 
     if (decisao.tipo === 'remota') {
-      const atual = await db.getFirstAsync<Meta>('SELECT * FROM metas WHERE id = ?', [meta.id]);
-      if (
-        !atual ||
-        atual.sync_status !== 'pendente' ||
-        atual.atualizado_em !== meta.atualizado_em
-      ) {
-        continue;
-      }
       await db.withExclusiveTransactionAsync(async (tx) => {
-        const r = await aplicarMetaRemota(
-          tx as unknown as SQLiteDatabase,
-          meta.id,
-          decisao.remota,
-          { forcarRemota: true },
-        );
+        const conexao = tx as unknown as SQLiteDatabase;
+        const atual = await lerMetaPorId(conexao, meta.id);
+        if (!atual || atual.sync_status !== 'pendente') return;
+
+        // A decisão remota foi tomada com o snapshot lido antes da rede. Se o
+        // usuário editou nesse intervalo, a decisão está obsoleta. Exclusão
+        // remota continua prevalecendo; edição remota espera a próxima rodada
+        // para ser reavaliada com a versão local atual.
+        const localMudou = assinaturaMeta(atual) !== assinaturaMeta(meta);
+        if (localMudou && !decisao.remota.excluido_em) return;
+
+        const r = await aplicarMetaRemota(conexao, meta.id, decisao.remota);
         if (r.status === 'aplicada') mudouLocal = true;
       });
       continue;
     }
 
-    const r = await db.runAsync(
-      `UPDATE metas SET sync_status = 'sincronizado'
-        WHERE id = ? AND atualizado_em = ? AND sync_status = 'pendente'`,
-      [meta.id, meta.atualizado_em],
-    );
-    if (r.changes > 0) mudouLocal = true;
+    // O ACK também é protegido por snapshot. O payload confirmado pode conter
+    // campos remotos combinados; a linha local só é atualizada/confirmada se
+    // ainda for exatamente a versão que originou o envio.
+    await db.withExclusiveTransactionAsync(async (tx) => {
+      const conexao = tx as unknown as SQLiteDatabase;
+      const atual = await lerMetaPorId(conexao, meta.id);
+      if (
+        !atual ||
+        atual.sync_status !== 'pendente' ||
+        assinaturaMeta(atual) !== assinaturaMeta(meta)
+      ) {
+        return;
+      }
+      await atualizarMetaRemota(conexao, meta.id, decisao.payload);
+      mudouLocal = true;
+    });
   }
 
   return { mudouLocal };

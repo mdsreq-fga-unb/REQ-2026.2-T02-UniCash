@@ -841,3 +841,66 @@ describe('metas: campos da issue #106 (UC12)', () => {
     );
   });
 });
+
+describe('metas: metadados de merge por campo (RN07)', () => {
+  it('aceita documento com revisão e mapa de campos válidos', async () => {
+    const ref = metaRef(db('u1'), 'u1', 'merge-valido');
+    await assertSucceeds(
+      setDoc(
+        ref,
+        meta({
+          revisao: 3,
+          campos_revisao: {
+            objetivo: 3,
+            valor_acumulado: 2,
+          },
+        }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(ref, meta({ revisao: 4, campos_revisao: { objetivo: 4, prazo: 3 } })),
+    );
+  });
+
+  it('aceita mapa vazio, nulo e documento legado sem metadados', async () => {
+    await assertSucceeds(
+      setDoc(metaRef(db('u1'), 'u1', 'merge-vazio'), meta({ revisao: 0, campos_revisao: {} })),
+    );
+    await assertSucceeds(
+      setDoc(metaRef(db('u1'), 'u1', 'merge-nulo'), meta({ revisao: 1, campos_revisao: null })),
+    );
+    await assertSucceeds(setDoc(metaRef(db('u1'), 'u1', 'merge-legado'), meta()));
+  });
+
+  it.each([
+    ['revisão negativa', { revisao: -1 }],
+    ['revisão fracionada', { revisao: 1.5 }],
+    ['revisão textual', { revisao: '1' }],
+    ['mapa textual', { campos_revisao: '{"objetivo":1}' }],
+    ['mapa em lista', { campos_revisao: [{ objetivo: 1 }] }],
+    ['campo desconhecido', { campos_revisao: { extra: 1 } }],
+    ['revisão de campo negativa', { campos_revisao: { objetivo: -1 } }],
+    ['revisão de campo fracionada', { campos_revisao: { objetivo: 1.5 } }],
+    ['revisão de campo textual', { campos_revisao: { objetivo: '1' } }],
+    ['revisão de tipo', { campos_revisao: { tipo: 1 } }],
+    ['revisão de criado_em', { campos_revisao: { criado_em: 1 } }],
+    ['revisão de excluido_em', { campos_revisao: { excluido_em: 1 } }],
+  ])('rejeita %s', async (_nome, extra) => {
+    await assertFails(setDoc(metaRef(db('u1')), meta(extra)));
+  });
+
+  it('aceita metadados em tombstone e os preserva na leitura', async () => {
+    const ref = metaRef(db('u1'), 'u1', 'merge-tombstone');
+    await assertSucceeds(
+      setDoc(
+        ref,
+        meta({
+          excluido_em: '2026-11-01T00:00:00.000Z',
+          revisao: 2,
+          campos_revisao: { objetivo: 2 },
+        }),
+      ),
+    );
+    await expect(getDoc(ref)).resolves.toMatchObject({ exists: true });
+  });
+});

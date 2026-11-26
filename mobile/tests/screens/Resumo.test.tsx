@@ -95,6 +95,7 @@ describe('Tela de resumo financeiro (UC03)', () => {
             realizadoCentavos: 25000,
             situacaoProgresso: 'dentro_do_limite',
             situacaoPrazo: 'em_vigor',
+            situacaoVigencia: 'em_vigor',
           },
         ],
       }),
@@ -103,6 +104,28 @@ describe('Tela de resumo financeiro (UC03)', () => {
     expect(await screen.findByText('Viagem')).toBeTruthy();
     expect(screen.getByText('25,0%')).toBeTruthy();
     expect(screen.getByText('R$ 250,00 de R$ 1.000,00')).toBeTruthy();
+  });
+
+  it('meta futura aparece como ainda não iniciada, sem 0,0%', async () => {
+    calcular.mockResolvedValue(
+      resumo({
+        metas: [
+          {
+            id: 'm1',
+            titulo: 'Viagem futura',
+            tipo: 'gasto',
+            alvoCentavos: 100000,
+            realizadoCentavos: null,
+            situacaoProgresso: 'indisponivel',
+            situacaoPrazo: 'em_vigor',
+            situacaoVigencia: 'futura',
+          },
+        ],
+      }),
+    );
+    await render(<ResumoFinanceiro />);
+    expect(await screen.findByText('Ainda não iniciada.')).toBeTruthy();
+    expect(screen.queryByText(/0,0%/)).toBeNull();
   });
 
   it('seletor navega para meses anteriores e futuros e recalcula (passos 5 e 6)', async () => {

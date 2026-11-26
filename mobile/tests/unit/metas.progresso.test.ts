@@ -25,6 +25,9 @@ const meta = (extra: Partial<Meta> = {}): Meta => ({
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
   atualizado_em: '2026-01-01T00:00:00Z',
+  revisao: 1,
+  campos_revisao: '{}',
+  base_sincronizacao: null,
   ...extra,
 });
 
@@ -94,6 +97,56 @@ describe('cálculo puro de progresso (UC12)', () => {
     expect(() => calcularProgresso(meta({ valor_alvo_centavos: 0 }), 0)).toThrow(RangeError);
     expect(() => calcularProgresso(meta(), -1)).toThrow(RangeError);
     expect(() => calcularProgresso(meta(), 1.5)).toThrow(RangeError);
+  });
+
+  it('meta futura não é apresentada como em execução nem consulta o realizado', async () => {
+    const calculadora: ValorRealizadoCalculator = {
+      calcular: jest.fn().mockResolvedValue(0),
+    };
+    const p = await calcularProgressoDaMeta(
+      meta({
+        tipo: 'gasto',
+        categoria_id: 'c1',
+        inicio: '2027-01-10',
+        prazo: '2027-03-20',
+      }),
+      calculadora,
+      '2026-11-25',
+    );
+
+    expect(calculadora.calcular).not.toHaveBeenCalled();
+    expect(p).toMatchObject({
+      situacaoVigencia: 'futura',
+      situacaoProgresso: 'indisponivel',
+      valorRealizadoCentavos: null,
+      percentual: null,
+      periodo: null,
+      progressoIndisponivel: true,
+    });
+  });
+
+  it('meta vigente sem despesas tem zero real, distinto de meta futura', async () => {
+    const calculadora: ValorRealizadoCalculator = {
+      calcular: jest.fn().mockResolvedValue(0),
+    };
+    const p = await calcularProgressoDaMeta(
+      meta({
+        tipo: 'gasto',
+        categoria_id: 'c1',
+        inicio: '2026-11-01',
+        prazo: '2026-12-31',
+      }),
+      calculadora,
+      '2026-11-25',
+    );
+
+    expect(p).toMatchObject({
+      situacaoVigencia: 'em_vigor',
+      situacaoProgresso: 'dentro_do_limite',
+      valorRealizadoCentavos: 0,
+      percentual: 0,
+      progressoIndisponivel: false,
+    });
   });
 
   it('sem calculadora não inventa valor realizado', async () => {

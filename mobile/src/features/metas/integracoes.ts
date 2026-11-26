@@ -6,7 +6,9 @@
  * que essas funcionalidades reajam às mudanças de metas quando forem
  * incorporadas, sem criar um segundo mecanismo de alertas.
  *
- * Nenhum cálculo de alerta, pontuação ou conquista é implementado aqui.
+ * Nenhum cálculo de alerta, pontuação ou conquista é implementado aqui. A
+ * notificação ocorre depois do commit e não participa da transação SQLite;
+ * ela não deve ser usada como garantia de recálculo transacional de alertas.
  */
 export type EventoMeta =
   | { tipo: 'criada'; metaId: string }

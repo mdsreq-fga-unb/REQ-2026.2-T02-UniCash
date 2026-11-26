@@ -129,6 +129,7 @@ function Conteudo({ resumo }: { resumo: ResumoMensal }) {
           resumo.metas.map((m) => {
             const realizado = m.realizadoCentavos;
             const indisponivel = realizado === null;
+            const futura = m.situacaoVigencia === 'futura';
             const pct = realizado === null ? 0 : percentualMetaExibido(realizado, m.alvoCentavos);
             const pctBarra = Math.min(100, pct);
             return (
@@ -147,7 +148,9 @@ function Conteudo({ resumo }: { resumo: ResumoMensal }) {
                   {m.tipo === 'gasto' ? 'Consumo mensal do limite' : 'Investimento acumulado'}
                 </Text>
                 {realizado === null ? (
-                  <Text style={estilos.textoSuave}>Progresso indisponível.</Text>
+                  <Text style={estilos.textoSuave}>
+                    {futura ? 'Ainda não iniciada.' : 'Progresso indisponível.'}
+                  </Text>
                 ) : (
                   <>
                     <View style={estilos.barra}>

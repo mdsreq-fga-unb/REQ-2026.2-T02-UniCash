@@ -11,6 +11,7 @@ import type { ProgressoMeta } from '@/features/metas/progresso';
 import {
   rotuloSituacaoPrazo,
   rotuloSituacaoProgresso,
+  rotuloSituacaoVigencia,
 } from '@/features/metas/progresso';
 import { formatarPercentual } from '@/features/metas/formato';
 import { formatarBR } from '@/features/receitas/dates';
@@ -35,6 +36,7 @@ function MetaItem({
 }) {
   const pendente = meta.sync_status === 'pendente';
   const indisponivel = !progresso || progresso.progressoIndisponivel;
+  const futura = progresso?.situacaoVigencia === 'futura';
 
   return (
     <Pressable
@@ -54,9 +56,11 @@ function MetaItem({
       </Text>
       {indisponivel ? (
         <Text style={estilos.progressoPendente}>
-          {meta.tipo === 'investimento'
-            ? 'Valor acumulado não informado'
-            : 'Progresso indisponível'}
+          {futura
+            ? `Meta ainda não iniciada${meta.inicio ? ` · início em ${formatarBR(meta.inicio)}` : ''}`
+            : meta.tipo === 'investimento'
+              ? 'Valor acumulado não informado'
+              : 'Progresso indisponível'}
         </Text>
       ) : (
         <>
@@ -67,6 +71,7 @@ function MetaItem({
           </Text>
           <Text style={estilos.progressoPendente}>
             {rotuloSituacaoProgresso(progresso.situacaoProgresso)} ·{' '}
+            {rotuloSituacaoVigencia(progresso.situacaoVigencia)} ·{' '}
             {rotuloSituacaoPrazo(progresso.situacaoPrazo)}
           </Text>
         </>

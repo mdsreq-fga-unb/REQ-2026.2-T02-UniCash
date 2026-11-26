@@ -32,6 +32,9 @@ const meta = (extra: Partial<Meta> = {}): Meta => ({
   excluido_em: null,
   criado_em: '2026-11-25T00:00:00Z',
   atualizado_em: '2026-11-25T00:00:00Z',
+  revisao: 1,
+  campos_revisao: '{}',
+  base_sincronizacao: null,
   ...extra,
 });
 

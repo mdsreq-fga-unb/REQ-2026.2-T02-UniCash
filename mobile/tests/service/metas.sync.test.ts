@@ -10,7 +10,7 @@ import {
   type MetaRemota,
 } from '@/features/metas/sync';
 import type { Meta } from '@/features/metas/types';
-import { criarMeta, excluirMeta } from '@/features/metas/service';
+import { criarMeta, editarMeta, excluirMeta } from '@/features/metas/service';
 import { instalarBanco } from '../helpers/fakeDb';
 
 jest.mock('@/lib/firebase', () => ({ db: {} }));
@@ -55,6 +55,8 @@ const remota = (extra: Partial<MetaRemota> = {}): MetaRemota => ({
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
   atualizado_em: '2026-01-02T00:00:00Z',
+  revisao: 0,
+  campos_revisao: null,
   legado: false,
   ...extra,
 });
@@ -73,6 +75,9 @@ const meta = (extra: Partial<Meta> = {}): Meta => ({
   excluido_em: null,
   criado_em: '2026-01-01T00:00:00Z',
   atualizado_em: '2026-01-02T00:00:00Z',
+  revisao: 1,
+  campos_revisao: '{}',
+  base_sincronizacao: null,
   ...extra,
 });
 
@@ -378,7 +383,11 @@ describe('aplicação local de meta remota', () => {
       await aplicarMetaRemota(tx as SQLiteDatabase, id, remota({ atualizado_em: '2026-04-01T00:00:00Z' }));
     });
 
-    expect(linha(id)).toEqual(antes);
+    expect({ ...linha(id), base_sincronizacao: null }).toEqual({
+      ...antes,
+      base_sincronizacao: null,
+    });
+    expect(linha(id).base_sincronizacao).toBeTruthy();
   });
 
   it('restaura vários documentos e ignora inválidos', async () => {
@@ -481,6 +490,47 @@ describe('sincronização de metas pendentes', () => {
     });
   });
 
+  it('documento remoto legado é aceito no fluxo completo sem apagar campos novos locais', async () => {
+    const id = await criarMeta({
+      objetivo: 'Viagem local',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+      valorAcumuladoCentavos: 50_000,
+    });
+    nuvem.set(
+      path(id),
+      {
+        objetivo: 'Viagem legada',
+        tipo: 'investimento',
+        valor_alvo_centavos: 100_000,
+        prazo: '2027-12-31',
+        excluido_em: null,
+        criado_em: '2026-01-01T00:00:00Z',
+        atualizado_em: '2099-01-01T00:00:00Z',
+      },
+    );
+
+    const inicioLocal = (banco.sqlite
+      .prepare('SELECT inicio FROM metas WHERE id = ?')
+      .get(id) as any).inicio as string;
+
+    await sincronizarMetasPendentes(db, 'u1');
+
+    const linha = banco.sqlite
+      .prepare(
+        'SELECT objetivo, inicio, valor_acumulado_centavos, sync_status, base_sincronizacao FROM metas WHERE id = ?',
+      )
+      .get(id) as any;
+    expect(linha).toMatchObject({
+      objetivo: 'Viagem legada',
+      inicio: inicioLocal,
+      valor_acumulado_centavos: 50_000,
+      sync_status: 'sincronizado',
+    });
+    expect(linha.base_sincronizacao).toBeTruthy();
+  });
+
   it('edição local mais recente é enviada à nuvem', async () => {
     const id = await criarMeta({
       objetivo: 'Viagem local',
@@ -531,25 +581,311 @@ describe('sincronização de metas pendentes', () => {
     expect(nuvem.get(path(id)).objetivo).toBe('Remota');
   });
 
-  it('empate de timestamp usa a assinatura canônica de forma simétrica', async () => {
+  it('não aplica remota antiga se a edição local ocorrer entre a checagem e a transação', async () => {
     const id = await criarMeta({
-      objetivo: 'Alfa',
+      objetivo: 'Original',
       tipo: 'investimento',
       valorAlvoCentavos: 100_000,
       prazo: '2027-12-31',
     });
-    banco.sqlite
-      .prepare("UPDATE metas SET atualizado_em = '2026-01-01T00:00:00Z' WHERE id = ?")
-      .run(id);
     nuvem.set(
       path(id),
-      remota({ objetivo: 'Zebra', atualizado_em: '2026-01-01T00:00:00Z' }),
+      remota({ objetivo: 'Remota', atualizado_em: '2099-01-01T00:00:00Z' }),
     );
+
+    const originalTx = db.withExclusiveTransactionAsync.bind(db);
+    let editou = false;
+    (db as any).withExclusiveTransactionAsync = async (fn: any) => {
+      if (!editou) {
+        editou = true;
+        banco.sqlite
+          .prepare(
+            "UPDATE metas SET objetivo = 'Local concorrente', atualizado_em = '2099-01-01T00:00:00Z' WHERE id = ?",
+          )
+          .run(id);
+      }
+      return originalTx(fn);
+    };
 
     await sincronizarMetasPendentes(db, 'u1');
 
-    expect(banco.sqlite.prepare('SELECT objetivo FROM metas WHERE id = ?').get(id)).toEqual({
+    expect(banco.sqlite.prepare('SELECT objetivo, sync_status FROM metas WHERE id = ?').get(id)).toEqual({
+      objetivo: 'Local concorrente',
+      sync_status: 'pendente',
+    });
+    expect(nuvem.get(path(id)).objetivo).toBe('Remota');
+  });
+
+  it('não confirma envio quando uma edição local compartilha o mesmo timestamp', async () => {
+    const id = await criarMeta({
+      objetivo: 'Original',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+    });
+    const antes = banco.sqlite
+      .prepare('SELECT atualizado_em FROM metas WHERE id = ?')
+      .get(id) as { atualizado_em: string };
+
+    mockRunTransaction.mockImplementationOnce(async (_db: unknown, fn: (tx: any) => Promise<any>) => {
+      const resultado = await fn({
+        get: async (ref: any) => ({
+          exists: () => nuvem.has(ref.path),
+          data: () => nuvem.get(ref.path),
+        }),
+        set: (ref: any, dados: any) => nuvem.set(ref.path, JSON.parse(JSON.stringify(dados))),
+      });
+      banco.sqlite
+        .prepare(
+          "UPDATE metas SET objetivo = 'Local concorrente', atualizado_em = ? WHERE id = ?",
+        )
+        .run(antes.atualizado_em, id);
+      return resultado;
+    });
+
+    await sincronizarMetasPendentes(db, 'u1');
+
+    expect(banco.sqlite.prepare('SELECT objetivo, sync_status FROM metas WHERE id = ?').get(id)).toEqual({
+      objetivo: 'Local concorrente',
+      sync_status: 'pendente',
+    });
+    expect(nuvem.get(path(id)).objetivo).toBe('Original');
+  });
+
+  it('falha de rede mantém a meta pendente e a nova tentativa envia', async () => {
+    const id = await criarMeta({
+      objetivo: 'Viagem',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+    });
+
+    mockRunTransaction.mockRejectedValueOnce(new Error('offline'));
+    await expect(sincronizarMetasPendentes(db, 'u1')).rejects.toThrow('offline');
+    expect(banco.sqlite.prepare('SELECT sync_status, base_sincronizacao FROM metas WHERE id = ?').get(id)).toEqual({
+      sync_status: 'pendente',
+      base_sincronizacao: null,
+    });
+    expect(nuvem.has(path(id))).toBe(false);
+
+    await sincronizarMetasPendentes(db, 'u1');
+    expect(nuvem.get(path(id))).toMatchObject({ objetivo: 'Viagem' });
+    expect(banco.sqlite.prepare('SELECT sync_status FROM metas WHERE id = ?').get(id)).toEqual({
+      sync_status: 'sincronizado',
+    });
+  });
+
+  it.each([
+    ['Alfa', 'Zebra'],
+    ['Zebra', 'Alfa'],
+  ])(
+    'empate de timestamp com conteúdos diferentes converge (%s local, %s remoto)',
+    async (objetivoLocal, objetivoRemoto) => {
+      const id = await criarMeta({
+        objetivo: objetivoLocal,
+        tipo: 'investimento',
+        valorAlvoCentavos: 100_000,
+        prazo: '2027-12-31',
+      });
+      banco.sqlite
+        .prepare("UPDATE metas SET atualizado_em = '2026-01-01T00:00:00Z' WHERE id = ?")
+        .run(id);
+      nuvem.set(
+        path(id),
+        remota({ objetivo: objetivoRemoto, atualizado_em: '2026-01-01T00:00:00Z' }),
+      );
+
+      await sincronizarMetasPendentes(db, 'u1');
+
+      // A assinatura canônica escolhe o mesmo valor independentemente do lado.
+      expect(banco.sqlite.prepare('SELECT objetivo FROM metas WHERE id = ?').get(id)).toEqual({
+        objetivo: 'Zebra',
+      });
+      expect(nuvem.get(path(id)).objetivo).toBe('Zebra');
+    },
+  );
+});
+
+describe('merge por campo entre dois dispositivos (RN07)', () => {
+  function docsDaNuvem() {
+    return Array.from(nuvem.entries()).map(([caminho, dados]) => ({
+      id: caminho.split('/').pop()!,
+      data: () => dados,
+    }));
+  }
+
+  async function restaurarEm(db: SQLiteDatabase) {
+    await db.withExclusiveTransactionAsync(async (tx) => {
+      await restaurarMetasDaNuvem(tx as SQLiteDatabase, docsDaNuvem());
+    });
+  }
+
+  const linha = (banco: ReturnType<typeof instalarBanco>, id: string) =>
+    banco.sqlite
+      .prepare('SELECT objetivo, valor_acumulado_centavos, sync_status, base_sincronizacao FROM metas WHERE id = ?')
+      .get(id) as any;
+
+  it.each([
+    ['A', 'B'],
+    ['B', 'A'],
+  ])('preserva objetivo e acumulado com %s sincronizando primeiro', async (primeiro, segundo) => {
+    const bancoA = instalarBanco();
+    const dbA = (await getDb()) as unknown as SQLiteDatabase;
+    const bancoB = instalarBanco();
+    const dbB = (await getDb()) as unknown as SQLiteDatabase;
+
+    (getDb as jest.Mock).mockResolvedValue(dbA);
+    const id = await criarMeta({
+      objetivo: 'Objetivo base',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+      valorAcumuladoCentavos: 50_000,
+    });
+    await sincronizarMetasPendentes(dbA, 'u1');
+    expect(linha(bancoA, id).base_sincronizacao).toBeTruthy();
+
+    await restaurarEm(dbB);
+    expect(linha(bancoB, id)).toMatchObject({
+      objetivo: 'Objetivo base',
+      valor_acumulado_centavos: 50_000,
+      sync_status: 'sincronizado',
+    });
+
+    (getDb as jest.Mock).mockResolvedValue(dbA);
+    await editarMeta(id, {
+      objetivo: 'Objetivo A',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+      valorAcumuladoCentavos: 50_000,
+    });
+    expect(linha(bancoA, id).sync_status).toBe('pendente');
+
+    (getDb as jest.Mock).mockResolvedValue(dbB);
+    await editarMeta(id, {
+      objetivo: 'Objetivo base',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+      valorAcumuladoCentavos: 70_000,
+    });
+    expect(linha(bancoB, id).sync_status).toBe('pendente');
+
+    const dispositivos: Record<string, { banco: ReturnType<typeof instalarBanco>; db: SQLiteDatabase }> = {
+      A: { banco: bancoA, db: dbA },
+      B: { banco: bancoB, db: dbB },
+    };
+
+    await sincronizarMetasPendentes(dispositivos[primeiro].db, 'u1');
+    expect(linha(dispositivos[primeiro].banco, id).sync_status).toBe('sincronizado');
+    expect(linha(dispositivos[segundo].banco, id).sync_status).toBe('pendente');
+    await sincronizarMetasPendentes(dispositivos[segundo].db, 'u1');
+
+    expect(nuvem.get(path(id))).toMatchObject({
+      objetivo: 'Objetivo A',
+      valor_acumulado_centavos: 70_000,
+    });
+
+    await restaurarEm(dbA);
+    await restaurarEm(dbB);
+
+    for (const nome of ['A', 'B']) {
+      expect(linha(dispositivos[nome].banco, id)).toMatchObject({
+        objetivo: 'Objetivo A',
+        valor_acumulado_centavos: 70_000,
+        sync_status: 'sincronizado',
+      });
+    }
+  });
+
+  it('conflito no mesmo campo converge deterministicamente entre dispositivos', async () => {
+    const bancoA = instalarBanco();
+    const dbA = (await getDb()) as unknown as SQLiteDatabase;
+    const bancoB = instalarBanco();
+    const dbB = (await getDb()) as unknown as SQLiteDatabase;
+
+    (getDb as jest.Mock).mockResolvedValue(dbA);
+    const id = await criarMeta({
+      objetivo: 'Objetivo base',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+      valorAcumuladoCentavos: 50_000,
+    });
+    await sincronizarMetasPendentes(dbA, 'u1');
+    await restaurarEm(dbB);
+
+    (getDb as jest.Mock).mockResolvedValue(dbA);
+    await editarMeta(id, {
+      objetivo: 'Alfa',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+      valorAcumuladoCentavos: 50_000,
+    });
+    (getDb as jest.Mock).mockResolvedValue(dbB);
+    await editarMeta(id, {
       objetivo: 'Zebra',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+      valorAcumuladoCentavos: 50_000,
+    });
+
+    const mesmoTimestamp = '2026-06-01T00:00:00Z';
+    bancoA.sqlite.prepare('UPDATE metas SET atualizado_em = ? WHERE id = ?').run(mesmoTimestamp, id);
+    bancoB.sqlite.prepare('UPDATE metas SET atualizado_em = ? WHERE id = ?').run(mesmoTimestamp, id);
+
+    await sincronizarMetasPendentes(dbA, 'u1');
+    await sincronizarMetasPendentes(dbB, 'u1');
+    await restaurarEm(dbA);
+    await restaurarEm(dbB);
+
+    expect(nuvem.get(path(id)).objetivo).toBe('Zebra');
+    expect(linha(bancoA, id)).toMatchObject({ objetivo: 'Zebra', sync_status: 'sincronizado' });
+    expect(linha(bancoB, id)).toMatchObject({ objetivo: 'Zebra', sync_status: 'sincronizado' });
+  });
+
+  it('tombstone concorrente não é ressuscitado por edição de outro dispositivo', async () => {
+    const bancoA = instalarBanco();
+    const dbA = (await getDb()) as unknown as SQLiteDatabase;
+    const bancoB = instalarBanco();
+    const dbB = (await getDb()) as unknown as SQLiteDatabase;
+
+    (getDb as jest.Mock).mockResolvedValue(dbA);
+    const id = await criarMeta({
+      objetivo: 'Objetivo base',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+      valorAcumuladoCentavos: 50_000,
+    });
+    await sincronizarMetasPendentes(dbA, 'u1');
+    await restaurarEm(dbB);
+
+    (getDb as jest.Mock).mockResolvedValue(dbA);
+    await excluirMeta(id);
+    (getDb as jest.Mock).mockResolvedValue(dbB);
+    await editarMeta(id, {
+      objetivo: 'Edição B',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+      valorAcumuladoCentavos: 50_000,
+    });
+
+    await sincronizarMetasPendentes(dbA, 'u1');
+    await sincronizarMetasPendentes(dbB, 'u1');
+    await restaurarEm(dbA);
+    await restaurarEm(dbB);
+
+    expect(nuvem.get(path(id)).excluido_em).toBeTruthy();
+    expect(bancoA.sqlite.prepare('SELECT excluido_em FROM metas WHERE id = ?').get(id)).toMatchObject({
+      excluido_em: expect.any(String),
+    });
+    expect(bancoB.sqlite.prepare('SELECT excluido_em FROM metas WHERE id = ?').get(id)).toMatchObject({
+      excluido_em: expect.any(String),
     });
   });
 });
