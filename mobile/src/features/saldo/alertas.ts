@@ -12,7 +12,7 @@ export type AlertaSaldo = {
 function saldosPorMes(db: SQLiteDatabase) {
   return db.getAllAsync<{ mes: string; saldo: number }>(`
     WITH referencia AS (
-      SELECT COALESCE((SELECT mes || '-01' FROM saldo_inicial WHERE id = 1), '') AS inicio
+      SELECT COALESCE((SELECT mes_referencia || '-01' FROM saldo_inicial WHERE id = 1), '') AS inicio
     ), lancamentos AS (
       SELECT data, valor_centavos AS valor FROM receitas
       WHERE excluido_em IS NULL AND data >= (SELECT inicio FROM referencia)

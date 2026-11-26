@@ -287,6 +287,22 @@ export const DDL_TRIGGER_PERCENTUAL = `
     END;
   `;
 
+export const DDL_SALDO_INICIAL = `
+    CREATE TABLE IF NOT EXISTS saldo_inicial (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      valor_centavos INTEGER NOT NULL CHECK (
+        typeof(valor_centavos) = 'integer' AND valor_centavos BETWEEN -9007199254740991 AND 9007199254740991
+      ),
+      mes_referencia TEXT NOT NULL CHECK (
+        mes_referencia GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]'
+        AND substr(mes_referencia, 1, 4) <> '0000'
+        AND substr(mes_referencia, 6, 2) BETWEEN '01' AND '12'
+      ),
+      sync_status TEXT NOT NULL DEFAULT 'pendente' CHECK (sync_status IN ('pendente', 'sincronizado')),
+      revisao INTEGER NOT NULL DEFAULT 0
+    );
+  `;
+
 export const DDL_SALDO_MENSAL = `
     CREATE TABLE IF NOT EXISTS saldo_inicial (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -325,6 +341,7 @@ export const ESQUEMA_SQL = `
 
     ${DDL_TRIGGER_PERCENTUAL}
 
+    ${DDL_SALDO_INICIAL}
     ${DDL_SALDO_MENSAL}
 
     ${DDL_NUMERAR_ALERTAS}

@@ -8,7 +8,8 @@ import { resetarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { completarRecorrencias } from '@/features/receitas/service';
 import { completarRecorrenciasDespesas } from '@/features/despesas/service';
-import { restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync';
+import { restaurarDaNuvem, sincronizarEmSegundoPlano, sincronizarPendentes } from '@/features/receitas/sync';
+import { observarConexaoSaldoInicial } from '@/features/saldoInicial/sync';
 import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { iniciarSincronizacaoAutomatica } from '@/features/sincronizacao/service';
 import { cores, raio } from '@/lib/theme';
@@ -23,6 +24,8 @@ type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
  * semeadura/mapeamento de categorias terminarem.
  */
 const TELAS_COM_BANCO = [
+  'configuracoes-financeiras',
+  'saldo-inicial',
   'categorias/index',
   'categorias/nova',
   'categorias/[id]/editar',
@@ -84,7 +87,13 @@ export default function RootLayout() {
   }, [preparar]);
 
   useEffect(() => {
-    if (estado === 'pronto') return iniciarSincronizacaoAutomatica();
+    if (estado !== 'pronto') return;
+    const pararSincronizacao = iniciarSincronizacaoAutomatica();
+    const pararObservacaoSaldo = observarConexaoSaldoInicial(() => sincronizarEmSegundoPlano(true));
+    return () => {
+      pararObservacaoSaldo();
+      pararSincronizacao();
+    };
   }, [estado]);
 
   return (

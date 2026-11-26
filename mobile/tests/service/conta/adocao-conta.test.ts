@@ -95,13 +95,13 @@ it('mantém a referência da conta e renumera alertas locais conflitantes para o
     withTransactionAsync: (fn: () => Promise<void>) => apiConta.withExclusiveTransactionAsync(fn),
   });
   local.sqlite.exec(`
-    INSERT INTO saldo_inicial VALUES (1, '2026-10', -2000);
+    INSERT INTO saldo_inicial (id, mes_referencia, valor_centavos) VALUES (1, '2026-10', -2000);
     INSERT INTO alertas_emitidos (id, mes, anterior_centavos, saldo_centavos, criado_em, transicao)
     VALUES ('local-a', '2026-11', 0, -100, '2026-11-01', 1),
            ('local-b', '2026-11', 0, -200, '2026-11-02', 2);
   `);
   conta.sqlite.exec(`
-    INSERT INTO saldo_inicial VALUES (1, '2026-11', 3000);
+    INSERT INTO saldo_inicial (id, mes_referencia, valor_centavos) VALUES (1, '2026-11', 3000);
     INSERT INTO alertas_emitidos (id, mes, anterior_centavos, saldo_centavos, criado_em, transicao, sync_status)
     VALUES ('conta-a', '2026-11', 0, -300, '2026-11-03', 1, 'sincronizado');
   `);
@@ -109,7 +109,7 @@ it('mantém a referência da conta e renumera alertas locais conflitantes para o
   await servico.marcarTodosComoPendentes();
   await servico.marcarTodosComoPendentes();
 
-  expect(conta.sqlite.prepare('SELECT mes, valor_centavos FROM saldo_inicial').get())
+  expect(conta.sqlite.prepare('SELECT mes_referencia AS mes, valor_centavos FROM saldo_inicial').get())
     .toEqual({ mes: '2026-11', valor_centavos: 3000 });
   const pendentes = () => conta.sqlite.prepare(
     "SELECT id, transicao FROM alertas_emitidos WHERE sync_status = 'pendente' ORDER BY transicao",
@@ -122,7 +122,10 @@ it('mantém a referência da conta e renumera alertas locais conflitantes para o
   expect(pendentes()).toEqual(esperados);
   (sincronizarPendentes as jest.Mock).mockImplementationOnce(async () => {
     expect(pendentes()).toEqual(esperados);
-    conta.sqlite.exec("UPDATE alertas_emitidos SET sync_status = 'sincronizado'");
+    conta.sqlite.exec(`
+      UPDATE alertas_emitidos SET sync_status = 'sincronizado';
+      UPDATE saldo_inicial SET sync_status = 'sincronizado';
+    `);
   });
   await expect(servico.sincronizar()).resolves.toBeUndefined();
   expect(sincronizarPendentes).toHaveBeenCalledWith({ manual: true });

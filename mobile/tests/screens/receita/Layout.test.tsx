@@ -9,6 +9,8 @@ import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 
 /** Mesma lista de produção; o teste falha se uma rota com SQLite ficar desprotegida. */
 const ROTAS_COM_BANCO = [
+  'configuracoes-financeiras',
+  'saldo-inicial',
   'categorias/index',
   'categorias/nova',
   'categorias/[id]/editar',

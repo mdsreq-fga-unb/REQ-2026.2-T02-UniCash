@@ -2,6 +2,7 @@ import { excluirReceita, registrarReceita } from '@/features/receitas/service';
 import { consultarAlertas, dispensarAlerta } from '@/features/saldo/alertas';
 import { consultarResumoMensal, salvarSaldoInicial } from '@/features/saldo/service';
 import { editarDespesa, excluirDespesa, registrarDespesa } from '@/features/despesas/service';
+import { salvarSaldoInicial as salvarReferencia } from '@/features/saldoInicial/service';
 import { input } from '../helpers/dados';
 import { instalarBanco } from '../helpers/fakeDb';
 
@@ -54,6 +55,10 @@ describe('consulta local do resumo mensal', () => {
       indicador: { cor: '#9A3412' },
     });
     expect(await consultarResumoMensal('2026-12-01')).toMatchObject({ saldo: 0, saldoAnterior: 5200 });
+
+    await salvarReferencia({ mes_referencia: '2026-12', valor_centavos: 0 });
+    expect(await consultarResumoMensal('2026-11-01')).toMatchObject({ saldo: 0, saldoAnterior: null });
+    expect(await consultarResumoMensal('2026-12-01')).toMatchObject({ saldo: 0, saldoAnterior: 0 });
   });
 
   it('registra o saldo positivo anterior ao lançar a primeira despesa do mês', async () => {
