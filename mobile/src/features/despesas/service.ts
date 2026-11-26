@@ -1,3 +1,5 @@
+import { comRecalculoDeAlertas } from '@/features/alertas/service';
+import { avisarAlertasPendentes } from '@/features/alertas/evento';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
 import { registrarTransicoes } from '@/features/saldo/alertas';
@@ -43,9 +45,10 @@ async function transacao<T>(
     let resultado!: T;
 
     await db.withExclusiveTransactionAsync(async (tx) => {
-      resultado = await registrarTransicoes(tx, () => fn(tx));
+      resultado = await registrarTransicoes(tx, () => comRecalculoDeAlertas(tx, 'despesas', fn));
     });
 
+    avisarAlertasPendentes();
     return resultado;
   } catch (e) {
     if (e instanceof DespesaIndisponivel) throw e;

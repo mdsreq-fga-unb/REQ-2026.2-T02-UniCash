@@ -55,6 +55,14 @@ describe('Home (navegação da UC06)', () => {
     expect(router.push).toHaveBeenCalledWith('/categorias');
   });
 
+  it('abre as preferências de alertas de limite da UC05', async () => {
+    await salvarContinuidadeSemConta();
+    await render(<Home />);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Preferências de alertas' }));
+    expect(router.push).toHaveBeenCalledWith('/preferencias-alertas');
+  });
+
   it('mantém o acesso a Receitas', async () => {
     await salvarContinuidadeSemConta();
     await render(<Home />);

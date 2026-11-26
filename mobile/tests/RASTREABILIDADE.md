@@ -512,6 +512,7 @@ e cada mês é um botão com rótulo de acessibilidade que informa os valores.
 | 2026-11-24 | 77 de 77 | 1358 de 1358 | 100% / 100% / 100% / 100% | dantescarpati |
 | 2026-11-26 (após integrar a `develop` com UC03, UC04, UC10 e UC16) | 106 de 106 | 1765 de 1765 | 100% / 100% / 100% / 100% | dantescarpati |
 | 2026-11-26 (revisão: séries e integração com UC09 e UC15) | 110 de 110 | 1815 de 1815 | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-26 (após integrar o UC05) | 111 de 111 | 1837 de 1837 | 100% / 100% / 100% / 100% | dantescarpati |
 
 Limites mínimos em `jest.config.js` para `src/**/evolucao/**` (e `src/**/resumo/**`, que inclui o gráfico): 90% statements, 70% branches, 85% funções, 90% linhas.
 
@@ -523,3 +524,7 @@ Limites mínimos em `jest.config.js` para `src/**/evolucao/**` (e `src/**/resumo
 | 5.2 Offline e sem conta | | | | | |
 | 5.3 RNF20 e RNF38 – tamanhos de tela e cores | | | | | |
 | 5.4 RNF07 – precisão | | | | | |
+
+## UC05 — Monitorar limites de gastos
+
+A [issue #32](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32) e o [manual do UC05](MANUAL-UC05.md) registram o escopo entregue, a integração com UC09 e RF12 e os cenários de notificação em aparelho, incluindo offline. A cobertura automatizada da EX02 está em [alertas-uc05.test.ts](service/alertas-uc05.test.ts).
