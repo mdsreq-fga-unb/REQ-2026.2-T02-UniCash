@@ -345,6 +345,15 @@ describe('Resumo aberto pela etapa do tutorial (UC15)', () => {
     expect(router.back).toHaveBeenCalledTimes(1);
   });
 
+  it('abre o menu de ajuda a partir do resumo financeiro', async () => {
+    calcular.mockResolvedValue(resumo());
+    await render(<ResumoFinanceiro />);
+
+    await fireEvent.press(screen.getByRole('button', { name: 'Ajuda' }));
+
+    expect(router.push).toHaveBeenCalledWith('/ajuda');
+  });
+
   it('mantém o resumo acessível se a oferta inicial não abrir e permite tentar de novo (EX01)', async () => {
     calcular.mockResolvedValue(resumo());
     jest.mocked(deveOferecerTutorial).mockResolvedValue(true);
@@ -354,13 +363,13 @@ describe('Resumo aberto pela etapa do tutorial (UC15)', () => {
     expect(await screen.findByRole('alert', {}, {
       timeout: PRAZO_ABERTURA_TUTORIAL_MS + 1000,
     })).toHaveTextContent(MSG_ABERTURA_TUTORIAL);
-    expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65');
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('R$ 925,65');
 
     await fireEvent.press(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(router.push).toHaveBeenCalledTimes(2);
     const { tentativa } = router.push.mock.lastCall![0].params;
     await act(() => confirmarAberturaTutorial(tentativa));
     expect(screen.queryByText(MSG_ABERTURA_TUTORIAL)).toBeNull();
-    expect(screen.getByTestId('saldo')).toHaveTextContent('R$ 925,65');
+    expect(await screen.findByTestId('saldo')).toHaveTextContent('R$ 925,65');
   });
 });
