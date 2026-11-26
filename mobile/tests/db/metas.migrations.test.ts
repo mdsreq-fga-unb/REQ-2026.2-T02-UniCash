@@ -412,6 +412,23 @@ describe('bancos de desenvolvimento com UC12 antiga e sem UC04', () => {
     expect(existeTabela(sqlite, 'alertas_emitidos')).toBe(false);
   });
 
+  it('v8 antiga UC12 com saldo parcial é reparada sem perder metas', async () => {
+    const sqlite = bancoUc12AntigoV8();
+    inserirMetaBase(sqlite, 'm1');
+    sqlite.exec(
+      'CREATE TABLE saldo_inicial (id INTEGER PRIMARY KEY CHECK (id = 1), mes TEXT NOT NULL, valor_centavos INTEGER NOT NULL)',
+    );
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
+    expect(existeTabela(sqlite, 'saldo_inicial')).toBe(true);
+    expect(existeTabela(sqlite, 'alertas_emitidos')).toBe(true);
+    expect(sqlite.prepare('SELECT objetivo FROM metas WHERE id = ?').get('m1')).toMatchObject({
+      objetivo: 'Meta m1',
+    });
+  });
+
   it('v8 com apenas uma tabela UC04 é completado com segurança', async () => {
     const sqlite = criarBaseUc06();
     sqlite.exec('CREATE TABLE saldo_inicial (id INTEGER PRIMARY KEY CHECK (id = 1), mes TEXT NOT NULL, valor_centavos INTEGER NOT NULL)');
