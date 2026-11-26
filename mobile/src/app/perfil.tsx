@@ -23,6 +23,7 @@ export default function Perfil() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Conquistas"
+              testID="abrir-conquistas"
               onPress={() => router.push('/conquistas')}
               hitSlop={8}
               style={estilos.acaoConquistas}

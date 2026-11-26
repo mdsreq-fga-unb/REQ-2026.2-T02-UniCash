@@ -1,0 +1,6 @@
+# Configuração do Maestro para o UniCash (issue #133).
+# Rodar a partir de mobile/:  maestro test .maestro/uc13
+flows:
+  - "uc13/*"
+executionOrder:
+  continueOnFailure: false

@@ -1,0 +1,29 @@
+# UC13 · A1, B2, B3: meses encerrados no verde geram selos; o detalhe mostra os totais do mês [CQ1, CQ2].
+# MES_A e MES_B devem ser meses já encerrados (DD/MM/AAAA). Padrão: setembro e outubro de 2026.
+appId: br.unb.unicash
+name: "UC13 02 - Selos e detalhe"
+tags: [uc13]
+env:
+  DEEP_LINK: "unicash://"
+  DATA_A: "05/09/2026"
+  DATA_B: "05/10/2026"
+  NOME_B: "No verde em outubro"
+---
+- runFlow: ../subflows/abrir-app-limpo.yaml
+- runFlow:
+    file: ../subflows/nova-receita.yaml
+    env: { TITULO: "Bolsa", VALOR: "100,00", DATA: "${DATA_A}" }
+- runFlow:
+    file: ../subflows/nova-receita.yaml
+    env: { TITULO: "Monitoria", VALOR: "420,00", DATA: "${DATA_B}" }
+- runFlow: ../subflows/abrir-conquistas.yaml
+- assertVisible: "Selos conquistados.*"
+- assertVisible: ${NOME_B}
+- takeScreenshot: artefatos/uc13/02-lista-de-selos
+- tapOn: ${NOME_B}
+- assertVisible: "Detalhe do selo"
+- assertVisible: "Saldo positivo no mês"
+- assertVisible: "R$ 420,00"
+- takeScreenshot: artefatos/uc13/03-detalhe-do-selo
+- tapOn: "Ver resumo do mês"
+- takeScreenshot: artefatos/uc13/04-resumo-do-mes-do-selo

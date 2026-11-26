@@ -1,0 +1,27 @@
+# UC13 · A3, RF46 com RF58: liga o alerta "Conquistas" e provoca um selo novo depois da linha de base.
+# A notificação aparece na bandeja do sistema; o print registra o estado do app depois do aviso.
+appId: br.unb.unicash
+name: "UC13 03 - Alerta de conquista"
+tags: [uc13]
+env:
+  DEEP_LINK: "unicash://"
+  DATA_NOVO: "05/08/2026"
+---
+- runFlow: ../subflows/abrir-app-limpo.yaml
+# Primeira avaliação: vira linha de base, sem notificação (FR-009a).
+- runFlow: ../subflows/abrir-conquistas.yaml
+- openLink: ${DEEP_LINK}perfil
+- tapOn:
+    text: "Conquistas"
+    role: switch
+    optional: true
+- tapOn:
+    text: "Allow|Permitir"
+    optional: true
+- takeScreenshot: artefatos/uc13/05-alerta-conquistas-ligado
+- runFlow:
+    file: ../subflows/nova-receita.yaml
+    env: { TITULO: "Freela", VALOR: "50,00", DATA: "${DATA_NOVO}" }
+- runFlow: ../subflows/abrir-conquistas.yaml
+- assertVisible: "No verde em agosto"
+- takeScreenshot: artefatos/uc13/06-selo-novo-registrado
