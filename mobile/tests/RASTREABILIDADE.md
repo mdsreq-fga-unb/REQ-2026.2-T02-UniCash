@@ -109,7 +109,7 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 | RN09 — valor monetário | B, C, EX03 | `validation.ts`, `src/features/receitas/money.ts`, `src/db/schema.ts` | `tests/unit/validation-categorias.test.ts`, `tests/db/schema.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Testado: 1 centavo, zero, teto e inteiros |
 | RN11 — exclusão/atomicidade | C, D, EX04 | `service.ts` (`transacao`, `excluirCategoria`), `[id]/editar.tsx` | `tests/service/categorias.test.ts` (falha em criar/editar/excluir), `tests/screens/EditarCategoria.test.tsx` | Operação local, desvinculação e rollback testados; recálculo pendente |
 | RN13 — nome, unicidade e padrões | A, B, C, D | `validation.ts`, `service.ts`, `src/db/schema.ts`, `useCategorias.ts`, `firestore.rules` | `tests/service/categorias.test.ts`, `tests/db/schema.test.ts`, `tests/unit/validation-categorias.test.ts`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx`, `tests/rules/firestore.rules.test.ts` | Testado (30/31 caracteres, Unicode/emoji, duplicidade, padrões, tombstone); padrão sem renomear/excluir e com limite editável |
-| RN14 — limites por valor/percentual | B, C | `validation.ts`, `limites.ts`, `formato.ts`, `CategoriaForm.tsx`, `[id]/editar.tsx`, `src/db/schema.ts`, `categorias/sync.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/categorias.sync.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx`, `tests/db/schema.test.ts`, `tests/db/migrations.test.ts` | Faixa definitiva 1%–100% testada em formulário/domínio/serviço/SQLite/Firestore; recálculo UC05/UC09 pendente |
+| RN14 — limites por valor/percentual | B, C | `validation.ts`, `limites.ts`, `formato.ts`, `CategoriaForm.tsx`, `[id]/editar.tsx`, `src/db/schema.ts`, `categorias/sync.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/categorias.sync.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx`, `tests/db/schema.test.ts`, `tests/db/migrations.test.ts` | Faixa definitiva 1%–100% testada em formulário/domínio/serviço/SQLite/Firestore; recálculo de consumo validado no UC09; alertas do UC05 seguem externos |
 | RNF03 — isolamento por usuário | EX09, sincronização | `firestore.rules` | `tests/rules/firestore.rules.test.ts` | Isolamento por UID testado nas Rules de categorias |
 | RNF04 — validação local | B, C | `validation.ts`, `CategoriaForm.tsx` | `tests/unit/validation-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Testado |
 | RNF05 — evitar estado parcial | B, C, D | `service.ts` (`transacao`) | `tests/service/categorias.test.ts` (falha em criar/editar/excluir) | Testado no escopo local |
@@ -131,7 +131,7 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 | FA01 — operação offline | `service.ts`, `schema.ts` | `tests/service/categorias.test.ts` (grava `sync_status='pendente'`) | Local testado; sincronização testada |
 | FA02 — categoria sem lançamentos | `src/app/categorias/index.tsx`, `src/app/despesas/index.tsx` | `tests/screens/ListaCategorias.test.tsx`, `tests/screens/TelaListaDespesas.test.tsx`, `tests/service/despesas.leitura.test.ts` | Implementado/testado: “Nenhum lançamento” e “Nenhum registro” |
 | FA03 — exclusão com lançamentos | `service.ts` (`marcarCategoriaExcluidaNaTransacao`) | `tests/service/categorias.test.ts` (despesa avulsa, série ativa/inativa, tombstones) | Implementado/testado: despesas mantidas e “Sem categoria” |
-| FA04 — categoria sem limite | `CategoriaForm.tsx`, `EditarCategoria.test.tsx`, `service.ts` | `tests/screens/CategoriaForm.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/service/categorias.test.ts` | Local testado; recálculo pendente UC05/UC09 |
+| FA04 — categoria sem limite | `CategoriaForm.tsx`, `EditarCategoria.test.tsx`, `service.ts` | `tests/screens/CategoriaForm.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/service/categorias.test.ts`, `tests/service/consumo.test.ts`, `tests/screens/IndicadoresConsumo.test.tsx` | Local testado; o UC09 omite o indicador de categorias sem limite |
 | FA05 — cancelar edição/exclusão | `NovaCategoria.tsx`, `EditarCategoria.tsx`, `CategoriaForm.tsx` | `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx` | Implementado/testado |
 | EX01 — nome duplicado | `service.ts` (`NomeDuplicado`), `validation.ts` | `tests/service/categorias.test.ts`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx` | Implementado/testado |
 | EX02 — categoria padrão protegida | `service.ts` (`CategoriaPadraoProtegida`), `EditarCategoria.tsx` | `tests/service/categorias.test.ts`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx` | Implementado/testado |
@@ -195,16 +195,24 @@ Os números e links abaixo são **históricos** da integração UC02 + UC06 no m
 
 **Checklist histórico da integração UC02:** detalhado em 4.9, incluindo migrations 004/005, slugs históricos, desvinculação, FK e verificação de integridade. A issue #70 registra o encerramento da integração.
 
-**Pendências naquele baseline, superadas ou ainda externas:** RF65, sincronização de categorias e Rules de categorias foram concluídos no PR #76. Permanecem externos o recálculo UC05/UC09, a publicação das Rules no projeto real, a sincronização real e a validação de upgrade nativo a partir de banco antigo.
+**Pendências naquele baseline, superadas ou ainda externas:** RF65, sincronização de categorias e Rules de categorias foram concluídos no PR #76. Permanecem externos os alertas do UC05, a publicação das Rules no projeto real, a sincronização real e a validação de upgrade nativo a partir de banco antigo.
 
 ### 4.5. Pendências de integração
 
 - **UC02 / issue #70:** integração concluída pelo PR #73 no merge `9e373e9`; evidências históricas em 4.4.2 e 4.9. RF65, sincronização de categorias e Rules de categorias foram concluídos no PR #76.
-- **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 deixa o estado consistente no SQLite (`categorias`, limites, tombstones) e a UC02 mantém as `despesas`; a interface prevista é a leitura dessas tabelas por período após cada operação (contrato em 4.10). Não há evento de domínio nem chamada direta implementada nesta etapa; o cálculo continua sob responsabilidade dessas UCs.
+- **UC09 / issue #46:** recálculo de consumo por período integrado à lista e ao Resumo Financeiro, com rastreabilidade abaixo.
+- **UC05:** integração dos alertas permanece sob responsabilidade desse caso de uso. O contrato de leitura das tabelas está em 4.10.
 - **UC10:** a restauração no startup aguarda `authStateReady` e usa `auth.currentUser`, mas o app ainda não possui tela de login própria. Sem sessão, a operação permanece offline-first.
 - **Validação nativa:** o smoke funcional da UC06 foi concluído via **Expo Go em dispositivo Android** em 20/11/2026, cobrindo RF19/RF65/RF66/RF67 e persistência. Não houve build nativa/APK, inspeção de `user_version` ou repetição do upgrade nativo a partir de banco antigo; as migrações 006/007 seguem cobertas por testes automatizados.
 - **Firebase não configurado:** `src/lib/firebase.ts` abre em modo offline quando as variáveis `EXPO_PUBLIC_FIREBASE_*` estão ausentes; `auth.currentUser` fica nulo e sincronização/restauração não executam. Teste: `tests/unit/firebase.offline.test.ts`.
 - **Semeadura:** conflitos são reportados uma vez por instância e a semeadura não é repetida a cada foco. Após excluir uma categoria própria com nome reservado, um sinal único faz a lista tentar a semeadura no próximo foco; não há conversão automática da categoria própria. Se a tentativa posterior falhar, a exclusão já confirmada permanece e o erro é exibido como falha de preparação das padrão, não como falha da exclusão.
+
+| Fluxo do UC09 | Implementação | Testes |
+| --- | --- | --- |
+| RF39, FA06, EX01 e EX02 — exibir consumo e trocar o mês na lista | `src/app/categorias/index.tsx`, `src/features/consumo/useConsumoMensal.ts` | `tests/screens/ListaCategorias.test.tsx` |
+| RF39 e FA06 — seguir o seletor de mês do Resumo Financeiro | `src/app/index.tsx`, `src/features/consumo/useConsumoMensal.ts` | `tests/screens/Resumo.test.tsx` |
+| EX03 — consultar somente a base da conta ativa | `src/db/database.ts`, `src/features/consumo/sqlite.ts` | `tests/db/proprietario-uc10.test.ts` |
+| RN06, RN07 e RN14 — cálculo local após alterações de despesas, receitas e categorias | `src/features/consumo/sqlite.ts`, `src/features/consumo/calculo.ts` | `tests/service/consumo.test.ts`, `tests/unit/consumo.test.ts` |
 
 ### 4.6. Limite percentual — faixa definitiva 1%–100%
 
@@ -404,7 +412,7 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 |---|---|---|---|---|
 | RF11 – total de receitas do mês e por dia | passos 3 e 4 | `src/features/resumo/service.ts` (`totalReceitasDoMes`, `receitasPorDia`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF11"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…") | 4.1 (passo 2) |
 | RF40 – saldo, receitas, despesas e metas do período | passos 3 e 4 | `service.ts` (`totalDespesasDoMes`, `saldoDoMes`, `progressoMetasDoMes`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF40"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…", "mostra o progresso das metas…") | 4.1 (passo 2) |
-| RF55 – atalho para o tutorial (placeholder) | FA02 | `src/app/index.tsx` (`EstadoVazio`), `src/app/tutorial.tsx` | `tests/screens/Resumo.test.tsx` ("FA02…"), `tests/screens/Tutorial.test.tsx` | 4.1 (passo 1) |
+| RF55 – atalho para o tutorial | FA02 | `src/app/index.tsx` (`EstadoVazio`), `src/app/tutorial.tsx` | `tests/screens/Resumo.test.tsx` ("FA02…"), `tests/screens/Tutorial.test.tsx` | 4.1 (passo 1) |
 | RF61 – usar sem conta | FA03 | `service.ts` (só SQLite; não importa o Firebase) | `tests/service/resumo.test.ts` ("FA03…"; o Firebase é mockado para quebrar se for importado) | 4.2 |
 | RN06 – base local | todos | `service.ts`, `src/db/schema.ts` | `tests/service/resumo.test.ts` (SQLite em memória) | 4.2 |
 | RN07 – sem contadores persistidos; exclusão lógica | passos 3 e 6, FA05 | `service.ts` (`excluido_em IS NULL`, cálculo na hora) | `tests/service/resumo.test.ts` ("ignora receitas excluídas", "ignora despesas excluídas", "FA02: lançamentos só excluídos…", "pós-condição…") | 4.1 (passo 5) |
@@ -432,8 +440,7 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 | Atalhos Receitas, Despesas e Categorias em todos os estados | `src/app/index.tsx` (`Atalhos`; Receitas e Despesas abrem no mês selecionado) | `tests/screens/Resumo.test.tsx` (bloco "atalhos em todos os estados", "atalhos abrem as listas no mês selecionado…"), `tests/screens/Home.test.tsx`, `tests/screens/HomeDespesas.test.tsx` | 4.1 (passo 1) |
 | Registro direto da tela inicial ("+ Nova receita" e "+ Nova despesa", RNF27) | `src/app/index.tsx` (`Atalhos`; escondidos no estado vazio, que já tem "Registrar receita" e "Registrar despesa") | `tests/screens/Resumo.test.tsx` (bloco "registro direto da tela inicial") | – |
 
-**Placeholders:** metas (RF12) e tutorial (RF55) ainda não existem. `progressoMetasDoMes` retorna vazio e
-`/tutorial` mostra "Tutorial em breve"; ligar quando os casos de uso de metas e tutorial forem entregues.
+**Placeholder de metas (RF12):** `progressoMetasDoMes` retorna vazio enquanto o caso de uso de metas estiver pendente.
 A visão por dia está em lista, provisória até a escolha entre lista e calendário com a cliente.
 
 ### 6.3. Resultados de validação
@@ -504,6 +511,7 @@ e cada mês é um botão com rótulo de acessibilidade que informa os valores.
 |---|---|---|---|---|
 | 2026-11-24 | 77 de 77 | 1358 de 1358 | 100% / 100% / 100% / 100% | dantescarpati |
 | 2026-11-26 (após integrar a `develop` com UC03, UC04, UC10 e UC16) | 106 de 106 | 1765 de 1765 | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-26 (revisão: séries e integração com UC09 e UC15) | 110 de 110 | 1815 de 1815 | 100% / 100% / 100% / 100% | dantescarpati |
 
 Limites mínimos em `jest.config.js` para `src/**/evolucao/**` (e `src/**/resumo/**`, que inclui o gráfico): 90% statements, 70% branches, 85% funções, 90% linhas.
 

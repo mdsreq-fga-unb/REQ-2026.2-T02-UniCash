@@ -10,8 +10,10 @@ import type { ReceitaInput } from '@/features/receitas/types';
 import { cores } from '@/lib/theme';
 
 export default function NovaReceita() {
-  // Veio do formulário de despesa pelo seletor Despesa/Receita: a tela anterior é a lista de despesas.
-  const { trocouTipo } = useLocalSearchParams<{ trocouTipo?: string }>();
+  // tutorial=1: aberto pelo tutorial (UC15); salvar volta a ele pela pilha de telas.
+  // trocouTipo=1: veio do formulário de despesa pelo seletor Despesa/Receita; fora do tutorial,
+  // salvar leva à lista deste tipo, e não à lista de despesas de onde se veio.
+  const { tutorial, trocouTipo } = useLocalSearchParams<{ tutorial?: string; trocouTipo?: string }>();
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -23,7 +25,7 @@ export default function NovaReceita() {
       setFeedback({ tipo: 'sucesso', texto: 'Salvo no dispositivo. Sincronização pendente.' });
       sincronizarEmSegundoPlano(); // falha aqui não afeta o registro (EX04)
       // Depois de trocar o tipo, volta para a lista de receitas, não para a lista de onde veio.
-      if (trocouTipo) router.replace('/receitas');
+      if (trocouTipo && tutorial !== '1') router.replace('/receitas');
       else router.back();
     } catch {
       setErro(MSG.falhaSalvar); // EX03: volta ao passo 3 com os dados preservados
@@ -38,9 +40,15 @@ export default function NovaReceita() {
         textoSalvar="Salvar receita"
         salvando={salvando}
         erroGeral={erro}
+        textoCancelar={tutorial === '1' && erro ? 'Voltar à etapa' : undefined}
         onSalvar={salvar}
         onCancelar={() => router.back()}
-        onTrocarTipo={() => router.replace({ pathname: '/despesas/nova', params: { trocouTipo: '1' } })}
+        onTrocarTipo={() =>
+          router.replace({
+            pathname: '/despesas/nova',
+            params: tutorial === '1' ? { tutorial, trocouTipo: '1' } : { trocouTipo: '1' },
+          })
+        }
       />
     </SafeAreaView>
   );

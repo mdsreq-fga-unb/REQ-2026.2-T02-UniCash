@@ -190,7 +190,7 @@ describe('Evolução mensal na tela do resumo (UC07)', () => {
     expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
     expect(screen.queryByTestId('secao-evolucao')).toBeNull();
     await fireEvent.press(screen.getByText('Ver tutorial'));
-    expect(router.push).toHaveBeenCalledWith('/tutorial');
+    expect(router.push).toHaveBeenCalledWith(expect.objectContaining({ pathname: '/tutorial' }));
   });
 
   it('FA02: se só a evolução indicar base vazia, a seção some sem afetar o resumo', async () => {

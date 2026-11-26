@@ -8,6 +8,9 @@ import { consumirFeedback, type Feedback } from '@/features/categorias/feedback'
 import { centesimosParaTextoPercentual } from '@/features/categorias/formato';
 import { formatarBRL } from '@/features/receitas/money';
 import { MSG_CAT, mensagemConflitoSemeadura } from '@/features/categorias/validation';
+import { adicionarMeses, hojeISO, nomeMes } from '@/features/receitas/dates';
+import { useConsumoMensal } from '@/features/consumo/useConsumoMensal';
+import { IndicadorCategoria, IndicadoresConsumo, type EstadoConsumo } from '@/components/consumo/IndicadoresConsumo';
 import type { Categoria } from '@/features/categorias/types';
 
 /** Texto do limite (RF65/RF66). */
@@ -28,10 +31,12 @@ function CategoriaItem({
   categoria,
   onEditar,
   onVerDespesas,
+  indicador,
 }: {
   categoria: Categoria;
   onEditar: () => void;
   onVerDespesas: () => void;
+  indicador?: Extract<EstadoConsumo, { tipo: 'pronto' }>['itens'][number];
 }) {
   const nome = categoria.nome;
   return (
@@ -46,6 +51,7 @@ function CategoriaItem({
           {categoria.padrao ? <Text style={estilos.etiqueta}>Padrão</Text> : null}
         </View>
         <Text style={estilos.itemLimite}>{textoLimite(categoria)}</Text>
+        {indicador && indicador.status !== 'sem_limite' ? <IndicadorCategoria item={indicador} /> : null}
       </Pressable>
 
       <Pressable
@@ -65,6 +71,16 @@ function CategoriaItem({
 export default function ListaCategorias() {
   const { itens, carregando, erroLeitura, erroSemeadura, conflitosSemeadura, recarregar } = useCategorias();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+
+  const [periodo, setPeriodo] = useState(() => hojeISO().slice(0, 7));
+  const { estado: consumo, tentarNovamente } = useConsumoMensal(periodo, !carregando && !erroLeitura);
+  const [ano, mes] = periodo.split('-').map(Number);
+
+  const indicadores = new Map(consumo.tipo === 'pronto' ? consumo.itens.map((item) => [item.categoriaId, item]) : []);
+
+  function mudarMes(direcao: number) {
+    setPeriodo((mes) => adicionarMeses(`${mes}-01`, direcao).slice(0, 7));
+  }
 
   // Ao voltar de outra tela: mensagem pendente (uma única vez) e recarrega (EX05).
   useFocusEffect(
@@ -87,6 +103,7 @@ export default function ListaCategorias() {
         renderItem={({ item }) => (
           <CategoriaItem
             categoria={item}
+            indicador={indicadores.get(item.id)}
             onEditar={() =>
               router.push({ pathname: '/categorias/[id]/editar', params: { id: item.id } })
             }
@@ -97,6 +114,21 @@ export default function ListaCategorias() {
         )}
         ListHeaderComponent={
           <>
+            <View style={estilos.consumo}>
+              <Text accessibilityRole="header" style={estilos.itemNome}>Consumo por categoria</Text>
+              <View style={estilos.periodo}>
+                <Pressable accessibilityRole="button" accessibilityLabel="Mês anterior" onPress={() => mudarMes(-1)} hitSlop={8}>
+                  <Text style={estilos.mudarMes}>‹</Text>
+                </Pressable>
+                <Text>{nomeMes(ano, mes)}</Text>
+                <Pressable accessibilityRole="button" accessibilityLabel="Próximo mês" onPress={() => mudarMes(1)} hitSlop={8}>
+                  <Text style={estilos.mudarMes}>›</Text>
+                </Pressable>
+              </View>
+              {!erroLeitura && !carregando && consumo.tipo !== 'pronto' ? (
+                <IndicadoresConsumo estado={consumo} aoTentarNovamente={tentarNovamente} />
+              ) : null}
+            </View>
             {feedback ? (
               <View style={[estilos.banner, feedback.tipo === 'erro' ? estilos.bannerErro : estilos.bannerOk]}>
                 <Text style={estilos.bannerTexto}>
@@ -174,6 +206,9 @@ export default function ListaCategorias() {
 }
 
 const estilos = StyleSheet.create({
+  consumo: { padding: 14, marginBottom: 14, gap: 10, backgroundColor: cores.fundoSuave, borderRadius: raio.cartao },
+  periodo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mudarMes: { color: cores.primaria, fontSize: 24, paddingHorizontal: 12 },
   tela: { flex: 1, backgroundColor: cores.fundo },
   cabecalho: {
     flexDirection: 'row',

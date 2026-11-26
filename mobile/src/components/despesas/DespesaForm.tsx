@@ -57,6 +57,7 @@ interface Props {
   erroGeral?: string | null;
   onSalvar: (dados: DespesaInput) => void;
   onCancelar: () => void;
+  textoCancelar?: string;
   onExcluir?: () => void;
   /** Se informado (cadastro novo), tocar em "Receita" abre o formulário de receita. Na edição fica inerte. */
   onTrocarTipo?: () => void;
@@ -92,6 +93,7 @@ export function DespesaForm({
   erroGeral,
   onSalvar,
   onCancelar,
+  textoCancelar = 'Cancelar',
   onExcluir,
   onTrocarTipo,
 }: Props) {
@@ -386,7 +388,7 @@ export function DespesaForm({
             style={estilos.secundario}
             accessibilityRole="button"
           >
-            <Text style={estilos.secundarioTexto}>Cancelar</Text>
+            <Text style={estilos.secundarioTexto}>{textoCancelar}</Text>
           </Pressable>
         )}
       </View>
