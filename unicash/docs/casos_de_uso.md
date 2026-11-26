@@ -319,6 +319,34 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Funcionais:** RF34, RF35. Relacionados: RF07, RF15, RF11, RF17, RF18.
 - **Não funcionais específicos:** RNF07, RNF08, RNF29, RNF38.
 - **Regras de negócio:** RN06, RN07, RN15, RN16, RN17, RN18.
+
+### Implementação e verificação do UC04
+
+O painel de saldo é integrado ao resumo do UC03 e usa lançamentos do UC01 e do UC02. Os valores são calculados em centavos no SQLite. O saldo inicial local é a referência provisória para a integração com o UC08. Os limites de gasto pertencem ao UC05. A apresentação percentual segue a [RN21](requisitos_funcionais.md#rn21-precisao-dos-valores-monetarios-rnf07).
+
+Cada passagem de saldo não negativo para negativo recebe um número de transição único no mês. O cálculo considera receitas e despesas antes e depois da operação, inclusive na primeira despesa do mês. O lançamento e o alerta são gravados na mesma transação. Uma falha na gravação local reverte a operação e permite nova tentativa. Uma falha no envio mantém o alerta pendente para reenvio com o mesmo ID. O painel apresenta um aviso por vez, com competência e contador de avisos pendentes.
+
+#### Rastreabilidade dos testes
+
+| Fluxo e regra | Caso válido | Caso inválido ou exceção | Valores-limite e bordas | Teste |
+| --- | --- | --- | --- | --- |
+| Principal, FA01 e FA05 · RF34, RN07 e RN15 | Receita menos despesa e recálculo após edição, mudança de mês ou exclusão | Lançamento excluído fica fora do total | Mês vazio, virada de ano e valores em centavos | `tests/service/saldo.test.ts` |
+| Principal, FA02 e FA03 · RF35 e RN16 | Saldo anterior e saldo inicial no mês de referência | Data ou valor inicial inválido é rejeitado. O serviço, sem totais fornecidos pela tela, ignora lançamentos anteriores à referência | Saldo anterior ausente, zero, positivo ou negativo | `tests/unit/saldo.test.ts`, `tests/service/saldo.test.ts`, `tests/screens/ResumoFinanceiro.test.tsx` |
+| FA04 · RN06 e RN07 | Consulta local no SQLite | Perda de rede mantém o alerta pendente | Retomada e reenvio com o mesmo ID | `tests/service/saldo.test.ts`, `tests/service/sync.test.ts` |
+| Principal e FA07 · RN17, RN21 e RNF38 | Cartão com cor, texto e percentual com uma casa decimal | Sem receita, o indicador usa preto, inclusive com saldo negativo | 50%, 80%, 90%, zero e arredondamento de exibição | `tests/unit/saldo.test.ts`, `tests/screens/ResumoFinanceiro.test.tsx` |
+| Principal, FA06, FA08 e EX03 · RN18 | Emissão após cruzar zero e nova emissão após recuperação | Falha ao gravar o alerta reverte o lançamento. A chave repetida é rejeitada | Saldo anterior zero, primeira despesa com saldo positivo e permanência no negativo | `tests/service/saldo.test.ts`, `tests/db/migrations.test.ts`, `tests/screens/ResumoFinanceiro.test.tsx` |
+| EX01 e EX02 · RN07 | Nova tentativa recupera a consulta e o saldo é recalculado a partir dos dados locais | Falha de leitura gera mensagem. Resultado atrasado de outro mês é descartado | Troca de mês durante consulta em andamento | `tests/screens/ResumoFinanceiro.test.tsx`, `tests/service/saldo.test.ts` |
+| Segurança e persistência · RN18 | Titular lê o alerta e pode reenviar o mesmo documento | Terceiro e anônimo têm acesso negado. Valores fora de uma transição válida são rejeitados | Reenvio idêntico e migração preservando IDs | `tests/rules/firestore.rules.test.ts`, `tests/service/sync.test.ts`, `tests/db/migrations.test.ts` |
+
+O teste de regressão da segunda revisão verifica a primeira despesa do mês. Uma receita de R$ 1.000,00 seguida de despesa de R$ 1.500,00 gera um alerta de R$ 1.000,00 para −R$ 500,00. O CI do commit `c6f27935` passou em lint, TypeScript, testes, bundle Android e Security Rules. A suíte local passou com 1.357 testes. [PR #68](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/68) · [Evidências automatizadas](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/68#issuecomment-7145909827)
+
+#### Evidências em aparelho
+
+- [Vídeo de cálculo, saldo anterior e alerta de saldo negativo](https://drive.google.com/file/d/1bzPuHIE8uPcJ_E2SL_Ng1SwmvkodmnqE/view?usp=sharing).
+- [Vídeo de operação offline e persistência local](https://drive.google.com/file/d/1yUUsnCr9aooEZxaW_cgx67YSB6tfooTj/view?usp=sharing).
+
+Os dois vídeos foram gravados no iPhone com Expo Go e estão registrados no [comentário de evidências do PR #68](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/pull/68#issuecomment-7069542410). A prova em aparelho de envio e restauração autenticados pelo Firebase permanece pendente até a integração da [autenticação do UC10](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/61). O [checklist da issue #31](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/31) acompanha a aprovação técnica e a publicação.
+
 ---
 
 ## UC05 - Monitorar limites de gastos
