@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Redirect, router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { Aviso } from '@/components/conta/Aviso';
 import { Botao } from '@/components/conta/Botao';
 import { DialogoConta } from '@/components/conta/DialogoConta';
+import { EditarPerfil } from '@/components/conta/EditarPerfil';
 import { TelaConta } from '@/components/conta/TelaConta';
+import { AutorizacaoDeRemocaoIndisponivel, remocaoConta } from '@/features/conta/remocao';
+import { salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { obterServicoConta } from '@/features/conta/service';
 import { useSessao } from '@/features/conta/sessao';
 import { MSG } from '@/features/conta/validation';
@@ -16,6 +19,11 @@ import { cores } from '@/lib/theme';
  */
 export default function Conta() {
   const sessao = useSessao();
+  const [confirmandoExclusao, setConfirmandoExclusao] = useState(false);
+  const [excluindo, setExcluindo] = useState(false);
+  const [excluida, setExcluida] = useState(false);
+  const exclusaoEmAndamento = useRef(false);
+  const [editando, setEditando] = useState(false);
   const [encerrada, setEncerrada] = useState(false);
   const [saindo, setSaindo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -60,6 +68,49 @@ export default function Conta() {
     }
   }
 
+  async function excluirConta() {
+    if (sessao.status !== 'ativa' || exclusaoEmAndamento.current) return;
+    exclusaoEmAndamento.current = true;
+    setExcluindo(true);
+    setErro(null);
+    try {
+      await remocaoConta.excluir(sessao.uid);
+      await salvarContinuidadeSemConta();
+      setExcluida(true);
+    } catch (falha) {
+      setErro(falha instanceof AutorizacaoDeRemocaoIndisponivel
+        ? 'Não foi possível autorizar a exclusão. Conecte-se à internet e tente novamente.'
+        : 'Não foi possível excluir a conta. Nenhuma alteração foi feita. Tente novamente.');
+    } finally {
+      exclusaoEmAndamento.current = false;
+      setConfirmandoExclusao(false);
+      setExcluindo(false);
+    }
+  }
+
+  if (excluida) {
+    return (
+      <TelaConta titulo="Conta excluída neste aparelho"
+        subtitulo="A base local foi apagada. O pedido de remoção no servidor será enviado assim que houver conexão.">
+        <Botao rotulo="Continuar sem conta" onPress={() => router.replace('/')} />
+      </TelaConta>
+    );
+  }
+
+  if (confirmandoExclusao && (sessao.status === 'ativa' || excluindo)) {
+    return (
+      <TelaConta titulo="Excluir conta" onVoltar={() => {
+        if (!exclusaoEmAndamento.current) setConfirmandoExclusao(false);
+      }}>
+        <Aviso tipo="info" texto="Serão removidos o perfil, lançamentos, categorias, metas, conquistas, pontuação, preferências e participações em grupos." />
+        <Aviso tipo="info" texto="A base deste aparelho será apagada na confirmação. A remoção no servidor ocorre em até 30 dias e nos backups em até 60 dias." />
+        <Aviso tipo="erro" texto="A exclusão é definitiva." />
+        <Botao rotulo="Excluir conta definitivamente" tipo="perigo" onPress={excluirConta} carregando={excluindo} />
+        <Botao rotulo="Cancelar" tipo="link" onPress={() => setConfirmandoExclusao(false)} desabilitado={excluindo} />
+      </TelaConta>
+    );
+  }
+
   if (encerrada) {
     return (
       <TelaConta titulo="Sessão encerrada" subtitulo="Seus dados continuam disponíveis neste aparelho.">
@@ -71,8 +122,12 @@ export default function Conta() {
 
   if (sessao.status === 'sem-sessao') return <Redirect href="/conta/entrar" />;
 
+  if (editando) {
+    return <EditarPerfil key={sessao.uid} perfil={sessao} voltar={() => setEditando(false)} />;
+  }
+
   return (
-    <TelaConta titulo="Conta" subtitulo="Sincronização ativa neste aparelho." onVoltar={() => router.back()}>
+    <TelaConta titulo="Perfil" subtitulo="Sincronização ativa neste aparelho." onVoltar={() => router.back()}>
       <View style={estilos.cartao}>
         <Text style={estilos.rotulo}>E-mail</Text>
         <Text style={estilos.email}>{sessao.email}</Text>
@@ -80,7 +135,10 @@ export default function Conta() {
 
       {erro ? <Aviso tipo="erro" texto={erro} /> : null}
 
+      <Botao rotulo="Editar perfil" onPress={() => setEditando(true)} />
       <Botao rotulo="Sair" tipo="contorno" onPress={aoAcionarSair} carregando={saindo} testID="sair" />
+
+      <Botao rotulo="Excluir conta" tipo="perigo" onPress={() => setConfirmandoExclusao(true)} desabilitado={saindo} />
 
       <DialogoConta
         testID="dialogo-pendentes"

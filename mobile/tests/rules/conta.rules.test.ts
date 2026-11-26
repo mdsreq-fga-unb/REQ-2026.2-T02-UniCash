@@ -1,7 +1,7 @@
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { deleteDoc, deleteField, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
 
 /**
  * UC10: perfil em usuarios/{uid}. Roda no Firestore Emulator: npm run test:rules
@@ -70,6 +70,20 @@ describe('perfil: acesso (RNF02, RNF03)', () => {
   it('perfil de outro usuário negado na alteração', async () => {
     await semear('u1', { email: 'ana@exemplo.com', criado_em: Timestamp.now() });
     await assertFails(updateDoc(doc(db('u2', bia), 'usuarios', 'u1'), { nome: 'Invasora' }));
+  });
+
+  it.each(['preparado', 'solicitado', 'concluido'])('aplica o estado de remoção %s a tokens já emitidos', async (estado) => {
+    await semear('u1', { email: 'ana@exemplo.com', criado_em: Timestamp.now() });
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), 'pedidos_remocao', 'u1'), { estado });
+    });
+    const dono = db('u1');
+    await assertFails(getDoc(doc(dono, 'pedidos_remocao', 'u1')));
+    await assertFails(updateDoc(doc(dono, 'pedidos_remocao', 'u1'), { estado: 'preparado' }));
+    const leitura = getDoc(doc(dono, 'usuarios', 'u1'));
+    const escrita = updateDoc(doc(dono, 'usuarios', 'u1'), { nome: 'Ana' });
+    if (estado === 'preparado') await Promise.all([assertSucceeds(leitura), assertSucceeds(escrita)]);
+    else await Promise.all([assertFails(leitura), assertFails(escrita)]);
   });
 
   it('sem autenticação nada é lido nem gravado', async () => {
@@ -148,12 +162,7 @@ describe('perfil: cadastro (A5, RNF04)', () => {
   });
 });
 
-// PENDENTE (UC11): a regra de update do perfil dá "evaluation error" no emulador para toda atualização feita
-// pelo próprio dono (a criação, usada no cadastro do UC10, passa). Causa ainda não identificada; ver
-// RASTREABILIDADE.md, seção 5.4. Remover o .skip quando a regra for corrigida.
-describe.skip('perfil: alteração (UC11)', () => {
-  // Data real gravada no servidor: um Timestamp antigo e fixo no documento existente fazia a regra de update
-  // dar erro de avaliação no emulador (diagnóstico do UC11).
+describe('perfil: alteração (UC11)', () => {
   const criado_em = Timestamp.now();
   beforeEach(() => semear('u1', { email: 'ana@exemplo.com', criado_em }));
 
@@ -172,6 +181,10 @@ describe.skip('perfil: alteração (UC11)', () => {
 
   it('recusa e-mail que não bate com o da conta', async () => {
     await assertFails(updateDoc(doc(db('u1'), 'usuarios', 'u1'), { email: 'outra@exemplo.com' }));
+  });
+
+  it('recusa remover o e-mail obrigatório', async () => {
+    await assertFails(updateDoc(doc(db('u1'), 'usuarios', 'u1'), { email: deleteField() }));
   });
 
   it('recusa mudar criado_em', async () => {

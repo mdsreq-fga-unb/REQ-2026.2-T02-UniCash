@@ -1,6 +1,7 @@
 import { criarAuthFirebase, iniciarObservadorDeSessao } from './auth.firebase';
 import { criarContaServiceFirebase } from './service.firebase';
 import { definirServicoConta } from './service';
+import { prepararRemocao } from './remocao';
 import { aoMudarSessao, obterSessao } from './sessao';
 import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { definirSincronizacao, obterSincronizacao } from './sync';
@@ -25,6 +26,7 @@ export function iniciarConta() {
   aoMudarSessao((s) => {
     const sync = obterSincronizacao();
     if (s.status === 'ativa') {
+      void prepararRemocao(s.uid).catch(() => {});
       sync
         .retomar(s.uid)
         .then(() => sync.restaurarSeAparelhoVazio(s.uid))

@@ -16,6 +16,7 @@ import {
   type User,
 } from 'firebase/auth';
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { obterRemocaoConfirmada } from '@/db/database';
 import { auth, db, firebaseConfigurado } from '@/lib/firebase';
 import { comTimeout, traduzirErroFirebase } from './firebase-erros';
 import { definirSessao, obterSessao } from './sessao';
@@ -37,7 +38,17 @@ function sessaoDe(u: User | null): SessionState {
 export function iniciarObservadorDeSessao(): () => void {
   // Sem as variáveis EXPO_PUBLIC_FIREBASE_*, `auth` é um stub offline sem observador: a sessão fica "sem-sessao".
   if (!firebaseConfigurado) return () => {};
-  return onAuthStateChanged(auth, (u) => definirSessao(sessaoDe(u)));
+  return onAuthStateChanged(auth, async (u) => {
+    const sessao = sessaoDe(u);
+    if (sessao.status === 'sem-sessao') {
+      definirSessao(sessao);
+      return;
+    }
+    const removida = await obterRemocaoConfirmada(sessao.uid).catch(() => true);
+    if (auth.currentUser?.uid === sessao.uid) {
+      definirSessao(removida ? { status: 'sem-sessao' } : sessao);
+    }
+  });
 }
 
 /** Usuário do Firebase atual, mesmo sem e-mail confirmado (necessário para reenviar e verificar a ligação). */
@@ -105,6 +116,10 @@ export function criarAuthFirebase(): AuthService {
         throw traduzirErroFirebase(e); // EX04, EX05
       }
       if (!u.emailVerified) throw new ErroConta('email-nao-confirmado'); // EX11
+      if (await obterRemocaoConfirmada(u.uid)) {
+        await fbSignOut(auth);
+        throw new ErroConta('credenciais');
+      }
       definirSessao(sessaoDe(u));
     },
 
@@ -182,15 +197,22 @@ export function criarAuthFirebase(): AuthService {
       }
     },
 
-    async confirmEmailChange(codigo) {
+    async confirmEmailChange(codigo, emailEsperado) {
       try {
-        await applyActionCode(auth, codigo);
         const u = usuarioAtual();
+        if (codigo) await applyActionCode(auth, codigo);
         await u.reload();
-        await u.getIdToken(true);
-        if (u.email) {
-          await comTimeout(updateDoc(doc(db, 'usuarios', u.uid), { email: u.email, atualizado_em: serverTimestamp() }));
+        if (!u.emailVerified || !u.email ||
+            (emailEsperado && u.email.toLowerCase() !== emailEsperado.toLowerCase())) {
+          throw new ErroConta('email-nao-confirmado');
         }
+        if (auth.currentUser?.uid !== u.uid) throw new ErroConta('credenciais');
+        await u.getIdToken(true);
+        await comTimeout(updateDoc(doc(db, 'usuarios', u.uid), {
+          email: u.email,
+          atualizado_em: serverTimestamp(),
+        }));
+        if (auth.currentUser?.uid !== u.uid) throw new ErroConta('credenciais');
         definirSessao(sessaoDe(u));
       } catch (e) {
         throw traduzirErroFirebase(e);

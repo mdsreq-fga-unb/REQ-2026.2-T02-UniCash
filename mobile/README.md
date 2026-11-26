@@ -175,3 +175,17 @@ O botão *Run workflow* só aparece depois que o arquivo do workflow chega na br
 - `src/lib/firebase.ts` — inicialização do Firebase (`auth` e `db`)
 - `app.json` — nome, identificadores (`br.unb.unicash`), plugins
 - `eas.json` — perfis de build e ambientes do EAS
+## UC11 — Remoção de conta
+
+O app obtém uma autorização de remoção enquanto a sessão está ativa e há conexão. Depois disso, pode confirmar a exclusão offline. O SQLite registra a auditoria e apaga os dados da conta. O pedido fica no aparelho até ser aceito pelo servidor e é reenviado com o app em execução quando a conexão voltar.
+
+Para testar a remoção remota, rode na raiz do repositório, com Node.js 22, Java e Firebase CLI:
+
+```sh
+npm ci --prefix functions
+firebase emulators:exec --project demo-unicash --only auth,firestore,functions 'node --test functions/remocao.emulator.test.js'
+```
+
+Para testar no aparelho, inicie os três emuladores com `firebase emulators:start`, configure o app para o mesmo projeto e defina `EXPO_PUBLIC_EMULATOR_HOST` com o IP da máquina. Confirme uma conta, mantenha o app online até obter a autorização, desligue a rede e exclua a conta. Após verificar o uso sem conta, volte à rede com o app aberto e confira no emulador que o usuário e suas subcoleções foram removidos.
+
+O ambiente de produção precisa publicar as Cloud Functions e as regras juntas e configurar a retenção dos backups para respeitar o limite de 60 dias. A fila local depende de o app voltar a executar com conexão e de o armazenamento do aparelho permanecer disponível até o envio.

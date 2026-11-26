@@ -14,6 +14,8 @@ jest.mock('@/lib/firebase', () => ({
   },
 }));
 
+jest.mock('@/db/database', () => ({ obterRemocaoConfirmada: async () => false }));
+
 jest.mock('firebase/auth', () => ({
   applyActionCode: jest.fn(),
   confirmPasswordReset: jest.fn(),
@@ -232,11 +234,13 @@ describe('observador de sessão', () => {
 
   function ouvinte() {
     iniciarObservadorDeSessao();
-    return m(fa.onAuthStateChanged).mock.calls[0][1] as (u: unknown) => void;
+    return m(fa.onAuthStateChanged).mock.calls[0][1] as (u: unknown) => Promise<void>;
   }
 
-  it('e-mail confirmado vira sessão ativa (restaura a sessão ao abrir o app)', () => {
-    ouvinte()(usuario({ emailVerified: true }));
+  it('e-mail confirmado vira sessão ativa (restaura a sessão ao abrir o app)', async () => {
+    const u = usuario({ emailVerified: true });
+    setCurrentUser(u);
+    await ouvinte()(u);
     expect(obterSessao()).toEqual({ status: 'ativa', uid: 'u1', email: 'ana@exemplo.com' });
   });
 
@@ -423,6 +427,31 @@ describe('requestEmailChange e confirmEmailChange (UC11)', () => {
       { email: 'novo@exemplo.com', atualizado_em: 'TS' },
     );
     expect(obterSessao()).toEqual({ status: 'ativa', uid: 'u1', email: 'novo@exemplo.com' });
+  });
+
+  it('verifica a confirmação feita no navegador sem reaplicar o código', async () => {
+    const u = usuario({ emailVerified: true });
+    u.reload.mockImplementation(async () => {
+      u.email = 'novo@exemplo.com';
+    });
+    setCurrentUser(u);
+
+    await criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com');
+
+    expect(fa.applyActionCode).not.toHaveBeenCalled();
+    expect(ff.updateDoc).toHaveBeenCalledWith(
+      { path: 'usuarios/u1' },
+      { email: 'novo@exemplo.com', atualizado_em: 'TS' },
+    );
+  });
+
+  it('preserva o perfil enquanto o novo e-mail não foi confirmado', async () => {
+    setCurrentUser(usuario({ emailVerified: true }));
+
+    await expect(criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com'))
+      .rejects.toMatchObject({ codigo: 'email-nao-confirmado' });
+
+    expect(ff.updateDoc).not.toHaveBeenCalled();
   });
 
   it('código expirado não altera o perfil', async () => {
