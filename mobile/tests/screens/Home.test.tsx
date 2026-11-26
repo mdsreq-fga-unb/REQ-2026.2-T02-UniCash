@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
 import Home from '@/app/index';
+import { definirSessao } from '@/features/conta/sessao';
+import { resetarContinuidadeSemConta, salvarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { calcularResumo } from '@/features/resumo/service';
 import { router } from '../helpers/expoRouterMock';
 
@@ -16,11 +18,19 @@ const hoje = new Date();
 describe('Home (navegação da UC06)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    definirSessao({ status: 'sem-sessao' });
+    resetarContinuidadeSemConta();
     // Cálculo que nunca termina: os atalhos não podem depender do resumo carregado.
     (calcularResumo as jest.Mock).mockReturnValue(new Promise(() => {}));
   });
 
+  it('abre o cadastro na primeira inicialização sem sessão', async () => {
+    await render(<Home />);
+    expect(await screen.findByText('redirect:/conta/cadastro')).toBeTruthy();
+  });
+
   it('oferece acesso a Categorias e navega para /categorias', async () => {
+    await salvarContinuidadeSemConta();
     await render(<Home />);
 
     expect(await screen.findByRole('button', { name: 'Categorias' })).toBeTruthy();
@@ -28,7 +38,16 @@ describe('Home (navegação da UC06)', () => {
     expect(router.push).toHaveBeenCalledWith('/categorias');
   });
 
+  it('abre as preferências de alertas de limite da UC05', async () => {
+    await salvarContinuidadeSemConta();
+    await render(<Home />);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Preferências de alertas' }));
+    expect(router.push).toHaveBeenCalledWith('/preferencias-alertas');
+  });
+
   it('mantém o acesso a Receitas', async () => {
+    await salvarContinuidadeSemConta();
     await render(<Home />);
 
     expect(await screen.findByRole('button', { name: 'Receitas' })).toBeTruthy();

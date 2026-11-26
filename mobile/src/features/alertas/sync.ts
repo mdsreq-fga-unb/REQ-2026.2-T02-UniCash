@@ -19,14 +19,14 @@ function alertaValido(dados: Record<string, unknown>): dados is AlertaRemoto {
 }
 
 export async function sincronizarAlertas(sqlite: SQLiteDatabase, uid: string) {
-  const excluidas = await sqlite.getAllAsync<{ id: string }>(
-    "SELECT id FROM categorias WHERE excluido_em IS NOT NULL AND sync_status = 'sincronizado'",
+  const excluidas = await sqlite.getAllAsync<Pick<Categoria, 'id' | 'padrao' | 'nome_normalizado'>>(
+    "SELECT id, padrao, nome_normalizado FROM categorias WHERE excluido_em IS NOT NULL AND sync_status = 'sincronizado'",
   );
   if (excluidas.length) {
-    const idsExcluidos = new Set(excluidas.map(({ id }) => id));
+    const idsExcluidos = new Set(excluidas.map(docIdCategoriaRemota));
     const snapshot = await getDocs(collection(firestore, 'usuarios', uid, 'alertas'));
     for (const remoto of snapshot.docs) {
-      if (auth.currentUser?.uid !== uid) return;
+      if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) return;
       if (idsExcluidos.has(remoto.data().ref_id)) {
         await deleteDoc(doc(firestore, 'usuarios', uid, 'alertas', remoto.id));
       }
@@ -40,7 +40,7 @@ export async function sincronizarAlertas(sqlite: SQLiteDatabase, uid: string) {
   );
 
   for (const alerta of pendentes) {
-    if (auth.currentUser?.uid !== uid) return;
+    if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) return;
     const { tipo, ref_id, periodo, categoria_nome, gasto_centavos, limite_centavos, emitido_em } = alerta;
     const categoria = await sqlite.getFirstAsync<Categoria>('SELECT * FROM categorias WHERE id = ?', [ref_id]);
     if (!categoria || categoria.excluido_em) continue;
@@ -53,7 +53,7 @@ export async function sincronizarAlertas(sqlite: SQLiteDatabase, uid: string) {
       [uid, tipo, ref_id, periodo],
     );
     await runTransaction(firestore, async (tx) => {
-      if (auth.currentUser?.uid !== uid) throw new Error('Conta alterada durante a sincronização de alertas.');
+      if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) throw new Error('Conta alterada durante a sincronização de alertas.');
       if (!(await tx.get(ref)).exists()) tx.set(ref, dados);
     });
     await sqlite.runAsync(
@@ -69,7 +69,7 @@ export async function restaurarAlertas(sqlite: SQLiteDatabase, uid: string) {
   if (!snapshot.docs.length) return;
 
   await sqlite.withExclusiveTransactionAsync(async (tx) => {
-    if (auth.currentUser?.uid !== uid) return;
+    if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) return;
     for (const doc of snapshot.docs) {
       const dados = doc.data();
       if (!alertaValido(dados)) continue;

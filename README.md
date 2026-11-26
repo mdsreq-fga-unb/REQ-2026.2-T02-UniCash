@@ -51,6 +51,10 @@ Leia o QR code com o [Expo Go](https://expo.dev/go) no celular. As chaves do Fir
 
 Toda mudança parte de uma issue, segue em uma branch com prefixo (`feat/`, `fix/`, `docs/`, `chore/`) e entra por pull request com commits no padrão Conventional Commits. Os detalhes estão em [CONTRIBUTING](.github/CONTRIBUTING.md). Leia também o [código de conduta](.github/CODE_OF_CONDUCT.md), a [política de segurança](.github/SECURITY.md) e as [diretrizes de acessibilidade](.github/ACCESSIBILITY.md).
 
+## Uso de IA
+
+Este trabalho contou com apoio de ferramentas de inteligência artificial na análise dos requisitos, na redação da documentação, na geração de código e testes e na revisão. Todo o conteúdo foi conferido, ajustado e validado pela equipe, que é responsável pelas decisões e pelo resultado final.
+
 ## Equipe SevenSpecs
 
 Bruno Duarte · Caio Pacheco · Dante Scarpati · Erick Alves · Evellyn Rocha · Leonardo Alves · Natan França

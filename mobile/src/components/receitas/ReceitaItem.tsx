@@ -18,11 +18,11 @@ export function ReceitaItem({ receita, onPress }: { receita: Receita; onPress: (
           Receita · {formatarBR(receita.data)}
           {receita.recorrencia_id ? ' · Recorrente' : ''}
         </Text>
-        {receita.sync_status === 'pendente' ? (
-          <View style={estilos.chip}>
-            <Text style={estilos.chipTexto}>Sincronização pendente</Text>
-          </View>
-        ) : null}
+        <View style={estilos.chip}>
+          <Text style={estilos.chipTexto}>
+            {receita.sync_status === 'pendente' ? 'Sincronização pendente' : 'Sincronizado'}
+          </Text>
+        </View>
       </View>
       <Text style={estilos.valor}>+ {formatarBRL(receita.valor_centavos)}</Text>
       <Text style={estilos.seta}>›</Text>

@@ -92,7 +92,7 @@ Problemas comuns:
 | `w` não abre a web | abra `http://localhost:8081` no seu navegador |
 | `auth/invalid-api-key` | variáveis `EXPO_PUBLIC_FIREBASE_*` vazias no `.env` da raiz; suba o container de novo |
 
-Depois de mudar o `package.json`, reconstrua a imagem: `docker compose build mobile`. Para instalar uma dependência pelo container: `docker compose run --rm mobile npx expo install <pacote>`.
+Ao subir, o container compara o `package-lock.json` com a última instalação e roda `npm ci` sozinho se ele mudou, então depois de um `git pull` com dependências novas basta subir de novo. Para instalar uma dependência pelo container: `docker compose run --rm mobile npx expo install <pacote>`.
 
 ## 3. Regras para continuar compatível com o Expo Go
 

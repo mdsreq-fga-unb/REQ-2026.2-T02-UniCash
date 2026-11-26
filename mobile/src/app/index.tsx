@@ -1,13 +1,23 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { cores, raio } from '@/lib/theme';
-import { mesAnterior, nomeMes, proximoMes } from '@/features/receitas/dates';
+import { mesAnterior, nomeMes, primeiroDiaDoMes, proximoMes } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
-import { formatarSaldo, percentualMeta, rotuloDia } from '@/features/resumo/format';
+import { percentualMeta, rotuloDia } from '@/features/resumo/format';
 import { useResumo } from '@/features/resumo/useResumo';
+import { IndicadoresConsumo } from '@/components/consumo/IndicadoresConsumo';
+import { useConsumoMensal } from '@/features/consumo/useConsumoMensal';
+import { AcaoTutorial } from '@/components/tutorial/Interface';
+import { EntradaTutorial } from '@/components/tutorial/EntradaTutorial';
+import { MSG_ABERTURA_TUTORIAL } from '@/features/tutorial/conteudo';
+import { useOfertaTutorial } from '@/features/tutorial/useOfertaTutorial';
+import { PainelSaldo } from '@/components/saldo/PainelSaldo';
+
+import { useSessao } from '@/features/conta/sessao';
+import { continuarSemContaNestaSessao } from '@/features/conta/onboarding';
 
 function mesCorrente() {
   const n = new Date();
@@ -15,9 +25,19 @@ function mesCorrente() {
 }
 
 /** Resumo financeiro inicial (UC03, RF11, RF40). Somente leitura; calculado na base local. */
-export default function ResumoFinanceiro() {
+export default function Home() {
+  const sessao = useSessao();
+  if (sessao.status !== 'ativa' && !continuarSemContaNestaSessao()) return <Redirect href="/conta/cadastro" />;
+  return <ResumoFinanceiro key={sessao.status === 'ativa' ? sessao.uid : 'local'} />;
+}
+
+export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean }) {
+
   // Passo 2: o mês corrente é o período padrão (RN12).
+  const ofertaTutorial = useOfertaTutorial(!noTutorial);
   const [periodo, setPeriodo] = useState(mesCorrente);
+  const inicio = primeiroDiaDoMes(periodo.ano, periodo.mes);
+  const consumo = useConsumoMensal(inicio.slice(0, 7));
   const { resumo, falhou, recarregar } = useResumo(periodo.ano, periodo.mes);
   // Só exibe valores calculados para o mês selecionado: ao trocar de mês, os do mês anterior
   // não podem aparecer sob o título novo enquanto o recálculo não termina.
@@ -30,12 +50,37 @@ export default function ResumoFinanceiro() {
     }, [recarregar]),
   );
 
+  if (ofertaTutorial.verificando) {
+    return (
+      <SafeAreaView style={estilos.tela}>
+        <ActivityIndicator color={cores.primaria} accessibilityLabel="Preparando resumo" />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <ScrollView contentContainerStyle={estilos.conteudo}>
-        <Text style={estilos.titulo} accessibilityRole="header">
-          Resumo financeiro
-        </Text>
+        <View style={estilos.cabecalho}>
+          <Text style={estilos.titulo} accessibilityRole="header">
+            Resumo financeiro
+          </Text>
+          {noTutorial ? (
+            <Pressable onPress={() => router.back()} style={estilos.ajuda} accessibilityRole="button">
+              <Text style={estilos.botaoContornoTexto}>Voltar ao tutorial</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => router.push('/ajuda')} style={estilos.ajuda} accessibilityRole="button">
+              <Text style={estilos.botaoContornoTexto}>Ajuda</Text>
+            </Pressable>
+          )}
+        </View>
+        {ofertaTutorial.falhou && (
+          <View style={estilos.secao}>
+            <Text style={estilos.erro} accessibilityRole="alert">{MSG_ABERTURA_TUTORIAL}</Text>
+            <AcaoTutorial texto="Tentar novamente" onPress={ofertaTutorial.tentarNovamente} />
+          </View>
+        )}
 
         <Pressable
           onPress={() => router.push('/preferencias-alertas')}
@@ -69,6 +114,15 @@ export default function ResumoFinanceiro() {
           </Pressable>
         </View>
 
+        {resumoDoPeriodo && !falhou && (
+          <PainelSaldo
+            key={inicio}
+            inicio={inicio}
+            receitas={resumoDoPeriodo.totalReceitasCentavos}
+            despesas={resumoDoPeriodo.totalDespesasCentavos}
+          />
+        )}
+
         {falhou ? (
           <View style={estilos.vazio}>
             <Text style={estilos.erro}>{MSG_FALHA_CALCULO}</Text>
@@ -78,30 +132,28 @@ export default function ResumoFinanceiro() {
           </View>
         ) : !resumoDoPeriodo ? (
           <ActivityIndicator color={cores.primaria} style={{ marginTop: 32 }} testID="carregando" />
-        ) : resumoDoPeriodo.semLancamentos ? (
+        ) : resumoDoPeriodo.semLancamentos && !noTutorial ? (
           <EstadoVazio />
         ) : (
           <Conteudo resumo={resumoDoPeriodo} />
         )}
 
-        <Atalhos ano={periodo.ano} mes={periodo.mes} />
+        {!noTutorial && (
+          <View style={estilos.vazio}>
+            <Text accessibilityRole="header" style={estilos.titulo}>Consumo por categoria</Text>
+            <IndicadoresConsumo estado={consumo.estado} aoTentarNovamente={consumo.tentarNovamente} />
+          </View>
+        )}
+
+        {!noTutorial && <Atalhos ano={periodo.ano} mes={periodo.mes} />}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 function Conteudo({ resumo }: { resumo: ResumoMensal }) {
-  const saldoNegativo = resumo.saldoCentavos < 0;
   return (
     <View>
-      <View style={estilos.cartaoSaldo}>
-        <Text style={estilos.rotuloClaro}>Saldo do mês</Text>
-        <Text style={estilos.saldo} testID="saldo">
-          {formatarSaldo(resumo.saldoCentavos)}
-        </Text>
-        <Text style={estilos.rotuloClaro}>{saldoNegativo ? 'Saídas maiores que entradas' : 'Entradas menos saídas'}</Text>
-      </View>
-
       <View style={estilos.linha}>
         <View style={estilos.cartao}>
           <Text style={estilos.rotulo}>Receitas</Text>
@@ -186,6 +238,15 @@ function Atalhos({ ano, mes }: { ano: number; mes: number }) {
       <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
         <Text style={estilos.botaoTexto}>Categorias</Text>
       </Pressable>
+      <Pressable onPress={() => router.push('/sincronizacao')} style={estilos.botao} accessibilityRole="button">
+        <Text style={estilos.botaoTexto}>Sincronização</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push('/configuracoes-financeiras')} style={estilos.botao} accessibilityRole="button">
+        <Text style={estilos.botaoTexto}>Configurações financeiras</Text>
+      </Pressable>
+      <Pressable onPress={() => router.push('/conta')} style={estilos.botao} accessibilityRole="button">
+        <Text style={estilos.botaoTexto}>Conta</Text>
+      </Pressable>
     </View>
   );
 }
@@ -198,9 +259,7 @@ function EstadoVazio() {
       <Text style={estilos.vazioTexto}>
         Registre receitas e despesas para ver aqui o saldo e os totais do mês.
       </Text>
-      <Pressable onPress={() => router.push('/tutorial')} style={estilos.botao} accessibilityRole="button">
-        <Text style={estilos.botaoTexto}>Ver tutorial</Text>
-      </Pressable>
+      <EntradaTutorial texto="Ver tutorial" />
       <View style={estilos.linha}>
         <Pressable onPress={() => router.push('/receitas/nova')} style={estilos.botaoContorno} accessibilityRole="button">
           <Text style={estilos.botaoContornoTexto}>Registrar receita</Text>
@@ -222,7 +281,9 @@ function EstadoVazio() {
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
-  titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  ajuda: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, marginBottom: 12 },
+  titulo: { flexShrink: 1, fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
   seletor: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -235,9 +296,6 @@ const estilos = StyleSheet.create({
   seta: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   setaTexto: { fontSize: 26, color: cores.primaria, fontWeight: '700' },
   mes: { fontSize: 16, fontWeight: '700', color: cores.marinho, flexShrink: 1, textAlign: 'center' },
-  cartaoSaldo: { backgroundColor: cores.marinho, borderRadius: raio.cartao, padding: 18, marginBottom: 12 },
-  rotuloClaro: { fontSize: 12, color: cores.claro },
-  saldo: { fontSize: 28, fontWeight: '800', color: cores.branco, marginVertical: 4 },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
   cartao: {
     flexGrow: 1,

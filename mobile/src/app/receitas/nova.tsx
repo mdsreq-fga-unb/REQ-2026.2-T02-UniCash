@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ReceitaForm } from '@/components/receitas/ReceitaForm';
 import { registrarReceita } from '@/features/receitas/service';
@@ -10,6 +10,7 @@ import type { ReceitaInput } from '@/features/receitas/types';
 import { cores } from '@/lib/theme';
 
 export default function NovaReceita() {
+  const { tutorial } = useLocalSearchParams<{ tutorial?: string }>();
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -34,9 +35,12 @@ export default function NovaReceita() {
         textoSalvar="Salvar receita"
         salvando={salvando}
         erroGeral={erro}
+        textoCancelar={tutorial === '1' && erro ? 'Voltar à etapa' : undefined}
         onSalvar={salvar}
         onCancelar={() => router.back()}
-        onTrocarTipo={() => router.replace('/despesas/nova')}
+        onTrocarTipo={() => router.replace(tutorial === '1'
+          ? { pathname: '/despesas/nova', params: { tutorial } }
+          : '/despesas/nova')}
       />
     </SafeAreaView>
   );

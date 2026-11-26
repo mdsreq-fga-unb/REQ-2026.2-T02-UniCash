@@ -46,6 +46,7 @@ export function mascararValor(texto: string): string {
 }
 
 export function formatarBRL(centavos: number): string {
+  if (centavos < 0) return `−${formatarBRL(-centavos)}`;
   const inteiro = Math.floor(centavos / 100).toString();
   const frac = (centavos % 100).toString().padStart(2, '0');
   return `R$ ${agrupar(inteiro)},${frac}`;

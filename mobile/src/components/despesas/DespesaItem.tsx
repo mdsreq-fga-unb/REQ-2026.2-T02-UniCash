@@ -45,11 +45,11 @@ export function DespesaItem({
           <Text style={estilos.classificacao}>{classificacao}</Text>
         ) : null}
 
-        {despesa.sync_status === 'pendente' ? (
-          <View style={estilos.chip}>
-            <Text style={estilos.chipTexto}>Sincronização pendente</Text>
-          </View>
-        ) : null}
+        <View style={estilos.chip}>
+          <Text style={estilos.chipTexto}>
+            {despesa.sync_status === 'pendente' ? 'Sincronização pendente' : 'Sincronizado'}
+          </Text>
+        </View>
       </View>
 
       <Text style={estilos.valor}>− {formatarBRL(despesa.valor_centavos)}</Text>

@@ -2,6 +2,7 @@ import { comRecalculoDeAlertas } from '@/features/alertas/service';
 import { avisarAlertasPendentes } from '@/features/alertas/evento';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
+import { registrarTransicoes } from '@/features/saldo/alertas';
 import {
   adicionarDias,
   adicionarIntervalo,
@@ -43,7 +44,7 @@ async function transacao<T>(
     let resultado!: T;
 
     await db.withExclusiveTransactionAsync(async (tx) => {
-      resultado = await comRecalculoDeAlertas(tx as unknown as SQLiteDatabase, 'despesas', fn);
+      resultado = await registrarTransicoes(tx, () => comRecalculoDeAlertas(tx, 'despesas', fn));
     });
 
     avisarAlertasPendentes();
