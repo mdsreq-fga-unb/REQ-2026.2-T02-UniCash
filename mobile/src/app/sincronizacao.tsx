@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
@@ -23,6 +23,8 @@ export default function TelaSincronizacao() {
 
 function ConteudoSincronizacao() {
   const [consulta, setConsulta] = useState<Awaited<ReturnType<typeof syncService.consultar>> | null>(null);
+  const sessao = useSessao();
+  const recarregar = useRef<(() => void) | null>(null);
   const [erro, setErro] = useState<CodigoSincronizacao | null>(null);
 
   useFocusEffect(useCallback(() => {
@@ -37,20 +39,22 @@ function ConteudoSincronizacao() {
       }).catch((falha: unknown) => {
         if (!ativo || pedido !== atual) return;
         setConsulta(null);
-        setErro(falha instanceof Error && falha.message === 'EX08' ? 'EX08' : 'EX05');
+        setErro(falha instanceof Error && falha.message === 'EX08' ? 'EX08' : 'EX07');
       });
     }
+    recarregar.current = carregar;
     const cancelar = syncService.assinar(carregar);
     carregar();
     return () => {
       ativo = false;
+      recarregar.current = null;
       cancelar();
     };
   }, []));
 
   const estado = consulta?.estado;
   const mensagem = erro ? mensagensSincronizacao[erro]
-    : estado?.codigo ? mensagensSincronizacao[estado.codigo] : null;
+    : estado?.codigo && estado.codigo !== 'EX04' ? mensagensSincronizacao[estado.codigo] : null;
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top', 'bottom']}>
@@ -80,13 +84,38 @@ function ConteudoSincronizacao() {
               ) : !erro ? <ActivityIndicator color={cores.primaria} /> : null}
               {mensagem ? <Text style={estilos.texto}>{mensagem}</Text> : null}
             </View>
-            <Pressable accessibilityRole="button"
-              accessibilityState={{ disabled: estado?.sincronizando === true, busy: estado?.sincronizando === true }}
-              disabled={estado?.sincronizando}
-              onPress={() => void syncService.sincronizarAgora()}
-              style={estilos.botao}>
-              <Text style={estilos.botaoTexto}>Sincronizar agora</Text>
-            </Pressable>
+            {erro ? (
+              <Pressable accessibilityRole="button" style={estilos.botao} onPress={() => recarregar.current?.()}>
+                <Text style={estilos.botaoTexto}>Tentar novamente</Text>
+              </Pressable>
+            ) : null}
+            {sessao.status === 'sem-sessao' || estado?.codigo === 'EX02' ? (
+              <>
+                {sessao.status === 'sem-sessao' ? (
+                  <Text style={estilos.texto}>A sincronização está inativa. Seus dados estão só neste aparelho.</Text>
+                ) : null}
+                <Pressable accessibilityRole="button" style={estilos.botao}
+                  onPress={() => router.push('/conta/entrar')}>
+                  <Text style={estilos.botaoTexto}>Entrar</Text>
+                </Pressable>
+                {sessao.status === 'sem-sessao' ? (
+                  <Pressable accessibilityRole="button" style={estilos.botao}
+                    onPress={() => router.push('/conta/cadastro')}>
+                    <Text style={estilos.botaoTexto}>Criar conta</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            ) : estado ? (
+              <Pressable accessibilityRole="button"
+                accessibilityState={{ disabled: estado.sincronizando, busy: estado.sincronizando }}
+                disabled={estado.sincronizando}
+                onPress={() => void syncService.sincronizarAgora()}
+                style={estilos.botao}>
+                <Text style={estilos.botaoTexto}>
+                  {estado.codigo === 'EX03' || estado.codigo === 'EX05' ? 'Tentar de novo' : 'Sincronizar agora'}
+                </Text>
+              </Pressable>
+            ) : null}
             <Text accessibilityRole="header" style={estilos.destaque}>Alterações pendentes</Text>
           </View>
         }
@@ -94,7 +123,19 @@ function ConteudoSincronizacao() {
         renderItem={({ item }) => (
           <View style={estilos.cartao}>
             <Text style={estilos.destaque}>{item.titulo}</Text>
-            <Text style={estilos.texto}>{item.tipo} · {item.alteracao} · Pendente</Text>
+            <Text style={estilos.texto}>
+              {item.tipo} · {item.alteracao} · {item.estado === 'erro' ? 'Erro' : 'Pendente'}
+            </Text>
+            {item.estado === 'erro' ? (
+              <>
+                <Text style={estilos.texto}>{mensagensSincronizacao.EX04}</Text>
+                <Pressable accessibilityRole="button" disabled={estado?.sincronizando}
+                  accessibilityLabel={`Tentar de novo: ${item.titulo}`}
+                  onPress={() => void syncService.sincronizarAgora()} style={estilos.botao}>
+                  <Text style={estilos.botaoTexto}>Tentar de novo</Text>
+                </Pressable>
+              </>
+            ) : null}
           </View>
         )}
         ItemSeparatorComponent={() => <View style={estilos.separador} />}
