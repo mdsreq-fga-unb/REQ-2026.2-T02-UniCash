@@ -32,6 +32,9 @@ subcoleções e rode o comando novamente para verificar o resultado idempotente.
 
 Defina com a equipe o responsável e a frequência de processamento e a política de
 backup e retenção do registro de conclusão. A limpeza automática da base SQLite
-ocorre no aparelho que enviou o pedido. Se o app for encerrado antes de gravar a
-confirmação local, a retomada depende de ainda conseguir consultar o pedido com a
-sessão do mesmo UID. A sessão de outro dispositivo não apaga o SQLite desse aparelho.
+ocorre no aparelho que enviou o pedido. Se o app for encerrado entre a gravação
+remota e a confirmação local, ele retoma a limpeza na próxima abertura quando
+encontrar o pedido ou detectar que a sessão do solicitante já foi encerrada ou
+invalidada. Nessa última situação, a confirmação por senha registrada antes do
+envio autoriza somente a limpeza local. Ela não comprova que o servidor recebeu
+o pedido. O estado remoto continua disponível para conferência administrativa.

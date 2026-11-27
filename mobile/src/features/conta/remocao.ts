@@ -27,6 +27,26 @@ async function concluirLimpeza(uid: string) {
   await AsyncStorage.removeItem(chave);
 }
 
+async function pedidoRecebidoOuSessaoPerdida(uid: string): Promise<boolean> {
+  const usuario = auth.currentUser;
+  // O estado "enviando" só é gravado após a pessoa confirmar com a senha válida.
+  // A perda da sessão encerra a verificação remota, mas a autorização local permanece.
+  if (usuario?.uid !== uid) return true;
+
+  try {
+    return (await comTimeout(getDocFromServer(pedido(uid)), 3000)).exists();
+  } catch {
+    try {
+      await comTimeout(usuario.getIdToken(true), 3000);
+    } catch (erro) {
+      const codigo = (erro as { code?: string } | null)?.code;
+      if (codigo === 'auth/user-not-found' || codigo === 'auth/user-token-expired' ||
+          codigo === 'auth/invalid-user-token' || codigo === 'auth/user-disabled') return true;
+    }
+    return auth.currentUser?.uid !== uid;
+  }
+}
+
 export async function retomarLimpezasDeConta() {
   if (!firebaseConfigurado) return;
   await auth.authStateReady();
@@ -34,11 +54,8 @@ export async function retomarLimpezasDeConta() {
     if (!chave.startsWith(PREFIXO_REMOCAO_LOCAL)) continue;
     const uid = chave.slice(PREFIXO_REMOCAO_LOCAL.length);
     const estado = await AsyncStorage.getItem(chave);
-    if (estado === 'confirmado') {
+    if (estado === 'confirmado' || (estado === 'enviando' && await pedidoRecebidoOuSessaoPerdida(uid))) {
       await concluirLimpeza(uid);
-    } else if (estado === 'enviando' && auth.currentUser?.uid === uid) {
-      const remoto = await comTimeout(getDocFromServer(pedido(uid)), 3000).catch(() => null);
-      if (remoto?.exists()) await concluirLimpeza(uid);
     }
   }
 }
