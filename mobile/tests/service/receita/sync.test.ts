@@ -35,6 +35,7 @@ import {
   excluirCategoria,
   semearCategoriasPadrao,
 } from '@/features/categorias/service';
+import { criarMeta } from '@/features/metas/service';
 import { lerSaldoInicial, salvarSaldoInicial } from '@/features/saldoInicial/service';
 import type { Categoria } from '@/features/categorias/types';
 
@@ -42,6 +43,7 @@ import type { Categoria } from '@/features/categorias/types';
 const mockNuvem = new Map<string, any>();
 let mockUsuario: { uid: string; emailVerified: boolean } | null = { uid: 'u1', emailVerified: true };
 let mockRedeFora = false;
+let mockErroGetDocsMetas: unknown = null;
 let mockLeiturasRemotas = 0;
 const mockDocumentosLidos: string[] = [];
 let mockCodigoErro = 'unavailable';
@@ -82,6 +84,11 @@ jest.mock('firebase/firestore', () => ({
   },
   getDocs: async (col: any) => {
     if (mockRedeFora) throw Object.assign(new Error(mockCodigoErro), { code: mockCodigoErro });
+    if (col.path.endsWith('/metas') && mockErroGetDocsMetas) {
+      const erro = mockErroGetDocsMetas;
+      mockErroGetDocsMetas = null;
+      throw erro;
+    }
     if (mockCaminhosRejeitados.has(col.path)) {
       throw Object.assign(new Error('permission-denied'), { code: 'permission-denied' });
     }
@@ -4606,6 +4613,149 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
       expect(await AsyncStorage.getItem('unicash:envio_automatico_pausado:u1')).toBe('1');
       await definirEnvioAutomatico(true);
       expect(await AsyncStorage.getItem('unicash:envio_automatico_pausado:u1')).toBeNull();
+    });
+  });
+});
+
+describe('UC12 — metas na sincronização geral', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUsuario = { uid: 'u1', emailVerified: true };
+    mockRedeFora = false;
+    mockErroGetDocsMetas = null;
+    mockNuvem.clear();
+    mockCaminhosRejeitados.clear();
+    mockOrdemEscritas.length = 0;
+    mockAntesDaTransacao = null;
+    mockErroTransacao = null;
+    mockTrocarUsuario = false;
+    mockAuthReadyFalha = false;
+    mockLeiturasUsuario = 0;
+    consumirAcessoNegado();
+  });
+
+  it('não sincroniza metas sem e-mail confirmado (UC10)', async () => {
+    const banco = instalarBanco();
+    const id = await criarMeta({
+      objetivo: 'Viagem',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+    });
+    mockUsuario = { uid: 'u1', emailVerified: false };
+
+    await expect(sincronizarPendentes()).resolves.toBe(false);
+    expect(banco.sqlite.prepare('SELECT sync_status FROM metas WHERE id = ?').get(id)).toEqual({
+      sync_status: 'pendente',
+    });
+    expect(mockNuvem.has(`usuarios/u1/metas/${id}`)).toBe(false);
+  });
+
+  it('restaura metas somente do UID atual', async () => {
+    const banco = instalarBanco();
+    mockUsuario = { uid: 'u1', emailVerified: true };
+    const remota = {
+      objetivo: 'Viagem',
+      tipo: 'investimento',
+      valor_alvo_centavos: 100_000,
+      prazo: '2027-12-31',
+      excluido_em: null,
+      criado_em: '2026-01-01T00:00:00Z',
+      atualizado_em: '2026-01-02T00:00:00Z',
+    };
+    mockNuvem.set('usuarios/u1/metas/m1', remota);
+    mockNuvem.set('usuarios/u2/metas/m2', { ...remota, objetivo: 'Meta alheia' });
+
+    const r = await restaurarDaNuvem();
+
+    expect(r.metas).toBe(1);
+    expect(banco.sqlite.prepare("SELECT COUNT(*) AS n FROM metas WHERE id = 'm1'").get()).toEqual({ n: 1 });
+    expect(banco.sqlite.prepare("SELECT COUNT(*) AS n FROM metas WHERE id = 'm2'").get()).toEqual({ n: 0 });
+  });
+
+  it('falha de rede nas metas não bloqueia a sincronização financeira', async () => {
+    const banco = instalarBanco();
+    const id = await criarMeta({
+      objetivo: 'Viagem',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+    });
+    mockErroTransacao = Object.assign(new Error('unavailable'), { code: 'unavailable' });
+
+    await expect(sincronizarPendentes()).resolves.toBe(false);
+    expect(banco.sqlite.prepare('SELECT sync_status FROM metas WHERE id = ?').get(id)).toEqual({
+      sync_status: 'pendente',
+    });
+  });
+
+  it('permission-denied nas metas sinaliza acesso negado sem bloquear o restante', async () => {
+    instalarBanco();
+    await criarMeta({
+      objetivo: 'Viagem',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+    });
+    mockErroTransacao = Object.assign(new Error('permission-denied'), {
+      code: 'permission-denied',
+    });
+
+    await expect(sincronizarPendentes()).resolves.toBe(false);
+    expect(consumirAcessoNegado()).toBe(true);
+  });
+
+  it('permission-denied ao buscar metas não impede restaurar os demais dados', async () => {
+    instalarBanco();
+    mockNuvem.set('usuarios/u1/receitas/r1', {
+      valor_centavos: 1000,
+      data: '2026-01-10',
+      titulo: 'Freela',
+      criado_em: '2026-01-10T00:00:00Z',
+      atualizado_em: '2026-01-10T00:00:00Z',
+    });
+    mockErroGetDocsMetas = Object.assign(new Error('permission-denied'), {
+      code: 'permission-denied',
+    });
+
+    const r = await restaurarDaNuvem();
+
+    expect(r.receitas).toBe(1);
+    expect(consumirAcessoNegado()).toBe(true);
+  });
+
+  it('erro inesperado ao buscar metas falha a restauração de forma controlada', async () => {
+    instalarBanco();
+    mockErroGetDocsMetas = Object.assign(new Error('offline'), { code: 'unavailable' });
+
+    await expect(restaurarDaNuvem()).rejects.toBeInstanceOf(FalhaRestauracao);
+  });
+
+  it('aplica tombstone remoto de meta e sinaliza mudança local', async () => {
+    const banco = instalarBanco();
+    const id = await criarMeta({
+      objetivo: 'Viagem',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+    });
+    mockNuvem.set(`usuarios/u1/metas/${id}`, {
+      objetivo: 'Viagem',
+      tipo: 'investimento',
+      valor_alvo_centavos: 100_000,
+      prazo: '2027-12-31',
+      excluido_em: '2026-02-01T00:00:00Z',
+      criado_em: '2026-01-01T00:00:00Z',
+      atualizado_em: '2026-02-01T00:00:00Z',
+    });
+
+    await expect(sincronizarPendentes()).resolves.toBe(true);
+
+    expect(
+      banco.sqlite.prepare('SELECT excluido_em, sync_status FROM metas WHERE id = ?').get(id),
+    ).toMatchObject({
+      excluido_em: '2026-02-01T00:00:00Z',
+      sync_status: 'sincronizado',
     });
   });
 });

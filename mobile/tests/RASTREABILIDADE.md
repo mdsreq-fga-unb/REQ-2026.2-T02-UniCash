@@ -580,3 +580,86 @@ retiradas e podem ser recuperadas do histórico do PR quando o fluxo for aprovad
 - Fluxo C (exclusão de conta) no plano Spark, conforme o item 1 da revisão do PR #135.
 - Expiração de 5 minutos da ligação de troca de e-mail: depende de validar com o responsável pelo RF04 uma solução no ponto de confirmação ou a adoção formal da validade do Firebase.
 - Evidência no Expo Go ou APK: troca de senha seguida de novo login e confirmação do e-mail pelo link.
+
+## 8. UC12 — Gerenciar metas financeiras
+
+Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
+
+### 8.1. Requisitos e regras
+
+| Requisito | Fluxo do UC12 | Código | Teste automatizado |
+|---|---|---|---|
+| RF12 – registrar meta | A | `src/features/metas/validation.ts`, `service.ts` (`criarMeta`), `src/app/metas/nova.tsx`, `src/components/metas/MetaForm.tsx` | `tests/service/metas.test.ts` (bloco "criarMeta"), `tests/screens/NovaMeta.test.tsx`, `tests/screens/MetaForm.test.tsx` |
+| RF13 – editar meta | C | `service.ts` (`editarMeta`), `src/app/metas/[id]/editar.tsx` | `tests/service/metas.test.ts` (bloco "editarMeta"), `tests/screens/EditarMeta.test.tsx` |
+| RF14 – excluir meta | D | `service.ts` (`excluirMeta`, tombstone), `src/app/metas/[id]/index.tsx` | `tests/service/metas.test.ts` (bloco "excluirMeta"), `tests/screens/DetalheMeta.test.tsx` ("confirma a exclusão…") |
+| RF20 – listar e acompanhar | passos 2 e B | `useMetas.ts`, `progresso.ts`, `src/app/metas/index.tsx`, `src/app/metas/[id]/index.tsx` | `tests/screens/ListaMetas.test.tsx`, `tests/screens/DetalheMeta.test.tsx`, `tests/unit/metas.progresso.test.ts` |
+| RF36 – progresso percentual e restante | B | `progresso.ts` (`calcularProgresso`, `rotuloSituacaoProgresso`), `formato.ts` | `tests/unit/metas.progresso.test.ts`, `tests/screens/DetalheMeta.test.tsx` |
+| RN07 – sincronização e conflitos | A7, C6, D5, EX04 | `src/features/metas/merge.ts`, `sync.ts`, migração 015 | `tests/unit/metas.merge.test.ts`, `tests/service/metas.sync.test.ts` (blocos "decisão de conflito", "merge por campo entre dois dispositivos") |
+| RN09 – valor alvo em centavos | A4, C4 | `validation.ts` (`validarDadosMeta`), `src/features/receitas/money.ts` | `tests/unit/metas.validation.test.ts`, `tests/service/metas.test.ts` |
+| RN10 – objetivo de 1 a 80 caracteres | A4, C4 | `validation.ts` (`contarCaracteres`) | `tests/unit/metas.validation.test.ts` ("conta caracteres por code point…"), `tests/db/metas.schema.test.ts` |
+| RN11 – falha sem alteração parcial; exclusão mantém lançamentos | A5/A6, C5, D4 | `service.ts` (`transacao`, `excluirMeta`) | `tests/service/metas.test.ts` ("falha de gravação…", "faz exclusão lógica…") |
+| RNF03 – isolamento por usuário | EX06 | `firestore.rules`, `src/db/database.ts` (banco por UID) | `tests/rules/firestore.rules.test.ts` (bloco "metas"), `tests/db/metas.proprietario-uc10.test.ts` |
+| RNF04 – validação antes da gravação | A4, C4 | `validation.ts`, `MetaForm.tsx` | `tests/unit/metas.validation.test.ts`, `tests/screens/MetaForm.test.tsx` |
+| RNF05 – falha não deixa estado parcial | EX02 | `service.ts` (transações exclusivas) | `tests/service/metas.test.ts` ("falha de gravação não deixa estado parcial", "falha de gravação mantém os dados anteriores", "falha de gravação não exclui parcialmente") |
+| RNF14 – mensagens de rejeição | EX01 | `validation.ts` (`MSG_META`) | `tests/unit/metas.validation.test.ts`, `tests/screens/MetaForm.test.tsx` |
+
+### 8.2. Fluxos e exceções
+
+| Código | Condição de disparo | Mensagem exibida | Tela / serviço responsável | Teste automatizado | Status |
+|---|---|---|---|---|---|
+| EX01 | Dados inválidos em A4 ou C4 (objetivo, valor, prazo, tipo, categoria ou acumulado) | Mensagens literais de `MSG_META` (objetivo vazio/longo, valor vazio/inválido/limite, prazo vazio/inválido, tipo, categoria e acumulado) | `src/components/metas/MetaForm.tsx`, `validation.ts` (`validarFormularioMeta`, `validarDadosMeta`) | `tests/unit/metas.validation.test.ts`, `tests/screens/MetaForm.test.tsx` ("bloqueia envio vazio…", "rejeita…"), `tests/screens/NovaMeta.test.tsx`, `tests/screens/EditarMeta.test.tsx` | Implementado/testado |
+| EX02 | Falha ao gravar ou recalcular em A5/A6, C5 ou D4 | "Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente."; na exclusão, "Não foi possível excluir. Tente novamente." | `service.ts` (`transacao`, `FalhaPersistenciaMeta`), `src/app/metas/nova.tsx`, `src/app/metas/[id]/editar.tsx`, `src/app/metas/[id]/index.tsx` | `tests/service/metas.test.ts` ("falha de gravação…"), `tests/screens/NovaMeta.test.tsx`, `tests/screens/EditarMeta.test.tsx` | Implementado/testado. O recálculo UC05/UC09 é apenas notificação (`integracoes.ts`), não transação real — integração parcial. |
+| EX03 | Falha de rede em A7, C6 ou D5 | Sem texto próprio no UC; a lista mostra o estado pendente de sincronização | `src/features/metas/sync.ts` (`sincronizarMetasPendentes`), `src/app/metas/index.tsx` | `tests/service/metas.sync.test.ts` ("falha de rede mantém a meta pendente e a nova tentativa envia", "envia meta ativa…", "envia tombstone local"), `tests/screens/ListaMetas.test.tsx` ("estado de sincronização") | Implementado/testado |
+| EX04 | Conflito de sincronização após A7, C6 ou D5 | Sem texto próprio no UC; ao concluir, a lista reflete o estado convergido | `merge.ts` (`mergeMetaRemota`), `sync.ts` (`aplicarMetaRemota`, `sincronizarMetasPendentes`), `src/app/metas/index.tsx` | `tests/unit/metas.merge.test.ts`, `tests/service/metas.sync.test.ts` (dois dispositivos nas duas ordens, mesmo campo, timestamps iguais, tombstone concorrente) | Implementado/testado no serviço. A atualização visual depende de sincronizar/recarregar a lista; não há teste de tela dedicado ao retorno da sincronização. |
+| EX05 | Meta inexistente ou já excluída em B1, C1 ou D1 | "Esta meta não está mais disponível." | `service.ts` (`MetaIndisponivel`), `src/app/metas/[id]/index.tsx`, `src/app/metas/[id]/editar.tsx` | `tests/service/metas.test.ts` ("meta inexistente → MetaIndisponivel"), `tests/screens/DetalheMeta.test.tsx` ("meta inexistente volta…"), `tests/screens/EditarMeta.test.tsx` ("meta inexistente volta…") | Implementado/testado |
+| EX06 | Acesso a meta de outro usuário em B1, C1 ou D1 | "Você não tem acesso a esta meta." | `firestore.rules` (nega leitura/escrita por UID), `src/db/database.ts` (banco local separado por UID) | `tests/rules/firestore.rules.test.ts` (bloco "metas: acesso e validação"), `tests/db/metas.proprietario-uc10.test.ts` | **Parcial.** O isolamento e a negação na nuvem existem, mas a mensagem literal no app não está implementada; não há teste de tela para esse texto. |
+| EX07 | Falha na leitura local ou no cálculo do progresso (passo 2, B2) | "Não foi possível carregar as metas. Tente novamente." + ação "Tentar novamente" | `service.ts` (`FalhaLeituraMeta`), `useMetas.ts`, `src/app/metas/index.tsx`, `src/app/metas/[id]/index.tsx`, `src/app/metas/[id]/editar.tsx` | `tests/service/metas.test.ts` ("falha de leitura é explícita"), `tests/screens/ListaMetas.test.tsx` ("exibe falha de leitura…"), `tests/screens/DetalheMeta.test.tsx`, `tests/screens/EditarMeta.test.tsx` | Implementado/testado |
+
+Fluxos alternativos cobertos: FA01 (offline/pendente), FA02 ("Nenhuma meta"), FA03 (cancelamento), FA05 (investimento sem alerta), FA06 (restante zero), FA08 (prazo vencido). FA04 e FA07 dependem do recálculo real de UC05/UC09 e permanecem como integração parcial.
+
+### 8.3. RN07 — merge por campo
+
+A estratégia usa três metadados persistidos pela migração **015** (aditiva, depois da 013 e da 014):
+
+- `revisao`: relógio lógico local/remoto, incrementado a cada edição efetiva;
+- `campos_revisao`: JSON com a revisão lógica de cada campo alterado;
+- `base_sincronizacao`: snapshot JSON da última versão remota aplicada, usado como ancestral do merge de três vias.
+
+O merge (`src/features/metas/merge.ts`, `mergeMetaRemota`) segue esta ordem:
+
+1. **Exclusão lógica tem precedência**: tombstone local ou remoto não é ressuscitado; em tombstone contra tombstone, vence o `excluido_em` mais recente (comparação determinística).
+2. **Campos independentes**: `objetivo`, `valor_alvo_centavos`, `prazo`, `inicio`, `categoria_id` e o par `valor_acumulado_centavos` + `valor_acumulado_atualizado_em` são resolvidos separadamente contra a base.
+3. **Alteração efetiva**: se só um lado mudou em relação à base, ele vence; se nenhum mudou, mantém o local.
+4. **Mesmo campo**: vence a maior revisão lógica do campo. Em empate, documentos legados sem metadados usam `atualizado_em` apenas como fallback; persistindo o empate, uma comparação canônica do valor garante a mesma escolha nas duas ordens de sincronização. Relógios de aparelhos não são autoridade global.
+5. **Registro inválido não é combinado**: `tipo` e `criado_em` são imutáveis; `inicio` é ajustado para não ultrapassar o prazo; categoria só existe em gasto e acumulado só em investimento; valor e data do acumulado permanecem juntos.
+6. **Legado**: sem `base_sincronizacao` confiável, mantém-se o fallback por registro; a primeira sincronização grava a base para permitir o merge por campo nas rodadas seguintes. Documentos remotos sem os campos novos são normalizados sem apagar valores locais conhecidos.
+
+Testes de convergência em `tests/service/metas.sync.test.ts`: dois bancos/dispositivos partindo da mesma versão, A e B alterando campos diferentes, com A sincronizando primeiro e depois com B; o mesmo campo em conflito; tombstone concorrente; timestamps iguais; edição durante a aplicação remota; ACK de versão ultrapassada; documento legado; falha de rede e nova tentativa. Testes puros complementares em `tests/unit/metas.merge.test.ts`. Migração e rollback em `tests/db/metas.migrations.test.ts`.
+
+### 8.4. Valor acumulado inicial
+
+| Entrada na criação | Coluna `valor_acumulado_centavos` | Data do informe | Evidência |
+|---|---|---|---|
+| Omitida | `NULL` | `NULL` | `tests/service/metas.test.ts` ("cria investimento com início explícito e campos de acumulado nulos"), `tests/screens/MetaForm.test.tsx` ("investimento sem valor acumulado envia nulo, não zero") |
+| Zero explícito | `0` | data da criação | `tests/service/metas.test.ts` ("aceita investimento com valor zero e registra a data do informe"), `tests/screens/MetaForm.test.tsx` ("permite escolher investimento com valor acumulado zero") |
+| Positivo | valor informado | data da criação/edição | `tests/service/metas.test.ts` ("atualiza valor acumulado para zero, aumenta e reduz"), `tests/db/metas.schema.test.ts` |
+
+“Nulo quando omitido” descreve apenas a ausência de informe; zero explícito é um valor real e não é convertido em `NULL`.
+
+### 8.5. Resultados de validação
+
+| Data | Escopo | Comando | Resultado |
+|---|---|---|---|
+| 2026-11-25 | Suíte completa | `npm test -- --ci --runInBand` | 113 de 113 suítes, 1.885 de 1.885 testes |
+| 2026-11-25 | RN07, concorrência e dois dispositivos | `npx jest tests/unit/metas.merge.test.ts tests/service/metas.sync.test.ts --runInBand` | 56 de 56 testes |
+| 2026-11-25 | Migrações 008–011 e schema | `npx jest tests/db/metas.migrations.test.ts tests/db/metas.schema.test.ts tests/db/migrations.test.ts --runInBand` | 132 de 132 testes |
+| 2026-11-25 | Tipos e lint | `npm run typecheck`, `npm run lint` | Sem erros |
+| 2026-11-25 | Rules | `npm run test:rules` | **Não executado neste ambiente**: `firebase` não está instalado e não há Java para o emulador. Pendente de execução no CI/ambiente com Firebase CLI. |
+
+### 8.6. Pendências
+
+- **EX06**: falta a mensagem literal no app e um caminho de tela que a exiba; o isolamento por UID e as Rules já negam o acesso.
+- **UC05/UC09**: `notificarAlteracaoMeta` avisa consumidores, mas não há recálculo transacional real de indicadores/alertas. Não declarar integração concluída.
+- **UC13**: fora do escopo.
+- **RN07 global**: a solução desta UC usa relógio lógico e base por registro; um contrato compartilhado para todas as UCs ainda depende de decisão da equipe.
+- **Rules**: precisam ser executadas no emulador/CI antes de publicar o PR.

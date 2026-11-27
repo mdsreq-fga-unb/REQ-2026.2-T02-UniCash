@@ -134,6 +134,176 @@ describe('Resumo financeiro (UC03)', () => {
     });
   });
 
+  describe('RF40 - metas reais da UC12 no resumo', () => {
+    function inserirCategoria(id: string, excluida: string | null = null) {
+      banco.sqlite
+        .prepare(
+          `INSERT INTO categorias
+            (id, nome, nome_normalizado, padrao, limite_tipo, limite_centavos,
+             limite_percentual_centesimos, sync_status, excluido_em, criado_em, atualizado_em)
+           VALUES (?, ?, ?, 0, NULL, NULL, NULL, 'sincronizado', ?, 't', 't')`,
+        )
+        .run(id, `Categoria ${id}`, `categoria-${id}`, excluida);
+    }
+
+    function inserirMeta(extra: Record<string, unknown> = {}) {
+      const dados = {
+        id: 'm1',
+        objetivo: 'Mercado',
+        tipo: 'gasto',
+        valor_alvo_centavos: 100_000,
+        prazo: '2026-12-31',
+        inicio: '2026-01-01',
+        categoria_id: 'c1',
+        valor_acumulado_centavos: null,
+        valor_acumulado_atualizado_em: null,
+        ...extra,
+      };
+      banco.sqlite
+        .prepare(
+          `INSERT INTO metas
+            (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
+             valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
+             excluido_em, criado_em, atualizado_em)
+           VALUES (@id, @objetivo, @tipo, @valor_alvo_centavos, @prazo, @inicio,
+             @categoria_id, @valor_acumulado_centavos, @valor_acumulado_atualizado_em,
+             'sincronizado', NULL, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`,
+        )
+        .run(dados);
+    }
+
+    it('gasto soma apenas a categoria no mês, inclusive início e fim do período', async () => {
+      inserirCategoria('c1');
+      inserirCategoria('c2');
+      inserirMeta();
+      for (const [id, valor, data, categoria, excluida] of [
+        ['d1', 1000, '2026-10-01', 'c1', null],
+        ['d2', 2000, '2026-10-31', 'c1', null],
+        ['d3', 9999, '2026-09-30', 'c1', null],
+        ['d4', 9999, '2026-11-01', 'c1', null],
+        ['d5', 9999, '2026-10-10', 'c2', null],
+        ['d6', 9999, '2026-10-10', 'c1', '2026-10-11T00:00:00Z'],
+      ] as const) {
+        banco.sqlite
+          .prepare(
+            `INSERT INTO despesas
+              (id, valor_centavos, data, titulo, categoria_id, sync_status,
+               excluido_em, criado_em, atualizado_em)
+             VALUES (?, ?, ?, 'Despesa', ?, 'sincronizado', ?, 't', 't')`,
+          )
+          .run(id, valor, data, categoria, excluida);
+      }
+
+      const [meta] = await progressoMetasDoMes(2026, 10);
+      expect(meta).toMatchObject({
+        id: 'm1',
+        tipo: 'gasto',
+        alvoCentavos: 100_000,
+        realizadoCentavos: 3000,
+        situacaoProgresso: 'dentro_do_limite',
+        situacaoPrazo: 'em_vigor',
+      });
+    });
+
+    it('mês sem despesas retorna zero; meta fora da vigência não aparece', async () => {
+      inserirCategoria('c1');
+      inserirMeta();
+      expect((await progressoMetasDoMes(2026, 9))[0].realizadoCentavos).toBe(0);
+
+      inserirMeta({
+        id: 'm2',
+        objetivo: 'Dezembro',
+        inicio: '2026-12-01',
+        prazo: '2027-01-31',
+      });
+      expect((await progressoMetasDoMes(2026, 10)).map((m) => m.id)).toEqual(['m1']);
+    });
+
+    it('categoria ausente ou excluída deixa o progresso indisponível', async () => {
+      inserirMeta({ id: 'sem-categoria', categoria_id: null });
+      const sem = (await progressoMetasDoMes(2026, 10)).find(
+        (m) => m.id === 'sem-categoria',
+      );
+      expect(sem).toMatchObject({
+        id: 'sem-categoria',
+        realizadoCentavos: null,
+        situacaoProgresso: 'indisponivel',
+      });
+
+      inserirCategoria('c1', '2026-10-01T00:00:00Z');
+      inserirMeta({ id: 'categoria-excluida', categoria_id: 'c1' });
+      const excluida = (await progressoMetasDoMes(2026, 10)).find(
+        (m) => m.id === 'categoria-excluida',
+      );
+      expect(excluida).toMatchObject({
+        id: 'categoria-excluida',
+        realizadoCentavos: null,
+        situacaoProgresso: 'indisponivel',
+      });
+    });
+
+    it('investimento aparece somente no mês corrente e distingue valor declarado', async () => {
+      inserirMeta({
+        id: 'inv',
+        tipo: 'investimento',
+        categoria_id: null,
+        valor_acumulado_centavos: 50_000,
+        valor_acumulado_atualizado_em: '2026-10-10T00:00:00Z',
+      });
+
+      const [atual] = await progressoMetasDoMes(2026, 10);
+      expect(atual).toMatchObject({
+        id: 'inv',
+        tipo: 'investimento',
+        realizadoCentavos: 50_000,
+        situacaoProgresso: 'em_andamento',
+      });
+      expect(await progressoMetasDoMes(2026, 9)).toEqual([]);
+
+      banco.sqlite.prepare("UPDATE metas SET valor_acumulado_centavos = 100000 WHERE id = 'inv'").run();
+      expect((await progressoMetasDoMes(2026, 10))[0].situacaoProgresso).toBe('alcancada');
+
+      banco.sqlite
+        .prepare(
+          "UPDATE metas SET valor_acumulado_centavos = NULL, valor_acumulado_atualizado_em = NULL WHERE id = 'inv'",
+        )
+        .run();
+      expect((await progressoMetasDoMes(2026, 10))[0]).toMatchObject({
+        realizadoCentavos: null,
+        situacaoProgresso: 'indisponivel',
+      });
+    });
+
+    it('meta com início futuro no mês não é apresentada como zero', async () => {
+      inserirCategoria('c1');
+      inserirMeta({ id: 'futura', inicio: '2026-10-20', prazo: '2026-12-31' });
+
+      const [meta] = await progressoMetasDoMes(2026, 10);
+      expect(meta).toMatchObject({
+        id: 'futura',
+        realizadoCentavos: null,
+        situacaoProgresso: 'indisponivel',
+        situacaoVigencia: 'futura',
+      });
+    });
+
+    it('prazo vencido é independente da situação do progresso', async () => {
+      inserirCategoria('c1');
+      inserirMeta({ prazo: '2026-10-10' });
+      const [meta] = await progressoMetasDoMes(2026, 10);
+      expect(meta.situacaoPrazo).toBe('vencida');
+      expect(meta.situacaoProgresso).toBe('dentro_do_limite');
+    });
+
+    it('calcularResumo inclui as metas reais do mês', async () => {
+      inserirCategoria('c1');
+      inserirMeta();
+      const r = await calcularResumo(2026, 10);
+      expect(r.metas).toHaveLength(1);
+      expect(r.metas[0]).toMatchObject({ id: 'm1', tipo: 'gasto', realizadoCentavos: 0 });
+    });
+  });
+
   describe('fluxos alternativos', () => {
     it('FA01: mês sem receitas tem total zero, e a lista por dia vem vazia', async () => {
       await registrarDespesa(despesa({ data: '2026-10-10', valorCentavos: 3000 }));
@@ -247,7 +417,10 @@ describe('Resumo financeiro (UC03)', () => {
     const r = await calcularResumo(2026, 10);
 
     expect(primeira).toHaveBeenCalledTimes(1);
-    expect(todas).not.toHaveBeenCalled();
+    // A integração da UC12 consulta as metas do período em uma segunda leitura,
+    // sem transação e sem bloquear gravações.
+    expect(todas).toHaveBeenCalledTimes(1);
+    expect(String(todas.mock.calls[0][0])).toContain('FROM metas');
     expect(transacao).not.toHaveBeenCalled();
     expect(r.totalReceitasCentavos).toBe(r.receitasPorDia.reduce((s, d) => s + d.totalCentavos, 0));
     expect(r.receitasPorDia).toEqual([{ data: '2026-10-05', totalCentavos: 12500 }]);

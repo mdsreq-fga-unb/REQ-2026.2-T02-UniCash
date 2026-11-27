@@ -58,7 +58,7 @@ beforeEach(() => {
   consultarRede.mockResolvedValue({ isConnected: true });
   estaPausado.mockResolvedValue(false);
   enviar.mockResolvedValue(false);
-  restaurar.mockResolvedValue({ despesas: 0, receitas: 0, recorrencias: 0 });
+  restaurar.mockResolvedValue({ despesas: 0, receitas: 0, recorrencias: 0, metas: 0 });
   entrar();
 });
 

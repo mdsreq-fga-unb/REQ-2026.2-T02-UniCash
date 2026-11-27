@@ -255,6 +255,152 @@ export const DDL_ESQUEMA_V6 = `
     ${DDL_INDICES_V6.join('\n    ')}
   `;
 
+/**
+ * Tabela de metas (UC12).
+ * Valores monetários em centavos inteiros (RNF07); o prazo é uma data ISO
+ * validada no calendário pelo próprio SQLite. A situação/progresso não é
+ * persistida: depende do cálculo e da decisão pendente da issue #106.
+ */
+export const DDL_TABELA_METAS = `
+    CREATE TABLE IF NOT EXISTS metas (
+      id TEXT PRIMARY KEY NOT NULL,
+      objetivo TEXT NOT NULL
+        CONSTRAINT objetivo_valido CHECK (length(trim(objetivo)) BETWEEN 1 AND 80),
+      tipo TEXT NOT NULL
+        CONSTRAINT tipo_valido CHECK (tipo IN ('gasto', 'investimento')),
+      valor_alvo_centavos INTEGER NOT NULL
+        CONSTRAINT valor_alvo_valido CHECK (
+          typeof(valor_alvo_centavos) = 'integer'
+          AND valor_alvo_centavos > 0
+          AND valor_alvo_centavos <= 99999999999
+        ),
+      prazo TEXT NOT NULL
+        CONSTRAINT prazo_valido CHECK (
+          prazo GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+          AND date(prazo) = prazo
+        ),
+      sync_status TEXT NOT NULL DEFAULT 'pendente'
+        CONSTRAINT sync_status_valido CHECK (sync_status IN ('pendente', 'sincronizado')),
+      excluido_em TEXT
+        CONSTRAINT excluido_em_valido CHECK (excluido_em IS NULL OR length(excluido_em) > 0),
+      criado_em TEXT NOT NULL,
+      atualizado_em TEXT NOT NULL
+    );
+  `;
+
+export const DDL_INDICES_METAS = [
+  `CREATE INDEX IF NOT EXISTS idx_metas_prazo
+     ON metas(prazo) WHERE excluido_em IS NULL;`,
+  'CREATE INDEX IF NOT EXISTS idx_metas_sync ON metas(sync_status);',
+] as const;
+
+/**
+ * DDL da tabela de metas final (UC12 + issue #106).
+ *
+ * `inicio` e `categoria_id` são anuláveis para acomodar registros legados sem
+ * backfill fictício. A coerência por tipo é garantida por CHECK de tabela:
+ * - gasto: sem valor acumulado;
+ * - investimento: sem categoria e com valor/data ambos nulos ou ambos
+ *   preenchidos.
+ */
+export const ddlTabelaMetasV9 = (tabela: string) => `
+    CREATE TABLE IF NOT EXISTS ${tabela} (
+      id TEXT PRIMARY KEY NOT NULL,
+      objetivo TEXT NOT NULL
+        CONSTRAINT objetivo_valido CHECK (length(trim(objetivo)) BETWEEN 1 AND 80),
+      tipo TEXT NOT NULL
+        CONSTRAINT tipo_valido CHECK (tipo IN ('gasto', 'investimento')),
+      valor_alvo_centavos INTEGER NOT NULL
+        CONSTRAINT valor_alvo_valido CHECK (
+          typeof(valor_alvo_centavos) = 'integer'
+          AND valor_alvo_centavos > 0
+          AND valor_alvo_centavos <= 99999999999
+        ),
+      prazo TEXT NOT NULL
+        CONSTRAINT prazo_valido CHECK (
+          prazo GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+          AND date(prazo) = prazo
+        ),
+      inicio TEXT
+        CONSTRAINT inicio_valido CHECK (
+          inicio IS NULL OR (
+            inicio GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+            AND date(inicio) = inicio
+          )
+        ),
+      categoria_id TEXT
+        CONSTRAINT categoria_id_valido CHECK (
+          categoria_id IS NULL OR length(categoria_id) > 0
+        ),
+      valor_acumulado_centavos INTEGER
+        CONSTRAINT valor_acumulado_valido CHECK (
+          valor_acumulado_centavos IS NULL OR (
+            typeof(valor_acumulado_centavos) = 'integer'
+            AND valor_acumulado_centavos >= 0
+            AND valor_acumulado_centavos <= 99999999999
+          )
+        ),
+      valor_acumulado_atualizado_em TEXT
+        CONSTRAINT valor_acumulado_atualizado_valido CHECK (
+          valor_acumulado_atualizado_em IS NULL
+          OR length(valor_acumulado_atualizado_em) > 0
+        ),
+      sync_status TEXT NOT NULL DEFAULT 'pendente'
+        CONSTRAINT sync_status_valido CHECK (sync_status IN ('pendente', 'sincronizado')),
+      excluido_em TEXT
+        CONSTRAINT excluido_em_valido CHECK (excluido_em IS NULL OR length(excluido_em) > 0),
+      criado_em TEXT NOT NULL,
+      atualizado_em TEXT NOT NULL,
+      CONSTRAINT inicio_coerente CHECK (inicio IS NULL OR inicio <= prazo),
+      CONSTRAINT meta_coerente CHECK (
+        CASE
+          WHEN tipo = 'gasto' THEN (
+            valor_acumulado_centavos IS NULL
+            AND valor_acumulado_atualizado_em IS NULL
+          )
+          WHEN tipo = 'investimento' THEN (
+            categoria_id IS NULL
+            AND (
+              (valor_acumulado_centavos IS NULL AND valor_acumulado_atualizado_em IS NULL)
+              OR
+              (valor_acumulado_centavos IS NOT NULL AND valor_acumulado_atualizado_em IS NOT NULL)
+            )
+          )
+          ELSE 0
+        END
+      )
+    );
+  `;
+
+export const DDL_TABELA_METAS_V9 = ddlTabelaMetasV9('metas');
+
+export const DDL_INDICES_METAS_V9 = [
+  ...DDL_INDICES_METAS,
+  `CREATE INDEX IF NOT EXISTS idx_metas_categoria
+     ON metas(categoria_id) WHERE excluido_em IS NULL;`,
+] as const;
+
+/** Forma final (v10): extensão da UC12 para metas de gasto e investimento. */
+export const DDL_ESQUEMA_V9 = `
+    ${DDL_ESQUEMA_V6}
+
+    ${DDL_TABELA_METAS_V9}
+
+    ${DDL_INDICES_METAS_V9.join('\n    ')}
+  `;
+
+/**
+ * Migração 011: metadados de merge por campo. A base local guarda a última
+ * versão sincronizada (`base_sincronizacao`), um relógio lógico global
+ * (`revisao`) e a revisão de cada campo alterado (`campos_revisao`).
+ * Colunas anuláveis/default preservam bancos e registros legados.
+ */
+export const DDL_COLUNAS_REVISAO_METAS = [
+  'ALTER TABLE metas ADD COLUMN revisao INTEGER NOT NULL DEFAULT 0 CHECK (revisao >= 0);',
+  "ALTER TABLE metas ADD COLUMN campos_revisao TEXT NOT NULL DEFAULT '{}';",
+  'ALTER TABLE metas ADD COLUMN base_sincronizacao TEXT;',
+] as const;
+
 /** Triggers de faixa percentual (definitiva 1%–100%). */
 export const TRIGGERS_PERCENTUAL = [
   'trg_categorias_percentual_insert',
@@ -368,7 +514,9 @@ export const DDL_NUMERAR_ALERTAS = `
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
 
-    ${DDL_ESQUEMA_V6}
+    ${DDL_ESQUEMA_V9}
+
+    ${DDL_COLUNAS_REVISAO_METAS.join('\n    ')}
 
     ${DDL_TRIGGER_PERCENTUAL}
 
