@@ -13,6 +13,19 @@ service cloud.firestore {
       return dono(uid) && request.auth.token.email_verified == true;
     }
 
+    function semPedidoDeRemocao(uid) {
+      return !exists(/databases/$(database)/documents/pedidos_remocao/$(uid));
+    }
+
+    match /pedidos_remocao/{uid} {
+      allow get: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
+        && request.auth.token.auth_time * 1000 >= request.time.toMillis() - 300000
+        && request.resource.data.keys().hasOnly(['status', 'solicitado_em'])
+        && request.resource.data.status == 'pendente'
+        && request.resource.data.solicitado_em == request.time;
+    }
+
     function dataValida(data) {
       return data is string
         && data.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
@@ -156,13 +169,13 @@ service cloud.firestore {
 
     match /usuarios/{uid} {
       allow read: if dono(uid);
-      allow create: if dono(uid)
+      allow create: if dono(uid) && semPedidoDeRemocao(uid)
         && perfilValido(request.resource.data)
         && request.resource.data.criado_em == request.time;
-      allow update: if dono(uid)
+      allow update: if dono(uid) && semPedidoDeRemocao(uid)
         && perfilValido(request.resource.data)
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['criado_em']);
-      allow delete: if dono(uid) && request.auth.token.email_verified == false;
+      allow delete: if dono(uid) && semPedidoDeRemocao(uid) && request.auth.token.email_verified == false;
     }
 
     function chavePadraoValida(chave) {
@@ -297,13 +310,13 @@ service cloud.firestore {
 
     match /usuarios/{uid}/categorias/{categoriaId} {
       allow read: if donoConfirmado(uid);
-      allow create: if donoConfirmado(uid)
+      allow create: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && (
           categoriaPadraoValida(request.resource.data, categoriaId)
           || categoriaPropriaAtivaValida(request.resource.data, categoriaId)
           || categoriaPropriaTombstoneValida(request.resource.data, categoriaId)
         );
-      allow update: if donoConfirmado(uid)
+      allow update: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && resource.data.excluido_em == null
         && (
           (
@@ -329,7 +342,7 @@ service cloud.firestore {
           )
         );
       // Exceção restrita para normalizar tombstone legado (issue #71).
-      allow update: if donoConfirmado(uid)
+      allow update: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && categoriaPropriaTombstoneNormalizavel(
           request.resource.data,
           resource.data,
@@ -429,9 +442,9 @@ service cloud.firestore {
 
     match /usuarios/{uid}/metas/{metaId} {
       allow read: if donoConfirmado(uid);
-      allow create: if donoConfirmado(uid)
+      allow create: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && (metaAtivaValida(request.resource.data) || metaTombstoneValida(request.resource.data));
-      allow update: if donoConfirmado(uid)
+      allow update: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && (!('excluido_em' in resource.data) || resource.data.excluido_em == null)
         && request.resource.data.criado_em == resource.data.criado_em
         && (metaAtivaValida(request.resource.data) || metaTombstoneValida(request.resource.data));
@@ -440,10 +453,10 @@ service cloud.firestore {
 
     match /usuarios/{uid}/alertas/{id} {
       allow read: if donoConfirmado(uid);
-      allow create: if donoConfirmado(uid) && alertaValido(request.resource.data)
+      allow create: if donoConfirmado(uid) && semPedidoDeRemocao(uid) && alertaValido(request.resource.data)
         && getAfter(categoriaDoAlerta(request.resource.data.ref_id)).data.excluido_em == null;
       allow update: if false;
-      allow delete: if donoConfirmado(uid)
+      allow delete: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && getAfter(categoriaDoAlerta(resource.data.ref_id)).data.excluido_em is string;
 
       function categoriaDoAlerta(refId) {
@@ -472,7 +485,7 @@ service cloud.firestore {
 
     match /usuarios/{uid}/saldo_inicial/{id} {
       allow get: if donoConfirmado(uid) && id == 'atual';
-      allow create, update: if donoConfirmado(uid) && id == 'atual'
+      allow create, update: if donoConfirmado(uid) && semPedidoDeRemocao(uid) && id == 'atual'
         && request.resource.data.keys().hasOnly(['valor_centavos', 'mes_referencia'])
         && request.resource.data.valor_centavos is int
         && request.resource.data.valor_centavos >= -9007199254740991
@@ -484,9 +497,9 @@ service cloud.firestore {
 
     match /usuarios/{uid}/receitas/{id} {
       allow read: if donoConfirmado(uid);
-      allow create: if donoConfirmado(uid)
+      allow create: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && (receitaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
-      allow update: if donoConfirmado(uid)
+      allow update: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && !('excluido_em' in resource.data)
         && (receitaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
       allow delete: if false;
@@ -494,9 +507,9 @@ service cloud.firestore {
 
     match /usuarios/{uid}/despesas/{id} {
       allow read: if donoConfirmado(uid);
-      allow create: if donoConfirmado(uid)
+      allow create: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && (despesaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
-      allow update: if donoConfirmado(uid)
+      allow update: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && !('excluido_em' in resource.data)
         && (despesaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
       allow delete: if false;
@@ -504,7 +517,7 @@ service cloud.firestore {
 
     match /usuarios/{uid}/alertas_emitidos/{id} {
       allow read: if donoConfirmado(uid);
-      allow create: if donoConfirmado(uid)
+      allow create: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && id.matches('^[0-9a-f]{32}$')
         && request.resource.data.keys().hasOnly(['mes', 'anterior_centavos', 'saldo_centavos', 'criado_em'])
         && request.resource.data.mes is string
@@ -514,14 +527,14 @@ service cloud.firestore {
         && request.resource.data.saldo_centavos is int
         && request.resource.data.saldo_centavos < 0
         && request.resource.data.criado_em is string;
-      allow update: if donoConfirmado(uid) && request.resource.data == resource.data;
+      allow update: if donoConfirmado(uid) && semPedidoDeRemocao(uid) && request.resource.data == resource.data;
     }
 
     match /usuarios/{uid}/recorrencias/{id} {
       allow read: if donoConfirmado(uid);
-      allow create: if donoConfirmado(uid)
+      allow create: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && (recorrenciaAtivaValida(request.resource.data) || recorrenciaTombstoneValida(request.resource.data));
-      allow update: if donoConfirmado(uid)
+      allow update: if donoConfirmado(uid) && semPedidoDeRemocao(uid)
         && !('excluido_em' in resource.data)
         && (recorrenciaAtivaValida(request.resource.data) || recorrenciaTombstoneValida(request.resource.data));
       allow delete: if false;
