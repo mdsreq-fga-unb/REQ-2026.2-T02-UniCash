@@ -1,7 +1,12 @@
-import { getDb } from '@/db/database';
+import type { SQLiteDatabase } from 'expo-sqlite';
+import { getDb, getDbDoDono } from '@/db/database';
 import { notificationPermission } from '@/features/notificacoes/permissao';
-import { notificationPreferences } from '@/features/notificacoes/preferencias';
-import type { NotificationPermission, NotificationPreferences } from '@/features/notificacoes/types';
+import { notificationPreferences, UID_LOCAL } from '@/features/notificacoes/preferencias';
+import type {
+  DonoPreferencias,
+  NotificationPermission,
+  NotificationPreferences,
+} from '@/features/notificacoes/types';
 import { MARCOS } from './config';
 import { consultarConquistas } from './consulta';
 import { emissorExpo } from './emissor';
@@ -16,11 +21,19 @@ export interface DependenciasEmissao {
   preferencias?: NotificationPreferences;
   permissao?: NotificationPermission;
   emissor?: EmissorNotificacao;
+  /** Base do dono capturado no início da avaliação (RNF03). */
+  abrirBase?: (dono: DonoPreferencias) => Promise<SQLiteDatabase>;
 }
+
+/** Mesma regra das preferências do UC14: com conta, a base daquele dono; sem conta, a base local em uso. */
+const abrirBasePadrao = (dono: DonoPreferencias) => (dono.uid === UID_LOCAL ? getDb() : getDbDoDono(dono.uid));
+
+/** A sessão mudou no meio da avaliação: nada mais é gravado nem notificado para o dono antigo. */
+class DonoMudou extends Error {}
 
 const CHAVE_LINHA_BASE = 'conquistas_linha_base';
 
-const gravar = (db: Awaited<ReturnType<typeof getDb>>, chave: string, status: Status) => {
+const gravar = (db: SQLiteDatabase, chave: string, status: Status) => {
   const agora = new Date().toISOString();
   return db.runAsync(
     `INSERT INTO conquistas_emitidas (chave, status, criado_em, atualizado_em) VALUES (?, ?, ?, ?)
@@ -44,10 +57,16 @@ async function executar(deps: DependenciasEmissao): Promise<void> {
     preferencias = notificationPreferences,
     permissao = notificationPermission,
     emissor = emissorExpo,
+    abrirBase = abrirBasePadrao,
   } = deps;
 
-  const db = await getDb();
-  const { selos } = await consultarConquistas(fonte);
+  // RNF03: o dono é capturado uma vez; leituras, gravações e a preferência usam sempre esse dono.
+  const dono = preferencias.donoAtual();
+  const conferirDono = () => {
+    if (preferencias.donoAtual().uid !== dono.uid) throw new DonoMudou();
+  };
+  const db = await abrirBase(dono);
+  const { selos } = await consultarConquistas(fonte, db);
   const linhaBase = await db.getFirstAsync<{ valor: number }>(
     'SELECT valor FROM preferencias_locais WHERE chave = ?',
     [CHAVE_LINHA_BASE],
@@ -55,6 +74,7 @@ async function executar(deps: DependenciasEmissao): Promise<void> {
 
   // FR-009a: na primeira avaliação, o histórico vira linha de base, sem notificação. Tudo ou nada (EX01).
   if (!linhaBase) {
+    conferirDono();
     await db.withExclusiveTransactionAsync(async (tx) => {
       for (const s of selos) await gravar(tx, s.chave, 'emitida');
       await tx.runAsync('INSERT OR REPLACE INTO preferencias_locais (chave, valor) VALUES (?, 1)', [CHAVE_LINHA_BASE]);
@@ -72,21 +92,26 @@ async function executar(deps: DependenciasEmissao): Promise<void> {
   if (aEmitir.length === 0) return;
 
   // FA04: com o alerta desligado, só a notificação some; o aviso não fica guardado para depois.
-  if (!(await preferencias.isEnabled('conquistas'))) {
+  if (!(await preferencias.isEnabled('conquistas', dono))) {
+    conferirDono();
     for (const s of aEmitir) await gravar(db, s.chave, 'emitida');
     return;
   }
 
   if ((await permissao.consultar()) !== 'concedida') {
+    conferirDono();
     for (const s of aEmitir) if (!registros.has(s.chave)) await gravar(db, s.chave, 'pendente');
     return;
   }
 
-  // FA05: uma notificação por selo. EX02: falha não marca a emissão.
+  // FA05: uma notificação por selo. A emissão é registrada antes de agendar: se a gravação falha,
+  // nada é agendado e o selo volta na próxima avaliação; se o agendamento falha, a marca volta a
+  // pendente (EX02). Assim um aviso já agendado nunca é agendado de novo.
   for (const s of aEmitir) {
+    conferirDono();
+    await gravar(db, s.chave, 'emitida');
     try {
       await emissor.emitir(conteudo(s));
-      await gravar(db, s.chave, 'emitida');
     } catch {
       await gravar(db, s.chave, 'pendente');
     }
@@ -113,7 +138,10 @@ export function avaliarEEmitir(deps: DependenciasEmissao = {}): Promise<void> {
         try {
           await executar(deps);
         } catch (e) {
-          console.warn('[UC13] avaliação de conquistas falhou; nova tentativa na próxima operação', e);
+          // Troca de conta no meio: a avaliação do novo dono vem do aviso de base atualizada.
+          if (!(e instanceof DonoMudou)) {
+            console.warn('[UC13] avaliação de conquistas falhou; nova tentativa na próxima operação', e);
+          }
         }
       } while (repetir);
     } finally {

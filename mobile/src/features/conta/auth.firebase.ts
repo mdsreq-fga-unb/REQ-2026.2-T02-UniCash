@@ -18,6 +18,7 @@ import {
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, firebaseConfigurado } from '@/lib/firebase';
 import { comTimeout, traduzirErroFirebase } from './firebase-erros';
+import { limparEmailParaReconciliar, marcarEmailParaReconciliar } from './perfil';
 import { definirSessao, obterSessao } from './sessao';
 import { ErroConta, type AuthService, type SessionState } from './types';
 
@@ -182,15 +183,32 @@ export function criarAuthFirebase(): AuthService {
       }
     },
 
-    async confirmEmailChange(codigo) {
+    async confirmEmailChange(codigo, emailEsperado) {
       try {
-        await applyActionCode(auth, codigo);
+        // O código é aplicado antes de exigir a sessão, como antes do UC11: a ligação vale mesmo sem usuário.
+        if (codigo) await applyActionCode(auth, codigo);
         const u = usuarioAtual();
         await u.reload();
-        await u.getIdToken(true);
-        if (u.email) {
-          await comTimeout(updateDoc(doc(db, 'usuarios', u.uid), { email: u.email, atualizado_em: serverTimestamp() }));
+        if (!u.emailVerified || !u.email ||
+            (emailEsperado && u.email.toLowerCase() !== emailEsperado.toLowerCase())) {
+          throw new ErroConta('email-nao-confirmado');
         }
+        if (auth.currentUser?.uid !== u.uid) throw new ErroConta('credenciais');
+        const email = u.email;
+        try {
+          await u.getIdToken(true);
+          await comTimeout(updateDoc(doc(db, 'usuarios', u.uid), {
+            email,
+            atualizado_em: serverTimestamp(),
+          }));
+          // Uma marca de troca anterior que falhou deixa de valer.
+          await limparEmailParaReconciliar(u.uid);
+        } catch {
+          // A sessão abaixo é publicada mesmo assim; a falha ao marcar não deve escondê-la.
+          await marcarEmailParaReconciliar(u.uid, email).catch(() => {});
+        }
+        // O Auth já confirmou: a sessão passa a mostrar o novo e-mail, inclusive offline. Publicada depois
+        // da marca para que a reconciliação disparada pela mudança de sessão já a encontre.
         definirSessao(sessaoDe(u));
       } catch (e) {
         throw traduzirErroFirebase(e);

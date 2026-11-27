@@ -41,7 +41,7 @@ Regras: `no-verde` existe só se `receitas > despesas` (saldo zero ou mês sem l
 ### ResumoConquistas
 `{ totalPontos, metasConcluidas, pontosPorMeta, selos: Selo[], pontuacoes: PontuacaoMeta[] }`. `totalPontos = metasConcluidas × PONTOS_POR_META`.
 
-## Tabela nova: `conquistas_emitidas` (migração 012)
+## Tabela nova: `conquistas_emitidas` (migração 016)
 
 | Coluna | Tipo | Regra |
 |---|---|---|

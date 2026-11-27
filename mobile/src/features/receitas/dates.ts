@@ -96,3 +96,22 @@ export function lerMesDeParametros(ano: unknown, mes: unknown): { ano: number; m
   if (a < 1900 || a > 2200 || m < 1 || m > 12) return null;
   return { ano: a, mes: m };
 }
+
+/**
+ * Posição (0 = primeira) de `data` na grade da série, contando a partir do início; null se a data
+ * não cai na grade (ex.: a ocorrência já tinha sido movida sozinha).
+ */
+export function posicaoNaSerie(
+  serie: { inicio: string; intervalo: number; unidade: UnidadeRecorrencia },
+  data: string,
+): number | null {
+  for (let k = 0; k < 4000; k++) {
+    const atual = adicionarIntervalo(serie.inicio, k * serie.intervalo, serie.unidade);
+    if (atual === data) return k;
+    if (atual > data) return null;
+  }
+  return null;
+}
+
+/** Intervalo [inicio, fim) que cobre qualquer data: filtro "Todo o período" das listas. */
+export const TODO_O_PERIODO = { inicio: '0000-01-01', fim: '9999-12-31' } as const;

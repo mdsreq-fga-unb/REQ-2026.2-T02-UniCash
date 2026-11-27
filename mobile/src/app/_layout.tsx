@@ -1,3 +1,4 @@
+import { useNotificacoesDeLimite } from '@/features/alertas/useNotificacoesDeLimite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -14,7 +15,7 @@ import { restaurarDaNuvem, sincronizarEmSegundoPlano, sincronizarPendentes } fro
 import { observarConexaoSaldoInicial } from '@/features/saldoInicial/sync';
 import { avisarBaseAtualizada, ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { avaliarEEmitir } from '@/features/conquistas/emissao';
-import { aoMudarLancamentos } from '@/features/conquistas/gatilhos';
+import { aoMudarLancamentos, aoVirarMes } from '@/features/conquistas/gatilhos';
 import { iniciarSincronizacaoAutomatica } from '@/features/sincronizacao/service';
 import { cores, raio } from '@/lib/theme';
 
@@ -49,6 +50,7 @@ type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
  * semeadura/mapeamento de categorias terminarem.
  */
 const TELAS_COM_BANCO = [
+  'preferencias-alertas',
   'configuracoes-financeiras',
   'saldo-inicial',
   'categorias/index',
@@ -59,6 +61,10 @@ const TELAS_COM_BANCO = [
   'despesas/[id]/index',
   'despesas/[id]/editar',
   'sincronizacao',
+  'metas/index',
+  'metas/nova',
+  'metas/[id]/index',
+  'metas/[id]/editar',
   'receitas/index',
   'receitas/nova',
   'receitas/[id]/index',
@@ -72,6 +78,7 @@ export const unstable_settings = { anchor: 'index' };
 
 export default function RootLayout() {
   const [estado, setEstado] = useState<EstadoPreparacao>('preparando');
+  useNotificacoesDeLimite(estado === 'pronto');
   const emAndamento = useRef(false);
   const montado = useRef(true);
 
@@ -124,13 +131,15 @@ export default function RootLayout() {
   }, [estado]);
 
   // UC13 (research R5): avalia conquistas ao liberar a base, ao voltar ao app, após mudanças em
-  // lançamentos e após as rotinas de inicialização, para notificar selos novos na mesma sessão.
+  // lançamentos ou metas, na virada do mês e após as rotinas de inicialização, para notificar selos
+  // novos na mesma sessão.
   useEffect(() => {
     if (estado !== 'pronto') return;
     const avaliar = () => void avaliarEEmitir();
     avaliar();
     const pararLancamentos = aoMudarLancamentos(avaliar);
     const pararBase = ouvirBaseAtualizada(avaliar);
+    const pararVirada = aoVirarMes(avaliar);
     const aplicativo = AppState.addEventListener('change', (e) => {
       if (e === 'active') avaliar();
     });
@@ -139,6 +148,7 @@ export default function RootLayout() {
     return () => {
       pararLancamentos();
       pararBase();
+      pararVirada();
       aplicativo.remove();
       toque.remove();
     };

@@ -18,3 +18,29 @@ export function aoMudarLancamentos(ouvinte: Ouvinte): () => void {
     ouvintes.delete(ouvinte);
   };
 }
+
+/** Maior atraso aceito por setTimeout (cerca de 24,8 dias); meses mais longos são esperados em etapas. */
+const ATRASO_MAXIMO = 2 ** 31 - 1;
+
+/** Milissegundos até a meia-noite local do primeiro dia do mês seguinte. */
+export function msAteProximoMes(agora: Date): number {
+  const virada = new Date(agora.getFullYear(), agora.getMonth() + 1, 1);
+  return virada.getTime() - agora.getTime();
+}
+
+/**
+ * Checklist do UC13: com o app aberto durante a virada do mês, o mês que acabou de encerrar é
+ * avaliado na hora, sem esperar outro evento. Devolve a função que cancela o agendamento.
+ */
+export function aoVirarMes(ouvinte: Ouvinte, agora: () => Date = () => new Date()): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const agendar = () => {
+    const restante = msAteProximoMes(agora());
+    timer = setTimeout(() => {
+      if (restante <= ATRASO_MAXIMO) ouvinte();
+      agendar();
+    }, Math.min(restante, ATRASO_MAXIMO));
+  };
+  agendar();
+  return () => clearTimeout(timer);
+}

@@ -34,7 +34,7 @@ description: "Task list for UC13 - Acompanhar conquistas e pontuação"
 - [X] T006 [P] Criar `src/features/conquistas/mensagens.ts` com os textos da tabela de mensagens do contrato
 - [X] T007 [P] Criar `src/features/conquistas/metas.ts` com `fonteMetasVazia` (produção, retorna `[]` até o UC12) e `fonteMetasExemplo` (Reserva de emergência 2026-10-15, Celular novo 2026-10-02, Viagem de julho 2026-09-12), e `obterFonteMetas()` que devolve a vazia por padrão
 - [X] T008 Escrever teste de migração em `tests/db/migrations.test.ts`: base nova e base na versão 11 chegam à 12 com a tabela `conquistas_emitidas(chave PK, status, criado_em, atualizado_em)`
-- [X] T009 Adicionar `DDL_CONQUISTAS_EMITIDAS` em `src/db/schema.ts` e a migração 012 no registro `MIGRACOES` de `src/db/migrations.ts`, subindo `VERSAO_ESQUEMA` para 12 (respeitar a regra de equipe do topo do arquivo; incluir a tabela em `prepararInstalacaoNova`)
+- [X] T009 Adicionar `DDL_CONQUISTAS_EMITIDAS` em `src/db/schema.ts` e a migração 016 no registro `MIGRACOES` de `src/db/migrations.ts`, subindo `VERSAO_ESQUEMA` para 16 (respeitar a regra de equipe do topo do arquivo; incluir a tabela em `prepararInstalacaoNova`)
 
 **Checkpoint**: tipos, configuração e tabela prontos.
 

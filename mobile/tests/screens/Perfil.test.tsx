@@ -10,13 +10,21 @@ import type { NotificationPreferences, TipoAlerta } from '@/features/notificacoe
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/notificacoes/preferencias', () => ({
-  notificationPreferences: { listar: async () => ({ limite: false, conquistas: false }), isEnabled: async () => false, definir: async () => {} },
+  notificationPreferences: {
+    donoAtual: () => ({ uid: 'local' }),
+    listar: async () => ({ limite: false, conquistas: false }),
+    isEnabled: async () => false,
+    definir: async () => {},
+  },
 }));
 
 function preferenciasFalsas(inicial: Record<TipoAlerta, boolean> = { limite: false, conquistas: false }) {
   const valores = { ...inicial };
+  const sessao = { uid: 'uA' };
   const prefs = {
     valores,
+    sessao,
+    donoAtual: jest.fn(() => ({ uid: sessao.uid })),
     listar: jest.fn(async () => ({ ...valores })),
     isEnabled: jest.fn(async (t: TipoAlerta) => valores[t]),
     definir: jest.fn(async (t: TipoAlerta, a: boolean) => {
@@ -70,7 +78,7 @@ describe('UC14 - seção Notificações', () => {
       await render(<SecaoNotificacoes preferencias={prefs} permissao={criarPermissaoSimulada('concedida')} />);
       await screen.findByRole('switch', { name: ROTULOS_ALERTA.conquistas });
       await alternar('conquistas');
-      expect(prefs.definir).toHaveBeenCalledWith('conquistas', true);
+      expect(prefs.definir).toHaveBeenCalledWith('conquistas', true, { uid: 'uA' });
       expect(ligado('conquistas')).toBe(false);
       expect(interruptor('limite').props.accessibilityState?.disabled).toBe(true);
       await act(async () => liberar());
@@ -130,6 +138,33 @@ describe('UC14 - seção Notificações', () => {
       await act(async () => ouvintes.forEach((f) => f('active')));
       expect(screen.queryByText(MSG_NOTIFICACOES.FA06)).toBeNull();
     });
+  });
+
+  it('troca de conta com o diálogo de permissão aberto não grava na outra conta (RNF03)', async () => {
+    const prefs = preferenciasFalsas();
+    const permissao = criarPermissaoSimulada('nao-decidida');
+    let responder!: () => void;
+    permissao.solicitar = jest.fn(
+      () => new Promise<'concedida'>((ok) => { responder = () => ok('concedida'); }),
+    );
+    await render(<SecaoNotificacoes preferencias={prefs} permissao={permissao} />);
+    await screen.findByRole('switch', { name: ROTULOS_ALERTA.conquistas });
+
+    await alternar('conquistas'); // iniciado na conta A; o diálogo fica aberto
+    prefs.sessao.uid = 'uB'; // a conta muda antes da resposta
+    await act(async () => responder());
+
+    expect(prefs.definir).not.toHaveBeenCalled();
+    expect(ligado('conquistas')).toBe(false);
+  });
+
+  it('grava com o dono capturado ao abrir a seção', async () => {
+    const prefs = preferenciasFalsas();
+    await render(<SecaoNotificacoes preferencias={prefs} permissao={criarPermissaoSimulada('concedida')} />);
+    await screen.findByRole('switch', { name: ROTULOS_ALERTA.limite });
+    await alternar('limite');
+    expect(prefs.listar).toHaveBeenCalledWith({ uid: 'uA' });
+    expect(prefs.definir).toHaveBeenCalledWith('limite', true, { uid: 'uA' });
   });
 
   describe('US3 - falhas', () => {

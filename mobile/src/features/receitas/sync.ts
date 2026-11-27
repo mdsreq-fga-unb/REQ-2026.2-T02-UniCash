@@ -2,6 +2,7 @@ import type { ItemFila } from '@/features/sincronizacao/fila';
 import type { SQLiteBindParams } from 'expo-sqlite';
 import { serializarImportacao } from '@/features/conta/operacoes-locais';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { restaurarAlertas, sincronizarAlertas } from '@/features/alertas/sync';
 import {
   collection,
   deleteField,
@@ -21,6 +22,10 @@ import {
   restaurarCategoriasDaNuvem,
   sincronizarCategoriasPendentes,
 } from '@/features/categorias/sync';
+import {
+  restaurarMetasDaNuvem,
+  sincronizarMetasPendentes,
+} from '@/features/metas/sync';
 import {
   nomeNormalizadoCategoriaPadraoPorSlug,
   slugCategoriaPadrao,
@@ -169,6 +174,15 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
       registrarAcessoNegado(erro, { tipo: 'Categoria', id: categoria.id, revisao: categoria.atualizado_em });
     });
     if (categoriasSync.mudouLocal) mudouLocal = true;
+
+    // Metas são independentes do catálogo de categorias e têm fila própria.
+    // Uma falha de rede nas metas não impede a sincronização financeira.
+    try {
+      const metasSync = await sincronizarMetasPendentes(sqlite, uid);
+      if (metasSync.mudouLocal) mudouLocal = true;
+    } catch (e) {
+      if (negadoPelaNuvem(e)) acessoNegado = true;
+    }
 
     // Catálogo carregado no máximo uma vez por sincronização e compartilhado
     // entre uploads e conflitos. Falha de leitura não vira catálogo vazio.
@@ -685,6 +699,7 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
         registrarAcessoNegado(e, { tipo: 'Alerta de saldo', id, revisao: criado_em });
       }
     }
+    await sincronizarAlertas(sqlite, uid);
   } catch (e) {
     // Falha de catálogo é explícita; os demais erros mantêm o comportamento atual.
     if (e instanceof FalhaLeituraCatalogoSincronizacao) throw e;
@@ -724,6 +739,7 @@ export interface ResultadoRestauracao {
   receitas: number;
   despesas: number;
   recorrencias: number;
+  metas: number;
 }
 
 /**
@@ -774,8 +790,20 @@ async function restaurarParaUid(uid: string, servidor: boolean): Promise<Resulta
       servidor ? ler(collection(firestore, 'usuarios', uid, 'alertas_emitidos')) : null,
       lerSaldoInicialRemoto(uid),
     ]);
+
+    // Metas ficam fora do Promise.all: uma regra ainda não publicada ou um
+    // erro só dessa coleção não pode impedir a restauração financeira.
+    let docsMetas: { id: string; data: () => unknown }[] = [];
+    try {
+      const snapMetas = await getDocs(collection(firestore, 'usuarios', uid, 'metas'));
+      docsMetas = snapMetas.docs;
+    } catch (e) {
+      if (negadoPelaNuvem(e)) acessoNegado = true;
+      else throw e;
+    }
+
     const sqlite = await getDbDoDono(uid);
-    const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0 };
+    const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0, metas: 0 };
 
     await sqlite.withExclusiveTransactionAsync(async (tx) => {
       if (auth.currentUser?.uid !== uid || !auth.currentUser?.emailVerified) {
@@ -784,6 +812,8 @@ async function restaurarParaUid(uid: string, servidor: boolean): Promise<Resulta
 
       await restaurarSaldoInicial(tx, saldoRemoto);
       const mapaCategorias = await restaurarCategoriasDaNuvem(tx, snapCategorias.docs);
+      const restauracaoMetas = await restaurarMetasDaNuvem(tx, docsMetas);
+      resultado.metas = restauracaoMetas.aplicadas;
       const categoriasLocais = await tx.getAllAsync<Categoria>(
         `SELECT c.*, COALESCE(e.estado_local, 'editado') AS estado_local
            FROM categorias c
@@ -1109,6 +1139,12 @@ async function restaurarParaUid(uid: string, servidor: boolean): Promise<Resulta
     // alcança toda a coleção e é idempotente; não altera dados financeiros.
     const normalizacao = await normalizarCategoriasRemotas(uid, snapCategorias.docs);
     if (normalizacao.acessoNegado) acessoNegado = true;
+    try {
+      await restaurarAlertas(sqlite, uid);
+    } catch (erro) {
+      if (!negadoPelaNuvem(erro)) throw erro;
+      acessoNegado = true;
+    }
 
     return resultado;
   } catch (e) {

@@ -10,9 +10,14 @@ import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
 import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
 import { input } from '../../helpers/dados';
 
-jest.mock('@/lib/firebase', () => {
-  throw new Error('Conquistas não podem depender do Firebase (RN06)');
-});
+jest.mock('@/lib/firebase', () => ({
+  get auth() {
+    throw new Error('Conquistas não podem consultar a sessão do Firebase (RN06)');
+  },
+  get db() {
+    throw new Error('Conquistas não podem depender do Firestore (RN06)');
+  },
+}));
 jest.mock('@/features/receitas/sync', () => ({
   sincronizarPendentes: jest.fn().mockResolvedValue(false),
   sincronizarEmSegundoPlano: jest.fn(),
@@ -23,9 +28,17 @@ let metas: MetaConcluida[];
 let alertaLigado: boolean;
 let emissor: ReturnType<typeof criarEmissorSimulado>;
 let permissao: ReturnType<typeof criarPermissaoSimulada>;
+let dono: string;
+let aoLerMetas: () => void;
 
-const fonte: FonteMetas = { concluidas: async () => metas };
+const fonte: FonteMetas = {
+  concluidas: async () => {
+    aoLerMetas();
+    return metas;
+  },
+};
 const preferencias: NotificationPreferences = {
+  donoAtual: () => ({ uid: dono }),
   isEnabled: async (t) => t === 'conquistas' && alertaLigado,
   listar: async () => ({ limite: false, conquistas: alertaLigado }),
   definir: async () => {},
@@ -44,6 +57,8 @@ function preparar(estadoPermissao: EstadoPermissao = 'concedida') {
   alertaLigado = true;
   emissor = criarEmissorSimulado();
   permissao = criarPermissaoSimulada(estadoPermissao);
+  dono = 'local';
+  aoLerMetas = () => {};
 }
 
 beforeEach(() => {
@@ -143,5 +158,57 @@ describe('avaliarEEmitir (UC13, RF46)', () => {
     (getDb as jest.Mock).mockRejectedValueOnce(new Error('disco'));
     await expect(rodar()).resolves.toBeUndefined();
     expect(status()).toEqual([]);
+  });
+
+  it('agendamento não se repete quando a gravação da emissão falha (FA05, EX02)', async () => {
+    await rodar();
+    await verde('2026-10-05');
+    banco.falharNaOperacao(1);
+    await rodar();
+    expect(emissor.emitidas).toEqual([]);
+
+    await rodar();
+    await rodar();
+    expect(titulos()).toEqual(['Novo selo: No verde em outubro']);
+    expect(status()).toEqual([{ chave: 'no-verde:2026-10', status: 'emitida' }]);
+  });
+
+  describe('isolamento por conta (RNF03)', () => {
+    it('lê, grava e consulta a preferência na base do dono capturado no início', async () => {
+      const abrirBase = jest.fn(async () => getDb());
+      const isEnabled = jest.spyOn(preferencias, 'isEnabled');
+      dono = 'conta-a';
+      await avaliarEEmitir({ fonte, preferencias, permissao, emissor, abrirBase });
+      await verde('2026-10-05');
+      await avaliarEEmitir({ fonte, preferencias, permissao, emissor, abrirBase });
+
+      expect(abrirBase.mock.calls).toEqual([[{ uid: 'conta-a' }], [{ uid: 'conta-a' }]]);
+      expect(isEnabled).toHaveBeenCalledWith('conquistas', { uid: 'conta-a' });
+      expect(titulos()).toEqual(['Novo selo: No verde em outubro']);
+      isEnabled.mockRestore();
+    });
+
+    it('troca de conta durante a avaliação não grava nem notifica para a conta anterior', async () => {
+      await rodar();
+      await verde('2026-10-05');
+      aoLerMetas = () => {
+        dono = 'conta-b';
+      };
+      await rodar();
+
+      expect(emissor.emitidas).toEqual([]);
+      expect(status()).toEqual([]);
+    });
+
+    it('troca de conta na primeira avaliação não grava a linha de base', async () => {
+      await verde('2026-10-05');
+      aoLerMetas = () => {
+        dono = 'conta-b';
+      };
+      await rodar();
+
+      expect(status()).toEqual([]);
+      expect(banco.sqlite.prepare("SELECT COUNT(*) AS n FROM preferencias_locais WHERE chave = 'conquistas_linha_base'").get()).toEqual({ n: 0 });
+    });
   });
 });

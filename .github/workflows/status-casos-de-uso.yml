@@ -1,0 +1,30 @@
+name: Status dos casos de uso no quadro
+
+# Move as issues citadas no PR no quadro "Unicash Casos de Uso" (#130):
+# PR aberto ou pronto para revisão -> Test; rascunho ou fechado sem merge -> In progress; mergeado -> Done.
+on:
+  pull_request:
+    types: [opened, reopened, edited, ready_for_review, converted_to_draft, closed]
+
+concurrency:
+  group: status-casos-de-uso-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  mover:
+    name: Atualizar status no quadro
+    runs-on: ubuntu-latest
+    # Secrets não chegam a PRs de forks; nesses casos o job é pulado.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/scripts
+      - run: .github/scripts/status-casos-de-uso.sh
+        env:
+          GH_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}

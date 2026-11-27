@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
-import { adicionarDias, primeiroDiaDoMes, proximoMes } from './dates';
+import { adicionarDias, primeiroDiaDoMes, proximoMes, TODO_O_PERIODO } from './dates';
 import { listarReceitas } from './service';
 import type { Filtro, Receita } from './types';
 
 export function intervaloDoFiltro(f: Filtro): { inicio: string; fim: string } {
+  if (f.modo === 'tudo') return { ...TODO_O_PERIODO };
   if (f.modo === 'mes') {
     const p = proximoMes(f.ano, f.mes);
     return { inicio: primeiroDiaDoMes(f.ano, f.mes), fim: primeiroDiaDoMes(p.ano, p.mes) };

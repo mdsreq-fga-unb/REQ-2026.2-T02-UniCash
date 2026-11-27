@@ -52,6 +52,13 @@ module.exports = {
       functions: 85,
       lines: 90,
     },
+    // UC07: cálculo e hook da evolução mensal (o gráfico fica em components/resumo, já coberto acima).
+    'src/**/evolucao/**/*.{ts,tsx}': {
+      statements: 90,
+      branches: 70,
+      functions: 85,
+      lines: 90,
+    },
     'src/app/index.tsx': {
       statements: 90,
       branches: 70,
