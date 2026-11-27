@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Redirect, router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { cores, raio } from '@/lib/theme';
-import { mesAnterior, nomeMes, primeiroDiaDoMes, proximoMes } from '@/features/receitas/dates';
+import { lerMesDeParametros, mesAnterior, nomeMes, primeiroDiaDoMes, proximoMes } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
 import { percentualMetaExibido, rotuloDia } from '@/features/resumo/format';
@@ -39,7 +39,9 @@ export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean 
 
   // Passo 2: o mês corrente é o período padrão (RN12).
   const ofertaTutorial = useOfertaTutorial(!noTutorial);
-  const [periodo, setPeriodo] = useState(mesCorrente);
+  // UC13: "Ver resumo do mês" no detalhe do selo abre o resumo já no mês do selo.
+  const params = useLocalSearchParams<{ ano?: string; mes?: string }>();
+  const [periodo, setPeriodo] = useState(() => lerMesDeParametros(params.ano, params.mes) ?? mesCorrente());
   const inicio = primeiroDiaDoMes(periodo.ano, periodo.mes);
   const consumo = useConsumoMensal(inicio.slice(0, 7));
   // UC07: último mês da janela do gráfico. Começa no mês selecionado e só se desloca quando

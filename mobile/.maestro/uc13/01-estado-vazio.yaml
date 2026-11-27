@@ -1,0 +1,14 @@
+# UC13 · FA01: sem selos nem metas, a área mostra o estado vazio [CQ3].
+# Rodar sem EXPO_PUBLIC_METAS_EXEMPLO (sem metas concluídas).
+appId: br.unb.unicash
+name: "UC13 01 - Estado vazio"
+tags: [uc13]
+env:
+  DEEP_LINK: "unicash://"
+---
+- runFlow: ../subflows/abrir-app-limpo.yaml
+- runFlow: ../subflows/abrir-conquistas.yaml
+- assertVisible: "Nenhuma conquista ainda."
+- assertVisible: "Nenhuma meta concluída"
+- assertVisible: "Ver metas"
+- takeScreenshot: artefatos/uc13/01-estado-vazio

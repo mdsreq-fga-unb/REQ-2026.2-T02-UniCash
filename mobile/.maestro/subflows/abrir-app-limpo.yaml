@@ -1,0 +1,17 @@
+# Abre o app com a base zerada e chega à tela inicial sem conta e sem tutorial.
+appId: br.unb.unicash
+---
+- launchApp:
+    clearState: true
+- tapOn:
+    id: "continuar-sem-conta"
+    optional: true
+- tapOn:
+    text: "Pular tutorial"
+    optional: true
+# Espera um elemento do topo da tela inicial. O botão "Perfil" fica abaixo da dobra
+# no emulador e extendedWaitUntil não rola a tela.
+- extendedWaitUntil:
+    visible:
+      id: "mes-selecionado"
+    timeout: 20000

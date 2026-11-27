@@ -1,3 +1,4 @@
+import { aplicarHistoricoRemoto, lerHistoricoRemoto, sincronizarHistoricoConquistas } from '@/features/conquistas/sync';
 import type { ItemFila } from '@/features/sincronizacao/fila';
 import type { SQLiteBindParams } from 'expo-sqlite';
 import { serializarImportacao } from '@/features/conta/operacoes-locais';
@@ -700,6 +701,7 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
       }
     }
     await sincronizarAlertas(sqlite, uid);
+    if (await sincronizarHistoricoConquistas(sqlite, uid)) mudouLocal = true;
   } catch (e) {
     // Falha de catálogo é explícita; os demais erros mantêm o comportamento atual.
     if (e instanceof FalhaLeituraCatalogoSincronizacao) throw e;
@@ -803,6 +805,13 @@ async function restaurarParaUid(uid: string, servidor: boolean): Promise<Resulta
     }
 
     const sqlite = await getDbDoDono(uid);
+    let historicoConquistas: Awaited<ReturnType<typeof lerHistoricoRemoto>> = [];
+    try {
+      historicoConquistas = await lerHistoricoRemoto(uid);
+    } catch (e) {
+      if (negadoPelaNuvem(e)) acessoNegado = true;
+      else if (servidor) throw e;
+    }
     const resultado: ResultadoRestauracao = { receitas: 0, despesas: 0, recorrencias: 0, metas: 0 };
 
     await sqlite.withExclusiveTransactionAsync(async (tx) => {
@@ -810,6 +819,7 @@ async function restaurarParaUid(uid: string, servidor: boolean): Promise<Resulta
         throw new FalhaRestauracao('conta alterada durante a restauração');
       }
 
+      await aplicarHistoricoRemoto(tx, uid, historicoConquistas);
       await restaurarSaldoInicial(tx, saldoRemoto);
       const mapaCategorias = await restaurarCategoriasDaNuvem(tx, snapCategorias.docs);
       const restauracaoMetas = await restaurarMetasDaNuvem(tx, docsMetas);

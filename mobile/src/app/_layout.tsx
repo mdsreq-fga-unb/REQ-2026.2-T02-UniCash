@@ -1,7 +1,8 @@
 import { useNotificacoesDeLimite } from '@/features/alertas/useNotificacoesDeLimite';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Stack } from 'expo-router';
+import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router, Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 
 import { BancoPronto } from '@/db/Preparacao';
 import { getDb } from '@/db/database';
@@ -13,12 +14,35 @@ import { completarRecorrencias } from '@/features/receitas/service';
 import { completarRecorrenciasDespesas } from '@/features/despesas/service';
 import { restaurarDaNuvem, sincronizarEmSegundoPlano, sincronizarPendentes } from '@/features/receitas/sync';
 import { observarConexaoSaldoInicial } from '@/features/saldoInicial/sync';
-import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
+import { avisarBaseAtualizada, ouvirBaseAtualizada } from '@/lib/baseAtualizada';
+import { avaliarEEmitir } from '@/features/conquistas/emissao';
+import { aoMudarLancamentos, aoVirarMes } from '@/features/conquistas/gatilhos';
 import { iniciarSincronizacaoAutomatica } from '@/features/sincronizacao/service';
 import { cores, raio } from '@/lib/theme';
 
 iniciarConta();
 resetarContinuidadeSemConta();
+
+// RF46/RF58: sem handler, notificações locais não aparecem com o app aberto (doc v58).
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  }),
+});
+
+/** UC13: tocar na notificação de selo abre a rota indicada nela (Conquistas). */
+let ultimaRespostaTratada: string | null = null;
+function abrirRotaDaNotificacao(resposta: Notifications.NotificationResponse | null) {
+  if (!resposta) return;
+  // A resposta pode chegar pelo ouvinte e por getLastNotificationResponse: tratar uma vez só.
+  const id = resposta.notification.request.identifier;
+  if (id === ultimaRespostaTratada) return;
+  ultimaRespostaTratada = id;
+  if (resposta.notification.request.content.data?.rota === '/conquistas') router.push('/conquistas');
+}
 
 type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
 
@@ -46,6 +70,8 @@ const TELAS_COM_BANCO = [
   'receitas/nova',
   'receitas/[id]/index',
   'receitas/[id]/editar',
+  'conquistas/index',
+  'conquistas/[chave]',
 ] as const;
 
 // O Stack é montado desde a primeira renderização; a âncora continua sendo a Home.
@@ -103,6 +129,31 @@ export default function RootLayout() {
     return () => {
       pararObservacaoSaldo();
       pararSincronizacao();
+    };
+  }, [estado]);
+
+  // UC13 (research R5): avalia conquistas ao liberar a base, ao voltar ao app, após mudanças em
+  // lançamentos ou metas, na virada do mês e após as rotinas de inicialização, para notificar selos
+  // novos na mesma sessão.
+  useEffect(() => {
+    if (estado !== 'pronto') return;
+    const avaliar = () => void avaliarEEmitir();
+    avaliar();
+    const avaliarESincronizar = () => void avaliarEEmitir().then(() => sincronizarEmSegundoPlano(true));
+    const pararLancamentos = aoMudarLancamentos(avaliarESincronizar);
+    const pararBase = ouvirBaseAtualizada(avaliar);
+    const pararVirada = aoVirarMes(avaliarESincronizar);
+    const aplicativo = AppState.addEventListener('change', (e) => {
+      if (e === 'active') avaliar();
+    });
+    abrirRotaDaNotificacao(Notifications.getLastNotificationResponse());
+    const toque = Notifications.addNotificationResponseReceivedListener(abrirRotaDaNotificacao);
+    return () => {
+      pararLancamentos();
+      pararBase();
+      pararVirada();
+      aplicativo.remove();
+      toque.remove();
     };
   }, [estado]);
 

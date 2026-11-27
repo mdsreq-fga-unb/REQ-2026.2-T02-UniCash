@@ -1,0 +1,9 @@
+# Tela inicial → Perfil → ícone de Conquistas (UC13, passo B1).
+appId: br.unb.unicash
+---
+- openLink: ${DEEP_LINK}perfil
+- tapOn:
+    id: "abrir-conquistas"
+- extendedWaitUntil:
+    visible: "Total de pontos"
+    timeout: 10000

@@ -1,0 +1,150 @@
+name: Mobile E2E (Maestro)
+
+# Testes ponta a ponta com Maestro, com prints e vídeo como artefatos (issue #133).
+# Roda num PR só quando a label "e2e" é adicionada (outras labels e novos pushes não disparam;
+# para rodar de novo, tire e recoloque a label), ou manualmente em Actions > Mobile E2E (Maestro) > Run workflow (depois que este arquivo estiver na main).
+# Cada execução gasta um build Android da cota gratuita da organização sevenspecs no EAS.
+on:
+  pull_request:
+    types: [labeled]
+  workflow_dispatch: {}
+
+concurrency:
+  group: mobile-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: Maestro UC13 (Android)
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'e2e'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write        # publica prints e vídeo na branch e2e-evidencias
+      pull-requests: write   # comentário fixo com o resultado
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Verificar EXPO_TOKEN
+        working-directory: .
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          if [ -z "$EXPO_TOKEN" ]; then
+            echo "::error::Crie o secret EXPO_TOKEN em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: mobile/.nvmrc
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      # APK de teste com o JS embutido (perfil e2e-test do eas.json), compilado na nuvem do EAS.
+      - name: Build do APK de teste (EAS)
+        run: |
+          eas build --platform android --profile e2e-test --non-interactive --wait --json > build.json
+          url=$(node -e "const b=require('./build.json'); console.log((Array.isArray(b)?b[0]:b).artifacts.buildUrl)")
+          curl -fsSL "$url" -o app.apk
+
+      - name: Instalar Maestro
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      # O runner do GitHub tem KVM; esta regra libera o acesso para o emulador.
+      - name: Habilitar KVM
+        working-directory: .
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Rodar fluxos no emulador
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          working-directory: mobile
+          script: bash .maestro/rodar-ci.sh app.apk
+
+      # O GitHub não mostra imagens de dentro do zip do artefato. Os prints e o vídeo vão para a
+      # branch e2e-evidencias (só evidências, sem código), e o resumo e o comentário apontam para lá.
+      - name: Publicar evidências na branch e2e-evidencias
+        id: evidencias
+        if: always()
+        env:
+          TOKEN: ${{ github.token }}
+          DESTINO: pr-${{ github.event.pull_request.number || 'manual' }}/execucao-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          # Os diretórios de saída do Maestro têm espaços no nome (ex.: "UC13 01 - Estado vazio"),
+          # então a lista é lida linha a linha, sem separar por palavras.
+          arquivos=$(find . \( -path ./node_modules -prune \) -o \( -path '*artefatos*' \( -name '*.png' -o -name '*.mp4' \) -print \))
+          if [ -z "$arquivos" ]; then echo "Nenhum print ou vídeo gerado."; exit 0; fi
+          repo="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "$repo" e2e-evidencias > /dev/null; then
+            git clone --quiet --depth 1 --branch e2e-evidencias "$repo" "$RUNNER_TEMP/evid"
+          else
+            git init --quiet -b e2e-evidencias "$RUNNER_TEMP/evid"
+            git -C "$RUNNER_TEMP/evid" remote add origin "$repo"
+            echo "# Evidências dos testes E2E (Maestro), geradas pelo workflow mobile-e2e.yml" > "$RUNNER_TEMP/evid/README.md"
+          fi
+          lista=""
+          mkdir -p "$RUNNER_TEMP/evid/$DESTINO/uc13"
+          while IFS= read -r f; do
+            base=$(basename "$f")
+            # Prints de falha do Maestro (saida/<data>/<fluxo>/screenshots/) têm o mesmo nome em
+            # todos os fluxos; o nome do fluxo vai na frente para um não sobrescrever o outro.
+            case "$f" in
+              */saida/*/screenshots/*) base="$(basename "$(dirname "$(dirname "$f")")")-$base" ;;
+            esac
+            nome="uc13/$(echo "$base" | tr ' ' '-')"
+            cp "$f" "$RUNNER_TEMP/evid/$DESTINO/$nome"
+            lista="$lista $nome"
+          done <<< "$arquivos"
+          cd "$RUNNER_TEMP/evid"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit --quiet -m "evidências E2E: $DESTINO"
+          git push --quiet origin e2e-evidencias
+          echo "url=https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/e2e-evidencias/$DESTINO" >> "$GITHUB_OUTPUT"
+          echo "lista=$lista" >> "$GITHUB_OUTPUT"
+
+      - name: Resumo do E2E
+        if: always()
+        env:
+          URL_EXECUCAO: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          node ../.github/scripts/resumo-e2e.mjs .maestro/artefatos/relatorio.xml "${{ steps.evidencias.outputs.url }}" ${{ steps.evidencias.outputs.lista }} -- resumo-e2e.md
+          cat resumo-e2e.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comentar resultado no PR
+        if: always() && github.event_name == 'pull_request'
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: e2e-maestro
+          path: mobile/resumo-e2e.md
+
+      - name: Publicar prints, vídeo e relatório
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-uc13
+          path: |
+            mobile/.maestro/artefatos/
+            mobile/artefatos/
+          if-no-files-found: warn

@@ -1,0 +1,17 @@
+# Registra uma receita única pelo formulário do UC01.
+# Parâmetros: TITULO, VALOR (ex.: "1000,00"), DATA (DD/MM/AAAA). DEEP_LINK vem do fluxo que chama.
+appId: br.unb.unicash
+---
+- openLink: ${DEEP_LINK}receitas/nova
+- tapOn: "Freela de design"
+- inputText: ${TITULO}
+- tapOn: "0,00"
+- inputText: ${VALOR}
+- tapOn:
+    text: "DD/MM/AAAA"
+    index: 0
+- eraseText: 12
+- inputText: ${DATA}
+- hideKeyboard
+- tapOn: "Salvar receita"
+- waitForAnimationToEnd
