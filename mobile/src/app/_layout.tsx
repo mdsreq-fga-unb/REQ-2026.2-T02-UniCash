@@ -1,3 +1,4 @@
+import { useNotificacoesDeLimite } from '@/features/alertas/useNotificacoesDeLimite';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, Stack } from 'expo-router';
@@ -49,6 +50,7 @@ type EstadoPreparacao = 'preparando' | 'pronto' | 'erro';
  * semeadura/mapeamento de categorias terminarem.
  */
 const TELAS_COM_BANCO = [
+  'preferencias-alertas',
   'configuracoes-financeiras',
   'saldo-inicial',
   'categorias/index',
@@ -59,6 +61,10 @@ const TELAS_COM_BANCO = [
   'despesas/[id]/index',
   'despesas/[id]/editar',
   'sincronizacao',
+  'metas/index',
+  'metas/nova',
+  'metas/[id]/index',
+  'metas/[id]/editar',
   'receitas/index',
   'receitas/nova',
   'receitas/[id]/index',
@@ -72,6 +78,7 @@ export const unstable_settings = { anchor: 'index' };
 
 export default function RootLayout() {
   const [estado, setEstado] = useState<EstadoPreparacao>('preparando');
+  useNotificacoesDeLimite(estado === 'pronto');
   const emAndamento = useRef(false);
   const montado = useRef(true);
 

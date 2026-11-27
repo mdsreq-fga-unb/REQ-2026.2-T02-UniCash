@@ -17,11 +17,13 @@ export function useNotificacoes(
   const [estadoPermissao, setEstadoPermissao] = useState<EstadoPermissao | null>(null);
   const ocupado = useRef(false);
   const montado = useRef(true);
+  // Dono da tela (RNF03): leitura e gravação usam sempre o mesmo. A tela é remontada quando a conta muda.
+  const dono = useRef(preferencias.donoAtual());
 
   const recarregar = useCallback(async () => {
     setEstado('carregando');
     try {
-      const lidos = await preferencias.listar();
+      const lidos = await preferencias.listar(dono.current);
       if (!montado.current) return;
       setValores(lidos);
       setEstado('pronto');
@@ -34,7 +36,7 @@ export function useNotificacoes(
     montado.current = true;
     // Atualizações só nos retornos das promessas (assinatura de sistema externo).
     preferencias
-      .listar()
+      .listar(dono.current)
       .then((lidos) => {
         if (!montado.current) return;
         setValores(lidos);
@@ -74,8 +76,10 @@ export function useNotificacoes(
           // Passo 4: pede só na primeira vez; a negação não desfaz a escolha (FA06).
           const resultado = await permissao.solicitar().catch(() => null);
           if (resultado && montado.current) setEstadoPermissao(resultado);
+          // A conta pode ter mudado com o diálogo aberto: a escolha não vai para outro dono.
+          if (preferencias.donoAtual().uid !== dono.current.uid) return;
         }
-        await preferencias.definir(tipo, novo); // Passo 5: grava antes de confirmar.
+        await preferencias.definir(tipo, novo, dono.current); // Passo 5: grava antes de confirmar.
         if (!montado.current) return;
         setValores((atual) => ({ ...atual, [tipo]: novo }));
         setErroGravacao(null);

@@ -10,9 +10,14 @@ import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
 import { instalarBanco, type BancoFalso } from '../../helpers/fakeDb';
 import { input } from '../../helpers/dados';
 
-jest.mock('@/lib/firebase', () => {
-  throw new Error('Conquistas não podem depender do Firebase (RN06)');
-});
+jest.mock('@/lib/firebase', () => ({
+  get auth() {
+    throw new Error('Conquistas não podem consultar a sessão do Firebase (RN06)');
+  },
+  get db() {
+    throw new Error('Conquistas não podem depender do Firestore (RN06)');
+  },
+}));
 jest.mock('@/features/receitas/sync', () => ({
   sincronizarPendentes: jest.fn().mockResolvedValue(false),
   sincronizarEmSegundoPlano: jest.fn(),
@@ -26,6 +31,7 @@ let permissao: ReturnType<typeof criarPermissaoSimulada>;
 
 const fonte: FonteMetas = { concluidas: async () => metas };
 const preferencias: NotificationPreferences = {
+  donoAtual: () => ({ uid: 'local' }),
   isEnabled: async (t) => t === 'conquistas' && alertaLigado,
   listar: async () => ({ limite: false, conquistas: alertaLigado }),
   definir: async () => {},

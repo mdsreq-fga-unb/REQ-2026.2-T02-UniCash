@@ -56,4 +56,5 @@ export type CampoForm = 'valor' | 'data' | 'titulo' | 'descricao' | 'intervalo' 
 export type Filtro =
   | { modo: 'mes'; ano: number; mes: number } // mes 1-12
   | { modo: 'data'; data: string }
-  | { modo: 'periodo'; de: string; ate: string };
+  | { modo: 'periodo'; de: string; ate: string }
+  | { modo: 'tudo' }; // todas as receitas, de qualquer data

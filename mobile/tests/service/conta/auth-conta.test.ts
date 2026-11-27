@@ -2,8 +2,10 @@ import * as fa from 'firebase/auth';
 import * as ff from 'firebase/firestore';
 import { auth } from '@/lib/firebase';
 import { criarAuthFirebase, iniciarObservadorDeSessao } from '@/features/conta/auth.firebase';
-import { definirSessao, obterSessao } from '@/features/conta/sessao';
+import { aoMudarSessao, definirSessao, obterSessao } from '@/features/conta/sessao';
 import type { CodigoErro } from '@/features/conta/types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { emailParaReconciliar, reconciliarEmailDoPerfil } from '@/features/conta/perfil';
 
 let mockFirebaseConfigurado = true;
 jest.mock('@/lib/firebase', () => ({
@@ -13,6 +15,20 @@ jest.mock('@/lib/firebase', () => ({
     return mockFirebaseConfigurado;
   },
 }));
+
+// AsyncStorage em memória sem jest.fn: o resetAllMocks do beforeEach não apaga o comportamento.
+jest.mock('@react-native-async-storage/async-storage', () => {
+  const dados = new Map<string, string>();
+  return {
+    __esModule: true,
+    default: {
+      getItem: async (k: string) => dados.get(k) ?? null,
+      setItem: async (k: string, v: string) => void dados.set(k, v),
+      removeItem: async (k: string) => void dados.delete(k),
+      clear: async () => dados.clear(),
+    },
+  };
+});
 
 jest.mock('firebase/auth', () => ({
   applyActionCode: jest.fn(),
@@ -425,11 +441,145 @@ describe('requestEmailChange e confirmEmailChange (UC11)', () => {
     expect(obterSessao()).toEqual({ status: 'ativa', uid: 'u1', email: 'novo@exemplo.com' });
   });
 
+  it('verifica a confirmação feita no navegador sem reaplicar o código', async () => {
+    const u = usuario({ emailVerified: true });
+    u.reload.mockImplementation(async () => {
+      u.email = 'novo@exemplo.com';
+    });
+    setCurrentUser(u);
+
+    await criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com');
+
+    expect(fa.applyActionCode).not.toHaveBeenCalled();
+    expect(ff.updateDoc).toHaveBeenCalledWith(
+      { path: 'usuarios/u1' },
+      { email: 'novo@exemplo.com', atualizado_em: 'TS' },
+    );
+  });
+
+  it('preserva o perfil enquanto o novo e-mail não foi confirmado', async () => {
+    setCurrentUser(usuario({ emailVerified: true }));
+
+    await expect(criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com'))
+      .rejects.toMatchObject({ codigo: 'email-nao-confirmado' });
+
+    expect(ff.updateDoc).not.toHaveBeenCalled();
+  });
+
   it('código expirado não altera o perfil', async () => {
     setCurrentUser(usuario({ emailVerified: true }));
     m(fa.applyActionCode).mockRejectedValue(erroFirebase('auth/expired-action-code'));
     expect(await codigoDoErro(criarAuthFirebase().confirmEmailChange('cod'))).toBe('ligacao-invalida');
     expect(m(ff.updateDoc)).not.toHaveBeenCalled();
+  });
+
+  describe('RF03: e-mail confirmado no Auth com falha no Firestore', () => {
+    beforeEach(() => AsyncStorage.clear());
+
+    function confirmado() {
+      const u = usuario({ emailVerified: true });
+      u.reload.mockImplementation(async () => {
+        u.email = 'novo@exemplo.com';
+      });
+      setCurrentUser(u);
+      return u;
+    }
+
+    it('publica o e-mail confirmado na sessão e deixa a gravação para reconciliar', async () => {
+      confirmado();
+      m(ff.updateDoc).mockRejectedValueOnce(erroFirebase('unavailable'));
+
+      await criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com');
+
+      // a leitura offline do perfil (sessão) já mostra o e-mail confirmado
+      expect(obterSessao()).toMatchObject({ status: 'ativa', uid: 'u1', email: 'novo@exemplo.com' });
+      expect(await emailParaReconciliar('u1')).toBe('novo@exemplo.com');
+    });
+
+    it('a reconciliação grava o e-mail pendente no Firestore e limpa a pendência', async () => {
+      confirmado();
+      m(ff.updateDoc).mockRejectedValueOnce(erroFirebase('unavailable'));
+      await criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com');
+
+      expect(await reconciliarEmailDoPerfil('u1')).toBe(true);
+      expect(ff.updateDoc).toHaveBeenLastCalledWith(
+        { path: 'usuarios/u1' },
+        { email: 'novo@exemplo.com', atualizado_em: 'TS' },
+      );
+      expect(await emailParaReconciliar('u1')).toBeNull();
+    });
+
+    it('reconciliação que falha mantém a pendência para a próxima sessão', async () => {
+      confirmado();
+      m(ff.updateDoc).mockRejectedValueOnce(erroFirebase('unavailable'));
+      await criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com');
+
+      m(ff.updateDoc).mockRejectedValueOnce(erroFirebase('unavailable'));
+      await expect(reconciliarEmailDoPerfil('u1')).rejects.toBeDefined();
+      expect(await emailParaReconciliar('u1')).toBe('novo@exemplo.com');
+    });
+
+    it('sem pendência, a reconciliação não grava nada', async () => {
+      expect(await reconciliarEmailDoPerfil('u1')).toBe(false);
+      expect(ff.updateDoc).not.toHaveBeenCalled();
+    });
+
+    it('a reconciliação renova o token antes de gravar (a regra compara com o e-mail do token)', async () => {
+      const u = confirmado();
+      m(ff.updateDoc).mockRejectedValueOnce(erroFirebase('unavailable'));
+      await criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com');
+      u.getIdToken.mockClear();
+
+      await reconciliarEmailDoPerfil('u1');
+
+      expect(u.getIdToken).toHaveBeenCalledWith(true);
+      expect(u.getIdToken.mock.invocationCallOrder[0])
+        .toBeLessThan(m(ff.updateDoc).mock.invocationCallOrder.at(-1)!);
+    });
+
+    it('marca que não bate com o e-mail do Auth é descartada sem gravar', async () => {
+      const u = usuario({ emailVerified: true, email: 'c@exemplo.com' });
+      setCurrentUser(u);
+      await AsyncStorage.setItem('@unicash/email-reconciliar:u1', 'b@exemplo.com');
+
+      expect(await reconciliarEmailDoPerfil('u1')).toBe(false);
+      expect(ff.updateDoc).not.toHaveBeenCalled();
+      expect(await emailParaReconciliar('u1')).toBeNull();
+    });
+
+    it('sem o usuário da marca no Auth, a reconciliação não grava e mantém a marca', async () => {
+      await AsyncStorage.setItem('@unicash/email-reconciliar:u1', 'novo@exemplo.com');
+      expect(await reconciliarEmailDoPerfil('u1')).toBe(false);
+      expect(ff.updateDoc).not.toHaveBeenCalled();
+      expect(await emailParaReconciliar('u1')).toBe('novo@exemplo.com');
+    });
+
+    it('confirmação gravada no Firestore apaga a marca de uma troca anterior', async () => {
+      await AsyncStorage.setItem('@unicash/email-reconciliar:u1', 'antigo@exemplo.com');
+      confirmado();
+      await criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com');
+      expect(await emailParaReconciliar('u1')).toBeNull();
+    });
+
+    it('a sessão é publicada depois da marca (a reconciliação da mudança de sessão a encontra)', async () => {
+      confirmado();
+      m(ff.updateDoc).mockRejectedValueOnce(erroFirebase('unavailable'));
+      const vistas: (string | null)[] = [];
+      const cancelar = aoMudarSessao(() => {
+        void emailParaReconciliar('u1').then((e) => vistas.push(e));
+      });
+      await criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com');
+      await new Promise((r) => setImmediate(r));
+      cancelar();
+      expect(vistas).toEqual(['novo@exemplo.com']);
+    });
+
+    it('com o Firestore disponível, grava na hora e não deixa pendência', async () => {
+      confirmado();
+      await criarAuthFirebase().confirmEmailChange(undefined, 'novo@exemplo.com');
+      expect(await emailParaReconciliar('u1')).toBeNull();
+      expect(obterSessao()).toMatchObject({ email: 'novo@exemplo.com' });
+    });
   });
 });
 

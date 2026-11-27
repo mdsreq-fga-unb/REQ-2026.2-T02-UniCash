@@ -15,7 +15,7 @@ Cobertura esperada:
 - FA08: excluir a receita que deixava outubro no verde remove o selo; recriar devolve o selo sem nova notificação (FR-007a).
 - `avaliarEEmitir` com emissor e preferências simulados: linha de base sem notificação (FR-009a); selo novo notifica uma vez; alerta desligado não notifica (FA04); 2 selos → 2 notificações (FA05); falha de emissão → `pendente` e nova tentativa (EX02); chamadas repetidas não duplicam (SC-002).
 - Tela: estados cheio, vazio, erro com "Tentar novamente", acesso negado; toque no selo abre o detalhe (US1, US3, US5).
-- Migração 012 cria `conquistas_emitidas` em base nova e em base na versão 11.
+- Migração 016 cria `conquistas_emitidas` em base nova e em base na versão 15.
 
 ## Manual (roteiro em `tests/MANUAL-UC13.md`)
 1. `npx expo start`; app com lançamentos de setembro e outubro no verde e a fonte de metas de exemplo ligada.

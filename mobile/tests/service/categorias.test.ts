@@ -553,6 +553,82 @@ describe('Serviço de categorias (UC06)', () => {
     const lerCategoria = (id: string): any =>
       banco.sqlite.prepare('SELECT * FROM categorias WHERE id = ?').get(id);
 
+    function inserirMeta(
+      id: string,
+      categoriaId: string | null,
+      extra: Partial<{
+        syncStatus: 'pendente' | 'sincronizado';
+        atualizadoEm: string;
+        tipo: 'gasto' | 'investimento';
+        inicio: string | null;
+        excluidoEm: string | null;
+      }> = {},
+    ): void {
+      const {
+        syncStatus = 'sincronizado',
+        atualizadoEm = TS,
+        tipo = 'gasto',
+        inicio = '2026-01-01',
+        excluidoEm = null,
+      } = extra;
+      banco.sqlite
+        .prepare(
+          `INSERT INTO metas
+            (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
+             valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status,
+             excluido_em, criado_em, atualizado_em)
+           VALUES (?, 'Meta', ?, 100000, '2027-12-31', ?, ?, NULL, NULL, ?, ?, ?, ?)`,
+        )
+        .run(id, tipo, inicio, categoriaId, syncStatus, excluidoEm, TS, atualizadoEm);
+    }
+
+    const lerMeta = (id: string): any =>
+      banco.sqlite.prepare('SELECT * FROM metas WHERE id = ?').get(id);
+
+    it('desvincula metas de gasto na mesma transação e mantém o cadastro', async () => {
+      const id = await criarCategoria(comValor);
+      inserirMeta('meta-afetada', id);
+      inserirMeta('meta-sem-vinculo', null);
+      const antes = lerMeta('meta-afetada');
+
+      await excluirCategoria(id);
+
+      const depois = lerMeta('meta-afetada');
+      expect(depois).toMatchObject({
+        categoria_id: null,
+        sync_status: 'pendente',
+        objetivo: antes.objetivo,
+        tipo: 'gasto',
+        valor_alvo_centavos: antes.valor_alvo_centavos,
+        prazo: antes.prazo,
+        inicio: antes.inicio,
+        criado_em: antes.criado_em,
+      });
+      expect(depois.atualizado_em).toBe(lerCategoria(id).atualizado_em);
+      expect(lerMeta('meta-sem-vinculo')).toMatchObject({
+        categoria_id: null,
+        sync_status: 'sincronizado',
+      });
+    });
+
+    it('falha ao desvincular metas reverte também a categoria e os lançamentos', async () => {
+      const id = await criarCategoria(comValor);
+      inserirDespesa('rollback-meta-despesa', id);
+      inserirMeta('rollback-meta', id);
+      const categoriaAntes = lerCategoria(id);
+      const despesaAntes = lerDespesa('rollback-meta-despesa');
+      const metaAntes = lerMeta('rollback-meta');
+
+      banco.chamadas = 0;
+      banco.falharNaOperacao(3); // despesas, recorrências, metas
+
+      await expect(excluirCategoria(id)).rejects.toThrow(FalhaPersistenciaCategoria);
+
+      expect(lerCategoria(id)).toEqual(categoriaAntes);
+      expect(lerDespesa('rollback-meta-despesa')).toEqual(despesaAntes);
+      expect(lerMeta('rollback-meta')).toEqual(metaAntes);
+    });
+
     it('desvincula despesa avulsa ativa e preserva os demais campos', async () => {
       const id = await criarCategoria(comValor);
       inserirDespesa('avulsa', id, {

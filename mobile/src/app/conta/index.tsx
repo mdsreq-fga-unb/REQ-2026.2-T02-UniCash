@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Aviso } from '@/components/conta/Aviso';
 import { Botao } from '@/components/conta/Botao';
 import { DialogoConta } from '@/components/conta/DialogoConta';
+import { EditarPerfil } from '@/components/conta/EditarPerfil';
 import { TelaConta } from '@/components/conta/TelaConta';
 import { obterServicoConta } from '@/features/conta/service';
 import { useSessao } from '@/features/conta/sessao';
@@ -16,6 +17,7 @@ import { cores } from '@/lib/theme';
  */
 export default function Conta() {
   const sessao = useSessao();
+  const [editando, setEditando] = useState(false);
   const [encerrada, setEncerrada] = useState(false);
   const [saindo, setSaindo] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
@@ -71,8 +73,12 @@ export default function Conta() {
 
   if (sessao.status === 'sem-sessao') return <Redirect href="/conta/entrar" />;
 
+  if (editando) {
+    return <EditarPerfil key={sessao.uid} perfil={sessao} voltar={() => setEditando(false)} />;
+  }
+
   return (
-    <TelaConta titulo="Conta" subtitulo="Sincronização ativa neste aparelho." onVoltar={() => router.back()}>
+    <TelaConta titulo="Perfil" subtitulo="Sincronização ativa neste aparelho." onVoltar={() => router.back()}>
       <View style={estilos.cartao}>
         <Text style={estilos.rotulo}>E-mail</Text>
         <Text style={estilos.email}>{sessao.email}</Text>
@@ -80,6 +86,7 @@ export default function Conta() {
 
       {erro ? <Aviso tipo="erro" texto={erro} /> : null}
 
+      <Botao rotulo="Editar perfil" onPress={() => setEditando(true)} />
       <Botao rotulo="Sair" tipo="contorno" onPress={aoAcionarSair} carregando={saindo} testID="sair" />
 
       <DialogoConta

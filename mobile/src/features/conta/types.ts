@@ -80,6 +80,6 @@ export interface AuthService {
   changePassword(dados: { senhaAtual: string; novaSenha: string }): Promise<void>;
   /** UC11: reautentica e envia a ligação de confirmação ao NOVO e-mail. O e-mail só muda após confirmar. */
   requestEmailChange(dados: { novoEmail: string; senhaAtual: string }): Promise<void>;
-  /** UC11: aplica o código da ligação enviada ao novo e-mail e atualiza o perfil. */
-  confirmEmailChange(codigo: string): Promise<void>;
+  /** UC11: Aplica o código ou verifica a confirmação feita no navegador. */
+  confirmEmailChange(codigo?: string, emailEsperado?: string): Promise<void>;
 }

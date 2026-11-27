@@ -23,7 +23,7 @@ import {
 import { MSG_DESPESA } from '@/features/despesas/validation';
 import type { FiltroDespesa } from '@/features/despesas/types';
 
-type Modo = 'dia' | 'mes' | 'personalizado';
+type Modo = 'dia' | 'mes' | 'personalizado' | 'tudo';
 
 function mesAtual() {
   const n = new Date();
@@ -31,6 +31,7 @@ function mesAtual() {
 }
 
 function rotuloDoFiltro(f: FiltroDespesa): string {
+  if (f.modo === 'tudo') return 'Todo o período';
   if (f.modo === 'mes') return nomeMes(f.ano, f.mes);
   if (f.modo === 'data') return formatarBR(f.data);
   return `${formatarBR(f.de)} – ${formatarBR(f.ate)}`;
@@ -59,6 +60,8 @@ export function FiltroDespesas({ filtro, onChange }: Props) {
     } else if (filtro.modo === 'data') {
       setModo('dia');
       setDia(formatarBR(filtro.data));
+    } else if (filtro.modo === 'tudo') {
+      setModo('tudo');
     } else {
       setModo('personalizado');
       setDe(formatarBR(filtro.de));
@@ -69,7 +72,9 @@ export function FiltroDespesas({ filtro, onChange }: Props) {
   }
 
   function aplicar() {
-    if (modo === 'mes') {
+    if (modo === 'tudo') {
+      onChange({ modo: 'tudo' });
+    } else if (modo === 'mes') {
       onChange({ modo: 'mes', ...mes });
     } else if (modo === 'dia') {
       const d = parseBR(dia);
@@ -132,6 +137,7 @@ export function FiltroDespesas({ filtro, onChange }: Props) {
                 { valor: 'dia', rotulo: 'Dia' },
                 { valor: 'mes', rotulo: 'Mês' },
                 { valor: 'personalizado', rotulo: 'Personalizado' },
+                { valor: 'tudo', rotulo: 'Tudo' },
               ]}
             />
 
@@ -160,6 +166,9 @@ export function FiltroDespesas({ filtro, onChange }: Props) {
                 </View>
               ) : null}
 
+              {modo === 'tudo' ? (
+                <Text style={estilos.tudoTexto}>Mostra todas as despesas, de qualquer data.</Text>
+              ) : null}
               {modo === 'dia' ? (
                 <Campo
                   rotulo="Data"
@@ -221,6 +230,7 @@ export function FiltroDespesas({ filtro, onChange }: Props) {
 }
 
 const estilos = StyleSheet.create({
+  tudoTexto: { fontSize: 14, color: cores.textoSuave, textAlign: 'center', paddingVertical: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

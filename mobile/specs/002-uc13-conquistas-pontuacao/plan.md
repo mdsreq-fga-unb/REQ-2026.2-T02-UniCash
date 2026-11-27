@@ -12,7 +12,7 @@ Criar a área "Conquistas" (protótipo 07, telas CQ1 a CQ6), aberta pelo ícone 
 
 **Language/Version**: TypeScript 5 (strict), React Native via Expo SDK 58
 **Primary Dependencies**: expo-router, expo-sqlite, expo-notifications (já instalado no UC14); nenhuma dependência nova
-**Storage**: SQLite local por dono (`getDb()`), nova tabela `conquistas_emitidas` (migração 012, `VERSAO_ESQUEMA` 11 → 12)
+**Storage**: SQLite local por dono (`getDb()`), nova tabela `conquistas_emitidas` (migração 016, `VERSAO_ESQUEMA` 15 → 16)
 **Testing**: Jest 30 + jest-expo + React Native Testing Library; `EmissorNotificacao`, `NotificationPreferences` e `NotificationPermission` simulados; `FonteMetas` de exemplo
 **Target Platform**: Android e iOS (notificação local funciona no Expo Go)
 **Project Type**: mobile-app
@@ -60,7 +60,7 @@ src/features/conquistas/gatilhos.ts              # aoMudarLancamentos (chamado e
 src/features/conquistas/mensagens.ts
 src/features/conquistas/useConquistas.ts
 src/features/receitas/service.ts | src/features/despesas/service.ts   # avisar mudança
-src/db/schema.ts | src/db/migrations.ts          # migração 012
+src/db/schema.ts | src/db/migrations.ts          # migração 016
 tests/features/conquistas/*.test.ts
 tests/screens/Conquistas.test.tsx
 tests/MANUAL-UC13.md
