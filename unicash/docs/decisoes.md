@@ -335,7 +335,21 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | **Requisitos afetados** | RF37, RF38, RF46, RF58, RF62; RN18; UC04, UC05, UC13, UC14 e UC16. |
 | **Comunicação** | Proposta registrada na documentação. Pendente de alinhamento com a equipe responsável pelos casos de uso afetados e de validação com a cliente. |
 
+### D28 — Selos e pontuação do UC13 { #d28 }
+
+| Campo | Registro |
+| --- | --- |
+| **Status** | Proposta da equipe. O aceite das clientes sobre os dois critérios de selo e os 100 pontos por meta está pendente de confirmação na R07 ou em registro complementar. |
+| **Selo “No verde em \<mês>”** | Conceder um selo por mês encerrado em que as receitas superem as despesas, usando os mesmos totais do Resumo. Saldo zero fica fora do critério. A data da conquista é o último dia do mês. |
+| **Selo “Primeira meta concluída”** | Conceder um único selo enquanto houver pelo menos uma meta de investimento no estado `alcancada` no UC12. Retirar o selo quando nenhuma meta continuar alcançada. |
+| **Pontuação** | Conceder 100 pontos por ID de meta de investimento no estado `alcancada`, mesmo que a data da conclusão seja indeterminável. Metas de gasto ficam fora da pontuação. Retirar os pontos correspondentes se a meta for excluída ou perder esse estado. |
+| **Data e reconquista** | Usar a data comprovada pelos dados de origem. Se ela for indeterminável, exibir o selo sem data. Preservar o histórico quando o selo for retirado. Na reconquista, usar a data mais antiga registrada e manter o alerta restrito ao primeiro desbloqueio. |
+| **Sincronização** | Cada aparelho calcula os selos válidos e a pontuação localmente. Quando habilitada, a sincronização inclui o histórico de desbloqueio, preserva a data conhecida mais antiga para cada selo e mantém o registro de que ele já foi desbloqueado, inclusive sem data. A perda de um selo ou de pontos é refletida após sincronizar a alteração de origem e recalcular. |
+| **Requisitos afetados** | RF44, RF45, RF46, RF62 e RN07. Casos de uso relacionados: UC12, UC13 e UC16. |
+
 ## Pendências do registro
+
+- **D28:** confirmar com as clientes os dois critérios de selo e os 100 pontos por meta de investimento alcançada. Vincular a evidência de aceite antes de encerrar a pendência do DoR do UC13.
 
 - Registrar o motivo da escolha da paleta na [D17](#d17);
 - Comunicar à cliente as decisões de arquitetura [D18](#d18) e [D19](#d19) e registrar a comunicação em ata;

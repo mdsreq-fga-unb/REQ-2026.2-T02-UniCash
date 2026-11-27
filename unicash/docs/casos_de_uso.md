@@ -941,7 +941,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Situação atual e conclusão (RF20, RF45):** não estão definidas as situações possíveis de uma meta nem o critério de conclusão de cada tipo, inclusive o tratamento de meta com prazo vencido (FA08) e de meta de gasto que ultrapassa o alvo.
 - **Campos obrigatórios e regras do formulário (RF12):** o texto trata os quatro campos como obrigatórios e aplica ao objetivo a regra de tamanho do título (RN10). Não há regra sobre prazo anterior à data atual nem sobre alterar o tipo da meta na edição.
 - **Valor restante (FA06):** o texto assume zero quando o valor realizado alcança ou supera o alvo.
-- **Efeito na pontuação (RF45, UC13):** não está definido o que acontece com os pontos de uma meta concluída que é editada ou excluída.
+- **Efeito na pontuação (RF45, UC13):** apenas metas de investimento no estado `alcancada` contribuem para o total. A exclusão da meta ou a perda desse estado retira os pontos correspondentes no recálculo (D28).
 
 ### Dependências planejadas (DoR)
 
@@ -968,12 +968,20 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 ### Pré-condições
 
 - A base local está disponível (RN06).
-- Os marcos financeiros e os pontos de cada meta estão definidos na configuração do sistema (ver pontos para validação).
+- Os marcos e os pontos estão definidos na configuração do sistema, conforme a proposta abaixo.
 - Para conceder pontos, existe ao menos uma meta concluída (UC12).
+
+### Marcos e pontuação propostos (D28)
+
+| Item | Critério |
+| --- | --- |
+| **No verde em \<mês>** | Um selo por mês encerrado em que as receitas superem as despesas, usando os mesmos totais do Resumo. Saldo zero fica fora do critério. A data da conquista é o último dia do mês. |
+| **Primeira meta concluída** | Um único selo enquanto houver pelo menos uma meta de investimento no estado `alcancada` do UC12. A data é a mais antiga em que os dados de origem comprovam o cumprimento do marco, quando determinável. |
+| **Pontos por meta concluída** | 100 pontos por ID de meta de investimento enquanto ela estiver `alcancada`, mesmo sem data comprovável. Metas de gasto ficam fora da pontuação. |
 
 ### Pós-condições
 
-- **Sucesso:** os selos dos marcos cumpridos ficam registrados no perfil do usuário e o total de pontos está atualizado, sem duplicidade; sem conexão, o registro fica pendente de sincronização (RN06, RF62).
+- **Sucesso:** os selos válidos e o total de pontos refletem os dados locais, sem duplicidade. Quando a sincronização estiver habilitada, o histórico de desbloqueio é sincronizado. Se faltar conexão, o envio desse histórico fica pendente e o cálculo local continua disponível (RN06, RN07, RF62).
 - **Falha:** nenhum selo nem ponto fica parcialmente registrado; lançamentos, metas e saldo não são afetados.
 - **Consulta (B):** nenhum dado é alterado.
 
@@ -985,14 +993,14 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 #### A - Conceder selos e pontos (RF44, RF45, RF46)
 
-1. Para cada marco cumprido que ainda não tem selo, o sistema registra o selo no perfil do usuário, com a data da conquista (RF44).
-2. Para cada meta concluída cujos pontos ainda não foram somados, o sistema soma os pontos definidos para a meta e atualiza o total (RF45).
-3. Se o tipo de alerta "conquistas" estiver ativado nas preferências (RF58) e a permissão de notificações do aparelho estiver concedida, o sistema notifica o usuário de cada selo concedido, com a identificação do marco atingido, e registra a emissão (RF46). A concessão e a consulta dos selos e pontos independem dessas condições (UC14).
+1. O sistema calcula os selos válidos e registra o primeiro desbloqueio de cada selo no histórico, mesmo se a data for indeterminável. Usa a data comprovada pelos dados de origem quando disponível e preserva a data mais antiga na reconquista (RF44).
+2. O sistema recalcula o total com uma contribuição por ID de meta de investimento no estado `alcancada` do UC12. A disponibilidade da data independe da concessão de pontos (RF45).
+3. Se o tipo de alerta "conquistas" estiver ativado nas preferências (RF58) e a permissão de notificações do aparelho estiver concedida, o sistema notifica o primeiro desbloqueio de cada selo, identifica o marco atingido e registra a emissão (RF46). A concessão e a consulta dos selos e pontos independem dessas condições (UC14). A reconquista e a restauração de um desbloqueio já registrado seguem sem novo alerta.
 
 #### B - Consultar conquistas e pontuação (RF44, RF45)
 
 1. O usuário acessa a área "Conquistas".
-2. O sistema exibe o total de pontos (RF45) e os selos conquistados, cada um com o marco atingido e a data (RF44).
+2. O sistema exibe o total de pontos (RF45) e os selos válidos com o marco atingido. Exibe a data quando determinável e apresenta o selo sem data nos demais casos, conforme o protótipo (RF44).
 3. O usuário seleciona um selo e o sistema exibe os detalhes do marco atingido.
 
 ### Fluxos alternativos
@@ -1000,11 +1008,11 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **FA01 - Nenhum selo ou ponto:** o sistema exibe total igual a zero e "Nenhuma conquista ainda."
 - **FA02 - Selo já concedido:** o sistema não registra o mesmo selo duas vezes.
 - **FA03 - Meta já pontuada:** o sistema não soma duas vezes os pontos da mesma meta.
-- **FA04 - Alertas de conquista desativados (RF58):** selos e pontos continuam sendo registrados e podem ser consultados na área "Conquistas", mas nenhuma notificação desse tipo é emitida.
-- **FA05 - Vários marcos cumpridos na mesma operação:** o sistema registra todos os selos e notifica cada um quando atendidas as condições do passo A3 (RF46).
-- **FA06 - Operação offline:** a avaliação, os selos e os pontos funcionam com os dados locais (RN06).
-- **FA07 - Sincronização ou restauração de dados:** selos e pontos são recalculados a partir dos lançamentos e das metas, nunca sincronizados como contadores (RN07).
-- **FA08 - Lançamento ou meta alterado ou excluído depois da conquista:** a avaliação é refeita (ver pontos para validação).
+- **FA04 - Alertas de conquista desativados (RF58):** o cálculo de selos e pontos e o registro do primeiro desbloqueio continuam disponíveis.
+- **FA05 - Vários marcos cumpridos na mesma operação:** o sistema concede os selos válidos e aplica A3 a cada primeiro desbloqueio (RF46).
+- **FA06 - Uso local sem conta ou sem conexão:** o sistema calcula os selos e os pontos e mantém o histórico de desbloqueio no aparelho (RN06).
+- **FA07 - Sincronização ou restauração de dados:** o sistema combina o histórico da mesma conta, preservando a data conhecida mais antiga por selo, e recalcula os selos e os pontos com os lançamentos e as metas recebidos. Uma restauração parcial não altera o histórico de desbloqueio nos outros aparelhos (RN07).
+- **FA08 - Lançamento ou meta alterado ou excluído depois da conquista:** se o critério deixar de ser atendido, o sistema retira o selo ou os pontos correspondentes e preserva o histórico. Os demais aparelhos refletem a perda quando recebem a alteração de origem e recalculam. Se o selo for reconquistado, volta com a data mais antiga registrada e sem novo alerta.
 - **FA09 - Permissão de notificações do aparelho negada:** mesmo com o tipo "conquistas" ativado, o sistema não emite notificações pelo sistema operacional. Os selos e pontos continuam sendo registrados e disponibilizados para consulta. A notificação não é registrada como emitida (UC14).
 
 ### Exceções
@@ -1015,24 +1023,22 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **EX02 - Falha ao emitir a notificação (A3):** selo e pontos já estão registrados. O sistema não marca a notificação como emitida, para poder tentar de novo. **Retorno:** o fluxo segue normalmente.
 - **EX03 - Falha na leitura local (B2):** o sistema informa: "Não foi possível carregar as conquistas. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo B, ao tentar novamente.
 - **EX04 - Acesso a dados de outro usuário (B1, B3):** o sistema nega o acesso (RNF03) e informa: "Você não tem acesso a estas conquistas." **Retorno:** à área "Conquistas" do próprio usuário.
-- **EX05 - Falha na sincronização:** o registro permanece pendente e é reenviado quando houver conexão; selos e pontos são recalculados (RN07). **Retorno:** o fluxo segue normalmente.
+- **EX05 - Falha no envio do histórico com sincronização habilitada:** o histórico fica pendente para nova tentativa. O sistema continua calculando os selos e os pontos com os dados locais (RN07, RF62). **Retorno:** o fluxo segue normalmente.
 
 ### Pontos para validação
 
-- **Marcos financeiros (RF44):** o catálogo não lista os marcos nem os selos correspondentes. A ata R01 registra apenas a ideia de premiar quem mantém as contas no verde, e a R07 pediu que as participantes definissem as conquistas.
-- **Pontos por meta (RF45):** não está definido quantos pontos vale cada meta concluída, nem se o valor varia com o tipo ou o tamanho da meta.
-- **Meta concluída (RF45):** o critério de conclusão depende do UC12 (ver pontos para validação do UC12).
-- **Alteração ou exclusão depois da conquista (FA08):** a RN07 diz que selos e pontos são recalculados a partir dos lançamentos; falta definir se um selo ou pontos já concedidos podem ser retirados quando o lançamento ou a meta muda.
+- **Marcos e pontuação (RF44, RF45):** confirmar com as clientes os critérios dos selos “No verde em \<mês>” e “Primeira meta concluída” e os 100 pontos por meta de investimento alcançada. Vincular à D28 a evidência de aceite na R07 ou em registro complementar.
+- **Meta concluída (RF45):** usar o estado `alcancada` das metas de investimento do UC12. A data de conclusão é necessária apenas para exibir a data do selo quando puder ser comprovada.
 - **Notificação de conquista (RF46):** o RF58 prevê o tipo de alerta "conquistas", mas não define o texto da mensagem.
 - **Classificação do grupo (RF30, RNF22):** a pontuação alimenta a classificação do grupo, que está fora do MVP (D09).
 
 ### Dependências planejadas (DoR)
 
-- **Metas concluídas (UC12):** o contrato é o modelo `Meta`, com a situação, e a função `calcularProgresso`, aprovados no início do timebox. O UC13 usa metas concluídas de exemplo até o UC12 ficar pronto; o critério real de conclusão fica como **integração posterior**.
-- **Marcos e pontos:** sem solução definida; registrados como pendência com decisão a registrar em `decisoes.md`. A avaliação roda atrás de uma tabela de configuração dos marcos e dos pontos (`MARCOS`, `PONTOS_POR_META`), com valores de teste, para que a definição entre sem mudar o código.
+- **Metas concluídas (UC12):** usar a situação calculada pelo UC12 para identificar as metas de investimento no estado `alcancada`. A data de conclusão é opcional para a integração com o UC13.
+- **Marcos e pontos:** proposta registrada na [D28](decisoes.md#d28) e na tabela deste caso de uso. Manter a pendência do DoR aberta até registrar o aceite das clientes.
 - **Lançamentos e saldo (UC01, UC02, UC04):** o contrato é o modelo de lançamento e a função de saldo mensal (RN15). Os testes usam dados de exemplo.
 - **Preferências de notificação (RF58, UC14):** o contrato é `NotificationPreferences.isEnabled('conquistas')`, com versão simulada até o UC14 ficar pronto; o envio real da notificação fica como **integração posterior**.
-- **Sincronização (RF62) e grupos (RF30, fora do MVP):** selos e pontos são derivados (RN07), então não há contador a sincronizar; a classificação do grupo não faz parte deste caso de uso.
+- **Sincronização (RF62):** sincronizar o histórico de desbloqueio quando habilitada e recalcular localmente os selos válidos e o total. Validar isolamento do histórico entre contas pelas Security Rules, retirada após sincronizar uma exclusão, reconquista com a data mais antiga sem novo alerta e concessão de selo e pontos quando a data for indeterminável. A classificação do grupo (RF30) fica fora do MVP.
 
 ### Requisitos e regras associados
 
@@ -1244,7 +1250,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 1. O usuário aciona "Sincronizar agora".
 2. O sistema confirma que há sessão válida e conexão (RNF02).
 3. O sistema envia as alterações pendentes ao Cloud Firestore, pelo SDK oficial e com conexão protegida (RNF19, RNF30), e aplica cada alteração de forma idempotente (RNF36).
-4. O sistema recebe as alterações do servidor e as combina com as locais conforme a RN07; saldos, totais, progresso, pontos e selos são recalculados a partir dos lançamentos, nunca sincronizados como contadores (RN07).
+4. O sistema combina as alterações recebidas com as locais conforme a RN07 e recalcula saldos, totais, progresso, pontos e selos válidos. Para o UC13, combina também o histórico de desbloqueio da conta e preserva a data conhecida mais antiga por selo. A retirada de selos e pontos é refletida após aplicar as alterações nos lançamentos e nas metas.
 5. O sistema atualiza o estado para "sincronizado" e registra a data e a hora da sincronização.
 6. O sistema informa o resultado: "Tudo sincronizado."
 

@@ -101,8 +101,8 @@ A tabela está ordenada por Característica de Produto.
 | <span id="rf53"></span>**RF53** | **Comparar gastos do grupo:** Exibir aos integrantes do grupo, no período selecionado, um gráfico de barras com o total de despesas compartilhadas e o percentual de participação nas despesas do grupo dos membros que optaram por participar da comparação, de acordo com a escolha registrada no RF57. | CP7 | [R03](atas/posts/r03.md) | Vigente |
 | <span id="rf57"></span>**RF57** | **Configurar participação em comparações do grupo:** Permitir ao usuário escolher se seus dados aparecem na classificação do grupo (RF30) e na comparação de gastos do grupo (RF53), mantendo a participação desativada por padrão e permitindo alterar a escolha a qualquer momento. | CP7 | [D07](decisoes.md#d07) | Proposto |
 | <span id="rf30"></span>**RF30** | **Classificar usuários do grupo:** Ordenar os membros que optaram por participar da classificação, conforme a pontuação acumulada, e exibir sua posição no grupo, de acordo com a escolha registrada no RF57. | CP8 | [R03](atas/posts/r03.md) | Vigente |
-| <span id="rf44"></span>**RF44** | **Conceder conquistas financeiras:** Identificar o cumprimento dos marcos financeiros definidos e registrar no perfil do usuário os selos correspondentes. | CP8 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
-| <span id="rf45"></span>**RF45** | **Atribuir pontuação por metas:** Somar ao usuário os pontos definidos para cada meta concluída e atualizar e exibir seu total. | CP8 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
+| <span id="rf44"></span>**RF44** | **Conceder conquistas financeiras:** Exibir os selos dos marcos cumpridos e retirá-los se o critério deixar de ser atendido. Exibir a data comprovada pelos dados de origem quando determinável. Na reconquista, preservar a data mais antiga registrada. Os critérios propostos constam na D28. | CP8 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md), [D28](decisoes.md#d28) | Vigente |
+| <span id="rf45"></span>**RF45** | **Atribuir pontuação por metas:** Calcular e exibir a soma dos pontos atribuídos uma vez por ID de meta de investimento no estado `alcancada` do UC12, inclusive quando sua data de conclusão for indeterminável. Excluir do total os pontos de metas removidas ou que deixarem de estar alcançadas. O valor proposto consta na D28. | CP8 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md), [D28](decisoes.md#d28) | Vigente |
 | <span id="rf46"></span>**RF46** | **Notificar conquista obtida:** Informar ao usuário quando um selo ou conquista for concedido, com identificação do marco atingido, respeitando as preferências do RF58. | CP8 | [R01](atas/posts/r01.md), [R03](atas/posts/r03.md) | Vigente |
 
 ### Requisitos retirados
@@ -174,7 +174,9 @@ A base local é a cópia principal dos dados; o servidor serve à sincronizaçã
 
 ### RN07: Resolução de conflitos
 
-Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo vale a mais recente por ordem lógica das alterações, não só pela hora do aparelho; em edição contra exclusão, a exclusão prevalece. Saldo, totais, progresso, pontos e selos são sempre recalculados a partir dos lançamentos, nunca sincronizados como contadores.
+Alterações em campos diferentes do mesmo registro se combinam; no mesmo campo vale a mais recente por ordem lógica das alterações, não só pela hora do aparelho; em edição contra exclusão, a exclusão prevalece.
+
+Saldo, totais, progresso, pontos e selos válidos são recalculados localmente a partir dos lançamentos e das metas, conforme o cálculo aplicável. Quando a sincronização estiver habilitada, o histórico de desbloqueio é sincronizado por conta e por selo, preservando a data conhecida mais antiga e o registro do primeiro desbloqueio, inclusive se a data for indeterminável. A validade do selo e a pontuação são recalculadas em cada aparelho após a sincronização dos dados de origem ([D28](decisoes.md#d28)).
 
 ### RN08: Campos obrigatórios de receita e despesa
 
@@ -292,7 +294,7 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 - Contas diferentes no mesmo aparelho (RF06, RF59, RF61 e RF62): definir o isolamento dos dados locais por conta, incluindo dados criados durante o uso sem cadastro; o tratamento das alterações ainda não sincronizadas ao encerrar uma sessão ou alternar contas; e a possibilidade de associação ou mesclagem dos dados locais com a conta autenticada. Verificar também como a RN04 (RF05), que trata da exclusão de perfil, se aplica quando houver mais de uma conta no mesmo aparelho. Essas decisões permanecem pendentes de validação; não há definição sobre apagar, preservar, transferir ou mesclar os dados.
 - Distinção, no RF12, entre meta de investimento ou poupança e orientação sobre investimentos ([D01](decisoes.md#d01)), preservada a redação vigente;
 - Regra de apuração do valor realizado e de associação de lançamentos às metas financeiras no RF36;
-- Definição formal dos marcos para concessão de selos e conquistas (RF44) e da pontuação atribuída a cada tipo de meta concluída (RF45);
+- Aceite das clientes sobre os marcos de concessão de selos (RF44) e os 100 pontos por meta de investimento alcançada (RF45), conforme a proposta da [D28](decisoes.md#d28);
 - Vínculos das características CP7 e CP8 com os objetivos específicos, registrados na [Solução Proposta, seção 2.3](solucao.md#23-caracteristicas-de-produto-mapeadas-com-os-objetivos-especificos-do-produto): CP7 contribui principalmente para o OE4 e secundariamente para o OE2, e CP8 contribui da mesma forma para o OE4 e o OE2. **Estado de validação: proposto, pendente de confirmação pela cliente.** Nenhuma ata registra a confirmação; a [R07](atas/posts/r07.md) registra apenas que os grupos (CP7) ficam fora do MVP. O estado dos vínculos está detalhado na [seção 5.5 de Engenharia de requisitos](engenharia_de_requisitos.md#estado-de-validacao-dos-vinculos-com-os-objetivos).
 
 ## Histórico de versões
