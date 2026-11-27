@@ -4,6 +4,7 @@ import { auth } from '@/lib/firebase';
 import { PRAGMAS_SQL } from './schema';
 import { migrarSeNecessario } from './migrations';
 
+const BANCO_SEM_CONTA = 'unicash.db';
 const ULTIMO_DONO = 'unicash:ultimo_dono_local';
 export const PREFIXO_REMOCAO_LOCAL = 'unicash:remocao-conta:';
 const removendo = new Set<string>();
@@ -15,6 +16,7 @@ export function nomeBancoDoDono(uid: string): string {
 }
 
 function abrirBanco(nome: string): Promise<SQLite.SQLiteDatabase> {
+  if (removendo.has(nome)) return Promise.reject(new Error('Base em remoção'));
   let promessa = bancos.get(nome);
   if (!promessa) {
     promessa = (async () => {
@@ -29,37 +31,52 @@ function abrirBanco(nome: string): Promise<SQLite.SQLiteDatabase> {
 }
 
 export function getDbLocal(): Promise<SQLite.SQLiteDatabase> {
-  return abrirBanco('unicash.db');
+  return abrirBanco(BANCO_SEM_CONTA);
 }
 
 /** Operações remotas sempre capturam explicitamente o proprietário. */
 export async function getDbDoDono(uid: string): Promise<SQLite.SQLiteDatabase> {
-  if (await AsyncStorage.getItem(PREFIXO_REMOCAO_LOCAL + uid) === 'confirmado' || removendo.has(uid)) {
+  if (await AsyncStorage.getItem(PREFIXO_REMOCAO_LOCAL + uid) === 'confirmado') {
     throw new Error('Base em remoção');
   }
   if (!uid) throw new Error('UID ausente');
   return abrirBanco(nomeBancoDoDono(uid));
 }
 
-/** Sem sessão, mantém a última base local disponível. A base legada não sobe automaticamente. */
-export async function apagarBancoDaConta(uid: string): Promise<void> {
-  if (!uid || removendo.has(uid)) throw new Error('Base indisponível para remoção');
-  removendo.add(uid);
-  const nome = nomeBancoDoDono(uid);
+async function apagarBanco(nome: string, desvincular: () => Promise<void>): Promise<void> {
+  if (removendo.has(nome)) throw new Error('Base em remoção');
+  removendo.add(nome);
   try {
     // Abrir sem migrar também torna a repetição segura se o arquivo já foi apagado.
     const aberto = await bancos.get(nome)?.catch(() => undefined) ?? await SQLite.openDatabaseAsync(nome);
     await aberto.closeAsync();
     bancos.delete(nome);
     await SQLite.deleteDatabaseAsync(nome);
-    if (await AsyncStorage.getItem(ULTIMO_DONO) === uid) {
-      await AsyncStorage.removeItem(ULTIMO_DONO);
-    }
+    await desvincular();
   } finally {
-    removendo.delete(uid);
+    removendo.delete(nome);
   }
 }
 
+export async function apagarBancoDaConta(uid: string): Promise<void> {
+  if (!uid) throw new Error('UID ausente');
+  await apagarBanco(nomeBancoDoDono(uid), async () => {
+    if (await AsyncStorage.getItem(ULTIMO_DONO) === uid) {
+      await AsyncStorage.removeItem(ULTIMO_DONO);
+    }
+  });
+}
+
+export async function apagarBancoSemConta(): Promise<void> {
+  await auth.authStateReady();
+  if (auth.currentUser?.emailVerified) throw new Error('Existe uma sessão ativa');
+  await apagarBanco(BANCO_SEM_CONTA, async () => {
+    // Para de exibir a última base de conta através do modo local, sem apagá-la.
+    if (!auth.currentUser?.emailVerified) await AsyncStorage.removeItem(ULTIMO_DONO);
+  });
+}
+
+/** Sem sessão, mantém a última base local disponível. A base legada não sobe automaticamente. */
 export async function getDb(): Promise<SQLite.SQLiteDatabase> {
   await auth.authStateReady();
   const usuario = auth.currentUser;
