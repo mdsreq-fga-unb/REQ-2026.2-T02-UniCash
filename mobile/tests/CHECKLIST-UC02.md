@@ -14,7 +14,7 @@ O resultado do commit atual está nos [checks do PR #55](https://github.com/mdsr
 | RN com teste válido, inválido e valor-limite | ✅ | RN09, RN10, RN12, RN13, RN19 em `unit/despesas.validation.test.ts`, `service/despesas.*.test.ts`. |
 | Checklists técnicos preenchidos | ✅ | Este documento e a seção "Mapa" da matriz. |
 | Evidência de precisão e isolamento (`test:rules`) | ✅ | 57/57 no Firebase Emulator local em 20/11/2026. Histórico do PR #55: [testes e cobertura](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44630861300/job/135936792573) e [regras no emulador](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/actions/runs/44630861300/job/135936792234). |
-| Evidência de persistência e sincronização | ⚠️ | Automatizada: ✅ (`service/sync.test.ts`, `db/migrations.test.ts`, tombstones e retry). Manual no Expo Go/APK: ⏳ (`MANUAL-UC02.md`, 2.1 a 2.3). Sincronização real: depende da [autenticação, #61](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/61) (2.4). |
+| Evidência de persistência e sincronização | ⚠️ | Automatizada: ✅ (`service/sync.test.ts`, `db/migrations.test.ts`, tombstones e retry). Manual no Expo Go/APK: ⏳ ([roteiro do UC02](MANUAL.md#uc02--gerenciar-despesas), cenários 1 a 3). Sincronização real com conta confirmada, cenário 4. |
 | Rastreabilidade na ferramenta de gestão | ⏳ | Copiar a matriz para a ferramenta da equipe. |
 | Documentação técnica no GitPages | ⏳ | Fora do repositório; atualizar com o UC02 e a integração UC06 (esquema de despesas, sincronização e catálogo de categorias). |
 
@@ -56,5 +56,5 @@ O resultado do commit atual está nos [checks do PR #55](https://github.com/mdsr
 - [x] Filtros por dia, mês, período e categoria; estado vazio de FA04 ("Nenhum registro" com sugestão).
 - [x] Formulário com seletor das categorias ativas do UC06 (sete padrão e próprias), não mais restrito a slugs provisórios.
 - [x] Mensagens de erro do UC (EX01 a EX09) com o texto literal.
-- [ ] Prova visual no aparelho (prints ou vídeo): ver `MANUAL-UC02.md`.
+- [ ] Prova visual no aparelho (prints ou vídeo): ver o [roteiro do UC02](MANUAL.md#uc02--gerenciar-despesas).
 - [ ] Migration 005 e fluxos integrados em Android/emulador ou dispositivo físico.

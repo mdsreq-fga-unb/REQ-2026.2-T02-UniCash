@@ -117,3 +117,16 @@ Legenda: ✅ coberto · ⚠️ coberto em parte · ⏳ depende de outro caso de 
 8. **Validação em Android:** a migration 005 e os fluxos integrados foram validados em SQLite real,
    suíte automatizada e Firestore Emulator, mas **não** foram executados em dispositivo físico ou
    emulador Android nesta entrega. A validação manual permanece pendente.
+
+## Comandos de teste automatizado
+
+| Evidência | Comando | O que mostra |
+|---|---|---|
+| Precisão (centavos inteiros) | `npm test -- despesas.leitura` | 0,10 + 0,20 = 30 centavos exatos e 10,99 preservado (teste "RN09/precisão") |
+| Valores-limite de RN09 | `npm test -- despesas.validation` | 0,01, 10,5, 10,99, 999.999.999,99 aceitos; 0, negativos, 10,999 e 1.000.000.000,00 rejeitados com a mensagem literal |
+| Isolamento entre usuários | `npm run test:rules` | Security Rules no Firebase Emulator, inclusive o caso de outro usuário nas despesas e nas séries |
+| Persistência e sincronização (automatizada) | `npm test -- sync` | SQLite em memória e Firebase mockado: envio, offline, conflito, restauração de despesas e de séries |
+| Tudo, com cobertura | `npm test -- --ci --coverage` | Relatório de cobertura (no CI, artefato `coverage`) |
+
+No CI (Mobile CI), os mesmos resultados aparecem nos jobs "Lint, typecheck, testes e build" e
+"Security Rules (Firebase Emulator)". Anexe ao PR o link da execução verde e os logs desses dois jobs.
