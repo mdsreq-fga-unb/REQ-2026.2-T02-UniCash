@@ -298,7 +298,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 4. O sistema soma as receitas e as despesas do mês.
 5. O sistema calcula o saldo do mês: total de receitas − total de despesas (RN15); o saldo anterior não entra nesse cálculo.
 6. O sistema apresenta o saldo do mês, o saldo anterior como referência (RF35) e o indicador de cor com texto (RN17, RNF38).
-7. O sistema verifica se o saldo passou de maior ou igual a zero para negativo e, se sim, emite o alerta de saldo negativo (RN18).
+7. O sistema verifica se o saldo passou de maior ou igual a zero para negativo e, se sim, apresenta o alerta de saldo negativo dentro do aplicativo (RN18), independentemente das preferências do RF58 e da permissão de notificações do aparelho.
 ### Fluxos alternativos
  
 - **FA01 - Mês sem lançamentos:** o saldo do mês é R$ 0,00 e o saldo anterior continua exibido como referência (RN15).
@@ -308,7 +308,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **FA05 - Lançamento criado, editado ou excluído:** o saldo é recalculado (UC01, UC02).
 - **FA06 - Saldo volta a zero ou positivo e fica negativo de novo:** um novo alerta é emitido (RN18).
 - **FA07 - Mês sem receitas:** o indicador de cor é preto (RN17).
-- **FA08 - Preferências de notificação:** o alerta de saldo negativo permanece sempre ativo, pois o RF58 não o prevê, até validação (RN18).
+- **FA08 - Preferências de notificação:** o alerta de saldo negativo permanece ativo dentro do aplicativo, mesmo quando os tipos configuráveis do RF58 estiverem desativados ou a permissão de notificações do aparelho estiver negada. A possibilidade de desativar esse alerta permanece pendente de validação com a cliente (RN18, UC14).
 ### Exceções
  
 - **EX01 - Falha de cálculo:** o sistema informa que não foi possível calcular o saldo.
@@ -366,18 +366,20 @@ Os dois vídeos foram gravados no iPhone com Expo Go e estão registrados no [co
 3. O sistema verifica os alertas (RN03):
    - gasto que atinge 80% do limite da categoria ou do valor alvo da meta: alerta de aproximação (RF37);
    - gasto que supera 100% do limite da categoria ou do valor alvo da meta: alerta de ultrapassagem (RF38).
-4. Se o tipo de alerta estiver ativado nas preferências (RF58), o sistema apresenta a notificação com apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e registra a emissão no período.
+4. Se o tipo "limite" estiver ativado nas preferências (RF58) e a permissão de notificações do aparelho estiver concedida, o sistema apresenta a notificação com apenas os valores envolvidos (gasto, limite e categoria ou meta), sem termos de julgamento, e registra a emissão no período. Os indicadores de consumo permanecem disponíveis no aplicativo independentemente dessas condições (UC09, UC14).
 ### Fluxos alternativos
  
 - **FA01 - Categoria sem limite:** o sistema não emite alerta (RN14).
 - **FA02 - Despesas "Sem categoria":** ficam fora do cálculo de limites por categoria (RN13).
 - **FA03 - Limite percentual:** o limite efetivo é o percentual da renda do mês (RN14).
 - **FA04 - Alerta já emitido no período:** o sistema não repete (RN03).
-- **FA05 - Salto direto de abaixo de 80% para acima de 100%:** o sistema emite apenas um alerta, o de ultrapassagem (RN03).
-- **FA06 - Alertas desativados em RF58:** o consumo continua sendo calculado (UC09); apenas a notificação deixa de ser exibida.
+- **FA05 - Salto direto de abaixo de 80% para acima de 100%:** quando atendidas as condições de emissão do passo 4, o sistema emite apenas o alerta de ultrapassagem (RN03).
+- **FA06 - Alertas desativados em RF58:** o consumo continua sendo calculado e apresentado no aplicativo (UC09), mas nenhuma notificação de limite é emitida.
 - **FA07 - Novo período:** o consumo é recalculado para o novo período e os alertas voltam a poder ser emitidos (RN03).
 - **FA08 - Offline:** cálculo e alertas funcionam com os dados locais (RN06).
 - **FA09 - Categoria editada ou excluída:** os alertas são recalculados na mesma operação (RN13, RN14); se a categoria foi excluída, seus alertas deixam de existir e as despesas passam a "Sem categoria", fora do cálculo de limites (RN13).
+- **FA10 - Permissão de notificações do aparelho negada:** mesmo com o tipo "limite" ativado, o sistema não emite notificações pelo sistema operacional. O consumo continua sendo calculado e apresentado no aplicativo. A notificação não é registrada como emitida (UC14).
+
 ### Exceções
  
 - **EX01 - Limite efetivo igual a zero** (limite percentual em mês sem receitas): o consumo não pode ser calculado, o alerta não é avaliado e as regras de negócio não definem o comportamento (RN14; ver pontos para validação).
@@ -985,7 +987,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 1. Para cada marco cumprido que ainda não tem selo, o sistema registra o selo no perfil do usuário, com a data da conquista (RF44).
 2. Para cada meta concluída cujos pontos ainda não foram somados, o sistema soma os pontos definidos para a meta e atualiza o total (RF45).
-3. Se o tipo de alerta "conquistas" estiver ativado nas preferências (RF58), o sistema notifica o usuário de cada selo concedido, com a identificação do marco atingido, e registra a emissão (RF46).
+3. Se o tipo de alerta "conquistas" estiver ativado nas preferências (RF58) e a permissão de notificações do aparelho estiver concedida, o sistema notifica o usuário de cada selo concedido, com a identificação do marco atingido, e registra a emissão (RF46). A concessão e a consulta dos selos e pontos independem dessas condições (UC14).
 
 #### B - Consultar conquistas e pontuação (RF44, RF45)
 
@@ -998,11 +1000,12 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **FA01 - Nenhum selo ou ponto:** o sistema exibe total igual a zero e "Nenhuma conquista ainda."
 - **FA02 - Selo já concedido:** o sistema não registra o mesmo selo duas vezes.
 - **FA03 - Meta já pontuada:** o sistema não soma duas vezes os pontos da mesma meta.
-- **FA04 - Alertas de conquista desativados (RF58):** selos e pontos continuam sendo registrados; apenas a notificação deixa de ser exibida.
-- **FA05 - Vários marcos cumpridos na mesma operação:** o sistema registra todos os selos e notifica cada um (RF46).
+- **FA04 - Alertas de conquista desativados (RF58):** selos e pontos continuam sendo registrados e podem ser consultados na área "Conquistas", mas nenhuma notificação desse tipo é emitida.
+- **FA05 - Vários marcos cumpridos na mesma operação:** o sistema registra todos os selos e notifica cada um quando atendidas as condições do passo A3 (RF46).
 - **FA06 - Operação offline:** a avaliação, os selos e os pontos funcionam com os dados locais (RN06).
 - **FA07 - Sincronização ou restauração de dados:** selos e pontos são recalculados a partir dos lançamentos e das metas, nunca sincronizados como contadores (RN07).
 - **FA08 - Lançamento ou meta alterado ou excluído depois da conquista:** a avaliação é refeita (ver pontos para validação).
+- **FA09 - Permissão de notificações do aparelho negada:** mesmo com o tipo "conquistas" ativado, o sistema não emite notificações pelo sistema operacional. Os selos e pontos continuam sendo registrados e disponibilizados para consulta. A notificação não é registrada como emitida (UC14).
 
 ### Exceções
 
@@ -1042,7 +1045,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Ator principal:** Usuário.
 - **Valor:** escolher quais avisos o aplicativo exibe, para receber só os alertas de que precisa.
 - **Requisitos funcionais:** RF58.
-- **Decisões:** [D25](decisoes.md#d25).
+- **Decisões:** [D25](decisoes.md#d25), [D27](decisoes.md#d27) (proposta).
 
 ### Pré-condições
 
@@ -1051,30 +1054,40 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 ### Pós-condições
 
-- **Sucesso:** a escolha de cada tipo de alerta fica gravada na base local e vale a partir da próxima avaliação de alertas; sem conexão e com conta ativa, o registro fica pendente de sincronização (RN06, RF62).
-- **Falha:** nenhuma preferência é alterada.
+- **Sucesso:** a escolha de cada tipo de alerta fica gravada na base local e vale a partir da próxima avaliação de alertas, independentemente da permissão de notificações do aparelho.
+- **Sincronização:** quando houver conta vinculada e sincronização habilitada, as preferências são enviadas ao servidor mediante sessão ativa e conexão. Na ausência dessas condições, permanecem gravadas localmente (RN06, RF62).
+- **Falha na gravação local:** nenhuma preferência do aplicativo é alterada.
+- **Falha na sincronização:** a preferência gravada localmente é preservada.
 - **Consulta (passo 2 do fluxo principal):** nenhum dado é alterado.
 
 ### Fluxo principal
 
 1. O usuário localiza a seção "Notificações" na tela de Perfil.
-2. O sistema exibe os dois tipos de alerta, cada um com um interruptor no estado atual (ligado ou desligado): **limite**, que abrange a aproximação (80%, RF37) e a ultrapassagem (100%, RF38) da RN03, e **conquistas** (RF46). Na primeira vez, os dois aparecem desligados (D25).
-3. O usuário liga ou desliga um tipo.
-4. Se o usuário ligou um tipo e o aplicativo ainda não pediu a permissão de notificações do aparelho, o sistema a solicita.
-5. O sistema grava a escolha na base local e só então confirma a alteração.
-6. Se houver conta com sessão ativa e conexão, o sistema sincroniza a preferência (RF62).
-7. O sistema passa a respeitar a nova escolha nos alertas seguintes (UC05, UC13).
+2. O sistema exibe os dois tipos configuráveis de alerta, cada um com um interruptor no estado atual:
+   - Limite: abrange a aproximação (80%, RF37) e a ultrapassagem (100%, RF38) da RN03.
+   - Conquistas: abrange as notificações de selos e conquistas (RF46).
+   - Na primeira utilização, ambos começam desativados, conforme a D25.
+3. O usuário liga ou desliga um tipo de alerta.
+4. Se o usuário ativar um tipo e a permissão de notificações do aparelho ainda não tiver sido solicitada, o sistema solicita essa permissão.
+5. O sistema grava a preferência na base local, independentemente da concessão da permissão do aparelho, e informa: "Preferência salva com sucesso."
+6. Se houver conta vinculada, sessão ativa, conexão e sincronização habilitada, o sistema sincroniza a preferência (RF62).
+7. O sistema passa a respeitar a nova escolha nas próximas avaliações de alertas (UC05, UC13).
+8. A exibição de notificações pelo sistema operacional depende tanto da preferência ativada no aplicativo quanto da permissão concedida no aparelho.
+9. Os indicadores financeiros, os saldos e as conquistas continuam disponíveis nas respectivas telas, independentemente das preferências e das permissões de notificações.
 
 ### Fluxos alternativos
 
 - **FA01 - Alteração a qualquer momento:** o usuário pode voltar à seção e mudar a escolha quantas vezes quiser (RF58).
-- **FA02 - Tipo desativado:** o consumo do limite continua sendo calculado (UC09) e os selos continuam sendo concedidos (UC13); apenas a notificação deixa de ser exibida.
+- **FA02 - Tipo desativado:** o consumo do limite continua sendo calculado (UC09) e os selos continuam sendo concedidos (UC13). Os indicadores e as informações permanecem disponíveis nas telas do aplicativo; apenas a emissão de notificações do tipo desativado é suspensa.
 - **FA03 - Tipo reativado:** o alerta volta a ser emitido na próxima avaliação, se a condição ainda existir e a emissão não estiver registrada no período (RN03, UC05).
-- **FA04 - Alerta de saldo negativo:** não aparece na lista, pois o RF58 não o prevê; ele permanece sempre ativo, até validação (RN18).
-- **FA05 - Operação offline:** a escolha é gravada localmente e, havendo conta, fica pendente de sincronização (RN06, RF62).
-- **FA06 - Permissão de notificações do aparelho negada (passo 4):** o sistema mantém a escolha gravada, informa que as notificações do aparelho estão bloqueadas e orienta o usuário a liberá-las nas configurações do aparelho. O aviso continua visível na seção enquanto houver tipo ligado e a permissão estiver negada.
+- **FA04 - Alerta de saldo negativo:** permanece ativo e não aparece entre os tipos configuráveis, conforme a RN18. O aviso de saldo negativo dentro do aplicativo independe da permissão de notificações do aparelho. A possibilidade de desativar esse alerta permanece pendente de validação com a cliente.
+- **- **FA05 - Operação sem sincronização disponível:** a escolha é gravada localmente e vale a partir da próxima avaliação de alertas. Sem conta ou com sincronização desabilitada, permanece apenas no aparelho. Com conta vinculada e sincronização habilitada, a alteração fica pendente de envio quando não houver sessão ativa ou conexão (RN06, RF62).:** a escolha é gravada localmente e aplicada imediatamente. Sem conta, permanece apenas no aparelho. Com conta vinculada, permanece pendente de envio enquanto não houver sessão ativa, conexão ou sincronização habilitada (RN06, RF62).
+- **- **FA06 - Permissão de notificações do aparelho negada (passo 4):** o sistema mantém a preferência selecionada pelo usuário, mas não emite notificações pelo sistema operacional enquanto a permissão estiver negada. Após a gravação local bem-sucedida no passo 5, o sistema informa: "Preferência salva. As notificações do aparelho estão bloqueadas. Para recebê-las, habilite a permissão nas configurações do aparelho." O aviso permanece visível na seção enquanto houver algum tipo ativado e a permissão estiver negada. Os indicadores e as informações internas do aplicativo continuam disponíveis. (passo 4):** o sistema mantém a preferência selecionada pelo usuário, mas não emite notificações pelo sistema operacional enquanto a permissão estiver negada. O sistema informa: "Preferência salva. As notificações do aparelho estão bloqueadas. Para recebê-las, habilite a permissão nas configurações do aparelho." O aviso permanece visível na seção enquanto houver algum tipo ativado e a permissão estiver negada. Os indicadores e as informações internas do aplicativo continuam disponíveis.
 - **FA07 - Permissão já decidida:** se o usuário já concedeu ou negou a permissão antes, o sistema não volta a solicitá-la no passo 4; com permissão negada, segue o FA06.
 - **FA08 - Cancelamento:** se o usuário sai da tela sem alterar nada, nada é gravado.
+- **FA09 - Restauração das preferências:** ao restaurar os dados da conta em um aparelho novo ou reinstalado (UC16), o sistema recupera as preferências anteriormente sincronizadas. Caso não existam preferências salvas, aplica os valores iniciais definidos na D25.
+- **FA10 - Permissão em outro aparelho:** a permissão de notificações do sistema operacional não é sincronizada nem restaurada. Cada aparelho possui sua própria permissão, que deve ser verificada independentemente das preferências recuperadas.
+- **FA11 - Sincronização desabilitada:** as preferências continuam funcionando localmente, sem envio ao servidor enquanto a sincronização estiver desabilitada.
 
 ### Exceções
 
@@ -1082,15 +1095,35 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 - **EX01 - Falha na gravação (passo 5):** o sistema não confirma, devolve o interruptor ao estado anterior e informa: "Não foi possível salvar a configuração. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao passo 3 do fluxo principal.
 - **EX02 - Falha na leitura local (passo 2):** o sistema informa na seção: "Não foi possível carregar as notificações. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 2 do fluxo principal, ao tentar novamente.
-- **EX03 - Falha na sincronização (passo 6):** a preferência já está gravada localmente e permanece pendente de sincronização. **Retorno:** o fluxo segue normalmente no passo 7.
-- **EX04 - Conflito de sincronização (depois do passo 6):** aplica-se a RN07; vale a escolha mais recente. **Retorno:** ao concluir a sincronização, a seção é atualizada (passo 2 do fluxo principal).
+- **EX03 - Falha na sincronização (passo 6):** a preferência gravada localmente é preservada e continua sendo aplicada no aparelho. O sistema mantém o registro pendente ou com erro de sincronização e informa: "Preferência salva neste aparelho. Não foi possível sincronizar." Uma nova tentativa segue as condições do UC16. **Retorno:** o fluxo segue normalmente no passo 7.
+- **EX04 - Conflito de sincronização (depois do passo 6):** aplica-se a RN07; alterações em campos diferentes são combinadas e, no mesmo campo, prevalece a alteração mais recente por ordem lógica. **Retorno:** ao concluir a sincronização, a seção é atualizada (passo 2 do fluxo principal).
 - **EX05 - Acesso a dados de outro usuário (passo 2):** o sistema nega o acesso (RNF03). **Retorno:** ao passo 2 do fluxo principal, com as preferências do próprio usuário.
+
+### Critérios de aceitação e cenários de teste
+
+Os cenários abaixo representam os resultados esperados, incluindo as propostas da issue #114 que ainda dependem de validação.
+
+| Cenário | Resultado esperado |
+| --- | --- |
+| Primeira utilização do aplicativo | Os tipos limite e conquistas começam desativados (D25). |
+| Ativação de um tipo com permissão concedida | A preferência é salva e as notificações correspondentes podem ser emitidas. |
+| Ativação de um tipo com permissão negada | A preferência é salva, mas as notificações do aparelho permanecem bloqueadas. |
+| Desativação dos alertas de limite | O consumo continua sendo calculado e apresentado no aplicativo. |
+| Desativação dos alertas de conquistas | Selos e pontos continuam sendo concedidos e disponibilizados para consulta. |
+| Transição para saldo negativo | O aviso interno permanece ativo, independentemente das preferências e da permissão do aparelho. |
+| Alteração sem conta vinculada | A preferência é salva apenas no aparelho. |
+| Alteração offline com conta vinculada | A preferência é salva localmente e permanece pendente de envio. |
+| Falha na gravação local | A preferência anterior é preservada e o motivo da falha é informado. |
+| Falha na sincronização | A preferência local é preservada e o registro permanece pendente ou com erro. |
+| Restauração em outro aparelho | As preferências sincronizadas são recuperadas, sem restaurar as permissões do sistema operacional. |
+| Restauração sem preferências previamente salvas | São utilizados os valores iniciais definidos na D25. |
+| Conflito de sincronização | As alterações são combinadas conforme a RN07. |
 
 ### Pontos para validação
 
 - **D25:** a união de aproximação e ultrapassagem em um único tipo e o estado inicial desativado seguem o protótipo e precisam de validação com a cliente.
 - **Alerta de saldo negativo (RN18):** a inclusão desse tipo nas preferências está pendente de validação com a cliente.
-- **Preferências e sincronização:** a RN04 trata as preferências como dados do usuário, mas não está definido se elas voltam na restauração dos dados em aparelho novo.
+- **Preferências e sincronização (issue #114):** propõe-se incluir as preferências do aplicativo entre os dados sincronizados e restaurados da conta, sem incluir as permissões do sistema operacional. A proposta deve ser validada com a equipe e com a cliente, considerando a integração com o UC16.
 - **Itens do protótipo fora do catálogo:** "Lembrete diário de registro", "Aviso de mês sem movimentação" e "Prazos de metas" não têm requisito e ficam fora do escopo; "Atividade dos grupos" depende do CP7, fora do MVP (D25).
 
 ### Dependências planejadas (DoR)
@@ -1232,7 +1265,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **FA01 - Sem conexão:** o estado é "sem conexão"; as alterações continuam guardadas no aparelho e o usuário continua operando normalmente (RN06, RNF34).
 - **FA02 - Nada pendente:** o estado é "sincronizado" e o sistema informa "Não há alterações pendentes."
 - **FA03 - Sem conta ou sem sessão:** o sistema informa que a sincronização está inativa, que os dados estão só neste aparelho, e oferece entrar ou criar uma conta (UC10). Nenhum dado é enviado (RNF02, RF61).
-- **FA04 - Aparelho novo ou reinstalado:** depois de entrar na conta, o sistema restaura os dados a partir do Cloud Firestore e mostra o andamento nesta área (RNF40, UC10 FA02).
+- **FA04 - Aparelho novo ou reinstalado:** depois de entrar na conta, o sistema restaura os dados a partir do Cloud Firestore e mostra o andamento nesta área (RNF40, UC10 FA02). A proposta de restauração inclui as preferências de notificações sincronizadas (UC14, FA09), mas não as permissões do sistema operacional, que são específicas de cada aparelho (UC14, FA10).
 - **FA05 - Alteração feita durante a sincronização:** o sistema inclui a alteração na próxima sincronização e mantém o estado "pendente" até lá.
 - **FA06 - Operação em andamento:** durante o envio, o sistema mostra um indicador de progresso e desativa a ação "Sincronizar agora" até terminar.
 - **FA07 - Cancelamento:** se o usuário sai da área, o envio em andamento continua em segundo plano e o estado é atualizado ao concluir.
@@ -1293,3 +1326,5 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 | 1.14 | 03/11/2026 | Inclui o histórico de versões | Bruno Duarte |
 | 1.15 | 07/11/2026 | Ajusta a validação dos UC01 e UC02 à gravação local e retira o RNF06, fundido ao RNF35 (issue #21) | Dante Scarpati |
 | 1.16 | 26/11/2026 | Alinha o UC14 ao protótipo do Perfil: seção de notificações, tipos "limite" e "conquistas", estado inicial desativado e pedido de permissão do aparelho na primeira ativação (D25) | Bruno Duarte |
+| 1.17 | 27/11/2026 | Revisa o tratamento de falhas parciais na edição do perfil (UC11, issue #110) | Evellyn Rocha |
+| 1.18 | 27/11/2026 | Revisa o comportamento inicial, a abrangência, a sincronização e a restauração das preferências de notificações (issue #114) | Evellyn Rocha |

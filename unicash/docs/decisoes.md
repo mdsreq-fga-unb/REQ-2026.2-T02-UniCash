@@ -34,6 +34,7 @@ Esta página reúne as decisões que mudaram o escopo, os requisitos, o processo
 | [D24](#d24) | 20/11/2026 | Faixa percentual de 1% a 100% e proteção das categorias padrão | Issues #71 e #72 | Vigente |
 | [D25](#d25) | 26/11/2026 | Preferências de notificação alinhadas ao protótipo do Perfil | Decisão da equipe | Proposta |
 | [D26](#d26) | 27/11/2026 | Independência das operações de edição de e-mail e senha | [Issue #110](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/110) | Proposta |
+| [D27](#d27) | 27/11/2026 | Abrangência e sincronização das preferências de notificações | [Issue #114](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/114) | Proposta |
 
 A situação **Proposta** indica uma decisão da equipe que ainda depende de confirmação da cliente.
 
@@ -322,6 +323,17 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | **Alternativas consideradas** | Manter uma operação conjunta de edição, exigindo mecanismos adicionais de consistência e tratamento de falhas parciais. |
 | **Requisitos afetados** | RF04 e RNF14; UC11. |
 | **Comunicação** | Proposta registrada na documentação. Pendente de alinhamento com a equipe responsável pelo UC11 e de validação com a cliente. |
+### D27 — Abrangência e sincronização das preferências de notificações { #d27 }
+
+| Campo | Registro |
+| :--- | :--- |
+| **Data** | 27/11/2026 |
+| **Origem** | [Issue #114](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/114). |
+| **Decisão** | Propõe-se distinguir as preferências do aplicativo das permissões do sistema operacional. Os tipos limite e conquistas permanecem inicialmente desativados, conforme a D25. As notificações desses tipos dependem da preferência ativada e da permissão do aparelho. O alerta interno de saldo negativo permanece ativo, conforme a RN18, até validação da possibilidade de desativá-lo. As preferências do aplicativo integram os dados sincronizados e restaurados da conta, enquanto as permissões do sistema operacional permanecem específicas de cada aparelho. |
+| **Motivo** | Eliminar ambiguidades sobre o comportamento inicial, a emissão de alertas, as permissões do aparelho e a recuperação das preferências em caso de restauração dos dados. |
+| **Alternativas consideradas** | Manter as preferências exclusivamente no aparelho; permitir a desativação do alerta de saldo negativo; utilizar avisos internos também para os tipos limite e conquistas. |
+| **Requisitos afetados** | RF37, RF38, RF46, RF58, RF62; RN18; UC04, UC05, UC13, UC14 e UC16. |
+| **Comunicação** | Proposta registrada na documentação. Pendente de alinhamento com a equipe responsável pelos casos de uso afetados e de validação com a cliente. |
 
 ## Pendências do registro
 
@@ -330,7 +342,7 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 - Validar com a cliente as decisões propostas [D15](#d15), [D16](#d16) e [D21](#d21);
 - Validar com a cliente a [D25](#d25), que alinha o RF58 ao protótipo.
 - Validar a proposta [D26](#d26) com a equipe responsável pelo UC11 e com a cliente.
-
+- Validar a proposta [D27](#d27) com a equipe e com a cliente, incluindo a abrangência dos alertas, a possibilidade de desativar o alerta de saldo negativo e a restauração das preferências.
 ## Histórico de versões
 
 | Versão | Data | Descrição | Autor |
@@ -342,3 +354,4 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | 1.4 | 20/11/2026 | Registra a decisão D24 sobre a faixa percentual definitiva e a proteção das categorias padrão | Equipe UniCash |
 | 1.5 | 26/11/2026 | Registra a decisão D25 sobre as preferências de notificação alinhadas ao protótipo | Bruno Duarte |
 | 1.6 | 27/11/2026 | Registra a proposta D26 sobre operações independentes de edição do perfil (issue #110) | Evellyn Rocha |
+| 1.7 | 27/11/2026 | Registra a proposta D27 sobre abrangência e sincronização das preferências de notificações (issue #114) | Evellyn Rocha |
