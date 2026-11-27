@@ -2,6 +2,7 @@ import { criarAuthFirebase, iniciarObservadorDeSessao } from './auth.firebase';
 import { criarContaServiceFirebase } from './service.firebase';
 import { definirServicoConta } from './service';
 import { aoMudarSessao, obterSessao } from './sessao';
+import { reconciliarEmailDoPerfil } from './perfil';
 import { avisarBaseAtualizada } from '@/lib/baseAtualizada';
 import { definirSincronizacao, obterSincronizacao } from './sync';
 import { criarSincronizacaoDoApp } from './sync.app';
@@ -25,6 +26,8 @@ export function iniciarConta() {
   aoMudarSessao((s) => {
     const sync = obterSincronizacao();
     if (s.status === 'ativa') {
+      // UC11: e-mail já confirmado no Auth cuja gravação no Firestore ficou pendente.
+      void reconciliarEmailDoPerfil(s.uid).catch(() => {});
       sync
         .retomar(s.uid)
         .then(() => sync.restaurarSeAparelhoVazio(s.uid))

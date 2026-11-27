@@ -541,6 +541,46 @@ A [issue #32](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32
 | EX01, EX02 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/mensagens.ts` | `tests/screens/Perfil.test.tsx` (US3) | — |
 | Contrato `isEnabled('limite' \| 'conquistas')` para UC05 e UC13 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
 
+## UC11 — Gerenciar perfil (entrega parcial: edição do perfil)
+
+Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
+
+**Escopo desta entrega.** Seguindo a sugestão da revisão do PR #135, a entrega foi separada: este PR cobre a consulta e a
+edição do perfil (troca de senha e de e-mail, fluxos A e B). A exclusão de conta (fluxo C, RF05, RN04, EX06 a EX08) saiu do
+PR e continua pendente no UC11 até a equipe validar um fluxo compatível com o plano Spark do Firebase (pedido no Firestore
+processado por um script administrativo, responsável e frequência de processamento, envio do pedido feito offline depois
+do logout e política de backup de 60 dias). As Cloud Functions, a regra `pedidos_remocao` e a fila local de remoção foram
+retiradas e podem ser recuperadas do histórico do PR quando o fluxo for aprovado.
+
+### Requisitos e regras
+
+| Requisito | Fluxo do UC11 | Código | Teste automatizado |
+|---|---|---|---|
+| RF03 – consultar e editar o perfil | principal, A | `src/app/conta/index.tsx` ("Editar perfil"), `src/components/conta/EditarPerfil.tsx` | `tests/screens/Conta.test.tsx` (bloco "Perfil (UC11)") |
+| RF03 – e-mail confirmado aparece no perfil offline e é reconciliado no Firestore | B | `src/features/conta/auth.firebase.ts` (`confirmEmailChange` marca a gravação pendente e publica o e-mail na sessão mesmo se o Firestore falhar; o sucesso limpa marcas antigas), `src/features/conta/perfil.ts` (`reconciliarEmailDoPerfil` renova o token e descarta marca que não bate com o e-mail do Auth), `src/features/conta/index.ts` (reconcilia ao ativar a sessão) | `tests/service/conta/auth-conta.test.ts` (bloco "RF03: e-mail confirmado no Auth com falha no Firestore") |
+| RF04 – troca de e-mail só vale após a confirmação | A, B | `auth.firebase.ts` (`requestEmailChange`, `confirmEmailChange`) | `tests/service/conta/auth-conta.test.ts` ("verifica a confirmação feita no navegador…", "preserva o perfil enquanto o novo e-mail não foi confirmado") |
+| RNF04 – política de senha (8 caracteres, maiúscula, minúscula e caractere especial) | A | `src/features/conta/validation.ts` (`validarSenhaNova`) | `tests/screens/Conta.test.tsx` ("valida a política de senha para …": 7 caracteres, 8 válida, sem maiúscula, sem minúscula, sem caractere especial) |
+| RNF03 – o dono só altera o próprio perfil e não remove o e-mail | A | `firestore.rules` | `tests/rules/conta.rules.test.ts` (bloco "perfil: alteração (UC11)", incluindo "recusa remover o e-mail obrigatório") |
+
+### Exceções
+
+| Exceção | Mensagem | Código | Teste automatizado |
+|---|---|---|---|
+| EX01 – dados inválidos | "Informe o e-mail.", "Informe um e-mail válido.", "Este e-mail já está em uso.", política de senha | `EditarPerfil.tsx`, `validation.ts` | `Conta.test.tsx` ("EX01: e-mail em formato inválido…", "EX01: e-mail já usado em outra conta", "valida a política de senha…") |
+| EX02 – falha na gravação | "Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente." | `EditarPerfil.tsx` | `Conta.test.tsx` ("EX02: falha na gravação…") |
+| EX03 – sem conexão na edição | "Sem conexão. Conecte-se à internet para alterar o perfil." | `EditarPerfil.tsx` | `Conta.test.tsx` ("EX03: sem conexão…") |
+| EX04 – ligação inválida | "Esta ligação expirou ou já foi usada. Solicite uma nova." | `EditarPerfil.tsx`, `auth.firebase.ts` | `Conta.test.tsx` ("EX04: ligação expirada…"), `auth-conta.test.ts` ("código expirado não altera o perfil") |
+| EX05 – novo e-mail não confirmado | "Este e-mail ainda não foi confirmado. Abra a ligação enviada ao novo e-mail ou peça um reenvio." | `EditarPerfil.tsx`, `auth.firebase.ts` | `Conta.test.tsx` ("EX05: novo e-mail ainda não confirmado"), `auth-conta.test.ts` ("preserva o perfil enquanto…") |
+| EX06 a EX08 – exclusão de conta | – | fora desta entrega (fluxo C pendente) | – |
+| EX09 – acesso a perfil de outro usuário | "Você não tem acesso a este perfil." | `firestore.rules` (o app só abre o perfil da sessão ativa) | `tests/rules/conta.rules.test.ts` (bloqueio entre contas); a mensagem no app segue pendente |
+| EX10 – falha na leitura local | "Não foi possível carregar o perfil. Tente novamente." com "Tentar novamente" | `EditarPerfil.tsx` (salvar fica bloqueado até recarregar) | `Conta.test.tsx` ("EX10: falha na leitura local…") |
+
+### Pendências do UC11
+
+- Fluxo C (exclusão de conta) no plano Spark, conforme o item 1 da revisão do PR #135.
+- Expiração de 5 minutos da ligação de troca de e-mail: depende de validar com o responsável pelo RF04 uma solução no ponto de confirmação ou a adoção formal da validade do Firebase.
+- Evidência no Expo Go ou APK: troca de senha seguida de novo login e confirmação do e-mail pelo link.
+
 ## 8. UC12 — Gerenciar metas financeiras
 
 Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
