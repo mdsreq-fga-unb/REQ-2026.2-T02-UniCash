@@ -7,7 +7,7 @@ import { formatarBR, mascararData, mesAnterior, nomeMes, parseBR, proximoMes } f
 import { MSG } from '@/features/receitas/validation';
 import type { Filtro } from '@/features/receitas/types';
 
-type Modo = 'dia' | 'mes' | 'personalizado';
+type Modo = 'dia' | 'mes' | 'personalizado' | 'tudo';
 
 function mesAtual() {
   const n = new Date();
@@ -15,6 +15,7 @@ function mesAtual() {
 }
 
 function rotuloDoFiltro(f: Filtro): string {
+  if (f.modo === 'tudo') return 'Todo o período';
   if (f.modo === 'mes') return nomeMes(f.ano, f.mes);
   if (f.modo === 'data') return formatarBR(f.data);
   return `${formatarBR(f.de)} – ${formatarBR(f.ate)}`;
@@ -43,6 +44,8 @@ export function FiltroReceitas({ filtro, onChange }: Props) {
     } else if (filtro.modo === 'data') {
       setModo('dia');
       setDia(formatarBR(filtro.data));
+    } else if (filtro.modo === 'tudo') {
+      setModo('tudo');
     } else {
       setModo('personalizado');
       setDe(formatarBR(filtro.de));
@@ -52,7 +55,9 @@ export function FiltroReceitas({ filtro, onChange }: Props) {
   }
 
   function aplicar() {
-    if (modo === 'mes') {
+    if (modo === 'tudo') {
+      onChange({ modo: 'tudo' });
+    } else if (modo === 'mes') {
       onChange({ modo: 'mes', ...mes });
     } else if (modo === 'dia') {
       const d = parseBR(dia);
@@ -98,6 +103,7 @@ export function FiltroReceitas({ filtro, onChange }: Props) {
                 { valor: 'dia', rotulo: 'Dia' },
                 { valor: 'mes', rotulo: 'Mês' },
                 { valor: 'personalizado', rotulo: 'Personalizado' },
+                { valor: 'tudo', rotulo: 'Tudo' },
               ]}
             />
 
@@ -112,6 +118,9 @@ export function FiltroReceitas({ filtro, onChange }: Props) {
                     <Text style={estilos.setaNavTexto}>›</Text>
                   </Pressable>
                 </View>
+              ) : null}
+              {modo === 'tudo' ? (
+                <Text style={estilos.tudoTexto}>Mostra todas as receitas, de qualquer data.</Text>
               ) : null}
               {modo === 'dia' ? (
                 <Campo rotulo="Data" value={dia} onChangeText={(t) => setDia(mascararData(t))} placeholder="DD/MM/AAAA" keyboardType="number-pad" />
@@ -146,6 +155,7 @@ export function FiltroReceitas({ filtro, onChange }: Props) {
 }
 
 const estilos = StyleSheet.create({
+  tudoTexto: { fontSize: 14, color: cores.textoSuave, textAlign: 'center', paddingVertical: 8 },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',

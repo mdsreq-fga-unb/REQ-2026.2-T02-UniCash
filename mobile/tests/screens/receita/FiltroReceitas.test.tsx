@@ -119,4 +119,26 @@ describe('Filtro de receitas (fluxo B)', () => {
     const n = new Date();
     expect(onChange).toHaveBeenCalledWith({ modo: 'mes', ano: n.getFullYear(), mes: n.getMonth() + 1 });
   });
+
+  describe('Todo o período', () => {
+    it('o chip mostra "Todo o período"', async () => {
+      await montar({ modo: 'tudo' });
+      expect(screen.getByText('Todo o período')).toBeTruthy();
+    });
+
+    it('aplicar "Tudo" consulta todas as receitas, de qualquer data', async () => {
+      const { onChange } = await montar();
+      await abrir();
+      await fireEvent.press(screen.getByRole('button', { name: 'Tudo' }));
+      expect(screen.getByText('Mostra todas as receitas, de qualquer data.')).toBeTruthy();
+      await aplicar();
+      expect(onChange).toHaveBeenCalledWith({ modo: 'tudo' });
+    });
+
+    it('reabrir com "Todo o período" aplicado mantém a opção selecionada', async () => {
+      await montar({ modo: 'tudo' });
+      await abrir();
+      expect(screen.getByRole('button', { name: 'Tudo' }).props.accessibilityState).toMatchObject({ selected: true });
+    });
+  });
 });

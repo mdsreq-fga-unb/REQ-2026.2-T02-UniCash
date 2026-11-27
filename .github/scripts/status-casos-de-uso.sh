@@ -64,7 +64,8 @@ for n in "${issues[@]}"; do
   if [[ "${DRY_RUN:-0}" == "1" ]]; then
     continue
   fi
-  gh api graphql -F projeto="$PROJETO_ID" -F item="$item" -F campo="$CAMPO_STATUS" -F opcao="${OPCAO[$alvo]}" -f query='
+  # -f envia a opção como texto: com -F, um ID só de dígitos (o de Done) vira número e a API recusa.
+  gh api graphql -F projeto="$PROJETO_ID" -F item="$item" -F campo="$CAMPO_STATUS" -f opcao="${OPCAO[$alvo]}" -f query='
   mutation($projeto: ID!, $item: ID!, $campo: ID!, $opcao: String!) {
     updateProjectV2ItemFieldValue(input: {projectId: $projeto, itemId: $item, fieldId: $campo,
       value: {singleSelectOptionId: $opcao}}) { projectV2Item { id } }

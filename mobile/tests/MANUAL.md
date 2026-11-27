@@ -183,3 +183,30 @@ O EX01 (falha no cálculo) não é provocável no aparelho sem alterar o código
 1. Em um aparelho de teste, no primeiro dia de um mês, registre uma receita de R$ 100,10 e uma despesa de R$ 40,20, ambas com repetição mensal, sem término e com a data de início nesse dia. Nas listas de receitas e despesas, confirme que o mês 13 meses à frente ainda não tem ocorrências dessas séries.
 2. Encerre o app, avance a data do aparelho para o primeiro dia do mês seguinte e reabra no Expo Go. **Sem tocar nas setas de mês**, assim que a camada "Preparando seus dados locais…" sumir, confira que o resumo do mês corrente já mostra receitas de R$ 100,10, despesas de R$ 40,20 e saldo de R$ 59,90 (e não o estado vazio nem a mensagem de falha). Só então navegue até o mês que estava vazio no passo anterior.
 3. Confira nesse mês uma ocorrência de cada série, receitas de R$ 100,10, despesas de R$ 40,20 e saldo de R$ 59,90. Encerre e abra o app novamente e confirme que as ocorrências e os totais permanecem iguais. Restaure a data automática do aparelho após o teste.
+
+## 5. Roteiros manuais do UC07 – Consultar evolução mensal
+
+Rodar com `npx expo start` e abrir no Expo Go. O gráfico fica na tela do resumo (`src/app/index.tsx`), na seção "Evolução mensal".
+Resultados em `tests/RASTREABILIDADE.md`, seção do UC07.
+
+### 5.1 Fluxo principal e alternativos no aparelho
+1. **FA02 – sem lançamentos:** com a base vazia, abra o app. **Esperado:** o resumo mostra "Nenhum lançamento ainda" com "Ver tutorial", e a seção "Evolução mensal" não aparece.
+2. **Passos 2 a 4:** registre receitas e despesas em pelo menos 7 meses diferentes (inclua o mês atual) e volte ao resumo.
+   **Esperado:** o gráfico mostra 6 meses, o atual e os 5 anteriores, com uma barra verde (receitas) e uma marinho (despesas) por mês; o mês atual aparece destacado, e o detalhe abaixo do gráfico mostra os totais dele, que batem com a conta feita à mão.
+3. **Passos 5 e 6:** toque na barra de outro mês. **Esperado:** o seletor e o resumo passam para esse mês, a barra tocada fica destacada e o gráfico continua mostrando os mesmos 6 meses.
+4. **FA05:** pelo seletor, avance para o mês seguinte ao atual e depois volte até 6 meses antes dele. **Esperado:** em cada vez que o mês escolhido sai dos 6 exibidos, o gráfico passa a terminar nele; enquanto o mês está dentro da janela, o gráfico não muda.
+5. **FA01:** num mês só com despesas, a barra de receitas fica sem altura (e vice-versa).
+6. **FA04:** registre uma receita com data num mês futuro e navegue até ele. **Esperado:** a barra do mês futuro mostra o valor.
+7. **FA06:** edite o valor de uma receita, exclua uma despesa e volte ao resumo. **Esperado:** as barras e o detalhe são recalculados.
+8. **Pós-condição:** navegue pelo gráfico e confira as listas de receitas e despesas. **Esperado:** nada foi alterado.
+
+### 5.2 FA03 – offline e sem conta (RN06, RF61)
+Ative o modo avião, sem conta conectada, e repita os passos 2 a 4 de 5.1. **Esperado:** o gráfico funciona igual, calculado só com a base local.
+
+### 5.3 RNF20 e RNF38 – tamanhos de tela e cores
+Abra o resumo num aparelho pequeno (≈ 360 dp de largura) e num grande. **Esperado:** as 6 colunas cabem sem cortar, os rótulos dos meses e a legenda ficam legíveis, e as barras usam o verde e o marinho da paleta.
+
+### 5.4 RNF07 – precisão
+Registre receitas de R$ 0,10 e R$ 0,20 no mesmo mês. **Esperado:** o detalhe do mês mostra exatamente R$ 0,30.
+
+O EX01 (falha no cálculo) não é provocável no aparelho sem alterar o código; fica coberto pelos testes automatizados.
