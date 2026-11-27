@@ -210,3 +210,32 @@ describe('dados financeiros exigem confirmação', () => {
     await assertSucceeds(getDoc(doc(db('u1', ana), 'usuarios', 'u1', colecao, 'r1')));
   });
 });
+
+describe('UC11: pedido de exclusão de conta', () => {
+  const payload = () => ({ status: 'pendente', solicitado_em: serverTimestamp() });
+  const recente = () => ({ ...ana, auth_time: Math.floor(Date.now() / 1000) });
+
+  it('aceita o pedido recente do dono e impede edição, leitura por terceiros e exclusão', async () => {
+    const ref = doc(db('u1', recente()), 'pedidos_remocao', 'u1');
+    await assertSucceeds(setDoc(ref, payload()));
+    await assertSucceeds(getDoc(ref));
+    await assertFails(updateDoc(ref, { status: 'concluido' }));
+    await assertFails(deleteDoc(ref));
+    await assertFails(getDoc(doc(db('u2', bia), 'pedidos_remocao', 'u1')));
+  });
+
+  it('recusa autenticação antiga, pedido por terceiro e campos extras', async () => {
+    await assertFails(setDoc(doc(db('u1', { ...ana, auth_time: 1 }), 'pedidos_remocao', 'u1'), payload()));
+    await assertFails(setDoc(doc(db('u2', recente()), 'pedidos_remocao', 'u1'), payload()));
+    await assertFails(setDoc(doc(db('u1', recente()), 'pedidos_remocao', 'u1'), { ...payload(), outro: true }));
+  });
+
+  it('bloqueia gravações de uma segunda sessão do mesmo UID desde o recebimento do pedido', async () => {
+    const saldo = doc(db('u1'), 'usuarios', 'u1', 'saldo_inicial', 'atual');
+    const dados = { valor_centavos: 100, mes_referencia: '2026-11' };
+    await assertSucceeds(setDoc(saldo, dados));
+    await assertSucceeds(setDoc(doc(db('u1', recente()), 'pedidos_remocao', 'u1'), payload()));
+    await assertFails(setDoc(saldo, { ...dados, valor_centavos: 200 }));
+    await assertSucceeds(setDoc(doc(db('u2', bia), 'usuarios', 'u2', 'saldo_inicial', 'atual'), dados));
+  });
+});
