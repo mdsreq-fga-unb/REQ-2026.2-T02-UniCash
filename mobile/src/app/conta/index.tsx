@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Redirect, router } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
+import { ExcluirConta } from '@/components/conta/ExcluirConta';
 import { Aviso } from '@/components/conta/Aviso';
 import { Botao } from '@/components/conta/Botao';
 import { DialogoConta } from '@/components/conta/DialogoConta';
@@ -17,6 +18,7 @@ import { cores } from '@/lib/theme';
  */
 export default function Conta() {
   const sessao = useSessao();
+  const [excluindo, setExcluindo] = useState(false);
   const [editando, setEditando] = useState(false);
   const [encerrada, setEncerrada] = useState(false);
   const [saindo, setSaindo] = useState(false);
@@ -71,6 +73,8 @@ export default function Conta() {
     );
   }
 
+  if (excluindo) return <ExcluirConta voltar={() => setExcluindo(false)} />;
+
   if (sessao.status === 'sem-sessao') return <Redirect href="/conta/entrar" />;
 
   if (editando) {
@@ -86,6 +90,7 @@ export default function Conta() {
 
       {erro ? <Aviso tipo="erro" texto={erro} /> : null}
 
+      <Botao rotulo="Excluir conta" tipo="link" onPress={() => setExcluindo(true)} />
       <Botao rotulo="Editar perfil" onPress={() => setEditando(true)} />
       <Botao rotulo="Sair" tipo="contorno" onPress={aoAcionarSair} carregando={saindo} testID="sair" />
 
