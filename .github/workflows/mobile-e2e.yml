@@ -90,6 +90,8 @@ jobs:
           TOKEN: ${{ github.token }}
           DESTINO: pr-${{ github.event.pull_request.number || 'manual' }}/execucao-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
+          # Os diretórios de saída do Maestro têm espaços no nome (ex.: "UC13 01 - Estado vazio"),
+          # então a lista é lida linha a linha, sem separar por palavras.
           arquivos=$(find . \( -path ./node_modules -prune \) -o \( -path '*artefatos*' \( -name '*.png' -o -name '*.mp4' \) -print \))
           if [ -z "$arquivos" ]; then echo "Nenhum print ou vídeo gerado."; exit 0; fi
           repo="https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
@@ -101,12 +103,18 @@ jobs:
             echo "# Evidências dos testes E2E (Maestro), geradas pelo workflow mobile-e2e.yml" > "$RUNNER_TEMP/evid/README.md"
           fi
           lista=""
-          for f in $arquivos; do
-            nome="uc13/$(basename "$f")"
-            mkdir -p "$RUNNER_TEMP/evid/$DESTINO/uc13"
+          mkdir -p "$RUNNER_TEMP/evid/$DESTINO/uc13"
+          while IFS= read -r f; do
+            base=$(basename "$f")
+            # Prints de falha do Maestro (saida/<data>/<fluxo>/screenshots/) têm o mesmo nome em
+            # todos os fluxos; o nome do fluxo vai na frente para um não sobrescrever o outro.
+            case "$f" in
+              */saida/*/screenshots/*) base="$(basename "$(dirname "$(dirname "$f")")")-$base" ;;
+            esac
+            nome="uc13/$(echo "$base" | tr ' ' '-')"
             cp "$f" "$RUNNER_TEMP/evid/$DESTINO/$nome"
             lista="$lista $nome"
-          done
+          done <<< "$arquivos"
           cd "$RUNNER_TEMP/evid"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

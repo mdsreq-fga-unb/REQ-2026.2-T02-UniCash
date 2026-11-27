@@ -9,6 +9,9 @@ appId: br.unb.unicash
 - tapOn:
     text: "Pular tutorial"
     optional: true
+# Espera um elemento do topo da tela inicial. O botão "Perfil" fica abaixo da dobra
+# no emulador e extendedWaitUntil não rola a tela.
 - extendedWaitUntil:
-    visible: "Perfil"
+    visible:
+      id: "mes-selecionado"
     timeout: 20000
