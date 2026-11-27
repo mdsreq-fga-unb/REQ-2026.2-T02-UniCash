@@ -16,6 +16,24 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/receitas/sync', () => ({ sincronizarEmSegundoPlano: jest.fn() }));
+// O gráfico do UC07 também lê a base; aqui ele é simulado para não alterar a sequência de
+// chamadas a getDb() que estes testes do saldo (UC04) programam.
+jest.mock('@/features/evolucao/service', () => {
+  const real = jest.requireActual('@/features/evolucao/service');
+  return {
+    ...real,
+    calcularEvolucao: jest.fn(async (fimAno: number, fimMes: number) => ({
+      fimAno,
+      fimMes,
+      meses: real.mesesDaJanela({ ano: fimAno, mes: fimMes }).map((m: { ano: number; mes: number }) => ({
+        ...m,
+        receitasCentavos: 0,
+        despesasCentavos: 0,
+      })),
+      semLancamentos: false,
+    })),
+  };
+});
 
 describe('Resumo financeiro', () => {
   let banco: ReturnType<typeof instalarBanco>;

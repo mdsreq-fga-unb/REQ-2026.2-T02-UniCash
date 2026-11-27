@@ -8,6 +8,8 @@ As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 regis
 
 A seção 6 registra o **UC03 — Consultar resumo financeiro**.
 
+A seção 7 registra o **UC07 — Consultar evolução mensal**.
+
 ## 1. Regras de negócio e requisitos não funcionais
 
 | Requisito | Fluxo do UC01 | Código | Teste automatizado | Teste manual |
@@ -436,6 +438,7 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 | Abertura com recorrências a completar | `src/app/_layout.tsx` (geração de receitas e despesas), `service.ts` (`calcularResumo`) | `tests/service/resumo.test.ts` ("gravações durante a abertura do app…") | 4.5 |
 | Abertura: recálculo depois da preparação e da restauração da nuvem | `src/lib/baseAtualizada.ts`, `src/app/_layout.tsx` (sinal ao liberar o guard e ao terminar as rotinas), `useResumo.ts` (recalcula ao receber o sinal) | `tests/screens/Layout.test.tsx` (bloco "sinal de base atualizada"), `tests/screens/Resumo.test.tsx` (bloco "recálculo quando a base muda por fora da tela") | 4.5 (passo 2) |
 | Atalhos Receitas, Despesas e Categorias em todos os estados | `src/app/index.tsx` (`Atalhos`; Receitas e Despesas abrem no mês selecionado) | `tests/screens/Resumo.test.tsx` (bloco "atalhos em todos os estados", "atalhos abrem as listas no mês selecionado…"), `tests/screens/Home.test.tsx`, `tests/screens/HomeDespesas.test.tsx` | 4.1 (passo 1) |
+| Registro direto da tela inicial ("+ Nova receita" e "+ Nova despesa", RNF27) | `src/app/index.tsx` (`Atalhos`; escondidos no estado vazio, que já tem "Registrar receita" e "Registrar despesa") | `tests/screens/Resumo.test.tsx` (bloco "registro direto da tela inicial") | – |
 
 **Placeholder de metas (RF12):** `progressoMetasDoMes` retorna vazio enquanto o caso de uso de metas estiver pendente.
 A visão por dia está em lista, provisória até a escolha entre lista e calendário com a cliente.
@@ -462,9 +465,81 @@ Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.ts
 | 4.4 RNF07 – precisão | | | | | |
 | 4.5 Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |
 
+## 7. UC07 — Consultar evolução mensal
+
+Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
+O gráfico fica na tela do resumo (UC03) e compartilha com ele o mês selecionado.
+
+### 7.1. Requisitos e regras
+
+| Requisito | Fluxo do UC07 | Código | Teste automatizado | Teste manual |
+|---|---|---|---|---|
+| RF68 – gráfico de barras com receitas e despesas de cada mês | passos 3 e 4 | `src/features/evolucao/service.ts` (`calcularEvolucao`), `src/components/resumo/GraficoEvolucao.tsx`, `src/app/index.tsx` (`SecaoEvolucao`) | `tests/service/evolucao.test.ts` (bloco "RF68"), `tests/screens/Evolucao.test.tsx` ("passos 1 a 4…", "barras proporcionais…") | 5.1 (passo 2) |
+| RN12 – mês corrente como padrão; janela de 6 meses (o selecionado e os 5 anteriores); datas futuras no mês | passo 2, passo 4, FA04, FA05 | `service.ts` (`mesesDaJanela`, `ajustarFimDaJanela`, `MESES_NO_GRAFICO`), `src/app/index.tsx` (`fimJanela`, `escolherMes`) | `tests/service/evolucao.test.ts` (bloco "janela do gráfico", "com mais de 6 meses…", "FA04…"), `tests/screens/Evolucao.test.tsx` ("FA05…") | 5.1 (passos 2, 4 e 6) |
+| RN06 / RF61 – base local, sem conta e sem conexão | FA03 | `service.ts` (só SQLite; não importa o Firebase) | `tests/service/evolucao.test.ts` ("FA03…"; o Firebase é mockado para quebrar se for importado) | 5.2 |
+| RN07 – sem contadores persistidos; exclusão lógica | passos 3 e 6, FA06 | `service.ts` (`excluido_em IS NULL`, cálculo na hora) | `tests/service/evolucao.test.ts` ("ignora lançamentos excluídos", "FA06…", "pós-condição…") | 5.1 (passo 7) |
+| RNF07 – inteiros em centavos, 2 casas na exibição | passos 3 e 4 | `service.ts` (`SUM(valor_centavos) … GROUP BY` mês), `GraficoEvolucao.tsx` (`formatarBRL`) | `tests/service/evolucao.test.ts` ("RNF07…") | 5.4 |
+| RNF20 – telas adaptadas a tamanhos de celular | passo 4 | `GraficoEvolucao.tsx` (6 colunas com `flex: 1`) | – (layout não é renderizado no Jest) | 5.3 |
+| RNF38 – barras na paleta | passo 4 | `src/lib/theme.ts` (`graficoReceita`, `graficoDespesa`), `GraficoEvolucao.tsx` | – | 5.3 |
+| RF55 – atalho para o tutorial | FA02 | `src/app/index.tsx` (`EstadoVazio` do resumo; a seção do gráfico some) | `tests/screens/Evolucao.test.tsx` ("FA02…") | 5.1 (passo 1) |
+| RNF03 – Security Rules | – | não se aplica: o gráfico não lê nem grava na nuvem | – | – |
+
+### 7.2. Fluxos e exceções
+
+| Fluxo / exceção | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| Passos 1–4 – abrir e calcular a janela do mês corrente | `src/app/index.tsx`, `src/features/evolucao/useEvolucao.ts`, `service.ts` (numa única consulta SQL) | `tests/screens/Evolucao.test.tsx` ("passos 1 a 4…"), `tests/service/evolucao.test.ts` ("lê tudo numa única consulta…") | 5.1 (passo 2) |
+| Passos 5–6 – selecionar o mês pela barra ou pelo seletor (mês compartilhado com o UC03) | `GraficoEvolucao.tsx` (cada mês é um botão), `src/app/index.tsx` (`escolherMes`) | `tests/screens/Evolucao.test.tsx` ("passos 5 e 6…", "seletor dentro da janela…") | 5.1 (passo 3) |
+| FA01 – mês sem receitas ou sem despesas | `service.ts` (meses sem lançamento entram com zero), `GraficoEvolucao.tsx` (`altura`) | `tests/service/evolucao.test.ts` ("FA01…"), `tests/screens/Evolucao.test.tsx` ("FA01…") | 5.1 (passo 5) |
+| FA02 – sem nenhum lançamento | `service.ts` (`semLancamentos`), `src/app/index.tsx` (`SecaoEvolucao`) | `tests/service/evolucao.test.ts` ("FA02…"), `tests/screens/Evolucao.test.tsx` ("FA02…") | 5.1 (passo 1) |
+| FA03 – consulta offline | `service.ts` | `tests/service/evolucao.test.ts` ("FA03…") | 5.2 |
+| FA04 – mês futuro | `service.ts` | `tests/service/evolucao.test.ts` ("FA04…") | 5.1 (passo 6) |
+| FA05 – mês fora da janela | `service.ts` (`ajustarFimDaJanela`), `src/app/index.tsx` | `tests/service/evolucao.test.ts` ("FA05…"), `tests/screens/Evolucao.test.tsx` ("FA05…") | 5.1 (passo 4) |
+| FA06 – lançamento alterado ou excluído | `src/app/index.tsx` (`useFocusEffect`), `service.ts` | `tests/service/evolucao.test.ts` ("FA06…") | 5.1 (passo 7) |
+| Abertura: recálculo depois da preparação e da restauração | `src/lib/baseAtualizada.ts`, `useEvolucao.ts` | `tests/screens/Evolucao.test.tsx` ("recalcula quando a preparação…") | – |
+| EX01 – falha na leitura ou no cálculo | `service.ts` (`FalhaEvolucao`, `MSG_FALHA_EVOLUCAO`), `useEvolucao.ts`, `src/app/index.tsx` | `tests/service/evolucao.test.ts` (bloco "EX01"), `tests/screens/Evolucao.test.tsx` ("EX01…", "a falha da evolução não esconde o resumo…"), `tests/unit/useEvolucao.test.ts` | – |
+| Pós-condição – nenhum dado alterado | `service.ts` (somente leitura) | `tests/service/evolucao.test.ts` ("pós-condição…") | 5.1 (passo 8) |
+
+**Biblioteca de gráficos:** nenhuma. As barras são `View` do React Native, sem dependência nova (funciona no Expo Go),
+e cada mês é um botão com rótulo de acessibilidade que informa os valores.
+
+### 7.3. Resultados de validação
+
+#### 7.3.1. Automatizados (`npm test -- --ci --coverage`)
+
+| Data | Suítes | Testes | `features/evolucao` (statements / branches / funções / linhas) | Responsável |
+|---|---|---|---|---|
+| 2026-11-24 | 77 de 77 | 1358 de 1358 | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-26 (após integrar a `develop` com UC03, UC04, UC10 e UC16) | 106 de 106 | 1765 de 1765 | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-26 (revisão: séries e integração com UC09 e UC15) | 110 de 110 | 1815 de 1815 | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-26 (após integrar o UC05) | 111 de 111 | 1837 de 1837 | 100% / 100% / 100% / 100% | dantescarpati |
+
+Limites mínimos em `jest.config.js` para `src/**/evolucao/**` (e `src/**/resumo/**`, que inclui o gráfico): 90% statements, 70% branches, 85% funções, 90% linhas.
+
+#### 7.3.2. Manuais (`tests/MANUAL.md`, seção 5)
+
+| Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
+|---|---|---|---|---|---|
+| 5.1 Fluxo principal e alternativos | | | | | |
+| 5.2 Offline e sem conta | | | | | |
+| 5.3 RNF20 e RNF38 – tamanhos de tela e cores | | | | | |
+| 5.4 RNF07 – precisão | | | | | |
+
 ## UC05 — Monitorar limites de gastos
 
 A [issue #32](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32) e o [manual do UC05](MANUAL-UC05.md) registram o escopo entregue, a integração com UC09 e RF12 e os cenários de notificação em aparelho, incluindo offline. A cobertura automatizada da EX02 está em [alertas-uc05.test.ts](service/alertas-uc05.test.ts).
+
+## UC14 — Configurar notificações (D25)
+
+| Requisito / fluxo | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| RF58, passos 1 e 2, D25 (estado inicial desligado) | `src/app/perfil.tsx`, `src/components/perfil/SecaoNotificacoes.tsx`, `src/features/notificacoes/padroes.ts` | `tests/screens/Perfil.test.tsx` (US1), `tests/features/notificacoes/preferencias.test.ts` | 1, 10 |
+| Passos 3 e 5 (grava antes de confirmar), FA01 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/preferencias.ts` | `tests/screens/Perfil.test.tsx` ("grava antes de ligar o interruptor") | 2, 3 |
+| Passo 4, FA06, FA07 (permissão do aparelho) | `src/features/notificacoes/permissao.ts` | `tests/features/notificacoes/permissao.test.ts`, `tests/screens/Perfil.test.tsx` (US2) | 4 a 7 |
+| FA05, RN06 (pendente de sincronização com conta) | `src/features/notificacoes/preferencias.ts`, `src/db/migrations.ts` (`migrar012`) | `tests/features/notificacoes/preferencias.test.ts`, `tests/db/migrations.test.ts` | 8 |
+| RNF03 (isolamento por dono), EX05 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
+| EX01, EX02 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/mensagens.ts` | `tests/screens/Perfil.test.tsx` (US3) | — |
+| Contrato `isEnabled('limite' \| 'conquistas')` para UC05 e UC13 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
 
 ## UC11 — Gerenciar perfil (entrega parcial: edição do perfil)
 
