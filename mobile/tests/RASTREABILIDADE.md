@@ -75,14 +75,14 @@ Métricas: statements, branches, funções e linhas.
 |---|---|---|---|---|
 | 2026-11-23 | 2 de 2 | 63 (57 aprovados, 6 ignorados) | Aprovado. Os 6 ignorados são o grupo `perfil: alteração (UC11)` (`describe.skip`) | |
 
-### 3.3 Manuais (`tests/MANUAL.md`, seção 3)
+### 3.3 Manuais ([roteiro do UC01](MANUAL.md#uc01--gerenciar-receitas))
 
 | Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
 |---|---|---|---|---|---|
-| 3.1 Encerramento forçado (RNF35) | | | | | |
-| 3.2 Offline, reinício e nuvem | | | | | |
-| 3.3 RNF14 (4 de 5 identificam o erro) | | | | | |
-| 3.4 RNF27 (registro em até 3 etapas) | | | | | |
+| 1. Encerramento forçado (RNF35) | | | | | |
+| 2. Offline, reinício e nuvem | | | | | |
+| 3. RNF14 (4 de 5 identificam o erro) | | | | | |
+| 4. RNF27 (registro em até 3 etapas) | | | | | |
 
 ### 3.4 CI
 
@@ -298,13 +298,13 @@ Atualização de 23/11/2026: a seção registra as quatro decisões técnicas da
 | RF02 — autenticar | B | `src/app/conta/entrar.tsx`, `auth.firebase.ts` (`signIn`, observador de sessão), `service.firebase.ts` (`entrar`) | `tests/screens/EntrarConta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/servico-conta.test.ts`, `tests/service/conta/simulado-conta.test.ts` | Testado. `entrar` só autentica; quem retoma a sincronização é o observador de sessão (`index.ts`) |
 | RF06 — encerrar sessão | D | `src/app/conta/index.tsx`, `auth.firebase.ts` (`signOut`), `service.firebase.ts` (`sair`: suspende a sincronização e depois invalida a sessão) | `tests/screens/Conta.test.tsx`, `tests/service/conta/auth-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` | Testado |
 | RF31 — recuperar senha | C | `src/app/conta/recuperar-senha.tsx`, `src/app/conta/redefinir-senha.tsx`, `auth.firebase.ts` (`sendPasswordReset`, `confirmPasswordReset`) | `tests/screens/RecuperarSenha.test.tsx`, `tests/screens/RedefinirSenha.test.tsx`, `tests/service/conta/auth-conta.test.ts` | Testado. Decisão: a redefinição acontece na página padrão do Firebase; a rota `redefinir-senha` fica no código sem uso no fluxo atual (5.4). Texto de prazo na interface: ver 5.5 |
-| RF61 — uso sem conta | todos | `src/app/conta/cadastro.tsx`, `entrar.tsx` ("Continuar sem conta") | `tests/screens/CadastroConta.test.tsx`, `tests/screens/EntrarConta.test.tsx` | Testado; roteiro 3.2 do UC10 |
+| RF61 — uso sem conta | todos | `src/app/conta/cadastro.tsx`, `entrar.tsx` ("Continuar sem conta") | `tests/screens/CadastroConta.test.tsx`, `tests/screens/EntrarConta.test.tsx` | Testado; cenário 2 do UC10 |
 | RF62 — sincronização (contrato) | B4, E6, FA01 | `src/features/conta/sync.ts` (porta), `sync.app.ts` (adaptador sobre `features/receitas/sync.ts`), `index.ts` | `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/index-conta.test.ts`, `tests/unit/sync-conta.test.ts` | Testado com o sync da UC01 simulado por mock |
 | RF62 — sincronizar só com e-mail confirmado (decisão 5.4, item 1) | B4, E, EX11 | `src/features/receitas/sync.ts` (`sincronizarPendentes`: sem `user.emailVerified` não envia, nem em envio manual) | `tests/service/receita/sync.test.ts` ("e-mail não confirmado…", "e-mail confirmado depois…"), `tests/service/receita/sync.segundoPlano.test.ts` ("com e-mail não confirmado…"), mocks com `emailVerified: true` em `sync.extras.test.ts` e `sync.restauracaoRede.extras.test.ts` | Implementado/testado. `restaurarDaNuvem()` continua conferindo só `currentUser`: só é chamada com sessão ativa (e-mail confirmado) |
 | RF62 — envio automático pausado (FA01, decisão 5.4, item 4) | A, E5-E6, FA01 | `service.firebase.ts` (`cadastrar` pausa depois de criar a conta; `enviarDadosDoAparelho` e `sincronizarAgora` exigem sessão ativa), `sync.app.ts` (`pausarEnvioAutomatico`, `sincronizar` como envio manual), `features/receitas/sync.ts` (`definirEnvioAutomatico`, `sincronizarPendentes({ manual })`), `src/db/schema.ts` (tabela `preferencias`) | `tests/service/conta/servico-conta.test.ts` ("envio automático (FA01)"), `tests/service/conta/sync-app-conta.test.ts` ("pausar o envio automático (FA01)"), `tests/service/receita/sync.test.ts` ("envio automático pausado (FA01)"), `tests/screens/ConfirmarEmail.test.tsx` | Implementado/testado. Limitações em 5.4 (sem botão dedicado) |
 | Política de senha — regra a incluir no catálogo (A4) | A, C | `src/features/conta/validation.ts` (`senhaNaPolitica`, `validarCadastro`, `validarSenhaNova`), `firebase-erros.ts` | `tests/unit/validation-conta.test.ts` (7 e 8 caracteres e cada classe ausente), `tests/screens/CadastroConta.test.tsx`, `tests/screens/RedefinirSenha.test.tsx`, `tests/unit/firebase-erros-conta.test.ts` | Cliente testado; no servidor depende de configuração no Console (5.5). Número da regra: definir no catálogo |
 | Confirmação do e-mail — regra a incluir no catálogo (A6, E, EX11) | A, B, E | `auth.firebase.ts` (`sessaoDe`, `signIn`, `checkEmailVerified`), `confirmar-email.tsx` | `tests/service/conta/auth-conta.test.ts`, `tests/screens/EntrarConta.test.tsx`, `tests/screens/ConfirmarEmail.test.tsx` | Testado. Número da regra: definir no catálogo |
-| RN06 — conta opcional, base local | todos | `sync.app.ts` (`suspender` não altera dados), `service.firebase.ts` (`sair`), `index.ts` | `tests/screens/Conta.test.tsx`, `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` | Testado; roteiros 3.3 e 3.4 |
+| RN06 — conta opcional, base local | todos | `sync.app.ts` (`suspender` não altera dados), `service.firebase.ts` (`sair`), `index.ts` | `tests/screens/Conta.test.tsx`, `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/servico-conta.test.ts` | Testado; cenários 3 e 4 |
 | RNF01 — senha protegida | A, C | Firebase Authentication (hash); `auth.firebase.ts` nunca grava senha | `tests/service/conta/auth-conta.test.ts` (perfil sem senha), `tests/rules/conta.rules.test.ts` (senha recusada no perfil) | Testado no que cabe ao app |
 | RNF02 — serviço de autenticação e sessão | B, D | `auth.firebase.ts`, `sessao.ts` | `tests/service/conta/auth-conta.test.ts`, `tests/unit/sessao-conta.test.ts` | Testado |
 | RNF03 — acesso só ao próprio perfil | A, EX10 | `firestore.rules` (`match /usuarios/{uid}`) | `tests/rules/conta.rules.test.ts` (`npm run test:rules`) | Leitura e criação testadas no Emulator; **atualização do perfil pendente** (UC11, ver 5.5) |
@@ -313,10 +313,10 @@ Atualização de 23/11/2026: a seção registra as quatro decisões técnicas da
 | RNF26, RNF36 — pendências e reenvio | E6, EX08 | `sync.app.ts`, `features/receitas/sync.ts` | `tests/service/conta/sync-app-conta.test.ts`, `tests/screens/ConfirmarEmail.test.tsx` | Testado. `sync.app.ts` só consulta as tabelas que existem no esquema (receitas, recorrências e, após o merge com a UC02, despesas) |
 | RNF30 — Emulator Suite | — | `src/lib/firebase.ts` (`EXPO_PUBLIC_USE_EMULATOR`) | `tests/rules/conta.rules.test.ts` | Testado |
 | RNF32 — finalidade do tratamento de dados | A2 | `src/app/conta/cadastro.tsx` | `tests/screens/CadastroConta.test.tsx` | Testado; texto a ajustar após a validação da mudança da D12 (5.5) |
-| RNF33 — acessibilidade WCAG 2.1 AA | A, B | `src/components/conta/*` | — | **Manual** (roteiro 3.7 do UC10) |
-| RNF34 — operação sem conexão | D, FA04 | `auth.firebase.ts` (`signOut`) | `tests/service/conta/simulado-conta.test.ts`, `tests/screens/Conta.test.tsx` | Testado; roteiro 3.4 |
-| RNF38 — paleta "Tesouraria Teal" | todos | `src/components/conta/*`, `src/lib/theme` | — | **Manual** (roteiro 3.7) |
-| RNF40 — restauração em aparelho novo | FA02 | `sync.app.ts` (`restaurarSeAparelhoVazio`), `features/receitas/sync.ts` (`restaurarDaNuvem`) | `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/index-conta.test.ts` | Testado com mock; roteiro 3.6 |
+| RNF33 — acessibilidade WCAG 2.1 AA | A, B | `src/components/conta/*` | — | **Manual** (cenário 7 do UC10) |
+| RNF34 — operação sem conexão | D, FA04 | `auth.firebase.ts` (`signOut`) | `tests/service/conta/simulado-conta.test.ts`, `tests/screens/Conta.test.tsx` | Testado; cenário 4 |
+| RNF38 — paleta "Tesouraria Teal" | todos | `src/components/conta/*`, `src/lib/theme` | — | **Manual** (cenário 7) |
+| RNF40 — restauração em aparelho novo | FA02 | `sync.app.ts` (`restaurarSeAparelhoVazio`), `features/receitas/sync.ts` (`restaurarDaNuvem`) | `tests/service/conta/sync-app-conta.test.ts`, `tests/service/conta/index-conta.test.ts` | Testado com mock; cenário 6 |
 
 ### 5.2. Fluxos e exceções
 
@@ -360,7 +360,7 @@ Preencher com a data e os números de cada execução (data, responsável e link
 
 Responsável e link do CI: preencher. Cobertura dos arquivos do UC10 abaixo de 100%: `app/conta/confirmar-email.tsx` (97,22% das instruções, 81,81% dos ramos), `app/conta/index.tsx` (94,87%), `recuperar-senha.tsx` (95%), `redefinir-senha.tsx` (95,65%), `components/conta/CampoSenha.tsx` (60%), `features/conta/auth.firebase.ts` (98,64%; 86,95% dos ramos), `service.simulado.ts` (95,34%) e `sync.app.ts` (80% dos ramos). O restante de `src/` está em 100%.
 
-Prova manual (ainda não executada): roteiros 3.1 a 3.8 do UC10 em `tests/MANUAL.md`. Registro das execuções e evidências na issue do UC10 (data, responsável, aparelho e casos aprovados).
+Prova manual (ainda não executada): cenários 1 a 8 do [UC10](MANUAL.md#uc10--autenticar-usuário). Registro das execuções e evidências na issue do UC10 (data, responsável, aparelho e casos aprovados).
 
 ### 5.4. Decisões técnicas (23/11/2026)
 
@@ -391,7 +391,7 @@ Texto das decisões para o `decisoes.md`: `DECISOES.uc10.md`.
 - **Interface e testes ainda citam 5 minutos** (consequência da decisão 2): `confirmar-email.tsx` (subtítulo e aviso de reenvio), `recuperar-senha.tsx`, `validation.ts` (`PRAZO_LIGACAO_MINUTOS`) e os testes `tests/screens/ConfirmarEmail.test.tsx`, `tests/screens/RecuperarSenha.test.tsx`, `tests/unit/validation-conta.test.ts`. O texto deve dizer apenas que a ligação tem prazo de validade e pode ser reenviada.
 - **Regra de atualização do perfil (UC11):** no Emulator, a regra `allow update` de `usuarios/{uid}` dá erro de avaliação para toda atualização feita pelo próprio dono (a criação, usada no cadastro do UC10, passa). Já foram descartadas a comparação do `criado_em` e o valor do Timestamp usado na preparação do teste. Causa não identificada. O grupo `perfil: alteração (UC11)` de `tests/rules/conta.rules.test.ts` está em `describe.skip` e deve ser reativado quando a regra for corrigida, antes de o UC11 gravar o e-mail novo no perfil (`confirmEmailChange`).
 - **Testes de recorrência de `tests/rules/firestore.rules.test.ts` (UC01):** as 4 falhas registradas antes (`RNF03 › o mesmo vale para as recorrências` e três de `recorrências (RN19)`) não apareceram na execução de 23/11/2026 (`test:rules`: 57 aprovados, 6 ignorados). Resolvido; o job de rules não deve ficar vermelho por elas.
-- **Campo `tipo` no envio das séries (a verificar):** o `firestore.rules` exige `tipo` nas recorrências e o `sincronizarPendentes()` desta branch envia a série sem `tipo`. Os testes de rules passam porque montam o próprio documento; o envio real não foi coberto por eles. Se o merge com a `develop` não trouxer o `tipo` no envio, as séries seriam negadas no Firebase real e, como o envio das séries vem antes das receitas, as receitas pendentes também não subiriam. Conferir no roteiro 3.8 do UC10.
+- **Campo `tipo` no envio das séries (a verificar):** o `firestore.rules` exige `tipo` nas recorrências e o `sincronizarPendentes()` desta branch envia a série sem `tipo`. Os testes de rules passam porque montam o próprio documento; o envio real não foi coberto por eles. Se o merge com a `develop` não trouxer o `tipo` no envio, as séries seriam negadas no Firebase real e, como o envio das séries vem antes das receitas, as receitas pendentes também não subiriam. Conferir no cenário 8 do UC10.
 - **Política de senha no servidor (RNF04):** as Security Rules não veem a senha. Vale no cliente; no servidor depende de Authentication → Settings → Password policy (pode exigir o Identity Platform).
 - **Mudança em relação à D12/R07:** o cadastro passa a pedir e-mail e senha. Registrar em `decisoes.md` (`DECISOES.uc10.md`), validar com a cliente e as representantes e ajustar RF01, RF31 e RNF32; a política de senha e a confirmação do e-mail entram no catálogo como regras de negócio (texto proposto no mesmo arquivo; os números das regras dependem do catálogo).
 - **Autenticação sem conexão, dados locais ao sair, limite de tentativas:** assumidos no caso de uso (primeira entrada exige conexão; a base local permanece; sem limite próprio).
@@ -455,15 +455,15 @@ A visão por dia está em lista, provisória até a escolha entre lista e calend
 
 Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.tsx`: 90% statements, 70% branches, 85% funções, 90% linhas.
 
-#### 6.3.2. Manuais (`tests/MANUAL.md`, seção 4)
+#### 6.3.2. Manuais ([roteiro do UC03](MANUAL.md#uc03--consultar-resumo-financeiro))
 
 | Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
 |---|---|---|---|---|---|
-| 4.1 Fluxo principal e alternativos | | | | | |
-| 4.2 Offline e sem conta | | | | | |
-| 4.3 RNF20 – tamanhos de tela | | | | | |
-| 4.4 RNF07 – precisão | | | | | |
-| 4.5 Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |
+| 1. Fluxo principal e alternativos | | | | | |
+| 2. Offline e sem conta | | | | | |
+| 3. RNF20 – tamanhos de tela | | | | | |
+| 4. RNF07 – precisão | | | | | |
+| 5. Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |
 
 ## 7. UC07 — Consultar evolução mensal
 
@@ -516,18 +516,29 @@ e cada mês é um botão com rótulo de acessibilidade que informa os valores.
 
 Limites mínimos em `jest.config.js` para `src/**/evolucao/**` (e `src/**/resumo/**`, que inclui o gráfico): 90% statements, 70% branches, 85% funções, 90% linhas.
 
-#### 7.3.2. Manuais (`tests/MANUAL.md`, seção 5)
+#### 7.3.2. Manuais ([roteiro do UC07](MANUAL.md#uc07--consultar-evolução-mensal))
 
 | Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
 |---|---|---|---|---|---|
-| 5.1 Fluxo principal e alternativos | | | | | |
-| 5.2 Offline e sem conta | | | | | |
-| 5.3 RNF20 e RNF38 – tamanhos de tela e cores | | | | | |
-| 5.4 RNF07 – precisão | | | | | |
+| 1. Fluxo principal e alternativos | | | | | |
+| 2. Offline e sem conta | | | | | |
+| 3. RNF20 e RNF38 – tamanhos de tela e cores | | | | | |
+| 4. RNF07 – precisão | | | | | |
 
 ## UC05 — Monitorar limites de gastos
 
-A [issue #32](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32) e o [manual do UC05](MANUAL-UC05.md) registram o escopo entregue, a integração com UC09 e RF12 e os cenários de notificação em aparelho, incluindo offline. A cobertura automatizada da EX02 está em [alertas-uc05.test.ts](service/alertas-uc05.test.ts).
+A [issue #32](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32) e o [roteiro do UC05](MANUAL.md#uc05--monitorar-limites-de-gastos) registram o escopo entregue, a integração com UC09 e RF12 e os cenários de notificação em aparelho, incluindo offline. A cobertura automatizada da EX02 está em [alertas-uc05.test.ts](service/alertas-uc05.test.ts).
+
+### Escopo e integrações
+
+- O UC05 monitora limites mensais das categorias do UC06, em valor fixo ou percentual da renda. O SQLite calcula o gasto a partir das despesas da categoria e, para limites percentuais, das receitas do mesmo mês. Os limiares provisórios da RN03 são aproximação de 80% a 100% e ultrapassagem acima de 100%.
+- A notificação é local e respeita as preferências por tipo. A chave por tipo, categoria e mês evita repetir um alerta emitido. A sincronização trata os alertas emitidos como dados da conta.
+- O [UC09 (#46)](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/46) exibe indicadores de consumo. O UC05 desta branch tem consulta SQLite própria sobre os mesmos lançamentos e limites. Substituir essa consulta pela função compartilhada do UC09 e validar os dois fluxos juntos continua pendente após a integração das branches.
+- As metas de gasto do RF12 têm armazenamento e ciclo de vida próprios. Esta entrega monitora apenas categorias. Incluir referências a metas no cálculo e nas notificações fica para a integração com o RF12.
+
+### EX02 — Revalidação antes da emissão
+
+[alertas-uc05.test.ts](service/alertas-uc05.test.ts) cobre a edição de uma despesa com alerta pendente em 80% e falha na consulta de consumo. A despesa é salva e o alerta fica pendente enquanto a consulta estiver indisponível. Quando a consulta volta, o alerta é descartado se o gasto caiu para 50% e é emitido com os valores atuais se o gasto está em 90%. A revalidação usa a mesma transação SQLite da emissão.
 
 ## UC14 — Configurar notificações (D25)
 
@@ -663,3 +674,56 @@ Testes de convergência em `tests/service/metas.sync.test.ts`: dois bancos/dispo
 - **UC13**: fora do escopo.
 - **RN07 global**: a solução desta UC usa relógio lógico e base por registro; um contrato compartilhado para todas as UCs ainda depende de decisão da equipe.
 - **Rules**: precisam ser executadas no emulador/CI antes de publicar o PR.
+
+## UC16 — Sincronizar dados
+
+### Comandos de teste
+
+Na raiz do repositório:
+
+```sh
+cd mobile
+npm ci
+npm run typecheck
+npm run lint
+npm test -- --runInBand --coverage
+npm run test:rules
+```
+
+Use o Firebase de desenvolvimento ou o Emulator Suite com as regras desta branch. A versão que grava a exclusão lógica de receita requer as regras novas. Exclusões físicas feitas por versões antigas não deixam um marcador que outro aparelho possa receber.
+
+### Contrato e rastreabilidade
+
+| Item | Implementação |
+| --- | --- |
+| Estado e fila | `features/sincronizacao/contrato.ts`, `service.ts` e `fila.ts`. A consulta SQLite inclui receitas, despesas, categorias, recorrências, alertas e exclusões lógicas. Contagem e lista vêm da mesma consulta. |
+| Envio, repetição e retomada | `features/receitas/sync.ts` usa o SDK do Firestore e IDs estáveis. A confirmação remota precede a baixa da pendência. O envio manual aguarda o envio em curso. Login, reconexão e retorno ao primeiro plano acionam um ciclo automático. |
+| Sessão e acesso local | O ciclo exige UID e e-mail confirmado. A consulta local permanece disponível sem sessão. A última conclusão é registrada por conta no aparelho. |
+| Combinação e restauração | O ciclo lê os snapshots do servidor, reaproveita o tratamento de categorias e importa séries, lançamentos e alertas em transação SQLite. Edições mais recentes são aplicadas aos registros ativos. Marcadores de exclusão prevalecem sobre edições. Ao concluir, a atualização da base aciona o recálculo do resumo e a releitura das listas. |
+| RF59, RNF20 e RNF38 | A tela `Sincronização` fica no resumo financeiro, usa a paleta do app e apresenta a fila em uma coluna rolável. Receitas e despesas usam rótulos de estado em texto. As larguras de 320 e 430 dp fazem parte da validação em aparelho. |
+| RNF03 e RNF04 | `firestore.rules` e `tests/rules/firestore.rules.test.ts` verificam acesso por UID, campos obrigatórios e a proteção de marcadores de exclusão. |
+
+A data da tela representa o último ciclo UC16 que concluiu o envio e a leitura do servidor com a fila resolvida. O SQLite mantém os estados de envio `pendente` e `sincronizado`. O estado geral informa também falta de conexão e erros.
+
+#### Códigos do UC16
+
+| Código | Condição |
+| --- | --- |
+| EX01 | Sem conexão ao sincronizar |
+| EX02 | Sessão inválida ou expirada |
+| EX03 | Falha no envio ou na conclusão do ciclo |
+| EX04 | Registro recusado pelas regras do servidor |
+| EX05 | Envio interrompido, com reenvio na próxima tentativa |
+| EX06 | Conflito entre alterações locais e remotas |
+| EX07 | Falha na leitura local do estado ou da fila |
+| EX08 | Acesso rejeitado ou mudança de conta durante a operação |
+
+A fila diferencia criação, edição e exclusão lógica. A recusa é associada à versão do item e persistida localmente por conta. O botão de retry inicia um novo ciclo da fila. Alterações feitas durante o envio continuam pendentes para o próximo ciclo.
+
+A combinação por campo com ordem lógica (RN07/EX06) fica como integração posterior, a alinhar com o time. A versão atual mantém a escolha por registro via `atualizado_em` e a precedência da exclusão.
+
+Registre as evidências de reconexão, restauração e conferência em 320 e 430 dp conforme o [roteiro do UC16](MANUAL.md#uc16--sincronizar-dados).
+
+### Integrações pendentes
+
+A branch inclui a restauração do saldo inicial do UC08. A sincronização recalcula os totais disponíveis no Resumo e restaura os alertas de saldo. A integração com o recálculo de metas, pontos e selos permanece pendente.

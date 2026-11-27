@@ -107,7 +107,7 @@ description: "Task list for UC14 - Configurar notificações"
 
 ## Phase 6: Polish & Cross-Cutting
 
-- [X] T027 [P] Criar `tests/MANUAL-UC14.md` com o roteiro manual do `quickstart.md` e os resultados esperados
+- [X] T027 [P] Registrar o roteiro manual e os resultados esperados do UC14 em `tests/MANUAL.md`
 - [X] T028 [P] Atualizar `tests/RASTREABILIDADE.md` com UC14: passos, FA, EX e FR ligados aos testes de T010, T011, T018, T019 e T024
 - [X] T029 Rodar `npx expo lint`, `npx tsc --noEmit` e `npx jest` e corrigir até tudo passar
 - [X] T030 Rodar `npx expo-doctor` para confirmar a compatibilidade de `expo-notifications` com a SDK 58
