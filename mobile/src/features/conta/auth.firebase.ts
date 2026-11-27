@@ -48,7 +48,7 @@ function usuarioAtual(): User {
   return u;
 }
 
-async function reautenticar(u: User, senhaAtual: string) {
+export async function reautenticar(u: User, senhaAtual: string) {
   if (!u.email) throw new ErroConta('falha');
   await reauthenticateWithCredential(u, EmailAuthProvider.credential(u.email, senhaAtual));
 }
