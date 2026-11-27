@@ -80,7 +80,13 @@ export async function solicitarExclusaoConta(senha: string, aoConfirmarPedido: (
     await runTransaction(db, async (tx) => {
       if (auth.currentUser?.uid !== uid) throw new ErroConta('falha');
       const existente = await tx.get(ref);
-      if (!existente.exists()) {
+      if (existente.exists()) {
+        const idRecebido = existente.get('comprovante_id');
+        // A leitura veio do servidor. Persista a prova antes de sair deste ramo,
+        // pois o processamento remoto pode invalidar a sessão a qualquer momento.
+        await AsyncStorage.setItem(chave, typeof idRecebido === 'string' && idRecebido
+          ? ENVIO + idRecebido : 'confirmado');
+      } else {
         tx.set(ref, { status: 'pendente', solicitado_em: serverTimestamp(), comprovante_id: id });
         tx.set(comprovante(id), { recebido: true });
       }

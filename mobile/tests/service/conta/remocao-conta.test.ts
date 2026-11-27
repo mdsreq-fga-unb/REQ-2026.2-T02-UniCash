@@ -60,6 +60,32 @@ it('limpa o SQLite ao reabrir se o pedido foi gravado antes da interrupção e o
   expect(await AsyncStorage.getItem(chave)).toBeNull();
 });
 
+it('retoma a limpeza após perder o UID usando o comprovante do pedido de outro aparelho', async () => {
+  const idExistente = '00000000-0000-4000-8000-000000000002';
+  const gravar = jest.fn();
+  jest.mocked(runTransaction).mockImplementationOnce(async (_db, atualizar) =>
+    atualizar({
+      get: async () => ({ exists: () => true, get: () => idExistente }),
+      set: gravar,
+    } as never));
+  await expect(solicitarExclusaoConta('senha', () => {
+    throw new Error('App interrompido antes da confirmação local');
+  })).rejects.toThrow('App interrompido');
+
+  expect(gravar).not.toHaveBeenCalled();
+  expect(await AsyncStorage.getItem(chave)).toBe('enviando:' + idExistente);
+  expect(apagarBancoDaConta).not.toHaveBeenCalled();
+
+  sessao.currentUser = null;
+  jest.mocked(getDocFromServer).mockImplementationOnce(async ref =>
+    ({ exists: () => String(ref) === 'comprovantes_remocao/' + idExistente }) as never);
+  await retomarLimpezasDeConta();
+
+  expect(getDocFromServer).toHaveBeenCalledWith('comprovantes_remocao/' + idExistente);
+  expect(apagarBancoDaConta).toHaveBeenCalledWith('dono');
+  expect(await AsyncStorage.getItem(chave)).toBeNull();
+});
+
 it('preserva a base quando a transação falha e o app reabre após logout', async () => {
   jest.mocked(runTransaction).mockRejectedValueOnce({ code: 'unavailable' });
   await expect(solicitarExclusaoConta('senha', jest.fn())).rejects.toMatchObject({ codigo: 'sem-conexao' });
