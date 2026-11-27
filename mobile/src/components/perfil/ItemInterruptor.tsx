@@ -6,14 +6,17 @@ interface Props {
   valor: boolean;
   desabilitado?: boolean;
   onAlternar: () => void;
+  /** Seletor estável para os testes E2E (Maestro). */
+  testID?: string;
 }
 
-export function ItemInterruptor({ rotulo, valor, desabilitado, onAlternar }: Props) {
+export function ItemInterruptor({ rotulo, valor, desabilitado, onAlternar, testID }: Props) {
   return (
     <View style={estilos.item}>
       <Text style={estilos.rotulo}>{rotulo}</Text>
       <Switch
         value={valor}
+        testID={testID}
         disabled={desabilitado}
         onValueChange={onAlternar}
         accessibilityRole="switch"

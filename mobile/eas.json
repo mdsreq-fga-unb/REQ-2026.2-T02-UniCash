@@ -17,6 +17,13 @@
       "android": {
         "buildType": "app-bundle"
       }
+    },
+    "e2e-test": {
+      "withoutCredentials": true,
+      "environment": "preview",
+      "android": {
+        "buildType": "apk"
+      }
     }
   },
   "submit": {
