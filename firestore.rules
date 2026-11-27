@@ -17,11 +17,29 @@ service cloud.firestore {
       return !exists(/databases/$(database)/documents/pedidos_remocao/$(uid));
     }
 
+    function caminhoComprovante(id) {
+      return /databases/$(database)/documents/comprovantes_remocao/$(id);
+    }
+
+    match /comprovantes_remocao/{id} {
+      // A consulta exige o UUID exato. O documento contém apenas a confirmação.
+      allow get: if true;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['recebido'])
+        && request.resource.data.recebido == true
+        && !exists(/databases/$(database)/documents/pedidos_remocao/$(request.auth.uid))
+        && getAfter(/databases/$(database)/documents/pedidos_remocao/$(request.auth.uid)).data.comprovante_id == id;
+    }
+
     match /pedidos_remocao/{uid} {
       allow get: if donoConfirmado(uid);
       allow create: if donoConfirmado(uid)
         && request.auth.token.auth_time * 1000 >= request.time.toMillis() - 300000
-        && request.resource.data.keys().hasOnly(['status', 'solicitado_em'])
+        && request.resource.data.keys().hasOnly(['status', 'solicitado_em', 'comprovante_id'])
+        && request.resource.data.comprovante_id is string
+        && request.resource.data.comprovante_id.matches('^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+        && !exists(caminhoComprovante(request.resource.data.comprovante_id))
+        && getAfter(caminhoComprovante(request.resource.data.comprovante_id)).data.recebido == true
         && request.resource.data.status == 'pendente'
         && request.resource.data.solicitado_em == request.time;
     }

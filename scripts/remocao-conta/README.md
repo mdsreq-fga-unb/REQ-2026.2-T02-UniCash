@@ -32,9 +32,13 @@ subcoleções e rode o comando novamente para verificar o resultado idempotente.
 
 Defina com a equipe o responsável e a frequência de processamento e a política de
 backup e retenção do registro de conclusão. A limpeza automática da base SQLite
-ocorre no aparelho que enviou o pedido. Se o app for encerrado entre a gravação
-remota e a confirmação local, ele retoma a limpeza na próxima abertura quando
-encontrar o pedido ou detectar que a sessão do solicitante já foi encerrada ou
-invalidada. Nessa última situação, a confirmação por senha registrada antes do
-envio autoriza somente a limpeza local. Ela não comprova que o servidor recebeu
-o pedido. O estado remoto continua disponível para conferência administrativa.
+ocorre no aparelho que enviou o pedido. Antes da gravação remota o app salva um
+identificador aleatório para consultar o comprovante no Firestore, inclusive
+depois da exclusão do cadastro no Authentication. O pedido e o comprovante são
+gravados juntos. O comprovante contém apenas a confirmação e admite consulta
+pelo identificador exato. O script preserva esse comprovante.
+
+A ausência de sessão e a falha de rede preservam a base enquanto o app não
+consegue comprovar o recebimento. Marcadores legados `enviando` só podem ser
+verificados com uma sessão válida do mesmo UID, pois foram gravados sem
+identificador. Publique as novas regras antes de distribuir esta versão do app.

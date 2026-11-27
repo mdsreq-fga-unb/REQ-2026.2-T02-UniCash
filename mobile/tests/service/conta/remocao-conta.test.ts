@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getNetworkStateAsync } from 'expo-network';
 import { signOut } from 'firebase/auth';
-import { getDocFromServer, runTransaction } from 'firebase/firestore';
+import { doc, getDocFromServer, runTransaction } from 'firebase/firestore';
 import { apagarBancoDaConta, PREFIXO_REMOCAO_LOCAL } from '@/db/database';
 import { auth } from '@/lib/firebase';
 import { retomarLimpezasDeConta, solicitarExclusaoConta } from '@/features/conta/remocao';
@@ -16,16 +16,18 @@ jest.mock('@/db/database', () => ({
   PREFIXO_REMOCAO_LOCAL: 'unicash:remocao-conta:',
 }));
 jest.mock('@/features/conta/auth.firebase', () => ({ reautenticar: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('expo-crypto', () => ({ randomUUID: () => '00000000-0000-4000-8000-000000000001' }));
 jest.mock('expo-network', () => ({ getNetworkStateAsync: jest.fn() }));
 jest.mock('firebase/auth', () => ({ signOut: jest.fn() }));
 jest.mock('firebase/firestore', () => ({
-  doc: jest.fn(),
+  doc: jest.fn((_db, colecao, id) => `${colecao}/${id}`),
   getDocFromServer: jest.fn(),
   runTransaction: jest.fn(),
   serverTimestamp: jest.fn(),
 }));
 
 const chave = PREFIXO_REMOCAO_LOCAL + 'dono';
+const id = '00000000-0000-4000-8000-000000000001';
 const renovarToken = jest.fn();
 const sessao = auth as unknown as { currentUser: object | null };
 
@@ -44,38 +46,51 @@ it('limpa o SQLite ao reabrir se o pedido foi gravado antes da interrupção e o
   await expect(solicitarExclusaoConta('senha', () => {
     throw new Error('App interrompido após o commit remoto');
   })).rejects.toThrow('App interrompido');
-  expect(gravarPedido).toHaveBeenCalledWith(undefined, expect.objectContaining({ status: 'pendente' }));
-  expect(await AsyncStorage.getItem(chave)).toBe('enviando');
+  expect(gravarPedido).toHaveBeenCalledWith('pedidos_remocao/dono', expect.objectContaining({ status: 'pendente', comprovante_id: id }));
+  expect(await AsyncStorage.getItem(chave)).toBe('enviando:' + id);
   expect(apagarBancoDaConta).not.toHaveBeenCalled();
 
+  expect(gravarPedido).toHaveBeenCalledWith('comprovantes_remocao/' + id, { recebido: true });
   sessao.currentUser = null;
+  jest.mocked(getDocFromServer).mockResolvedValueOnce({ exists: () => true } as never);
   await retomarLimpezasDeConta();
 
-  expect(getDocFromServer).not.toHaveBeenCalled();
+  expect(getDocFromServer).toHaveBeenCalledWith('comprovantes_remocao/' + id);
   expect(apagarBancoDaConta).toHaveBeenCalledWith('dono');
   expect(await AsyncStorage.getItem(chave)).toBeNull();
 });
 
-it('limpa a base quando a sessão em cache pertence a um UID excluído', async () => {
-  await AsyncStorage.setItem(chave, 'enviando');
-  jest.mocked(getDocFromServer).mockRejectedValueOnce({ code: 'permission-denied' });
-  renovarToken.mockRejectedValueOnce({ code: 'auth/user-token-expired' });
+it('preserva a base quando a transação falha e o app reabre após logout', async () => {
+  jest.mocked(runTransaction).mockRejectedValueOnce({ code: 'unavailable' });
+  await expect(solicitarExclusaoConta('senha', jest.fn())).rejects.toMatchObject({ codigo: 'sem-conexao' });
+  sessao.currentUser = null;
+  jest.mocked(getDocFromServer).mockResolvedValueOnce({ exists: () => false } as never);
 
   await retomarLimpezasDeConta();
 
-  expect(signOut).toHaveBeenCalledWith(auth);
-  expect(apagarBancoDaConta).toHaveBeenCalledWith('dono');
+  expect(apagarBancoDaConta).not.toHaveBeenCalled();
+  expect(await AsyncStorage.getItem(chave)).toBe('enviando:' + id);
+});
+
+it('preserva o envio legado sem sessão, pois falta prova de recebimento', async () => {
+  await AsyncStorage.setItem(chave, 'enviando');
+  sessao.currentUser = null;
+
+  await retomarLimpezasDeConta();
+
+  expect(apagarBancoDaConta).not.toHaveBeenCalled();
+  expect(doc).not.toHaveBeenCalled();
 });
 
 it('preserva a base e o marcador se a rede falhar e a sessão continuar ativa', async () => {
-  await AsyncStorage.setItem(chave, 'enviando');
-  jest.mocked(getDocFromServer).mockRejectedValueOnce({ code: 'unavailable' });
+  await AsyncStorage.setItem(chave, 'enviando:' + id);
+  jest.mocked(getDocFromServer).mockRejectedValueOnce({ code: 'unavailable' }).mockRejectedValueOnce({ code: 'unavailable' });
   renovarToken.mockRejectedValueOnce({ code: 'auth/network-request-failed' });
 
   await retomarLimpezasDeConta();
 
   expect(apagarBancoDaConta).not.toHaveBeenCalled();
-  expect(await AsyncStorage.getItem(chave)).toBe('enviando');
+  expect(await AsyncStorage.getItem(chave)).toBe('enviando:' + id);
 });
 
 it('pede conexão antes de solicitar a exclusão de uma conta e preserva os dados locais', async () => {

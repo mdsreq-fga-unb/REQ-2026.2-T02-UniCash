@@ -1,3 +1,4 @@
+import { randomUUID } from 'expo-crypto';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getNetworkStateAsync } from 'expo-network';
 import { signOut } from 'firebase/auth';
@@ -28,24 +29,23 @@ async function concluirLimpeza(uid: string) {
   await AsyncStorage.removeItem(chave);
 }
 
-async function pedidoRecebidoOuSessaoPerdida(uid: string): Promise<boolean> {
-  const usuario = auth.currentUser;
-  // O estado "enviando" só é gravado após a pessoa confirmar com a senha válida.
-  // A perda da sessão encerra a verificação remota, mas a autorização local permanece.
-  if (usuario?.uid !== uid) return true;
+const ENVIO = 'enviando:';
 
-  try {
-    return (await comTimeout(getDocFromServer(pedido(uid)), 3000)).exists();
-  } catch {
-    try {
-      await comTimeout(usuario.getIdToken(true), 3000);
-    } catch (erro) {
-      const codigo = (erro as { code?: string } | null)?.code;
-      if (codigo === 'auth/user-not-found' || codigo === 'auth/user-token-expired' ||
-          codigo === 'auth/invalid-user-token' || codigo === 'auth/user-disabled') return true;
-    }
-    return auth.currentUser?.uid !== uid;
-  }
+function comprovante(id: string) {
+  return doc(db, 'comprovantes_remocao', id);
+}
+
+async function pedidoRecebido(uid: string, estado: string | null): Promise<boolean> {
+  const id = estado?.startsWith(ENVIO) ? estado.slice(ENVIO.length) : null;
+  const ref = id ? comprovante(id)
+    : estado === 'enviando' && auth.currentUser?.uid === uid ? pedido(uid) : null;
+  if (!ref) return false;
+  const remoto = await comTimeout(getDocFromServer(ref), 3000).catch(() => null);
+  if (remoto?.exists()) return true;
+  if (!id || auth.currentUser?.uid !== uid) return false;
+  // Um pedido realizado por outro aparelho pode ter um comprovante diferente.
+  const existente = await comTimeout(getDocFromServer(pedido(uid)), 3000).catch(() => null);
+  return existente?.exists() ?? false;
 }
 
 export async function retomarLimpezasDeConta() {
@@ -55,7 +55,7 @@ export async function retomarLimpezasDeConta() {
     if (!chave.startsWith(PREFIXO_REMOCAO_LOCAL)) continue;
     const uid = chave.slice(PREFIXO_REMOCAO_LOCAL.length);
     const estado = await AsyncStorage.getItem(chave);
-    if (estado === 'confirmado' || (estado === 'enviando' && await pedidoRecebidoOuSessaoPerdida(uid))) {
+    if (estado === 'confirmado' || await pedidoRecebido(uid, estado)) {
       await concluirLimpeza(uid);
     }
   }
@@ -71,13 +71,19 @@ export async function solicitarExclusaoConta(senha: string, aoConfirmarPedido: (
     await comTimeout(reautenticar(usuario, senha));
     await comTimeout(usuario.getIdToken(true));
     if (auth.currentUser?.uid !== uid) throw new ErroConta('falha');
-    await AsyncStorage.setItem(PREFIXO_REMOCAO_LOCAL + uid, 'enviando');
+    const chave = PREFIXO_REMOCAO_LOCAL + uid;
+    const estado = await AsyncStorage.getItem(chave);
+    const id = estado?.startsWith(ENVIO) ? estado.slice(ENVIO.length) : randomUUID();
+    await AsyncStorage.setItem(chave, ENVIO + id);
     const ref = pedido(uid);
     // Transações exigem servidor. A leitura torna reenvios do mesmo pedido idempotentes.
     await runTransaction(db, async (tx) => {
       if (auth.currentUser?.uid !== uid) throw new ErroConta('falha');
       const existente = await tx.get(ref);
-      if (!existente.exists()) tx.set(ref, { status: 'pendente', solicitado_em: serverTimestamp() });
+      if (!existente.exists()) {
+        tx.set(ref, { status: 'pendente', solicitado_em: serverTimestamp(), comprovante_id: id });
+        tx.set(comprovante(id), { recebido: true });
+      }
     });
   } catch (erro) {
     throw traduzirErroFirebase(erro);
