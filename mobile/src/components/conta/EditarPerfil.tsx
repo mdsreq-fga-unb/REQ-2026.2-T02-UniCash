@@ -67,8 +67,8 @@ export function EditarPerfil({ perfil, voltar }: { perfil: Perfil; voltar: () =>
     setErro(undefined);
     setAviso(undefined);
     if (emailInvalido || senhaInvalida || atualInvalida) {
-      setSenhaAtual('');
-      setNovaSenha('');
+      // Só a nova senha fora da política é apagada; um erro no e-mail não obriga a redigitar as senhas.
+      if (senhaInvalida) setNovaSenha('');
       return;
     }
     if (acao === 'salvar' && !trocarEmail && !senha) {
@@ -147,7 +147,7 @@ export function EditarPerfil({ perfil, voltar }: { perfil: Perfil; voltar: () =>
       <Botao rotulo="Salvar" onPress={() => void executar('salvar')} carregando={carregando} />
       {pendente && (
         <>
-          <Aviso tipo="info" texto={`Confirmação pendente para ${pendente}.`} />
+          <Aviso tipo="info" texto={`Confirmação pendente para ${pendente}. Para reenviar, informe a senha atual.`} />
           <Botao rotulo="Já confirmei" tipo="contorno" onPress={() => void executar('confirmar')} desabilitado={carregando} />
           <Botao rotulo="Reenviar" tipo="link" onPress={() => void executar('reenviar')} desabilitado={carregando} />
         </>

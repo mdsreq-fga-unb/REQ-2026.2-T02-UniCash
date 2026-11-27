@@ -181,7 +181,7 @@ describe('Perfil (UC11)', () => {
     await fireEvent.changeText(screen.getByLabelText('E-mail'), 'nova@exemplo.com');
     await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'Atual@123');
     await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
-    expect(await screen.findByText('Confirmação pendente para nova@exemplo.com.')).toBeTruthy();
+    expect(await screen.findByText('Confirmação pendente para nova@exemplo.com. Para reenviar, informe a senha atual.')).toBeTruthy();
     expect(auth.requestEmailChange).toHaveBeenCalledWith({ novoEmail: 'nova@exemplo.com', senhaAtual: 'Atual@123' });
     await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
     expect(screen.getByText('ana@exemplo.com')).toBeTruthy();
@@ -205,6 +205,17 @@ describe('Perfil (UC11)', () => {
       await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
       expect(await screen.findByText(MSG.emailInvalido)).toBeTruthy();
       expect(auth.requestEmailChange).not.toHaveBeenCalled();
+    });
+
+    it('EX01: e-mail inválido mantém as senhas já digitadas', async () => {
+      await editar();
+      await fireEvent.changeText(screen.getByLabelText('E-mail'), 'ana@');
+      await fireEvent.changeText(screen.getByLabelText('Senha atual'), 'Atual@123');
+      await fireEvent.changeText(screen.getByLabelText('Nova senha (opcional)'), 'Abcdef1!');
+      await fireEvent.press(screen.getByRole('button', { name: 'Salvar' }));
+      expect(await screen.findByText(MSG.emailInvalido)).toBeTruthy();
+      expect(screen.getByLabelText('Senha atual').props.value).toBe('Atual@123');
+      expect(screen.getByLabelText('Nova senha (opcional)').props.value).toBe('Abcdef1!');
     });
 
     it('EX01: e-mail já usado em outra conta', async () => {

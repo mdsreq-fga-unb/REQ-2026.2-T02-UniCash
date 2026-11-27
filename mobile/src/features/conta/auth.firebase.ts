@@ -18,7 +18,7 @@ import {
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, firebaseConfigurado } from '@/lib/firebase';
 import { comTimeout, traduzirErroFirebase } from './firebase-erros';
-import { marcarEmailParaReconciliar } from './perfil';
+import { limparEmailParaReconciliar, marcarEmailParaReconciliar } from './perfil';
 import { definirSessao, obterSessao } from './sessao';
 import { ErroConta, type AuthService, type SessionState } from './types';
 
@@ -185,17 +185,15 @@ export function criarAuthFirebase(): AuthService {
 
     async confirmEmailChange(codigo, emailEsperado) {
       try {
-        const u = usuarioAtual();
+        // O código é aplicado antes de exigir a sessão, como antes do UC11: a ligação vale mesmo sem usuário.
         if (codigo) await applyActionCode(auth, codigo);
+        const u = usuarioAtual();
         await u.reload();
         if (!u.emailVerified || !u.email ||
             (emailEsperado && u.email.toLowerCase() !== emailEsperado.toLowerCase())) {
           throw new ErroConta('email-nao-confirmado');
         }
         if (auth.currentUser?.uid !== u.uid) throw new ErroConta('credenciais');
-        // O Auth já confirmou: o perfil (lido da sessão, inclusive offline) passa a mostrar o novo
-        // e-mail mesmo que a gravação no Firestore falhe. A gravação pendente é reconciliada depois.
-        definirSessao(sessaoDe(u));
         const email = u.email;
         try {
           await u.getIdToken(true);
@@ -203,9 +201,15 @@ export function criarAuthFirebase(): AuthService {
             email,
             atualizado_em: serverTimestamp(),
           }));
+          // Uma marca de troca anterior que falhou deixa de valer.
+          await limparEmailParaReconciliar(u.uid);
         } catch {
-          await marcarEmailParaReconciliar(u.uid, email);
+          // A sessão abaixo é publicada mesmo assim; a falha ao marcar não deve escondê-la.
+          await marcarEmailParaReconciliar(u.uid, email).catch(() => {});
         }
+        // O Auth já confirmou: a sessão passa a mostrar o novo e-mail, inclusive offline. Publicada depois
+        // da marca para que a reconciliação disparada pela mudança de sessão já a encontre.
+        definirSessao(sessaoDe(u));
       } catch (e) {
         throw traduzirErroFirebase(e);
       }
