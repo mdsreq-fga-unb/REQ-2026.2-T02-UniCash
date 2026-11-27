@@ -17,7 +17,19 @@ export default function Perfil() {
           <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={8}>
             <Text style={estilos.voltar}>Voltar</Text>
           </Pressable>
-          <Text style={estilos.tituloTela} accessibilityRole="header">Perfil</Text>
+          <View style={estilos.linhaTitulo}>
+            <Text style={estilos.tituloTela} accessibilityRole="header">Perfil</Text>
+            {/* UC13: entrada da área Conquistas (protótipo 06, "Ação · Conquistas"). */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Conquistas"
+              onPress={() => router.push('/conquistas')}
+              hitSlop={8}
+              style={estilos.acaoConquistas}
+            >
+              <Text style={estilos.acaoConquistasIcone}>★</Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={estilos.cartao}>
@@ -36,7 +48,13 @@ const estilos = StyleSheet.create({
   conteudo: { padding: 16, gap: 16 },
   cabecalho: { gap: 8 },
   voltar: { color: cores.primaria, fontSize: 15, fontWeight: '600' },
+  linhaTitulo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   tituloTela: { fontSize: 22, fontWeight: '700', color: cores.marinho },
+  acaoConquistas: {
+    width: 36, height: 36, borderRadius: raio.pilula, borderWidth: 1, borderColor: cores.borda,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  acaoConquistasIcone: { fontSize: 18, color: cores.primaria },
   cartao: { borderWidth: 1, borderColor: cores.borda, borderRadius: raio.cartao, padding: 16 },
   usuario: { fontSize: 15, color: cores.marinho },
 });

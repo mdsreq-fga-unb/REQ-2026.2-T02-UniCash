@@ -2,6 +2,7 @@ import { comRecalculoDeAlertas } from '@/features/alertas/service';
 import { avisarAlertasPendentes } from '@/features/alertas/evento';
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
+import { avisarMudancaLancamentos } from '@/features/conquistas/gatilhos';
 import { registrarTransicoes } from '@/features/saldo/alertas';
 import {
   adicionarDias,
@@ -47,6 +48,8 @@ async function transacao<T>(
     await db.withExclusiveTransactionAsync(async (tx) => {
       resultado = await registrarTransicoes(tx, () => comRecalculoDeAlertas(tx, 'despesas', fn));
     });
+    // UC13: reavaliar conquistas depois do commit (selos acompanham os dados, FA08).
+    avisarMudancaLancamentos();
 
     avisarAlertasPendentes();
     return resultado;

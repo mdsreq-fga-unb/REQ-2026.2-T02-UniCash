@@ -48,3 +48,5 @@ example
 !.vscode/extensions.json
 
 coverage/
+# Log do emulador do Firestore (npm run test:rules)
+firestore-debug.log

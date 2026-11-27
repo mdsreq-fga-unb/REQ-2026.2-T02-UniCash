@@ -510,6 +510,14 @@ export const DDL_NUMERAR_ALERTAS = `
   CREATE UNIQUE INDEX idx_alertas_mes_transicao ON alertas_emitidos(mes, transicao);
 `;
 
+/** UC13 (RN07): histórico de desbloqueios, preservado quando o selo deixa de valer. */
+export const DDL_HISTORICO_CONQUISTAS = `
+  CREATE TABLE IF NOT EXISTS conquistas_historico (
+    chave TEXT PRIMARY KEY NOT NULL,
+    data TEXT
+  );
+`;
+
 /** Esquema completo (PRAGMAs + DDL), mantido para compatibilidade com os testes existentes. */
 export const ESQUEMA_SQL = `
     ${PRAGMAS_SQL}
@@ -526,6 +534,7 @@ export const ESQUEMA_SQL = `
     ${DDL_SALDO_MENSAL}
 
     ${DDL_NUMERAR_ALERTAS}
+    ${DDL_HISTORICO_CONQUISTAS}
   `;
 
 export const DDL_PREFERENCIAS_LOCAIS = `
@@ -544,5 +553,15 @@ export const DDL_PREFERENCIAS_NOTIFICACAO = `
     atualizado_em TEXT NOT NULL,
     estado_sync TEXT NOT NULL CHECK (estado_sync IN ('local', 'pendente', 'sincronizado', 'erro')),
     PRIMARY KEY (uid, tipo)
+  );
+`;
+
+/** UC13 (RF46): controle local de emissão da notificação de cada selo. */
+export const DDL_CONQUISTAS_EMITIDAS = `
+  CREATE TABLE IF NOT EXISTS conquistas_emitidas (
+    chave TEXT PRIMARY KEY NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('emitida', 'pendente')),
+    criado_em TEXT NOT NULL,
+    atualizado_em TEXT NOT NULL
   );
 `;
