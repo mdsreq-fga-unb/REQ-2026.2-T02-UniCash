@@ -2230,7 +2230,7 @@ describe('Migração 011 — preferências e alertas da UC05', () => {
         inserirReceitaValida(sqlite);
       }
       await migrarSeNecessario(db);
-      expect(versao(sqlite)).toBe(11);
+      expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
       expect(sqlite.prepare('SELECT * FROM alertas').all()).toEqual([]);
       expect(sqlite.prepare('SELECT * FROM preferencias_alertas_por_tipo').all()).toEqual([]);
       if (versaoInicial === 10) {
@@ -2373,4 +2373,37 @@ it('migra v8 do UC04 sem perder saldo provisório nem a numeração do alerta', 
   });
   expect(sqlite.prepare('SELECT id, transicao FROM alertas_emitidos').get()).toEqual({ id: 'a', transicao: 1 });
   sqlite.close();
+});
+
+describe('Migração 012 (UC14, preferências de notificação)', () => {
+  const temTabela = (sqlite: Database.Database, nome: string) =>
+    !!sqlite.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(nome);
+
+  it('instalação nova já cria a tabela, junto com as da UC05', async () => {
+    const sqlite = novoSqlite();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    expect(versao(sqlite)).toBe(12);
+    expect(temTabela(sqlite, 'preferencias_notificacao')).toBe(true);
+    expect(temTabela(sqlite, 'alertas')).toBe(true);
+  });
+
+  it('base v11 com as tabelas da UC05 ganha a tabela do UC14, de forma idempotente', async () => {
+    const sqlite = novoSqlite();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    sqlite.exec("INSERT INTO preferencias_alertas_por_tipo (tipo, ativo) VALUES ('aproximacao', 0)");
+    sqlite.exec('DROP TABLE preferencias_notificacao; PRAGMA user_version = 11;');
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(12);
+    expect(temTabela(sqlite, 'preferencias_notificacao')).toBe(true);
+    expect(temTabela(sqlite, 'alertas')).toBe(true);
+    expect(sqlite.prepare('SELECT tipo, ativo FROM preferencias_alertas_por_tipo').all()).toEqual([
+      { tipo: 'aproximacao', ativo: 0 },
+    ]);
+    expect(() =>
+      sqlite.exec("INSERT INTO preferencias_notificacao VALUES ('u1', 'aproximacao', 1, '2026-11-26T00:00:00Z', 'local')"),
+    ).toThrow(/CHECK/);
+  });
 });

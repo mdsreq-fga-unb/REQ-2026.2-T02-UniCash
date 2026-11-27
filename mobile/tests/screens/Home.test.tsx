@@ -55,6 +55,15 @@ describe('Home (navegação da UC06)', () => {
     expect(router.push).toHaveBeenCalledWith('/categorias');
   });
 
+  it('oferece acesso ao Perfil e navega para /perfil (UC14)', async () => {
+    await salvarContinuidadeSemConta();
+    await render(<Home />);
+
+    expect(await screen.findByRole('button', { name: 'Perfil' })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Perfil' }));
+    expect(router.push).toHaveBeenCalledWith('/perfil');
+  });
+
   it('abre as preferências de alertas de limite da UC05', async () => {
     await salvarContinuidadeSemConta();
     await render(<Home />);

@@ -528,3 +528,15 @@ Limites mínimos em `jest.config.js` para `src/**/evolucao/**` (e `src/**/resumo
 ## UC05 — Monitorar limites de gastos
 
 A [issue #32](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32) e o [manual do UC05](MANUAL-UC05.md) registram o escopo entregue, a integração com UC09 e RF12 e os cenários de notificação em aparelho, incluindo offline. A cobertura automatizada da EX02 está em [alertas-uc05.test.ts](service/alertas-uc05.test.ts).
+
+## UC14 — Configurar notificações (D25)
+
+| Requisito / fluxo | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| RF58, passos 1 e 2, D25 (estado inicial desligado) | `src/app/perfil.tsx`, `src/components/perfil/SecaoNotificacoes.tsx`, `src/features/notificacoes/padroes.ts` | `tests/screens/Perfil.test.tsx` (US1), `tests/features/notificacoes/preferencias.test.ts` | 1, 10 |
+| Passos 3 e 5 (grava antes de confirmar), FA01 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/preferencias.ts` | `tests/screens/Perfil.test.tsx` ("grava antes de ligar o interruptor") | 2, 3 |
+| Passo 4, FA06, FA07 (permissão do aparelho) | `src/features/notificacoes/permissao.ts` | `tests/features/notificacoes/permissao.test.ts`, `tests/screens/Perfil.test.tsx` (US2) | 4 a 7 |
+| FA05, RN06 (pendente de sincronização com conta) | `src/features/notificacoes/preferencias.ts`, `src/db/migrations.ts` (`migrar012`) | `tests/features/notificacoes/preferencias.test.ts`, `tests/db/migrations.test.ts` | 8 |
+| RNF03 (isolamento por dono), EX05 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
+| EX01, EX02 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/mensagens.ts` | `tests/screens/Perfil.test.tsx` (US3) | — |
+| Contrato `isEnabled('limite' \| 'conquistas')` para UC05 e UC13 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |

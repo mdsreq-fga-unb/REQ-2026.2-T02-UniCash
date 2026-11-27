@@ -345,6 +345,9 @@ function Atalhos({ ano, mes, mostrarNovos }: { ano: number; mes: number; mostrar
         <Pressable onPress={() => router.push('/configuracoes-financeiras')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Configurações financeiras</Text>
         </Pressable>
+        <Pressable onPress={() => router.push('/perfil')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Perfil</Text>
+        </Pressable>
         <Pressable onPress={() => router.push('/conta')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Conta</Text>
         </Pressable>
