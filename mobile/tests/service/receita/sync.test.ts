@@ -1,4 +1,9 @@
-import { DDL_CONQUISTAS_EMITIDAS } from '@/db/schema';
+import { DDL_CONQUISTAS_EMITIDAS, DDL_PREFERENCIAS_LOCAIS } from '@/db/schema';
+import { getDb } from '@/db/database';
+import { consultarConquistas } from '@/features/conquistas/consulta';
+import { avaliarEEmitir } from '@/features/conquistas/emissao';
+import { criarEmissorSimulado } from '@/features/conquistas/emissor';
+import { criarPermissaoSimulada } from '@/features/notificacoes/permissao.simulada';
 import { emitirAlertasPendentes } from '@/features/alertas/notificacoes';
 import { consultarAlertas } from '@/features/saldo/alertas';
 import { consultarResumoMensal } from '@/features/saldo/service';
@@ -248,34 +253,81 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     consumirAcessoNegado();
   });
   afterEach(restaurarTempo);
-  it('combina o histórico do UC13 e restaura desbloqueios sem publicar pontos', async () => {
-    banco.sqlite.exec(DDL_CONQUISTAS_EMITIDAS);
-    banco.sqlite.prepare('INSERT INTO conquistas_historico VALUES (?, ?)').run('primeira-meta', '2026-09-10');
-    banco.sqlite.prepare('INSERT INTO conquistas_emitidas VALUES (?, ?, ?, ?)')
-      .run('primeira-meta', 'pendente', 'agora', 'agora');
-    const colecao = 'usuarios/u1/conquistas_historico/';
-    mockNuvem.set(colecao + 'primeira-meta', { data: '2026-10-10' });
-    mockNuvem.set(colecao + 'no-verde:2026-08', { data: null });
+  const caminhoPrimeiroSelo = 'usuarios/u1/conquistas_historico/primeira-meta';
+
+  function prepararConquistas() {
+    banco.sqlite.exec(DDL_PREFERENCIAS_LOCAIS + DDL_CONQUISTAS_EMITIDAS);
+    const emissor = criarEmissorSimulado();
+    const permissao = criarPermissaoSimulada('concedida');
+    const preferencias = {
+      donoAtual: () => ({ uid: 'u1' }),
+      isEnabled: async () => true,
+      listar: async () => ({ limite: false, conquistas: true }),
+      definir: async () => {},
+    };
+    const fonte = { concluidas: async () => [] as { id: string; titulo: string; concluidaEm: string }[] };
+    const avaliar = () => avaliarEEmitir({ fonte, preferencias, emissor, permissao, abrirBase: getDb });
+    return {
+      emissor,
+      avaliar,
+      concluir: (data: string) => {
+        fonte.concluidas = async () => [{ id: 'reserva', titulo: 'Reserva', concluidaEm: data }];
+      },
+      consultar: () => consultarConquistas(fonte),
+    };
+  }
+
+  const statusDoSelo = () => banco.sqlite.prepare(
+    "SELECT status FROM conquistas_emitidas WHERE chave = 'primeira-meta'",
+  ).get();
+
+  it('recebe o desbloqueio de outro aparelho da mesma conta e encerra o aviso pendente', async () => {
+    const aparelhoA = prepararConquistas();
+    await aparelhoA.avaliar();
+    aparelhoA.concluir('2026-09-10');
+    await aparelhoA.avaliar();
+    expect(aparelhoA.emissor.emitidas).toHaveLength(1);
+    await sincronizarPendentes();
+    expect(mockNuvem.get(caminhoPrimeiroSelo)).toEqual({
+      data: '2026-09-10',
+      origem: expect.any(String),
+    });
+
+    // Simula outra instalação com o mesmo Firebase UID, SQLite e armazenamento novos.
+    await AsyncStorage.clear();
+    banco = instalarBanco();
+    const aparelhoB = prepararConquistas();
+    await aparelhoB.avaliar();
+    aparelhoB.concluir('2026-10-10');
+    aparelhoB.emissor.falharProxima();
+    await aparelhoB.avaliar();
+    expect(statusDoSelo()).toEqual({ status: 'pendente' });
 
     await sincronizarPendentes();
+    await aparelhoB.avaliar();
 
-    expect(mockNuvem.get(colecao + 'primeira-meta')).toEqual({ data: '2026-09-10' });
-    expect(banco.sqlite.prepare('SELECT chave, status FROM conquistas_emitidas ORDER BY chave').all()).toEqual([
-      { chave: 'no-verde:2026-08', status: 'emitida' },
-      { chave: 'primeira-meta', status: 'pendente' },
-    ]);
+    expect(statusDoSelo()).toEqual({ status: 'emitida' });
+    expect(aparelhoB.emissor.emitidas).toEqual([]);
+    expect((await aparelhoB.consultar()).selos).toMatchObject([{ data: '2026-09-10' }]);
+  });
 
-    banco = instalarBanco();
-    banco.sqlite.exec(DDL_CONQUISTAS_EMITIDAS);
+  it('preserva a nova tentativa do Expo após sincronizar e restaurar o próprio histórico (EX02)', async () => {
+    const aparelho = prepararConquistas();
+    await aparelho.avaliar();
+    aparelho.concluir('2026-09-10');
+    aparelho.emissor.falharProxima();
+    await aparelho.avaliar();
+    expect(statusDoSelo()).toEqual({ status: 'pendente' });
+
+    await sincronizarPendentes();
+    await sincronizarPendentes();
     await restaurarDaNuvem({ servidor: true });
+    expect(statusDoSelo()).toEqual({ status: 'pendente' });
 
-    expect(banco.sqlite.prepare('SELECT * FROM conquistas_historico ORDER BY chave').all()).toEqual([
-      { chave: 'no-verde:2026-08', data: null },
-      { chave: 'primeira-meta', data: '2026-09-10' },
-    ]);
-    expect(banco.sqlite.prepare('SELECT DISTINCT status FROM conquistas_emitidas').all()).toEqual([
-      { status: 'emitida' },
-    ]);
+    await aparelho.avaliar();
+    await aparelho.avaliar();
+    expect(statusDoSelo()).toEqual({ status: 'emitida' });
+    expect(aparelho.emissor.emitidas).toHaveLength(1);
   });
 
   it('sincroniza o alerta offline uma vez e restaura sem uma nova notificação (UC05)', async () => {

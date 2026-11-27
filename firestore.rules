@@ -504,15 +504,19 @@ service cloud.firestore {
 
     match /usuarios/{uid}/conquistas_historico/{id} {
       allow read: if donoConfirmado(uid);
-      allow create: if donoConfirmado(uid) && desbloqueioValido(request.resource.data);
+      allow create: if donoConfirmado(uid) && desbloqueioValido(request.resource.data)
+        && request.resource.data.keys().hasAll(['origem']);
       allow update: if donoConfirmado(uid) && desbloqueioValido(request.resource.data)
+        && request.resource.data.get('origem', null) == resource.data.get('origem', null)
         && (resource.data.data == null
           || (request.resource.data.data is string && request.resource.data.data <= resource.data.data));
       allow delete: if false;
 
       function desbloqueioValido(d) {
         return id.matches('^(primeira-meta|no-verde:[0-9]{4}-(0[1-9]|1[0-2]))$')
-          && d.keys().hasAll(['data']) && d.keys().hasOnly(['data'])
+          && d.keys().hasAll(['data']) && d.keys().hasOnly(['data', 'origem'])
+          && (!('origem' in d) || (d.origem is string
+            && d.origem.matches('^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')))
           && (d.data == null || (d.data is string
             && d.data.matches('^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$')));
       }

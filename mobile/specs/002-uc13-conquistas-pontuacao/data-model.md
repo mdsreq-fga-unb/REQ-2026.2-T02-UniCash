@@ -65,7 +65,7 @@ selo some e volta: linha mantida, sem nova notificação (FR-007a)
 
 ## Tabela `conquistas_historico` (migração 017)
 
-Cada chave identifica um desbloqueio permanente. A coluna `data` admite `NULL` e conserva a menor data conhecida ao mesclar novos dados. O Firestore recebe o mesmo registro em `usuarios/{uid}/conquistas_historico/{chave}`, com acesso restrito à conta confirmada. A migração mantém os desbloqueios da versão 016 sem usar a data de emissão como data de conquista.
+Cada chave identifica um desbloqueio permanente. A coluna `data` admite `NULL` e conserva a menor data conhecida ao mesclar novos dados. O Firestore guarda também a origem do primeiro envio em `usuarios/{uid}/conquistas_historico/{chave}`, com acesso restrito à conta confirmada. Ao receber o histórico de outra instalação, o aparelho encerra o aviso pendente. Ao receber o próprio histórico, o aparelho preserva a nova tentativa após falha do Expo. Documentos legados sem origem são tratados como histórico importado. A migração mantém os desbloqueios da versão 016 sem usar a data de emissão como data de conquista.
 
 ### Marca de linha de base
 `preferencias_locais` chave `conquistas_linha_base` = `1` após a primeira avaliação bem-sucedida.
