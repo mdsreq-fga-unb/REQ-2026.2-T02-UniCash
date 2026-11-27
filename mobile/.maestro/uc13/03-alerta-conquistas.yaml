@@ -1,6 +1,7 @@
 # UC13 · A3, RF46 com RF58: liga o alerta "Conquistas" e provoca um selo novo depois da linha de base.
-# Confere o interruptor ligado e a notificação na bandeja do Android (emulador API 34, que pede
-# a permissão POST_NOTIFICATIONS na primeira vez).
+# Confere o interruptor ligado e a notificação na bandeja do Android. A janela de permissão
+# depende da imagem do emulador (no runner do GitHub ela não aparece), por isso o toque nela é
+# opcional; o que prova o RF46 é a notificação chegar na bandeja.
 appId: br.unb.unicash
 name: "UC13 03 - Alerta de conquista"
 tags: [uc13]
@@ -16,6 +17,7 @@ env:
     id: "interruptor-conquistas"
 - tapOn:
     text: "Allow|Permitir"
+    optional: true
 - assertVisible:
     id: "interruptor-conquistas"
     checked: true
