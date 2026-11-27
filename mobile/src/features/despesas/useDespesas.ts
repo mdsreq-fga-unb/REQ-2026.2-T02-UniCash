@@ -1,6 +1,6 @@
 
 import { useCallback, useEffect, useState } from 'react';
-import { adicionarDias } from '../receitas/dates';
+import { adicionarDias, TODO_O_PERIODO } from '../receitas/dates';
 import { listarDespesas } from './service';
 import type { Despesa, FiltroDespesa } from './types';
 
@@ -9,6 +9,8 @@ import type { Despesa, FiltroDespesa } from './types';
  * O fim é exclusivo, por isso acrescentamos um dia à data final.
  */
 export function intervaloDoFiltro(filtro: FiltroDespesa) {
+  if (filtro.modo === 'tudo') return { ...TODO_O_PERIODO };
+
   if (filtro.modo === 'data') {
     return {
       inicio: filtro.data,

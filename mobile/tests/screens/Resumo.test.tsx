@@ -24,6 +24,23 @@ jest.mock('@/features/conta/service.firebase', () => ({ criarContaServiceFirebas
 jest.mock('@/features/conta/sync.app', () => ({ criarSincronizacaoDoApp: jest.fn() }));
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+jest.mock('@/features/evolucao/service', () => {
+  const real = jest.requireActual('@/features/evolucao/service');
+  // Evolução sem valores, mas com lançamentos: o gráfico aparece e não interfere no resumo.
+  return {
+    ...real,
+    calcularEvolucao: jest.fn(async (fimAno: number, fimMes: number) => ({
+      fimAno,
+      fimMes,
+      meses: real.mesesDaJanela({ ano: fimAno, mes: fimMes }).map((m: { ano: number; mes: number }) => ({
+        ...m,
+        receitasCentavos: 0,
+        despesasCentavos: 0,
+      })),
+      semLancamentos: false,
+    })),
+  };
+});
 jest.mock('@/features/resumo/service', () => ({
   ...jest.requireActual('@/features/resumo/service'),
   calcularResumo: jest.fn(),
@@ -311,6 +328,37 @@ describe('Tela de resumo financeiro (UC03)', () => {
       calcular.mockClear();
       avisarBaseAtualizada();
       expect(calcular).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('registro direto da tela inicial', () => {
+    it('com lançamentos, "+ Nova receita" e "+ Nova despesa" abrem o cadastro sem passar pela lista', async () => {
+      calcular.mockResolvedValue(resumo());
+      await render(<ResumoFinanceiro />);
+      await screen.findByTestId('saldo');
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Nova receita' }));
+      expect(router.push).toHaveBeenCalledWith('/receitas/nova');
+      await fireEvent.press(screen.getByRole('button', { name: 'Nova despesa' }));
+      expect(router.push).toHaveBeenCalledWith('/despesas/nova');
+    });
+
+    it('também aparecem enquanto o resumo carrega e na falha (EX01)', async () => {
+      calcular.mockRejectedValue(new FalhaCalculo('boom'));
+      await render(<ResumoFinanceiro />);
+      expect(await screen.findByText(MSG_FALHA_CALCULO)).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Nova receita' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Nova despesa' })).toBeTruthy();
+    });
+
+    it('no estado vazio (FA02) ficam escondidos, porque "Registrar receita" e "Registrar despesa" já aparecem', async () => {
+      calcular.mockResolvedValue(
+        resumo({ totalReceitasCentavos: 0, totalDespesasCentavos: 0, saldoCentavos: 0, receitasPorDia: [], semLancamentos: true }),
+      );
+      await render(<ResumoFinanceiro />);
+      expect(await screen.findByText('Nenhum lançamento ainda')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Nova receita' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Registrar receita' })).toBeTruthy();
     });
   });
 });
