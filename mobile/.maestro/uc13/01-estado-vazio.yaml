@@ -10,4 +10,5 @@ env:
 - runFlow: ../subflows/abrir-conquistas.yaml
 - assertVisible: "Nenhuma conquista ainda."
 - assertVisible: "Nenhuma meta concluída"
+- assertVisible: "Ver metas"
 - takeScreenshot: artefatos/uc13/01-estado-vazio

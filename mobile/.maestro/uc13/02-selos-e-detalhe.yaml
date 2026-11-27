@@ -8,6 +8,7 @@ env:
   DATA_A: "05/09/2026"
   DATA_B: "05/10/2026"
   NOME_B: "No verde em outubro"
+  MES_RESUMO_B: "Outubro/2026"
 ---
 - runFlow: ../subflows/abrir-app-limpo.yaml
 - runFlow:
@@ -23,7 +24,14 @@ env:
 - tapOn: ${NOME_B}
 - assertVisible: "Detalhe do selo"
 - assertVisible: "Saldo positivo no mês"
-- assertVisible: "R$ 420,00"
+# O texto é uma expressão regular: o "$" precisa ser escapado.
+- assertVisible: 'R\$ 420,00'
 - takeScreenshot: artefatos/uc13/03-detalhe-do-selo
 - tapOn: "Ver resumo do mês"
+# B3: o Resumo abre no mês do selo.
+- extendedWaitUntil:
+    visible:
+      id: "mes-selecionado"
+      text: ${MES_RESUMO_B}
+    timeout: 10000
 - takeScreenshot: artefatos/uc13/04-resumo-do-mes-do-selo

@@ -22,7 +22,7 @@ Os fluxos daqui rodam o app de verdade num emulador ou aparelho Android e geram 
 
 Não precisa de emulador local. O workflow `.github/workflows/mobile-e2e.yml` compila um APK com o perfil `e2e-test` do `eas.json` (cota gratuita do EAS), liga um emulador Android no runner do GitHub e roda `.maestro/rodar-ci.sh`.
 
-- **Num PR**: adicione a label `e2e`. Outras labels e novos pushes não disparam; para rodar de novo, tire e recoloque a label.
+- **Num PR**: adicione a label `e2e`. Outras labels e novos pushes não disparam, de propósito, porque cada execução gasta um build da cota gratuita do EAS. Para rodar de novo depois de um push, tire e recoloque a label.
 - **Manual**: Actions > Mobile E2E (Maestro) > Run workflow (depois que o arquivo estiver na `main`).
 
 Onde ver o resultado:
@@ -47,9 +47,9 @@ Os prints saem em `mobile/.maestro/artefatos/uc13/`.
 
 | Arquivo | Cobre | Prints |
 |---|---|---|
-| `01-estado-vazio.yaml` | FA01 [CQ3] (rodar sem `EXPO_PUBLIC_METAS_EXEMPLO`) | `01-estado-vazio` |
-| `02-selos-e-detalhe.yaml` | A1, B2, B3 [CQ1, CQ2] | `02-lista-de-selos`, `03-detalhe-do-selo`, `04-resumo-do-mes-do-selo` |
-| `03-alerta-conquistas.yaml` | A3 com RF58, linha de base (FR-009a) | `05-alerta-conquistas-ligado`, `06-selo-novo-registrado` |
+| `01-estado-vazio.yaml` | FA01 [CQ3] com o botão "Ver metas" (rodar sem `EXPO_PUBLIC_METAS_EXEMPLO`) | `01-estado-vazio` |
+| `02-selos-e-detalhe.yaml` | A1, B2, B3 [CQ1, CQ2], Resumo aberto no mês do selo | `02-lista-de-selos`, `03-detalhe-do-selo`, `04-resumo-do-mes-do-selo` |
+| `03-alerta-conquistas.yaml` | A3 com RF58, linha de base (FR-009a), interruptor ligado e notificação na bandeja (RF46) | `05-alerta-conquistas-ligado`, `06-notificacao-na-bandeja`, `07-selo-novo-registrado` |
 
 As datas padrão (setembro, outubro e agosto de 2026) precisam ser de meses já encerrados. Para mudar: `maestro test -e DATA_B=05/10/2027 ...`.
 

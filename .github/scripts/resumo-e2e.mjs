@@ -41,9 +41,9 @@ if (casos.length > 0) {
   );
 }
 
+const video = prints.find((p) => p.endsWith('.mp4'));
 if (urlBase) {
   const imagens = prints.filter((p) => p.endsWith('.png')).sort();
-  const video = prints.find((p) => p.endsWith('.mp4'));
   if (imagens.length > 0) {
     linhas.push('### Prints', '', '<table><tr>');
     imagens.forEach((p, i) => {
@@ -55,6 +55,8 @@ if (urlBase) {
   }
   if (video) linhas.push(`🎬 [Vídeo do fluxo](${urlBase}/${video})`, '');
 }
+
+if (!video) linhas.push('⚠️ O vídeo do fluxo (`uc13.mp4`) não foi gerado nesta execução.', '');
 
 if (execucao) linhas.push(`Execução e artefato \`e2e-uc13\` (relatório JUnit e saída do Maestro): ${execucao}`, '');
 writeFileSync(saida, linhas.join('\n'));
