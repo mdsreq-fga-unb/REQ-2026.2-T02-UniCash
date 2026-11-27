@@ -297,11 +297,24 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | **Requisitos afetados** | RF66, RF67, RN13, RN14 |
 | **Comunicação** | Decisões registradas nas issues #71 e #72. Não há novo registro de comunicação ou validação da cliente nesta etapa. |
 
+### D25 — Preferências de notificação alinhadas ao protótipo do Perfil { #d25 }
+
+| Campo | Registro |
+| :--- | :--- |
+| **Data** | 26/11/2026 |
+| **Origem** | Comparação entre o UC14 e o protótipo de navegação "06 · Grupos de amigos e família · Perfil e configurações" (decisão da equipe). |
+| **Decisão** | O protótipo passa a orientar a interface das preferências do RF58, com ajustes que preservam decisões anteriores. As preferências ficam em uma seção "Notificações" na tela de Perfil, sem tela própria. Aproximação (RF37) e ultrapassagem (RF38) passam a ser um único tipo, "limite", com os disparos de 80% e 100% da RN03; o rótulo do protótipo com 50%, 70%, 80% e 90% é corrigido. O tipo "conquistas" (RF46) é mantido, embora o protótipo não o mostre. Os dois tipos começam desativados, e a permissão de notificações do aparelho é solicitada na primeira vez que o usuário liga um tipo. "Lembrete diário de registro", "Aviso de mês sem movimentação" e "Prazos de metas" ficam fora do escopo por não terem requisito. "Atividade dos grupos" fica oculto enquanto o CP7 estiver fora do MVP. |
+| **Motivo** | Eliminar as divergências entre o UC14 e o protótipo sem revogar os percentuais da RN03, sem criar requisitos sem validação e sem expor funções fora do MVP. Começar desativado evita pedir a permissão do aparelho antes de o usuário escolher um alerta. |
+| **Alternativas descartadas** | Seguir o protótipo integralmente, o que revogaria os percentuais da RN03, removeria o controle do RF46 e exigiria novos requisitos; manter tela própria com três tipos, contrariando o protótipo. |
+| **Requisitos afetados** | RF37, RF38, RF46, RF58; RN03 (sem alteração de conteúdo); UC05, UC13 e UC14. |
+| **Comunicação** | Registrada na documentação pela equipe. Pendente de validação com a cliente. |
+
 ## Pendências do registro
 
 - Registrar o motivo da escolha da paleta na [D17](#d17);
 - Comunicar à cliente as decisões de arquitetura [D18](#d18) e [D19](#d19) e registrar a comunicação em ata;
-- Validar com a cliente as decisões propostas [D15](#d15), [D16](#d16) e [D21](#d21).
+- Validar com a cliente as decisões propostas [D15](#d15), [D16](#d16) e [D21](#d21);
+- Validar com a cliente a [D25](#d25), que alinha o RF58 ao protótipo.
 
 ## Histórico de versões
 
@@ -312,3 +325,4 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | 1.2 | 07/11/2026 | Registra a decisão D21 sobre o ajuste dos RNFs ao modelo local-first (issue #21) | Dante Scarpati |
 | 1.3 | 10/11/2026 | Registra a decisão D23 sobre a retirada dos fluxos de importação, comprovantes e backup por arquivo | Equipe UniCash |
 | 1.4 | 20/11/2026 | Registra a decisão D24 sobre a faixa percentual definitiva e a proteção das categorias padrão | Equipe UniCash |
+| 1.5 | 26/11/2026 | Registra a decisão D25 sobre as preferências de notificação alinhadas ao protótipo | Bruno Duarte |
