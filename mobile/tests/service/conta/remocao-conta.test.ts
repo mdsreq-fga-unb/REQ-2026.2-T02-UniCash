@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getNetworkStateAsync } from 'expo-network';
 import { signOut } from 'firebase/auth';
 import { getDocFromServer, runTransaction } from 'firebase/firestore';
 import { apagarBancoDaConta, PREFIXO_REMOCAO_LOCAL } from '@/db/database';
@@ -15,6 +16,7 @@ jest.mock('@/db/database', () => ({
   PREFIXO_REMOCAO_LOCAL: 'unicash:remocao-conta:',
 }));
 jest.mock('@/features/conta/auth.firebase', () => ({ reautenticar: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('expo-network', () => ({ getNetworkStateAsync: jest.fn() }));
 jest.mock('firebase/auth', () => ({ signOut: jest.fn() }));
 jest.mock('firebase/firestore', () => ({
   doc: jest.fn(),
@@ -30,6 +32,7 @@ const sessao = auth as unknown as { currentUser: object | null };
 beforeEach(async () => {
   jest.clearAllMocks();
   await AsyncStorage.clear();
+  jest.mocked(getNetworkStateAsync).mockResolvedValue({ isConnected: true });
   sessao.currentUser = { uid: 'dono', email: 'teste@example.com', emailVerified: true, getIdToken: renovarToken };
   renovarToken.mockReset().mockResolvedValue('token');
 });
@@ -73,4 +76,15 @@ it('preserva a base e o marcador se a rede falhar e a sessão continuar ativa', 
 
   expect(apagarBancoDaConta).not.toHaveBeenCalled();
   expect(await AsyncStorage.getItem(chave)).toBe('enviando');
+});
+
+it('pede conexão antes de solicitar a exclusão de uma conta e preserva os dados locais', async () => {
+  jest.mocked(getNetworkStateAsync).mockResolvedValueOnce({ isConnected: false });
+
+  await expect(solicitarExclusaoConta('senha', jest.fn())).rejects.toMatchObject({ codigo: 'sem-conexao' });
+
+  expect(runTransaction).not.toHaveBeenCalled();
+  expect(apagarBancoDaConta).not.toHaveBeenCalled();
+  expect(signOut).not.toHaveBeenCalled();
+  expect(await AsyncStorage.getItem(chave)).toBeNull();
 });

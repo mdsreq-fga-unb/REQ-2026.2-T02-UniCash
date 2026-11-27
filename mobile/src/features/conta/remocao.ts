@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getNetworkStateAsync } from 'expo-network';
 import { signOut } from 'firebase/auth';
 import { doc, getDocFromServer, runTransaction, serverTimestamp } from 'firebase/firestore';
 import { apagarBancoDaConta, PREFIXO_REMOCAO_LOCAL } from '@/db/database';
@@ -64,6 +65,8 @@ export async function solicitarExclusaoConta(senha: string, aoConfirmarPedido: (
   const usuario = auth.currentUser;
   if (!usuario?.emailVerified || !usuario.email) throw new ErroConta('email-nao-confirmado');
   const { uid } = usuario;
+  const rede = await getNetworkStateAsync().catch(() => null);
+  if (rede?.isConnected === false) throw new ErroConta('sem-conexao');
   try {
     await comTimeout(reautenticar(usuario, senha));
     await comTimeout(usuario.getIdToken(true));
