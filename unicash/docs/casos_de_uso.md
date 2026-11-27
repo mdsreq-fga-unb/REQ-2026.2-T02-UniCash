@@ -711,15 +711,15 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 ## UC11 - Gerenciar perfil
 
 - **Ator principal:** Usuário.
-- **Classificação:** condicional. Exige uma conta e uma sessão ativa (UC10); o uso financeiro local não depende deste caso de uso (D20).
+- **Classificação:** visualizar e editar o perfil ou excluir uma conta exige sessão ativa (UC10). No modo sem conta, está disponível a limpeza dos dados locais (D20, D29).
 - **Valor:** manter os dados da conta corretos e permitir que o usuário exerça o controle sobre os próprios dados pessoais, inclusive a exclusão.
 - **Requisitos funcionais:** RF03, RF04, RF05.
 
 ### Pré-condições
 
-- O usuário está autenticado (UC10, RNF02).
+- Para operações de conta, o usuário tem sessão ativa e e-mail confirmado (UC10, RNF02). No modo sem conta, aplica-se o FA08.
 - A base local está disponível (RN06).
-- Para editar o perfil (A e B), há conexão com a internet: alterar o e-mail ou a senha depende do serviço de autenticação.
+- Para editar o perfil (A e B) e solicitar a exclusão de uma conta (C), há conexão com a internet.
 
 ### Pós-condições
 
@@ -727,7 +727,8 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Sucesso (alterar senha, A):** a nova senha é atualizada no serviço de autenticação e permanece protegida (RNF01), sem alterar o e-mail da conta.
 - **Sucesso (solicitar alteração de e-mail, A):** a ligação de confirmação é enviada ao novo e-mail. O e-mail atual permanece válido até a confirmação, sem alterar a senha da conta.
 - **Sucesso (confirmar novo e-mail, B):** o novo e-mail passa a ser o e-mail da conta.
-- **Sucesso (excluir, C):** a base local está apagada, a sessão está encerrada, a exclusão está registrada na trilha de auditoria (RNF16) e a remoção no servidor está solicitada ou pendente, dentro do prazo da RN04.
+- **Sucesso (solicitar a exclusão, C):** o servidor confirma o recebimento do pedido e bloqueia novas gravações do UID. O sistema encerra a sessão e limpa a base local da conta no aparelho solicitante. A exclusão remota é processada conforme a RN04.
+- **Sucesso (limpar dados sem conta, FA08):** a base do modo sem conta é apagada no aparelho. As bases vinculadas a contas são preservadas.
 - **Falha na edição:** quando uma operação falha sem ser concluída, os dados correspondentes permanecem inalterados. Alterações concluídas anteriormente em operações independentes são preservadas, conforme a proposta D26.
 
 ### Fluxo principal
@@ -762,24 +763,23 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 #### C - Excluir perfil (RF05)
 
-1. O usuário aciona "Excluir conta".
-2. O sistema verifica se o usuário é o único Administrador de algum grupo (RN04, RN01).
-3. O sistema solicita confirmação explícita e informa o que será removido: dados de perfil, lançamentos, categorias, metas, conquistas, pontuação, preferências e participação em grupos; que a base do aparelho será apagada na confirmação; que a remoção no servidor ocorre em até 30 dias e nos backups em até 60 dias; e que a exclusão é definitiva (RN04, RN11).
-4. O usuário confirma.
-5. O sistema registra a exclusão na trilha de auditoria, com usuário, operação, data e horário (RNF16).
-6. O sistema apaga a base local e encerra a sessão (UC10, fluxo D).
-7. Se houver conexão, o sistema solicita a remoção da conta e dos dados no servidor (RN04).
-8. O sistema informa que a conta foi excluída e leva o usuário ao uso sem conta.
+1. Na área **Conta**, o usuário aciona **Excluir conta**.
+2. Quando houver grupos, o sistema verifica se o usuário é o único Administrador de algum grupo (EX06; RN04, RN01).
+3. O sistema informa o que será removido no aparelho e no servidor, o caráter definitivo da exclusão e os prazos da RN04. O usuário confirma com a senha atual.
+4. O sistema verifica a conexão (FA01), reautentica o usuário (EX11) e registra o pedido no servidor. O registro bloqueia novas gravações do UID, inclusive de outros aparelhos (EX08).
+5. Após a confirmação do servidor, o sistema informa **Solicitação de exclusão recebida**, encerra a sessão e apaga a base SQLite daquela conta no aparelho solicitante (EX07).
+6. A fila diária remove os dados e as subcoleções do UID no Cloud Firestore e, em seguida, exclui o cadastro no Firebase Authentication. O pedido só é marcado como concluído após as duas etapas (RN04, EX08).
 
 ### Fluxos alternativos
 
-- **FA01 - Exclusão sem conexão (C7):** a remoção no servidor fica pendente e é solicitada quando houver conexão, dentro do prazo da RN04 (RN06, RF62).
+- **FA01 - Solicitação de exclusão de conta sem conexão (C4):** o sistema pede que o usuário se conecte para concluir a solicitação. A sessão e os dados locais são preservados. **Retorno:** ao passo C3 após restabelecer a conexão (RN06, D29).
 - **FA02 - Nenhuma alteração (A3):** se o usuário informa o mesmo dado já cadastrado, o sistema não realiza alterações e retorna à tela de perfil.
 - **FA03 - Cancelamento:** o cancelamento de uma operação de edição ou de uma exclusão ainda não confirmada não altera os dados correspondentes. Alterações concluídas anteriormente em operações independentes são preservadas (RN11).
 - **FA04 - Troca de e-mail pendente (A5):** até o novo e-mail ser confirmado, a entrada e a recuperação de senha (UC10) continuam usando o e-mail atual. A pendência de confirmação não impede uma operação independente de alteração de senha, desde que as condições de autenticação sejam atendidas.
-- **FA05 - Conta sem sessão ativa:** o sistema não exibe o perfil e leva o usuário ao UC10.
+- **FA05 - Área Conta sem sessão ativa:** o sistema direciona o usuário ao UC10. O Perfil no modo local oferece a opção do FA08.
 - **FA06 - Reenvio da confirmação (B):** se o usuário não recebeu a ligação, aciona "Reenviar" e o sistema envia uma nova ligação ao novo e-mail.
 - **FA07 - Visualização sem conexão (passo 2 do fluxo principal):** o sistema exibe os dados do perfil guardados no aparelho (RNF34).
+- **FA08 - Limpeza no modo sem conta:** no **Perfil**, o usuário aciona **Apagar dados deste aparelho** e confirma. O sistema apaga apenas a base do modo sem conta, inclusive offline, e mantém as bases vinculadas a contas. Se cancelar, os dados permanecem (RF05, RN04, RNF34).
 
 ### Exceções
 
@@ -799,10 +799,11 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **EX04 - Ligação de confirmação inválida (B1):** a ligação, válida por 5 minutos, expirou ou já foi usada. O sistema informa: "Esta ligação expirou ou já foi usada. Solicite uma nova." **Retorno:** ao passo 2 do fluxo principal, com a opção de reenviar (FA06).
 - **EX05 - Novo e-mail ainda não confirmado (B3):** o sistema informa: "Este e-mail ainda não foi confirmado. Abra a ligação enviada ao novo e-mail ou peça um reenvio." **Retorno:** ao passo 1 do fluxo B.
 - **EX06 - Único Administrador de grupo (C2):** o sistema bloqueia a exclusão e informa: "Você é o único Administrador de um grupo. Indique outro Administrador antes de excluir a conta." (RN04, RN01). **Retorno:** ao passo 2 do fluxo principal. Aplica-se quando houver grupos, que estão fora do MVP (D09).
-- **EX07 - Falha ao registrar a auditoria ou apagar a base local (C5, C6):** nenhuma alteração permanece e a conta continua ativa (RN11, RNF05). O sistema informa: "Não foi possível excluir a conta. Nenhuma alteração foi feita. Tente novamente." **Retorno:** ao passo 2 do fluxo principal.
-- **EX08 - Falha na remoção no servidor (C7):** a base local já foi apagada. A remoção permanece pendente e é solicitada de novo quando houver conexão, dentro do prazo da RN04. **Retorno:** o fluxo segue no passo C8.
+- **EX07 - Limpeza local interrompida ou com falha (C5):** o pedido registrado permanece válido. Ao reabrir, o sistema retoma a limpeza local, inclusive se a sessão já tiver sido invalidada após o envio. No FA08, se a limpeza falhar, o sistema informa a falha e permite tentar novamente.
+- **EX08 - Falha no pedido ou no processamento remoto (C4, C6):** antes da confirmação do pedido, o app informa a falha e permite repetir o envio sem duplicar o pedido. Depois do recebimento, a fila retoma pedidos pendentes ou com reserva expirada, sem exigir nova solicitação do usuário (RN04).
 - **EX09 - Acesso a perfil de outro usuário (passo 2 do fluxo principal, A1, C1):** o sistema nega o acesso (RNF03) e informa: "Você não tem acesso a este perfil." **Retorno:** ao passo 2 do fluxo principal, com o perfil do próprio usuário.
 - **EX10 - Falha na leitura local (passo 2 do fluxo principal):** o sistema informa: "Não foi possível carregar o perfil. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo principal, ao tentar novamente.
+- **EX11 - Senha atual incorreta (C4):** o sistema recusa a reautenticação e mantém os dados e a sessão. **Retorno:** ao passo C3.
 
 ### Critérios de aceitação e cenários de teste da edição do perfil
 
@@ -820,23 +821,35 @@ Os cenários abaixo especificam os resultados esperados para o RF04.
 | Interrupção com resultado desconhecido | O sistema informa que não foi possível confirmar o resultado da operação. |
 | Cancelamento antes da execução | Nenhuma nova alteração é realizada e as operações anteriores são preservadas. |
 
+### Critérios de aceitação e cenários de teste da exclusão
+
+| Cenário | Resultado esperado |
+| --- | --- |
+| Limpar dados sem conta em modo avião | Apaga os dados da base do modo sem conta. Preserva as bases vinculadas a contas. |
+| Solicitar exclusão com conta, em modo avião | Pede conexão, mantém a sessão e os dados locais e não cria pedido enquanto o aparelho estiver offline. |
+| Cancelar ou informar senha atual incorreta | Mantém a sessão e os dados locais e não cria pedido. |
+| Confirmar exclusão com conexão | Registra um pedido pendente, mostra a confirmação do recebimento, encerra a sessão e apaga a base local da conta. |
+| Sincronizar de outra instalação após o pedido | O Firestore recusa nova gravação do mesmo UID. |
+| Interromper o app após o registro remoto e reabrir com o UID já removido | O app retoma a limpeza da base daquele UID. |
+| Processar e repetir a fila | Remove os dados e as subcoleções, exclui o cadastro no Authentication e registra a conclusão. Uma reserva expirada volta a ser elegível. Pedidos já concluídos ficam fora da fila. |
+| Atingir o prazo da RN04 com um pedido ativo | A execução sinaliza o atraso e ainda tenta processar o pedido. |
+
 ### Pontos para validação
 
 - **Dados do perfil:** com o cadastro por e-mail e senha (UC10), o perfil exibe e permite editar o e-mail e a senha. Outros dados, como nome de exibição, não estão definidos; confirmar se o perfil terá algum.
 - **Edição exige conexão (RF04):** o RN06 e o RNF34 não listam o RF04 entre as funcionalidades que exigem conexão, mas trocar e-mail ou senha depende do serviço de autenticação. O catálogo precisa ser ajustado.
 - **Prazo de 5 minutos (RF04):** vale também para a ligação de confirmação do novo e-mail; a viabilidade técnica está nos pontos para validação do UC10.
-- **Remoção no servidor sem Cloud Functions (RN04):** o aplicativo não tem servidor próprio; a remoção da conta e dos dados em até 30 dias depende de o próprio aplicativo solicitá-la, o que exige conexão e sessão. O texto trata a remoção como pendente quando não há conexão, mas falta definir como ela continua depois que a base local e a sessão são apagadas.
-- **Confirmação da senha atual:** o serviço de autenticação pode exigir um acesso recente para trocar a senha ou o e-mail ou para excluir a conta; o RF04 e o RF05 não dizem como o aplicativo deve pedir essa confirmação.
+- **Operação da fila (RN04):** validar a primeira execução do workflow na branch padrão com a identidade do ambiente-alvo. A política e a evidência de expiração dos backups ainda precisam ser verificadas.
 - **Administrador único (RN04):** só se aplica quando os grupos forem implementados (D09).
 - **Independência das operações de edição (issue #110):** a revisão propõe separar a alteração de e-mail da alteração de senha, evitando inconsistências em caso de falhas parciais. A solução deve ser alinhada com a equipe responsável pela implementação do UC11. Os cenários de teste documentados representam resultados esperados e ainda precisam ser verificados na implementação.
 
 ### Dependências planejadas (DoR)
 
-- **Sessão e autenticação (UC10):** o contrato é o `SessionState` e o `AuthService` (incluindo trocar senha e trocar e-mail), aprovados no início do timebox. As duas frentes usam uma sessão e um serviço simulados até a implementação do UC10 ficar pronta; o que depende do serviço real, como o encerramento no passo C6 e a confirmação do e-mail no fluxo B, fica como **integração posterior**.
+- **Sessão e autenticação (UC10):** o fluxo C usa a sessão ativa e a reautenticação com a senha atual do Firebase Authentication.
 - **Política de senha e mudança em relação à D12:** pendências do UC10. O formulário e a validação usam a função única de validação de e-mail e senha do UC10 e um perfil de exemplo.
-- **Remoção no servidor (RN04):** sem solução definida; registrado como pendência com decisão a registrar em `decisoes.md`. O fluxo C é implementado atrás da interface `AccountRemovalService`, com uma fila de remoções pendentes e versão simulada.
+- **Remoção no servidor (RN04, D29):** o app registra o pedido no Firestore. O processamento diário usa Firebase Admin SDK por meio de um workflow do GitHub Actions, com autenticação via Workload Identity Federation. A execução agendada depende da publicação na branch padrão e da configuração da identidade.
 - **Trilha de auditoria (RNF16, proposto):** o contrato é `AuditLog.record({usuario, operacao, data})`. Usa versão simulada até as Security Rules da trilha existirem; o teste de que a trilha fica protegida e anonimizada depois dos prazos da RN04 fica como **integração posterior**.
-- **Base local (UC01 a UC06):** o contrato é a função `clearLocalDatabase()`, que apaga todas as tabelas do modelo de dados vigente. A lista de tabelas vem do modelo de dados e o teste usa SQLite em memória.
+- **Base local (RN06):** o SQLite mantém uma base do modo sem conta e bases separadas por UID. Cada operação de limpeza afeta apenas sua base de destino.
 - **Grupos (RF22 a RF25, fora do MVP):** a verificação do passo C2 é implementada atrás de uma interface que, enquanto não houver grupos, informa que o usuário não é Administrador de nenhum.
 - **Envio dos e-mails de confirmação:** usa o envio do Firebase Authentication; em desenvolvimento e testes, o Emulator Suite, sem enviar e-mails reais. O prazo de 5 minutos das ligações segue o tratamento do UC10.
 
@@ -1334,3 +1347,4 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 | 1.16 | 26/11/2026 | Alinha o UC14 ao protótipo do Perfil: seção de notificações, tipos "limite" e "conquistas", estado inicial desativado e pedido de permissão do aparelho na primeira ativação (D25) | Bruno Duarte |
 | 1.17 | 27/11/2026 | Revisa o tratamento de falhas parciais na edição do perfil (UC11, issue #110) | Evellyn Rocha |
 | 1.18 | 27/11/2026 | Revisa o comportamento inicial, a abrangência, a sincronização e a restauração das preferências de notificações (issue #114) | Evellyn Rocha |
+| 1.19 | 27/11/2026 | Alinha o fluxo de exclusão e os cenários do UC11 à D29 | Equipe UniCash |

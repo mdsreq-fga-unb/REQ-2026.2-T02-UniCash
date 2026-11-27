@@ -35,6 +35,7 @@ Esta página reúne as decisões que mudaram o escopo, os requisitos, o processo
 | [D25](#d25) | 26/11/2026 | Preferências de notificação alinhadas ao protótipo do Perfil | Decisão da equipe | Proposta |
 | [D26](#d26) | 27/11/2026 | Independência das operações de edição de e-mail e senha | [Issue #110](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/110) | Proposta |
 | [D27](#d27) | 27/11/2026 | Abrangência e sincronização das preferências de notificações | [Issue #114](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/114) | Proposta |
+| [D29](#d29) | 27/11/2026 | Limpeza local e exclusão de conta no plano Spark | Revisão da implementação do UC11 | Proposta |
 
 A situação **Proposta** indica uma decisão da equipe que ainda depende de confirmação da cliente.
 
@@ -347,7 +348,21 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | **Sincronização** | Cada aparelho calcula os selos válidos e a pontuação localmente. Quando habilitada, a sincronização inclui o histórico de desbloqueio, preserva a data conhecida mais antiga para cada selo e mantém o registro de que ele já foi desbloqueado, inclusive sem data. A perda de um selo ou de pontos é refletida após sincronizar a alteração de origem e recalcular. |
 | **Requisitos afetados** | RF44, RF45, RF46, RF62 e RN07. Casos de uso relacionados: UC12, UC13 e UC16. |
 
+### D29 — Limpeza local e exclusão de conta no plano Spark { #d29 }
+
+| Campo | Registro |
+| :--- | :--- |
+| **Data** | 27/11/2026 |
+| **Origem** | Ajustes do fluxo C e do FA01 em resposta à revisão da implementação do UC11. |
+| **Decisão** | Sem conta, a pessoa pode apagar a base local depois de confirmar, inclusive offline. Com conta, a solicitação exige conexão e senha atual. O app limpa a base da conta após o recebimento do pedido no servidor. A remoção remota é processada diariamente pelo GitHub Actions, no plano Spark. O prazo máximo no Firestore é de 30 dias após a confirmação, e os dados devem sair dos backups em até 60 dias. |
+| **Motivo** | Permitir a limpeza dos dados locais sem exigir conta e garantir que o pedido remoto seja recebido antes do encerramento da sessão. |
+| **Alternativas descartadas** | Enfileirar no aparelho, para envio posterior, um pedido de exclusão de conta feito offline. |
+| **Requisitos afetados** | UC11, RF05, RN04, RN06 e RNF34. Relacionado ao RNF17. |
+| **Comunicação** | Proposta registrada para revisão. O ZIP não contém registro de aceite da equipe ou da cliente para esta alteração. |
+
 ## Pendências do registro
+
+- **D29:** validar a exigência de conexão para excluir uma conta, confirmar a execução da fila no ambiente-alvo e registrar a política e a evidência de expiração dos backups.
 
 - **D28:** confirmar com as clientes os dois critérios de selo e os 100 pontos por meta de investimento alcançada. Vincular a evidência de aceite antes de encerrar a pendência do DoR do UC13.
 
@@ -369,3 +384,4 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | 1.5 | 26/11/2026 | Registra a decisão D25 sobre as preferências de notificação alinhadas ao protótipo | Bruno Duarte |
 | 1.6 | 27/11/2026 | Registra a proposta D26 sobre operações independentes de edição do perfil (issue #110) | Evellyn Rocha |
 | 1.7 | 27/11/2026 | Registra a proposta D27 sobre abrangência e sincronização das preferências de notificações (issue #114) | Evellyn Rocha |
+| 1.8 | 27/11/2026 | Registra a D29 sobre limpeza de dados locais e exclusão de conta no plano Spark | Equipe UniCash |

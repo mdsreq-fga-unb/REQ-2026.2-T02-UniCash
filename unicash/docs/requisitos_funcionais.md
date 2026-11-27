@@ -78,7 +78,7 @@ A tabela está ordenada por Característica de Produto.
 | <span id="rf02"></span>**RF02** | **Autenticar usuário:** Permitir o acesso com credenciais válidas, iniciar a sessão e informar o motivo quando a autenticação for rejeitada. | CP5 | [R03](atas/posts/r03.md) | Vigente |
 | <span id="rf03"></span>**RF03** | **Visualizar perfil de usuário:** Exibir ao usuário autenticado os dados do próprio perfil. | CP5 | [R04](atas/posts/r04.md) | Vigente |
 | <span id="rf04"></span>**RF04** | **Editar perfil de usuário:** Permitir ao usuário autenticado alterar seus dados de perfil e salvar as mudanças após a validação. | CP5 | [R04](atas/posts/r04.md) | Vigente |
-| <span id="rf05"></span>**RF05** | **Excluir perfil de usuário:** Solicitar confirmação antes da exclusão da conta e executar a remoção dos dados associados conforme a política de retenção da RN04. | CP5 | [R04](atas/posts/r04.md) | Vigente |
+| <span id="rf05"></span>**RF05** | **Excluir perfil de usuário:** Com sessão ativa e conexão, confirmar com a senha atual e solicitar a exclusão da conta. Após o recebimento no servidor, apagar a base daquela conta no aparelho e encerrar a sessão, conforme a RN04. No modo sem conta, oferecer a limpeza da base local mediante confirmação, inclusive offline. | CP5 | [R04](atas/posts/r04.md), [D29](decisoes.md#d29) | Vigente |
 | <span id="rf06"></span>**RF06** | **Encerrar sessão:** Permitir ao usuário sair da conta e invalidar a sessão ativa no aplicativo. | CP5 | [R04](atas/posts/r04.md) | Vigente |
 | <span id="rf31"></span>**RF31** | **Recuperar senha:** Permitir solicitar redefinição por um canal verificado e cadastrar uma nova senha por meio de ligação temporária de uso único. | CP5 | [R04](atas/posts/r04.md) | Vigente |
 | <span id="rf61"></span>**RF61** | **Usar sem conta:** Permitir utilizar todas as funcionalidades financeiras individuais (lançamentos de CP1, categorias de CP2, metas de CP3, consultas e resumos de CP4, tutorial de CP6 e conquistas pessoais de CP8) sem cadastro ou autenticação, mantendo os dados exclusivamente no dispositivo; a conta é necessária apenas para sincronização em nuvem e colaboração em grupos (CP7 e ranking do RF30). | CP5 | [R07](atas/posts/r07.md), [D10](decisoes.md#d10), [D12](decisoes.md#d12), [D20](decisoes.md#d20) | Vigente |
@@ -160,8 +160,9 @@ Cada alerta é emitido uma vez por mês em que a condição ocorre.
 
 - **Removidos:** dados de perfil, lançamentos, categorias, metas, conquistas, pontuação e preferências do usuário, e sua participação em grupos;
 - **Anonimizados:** registros da trilha de auditoria (RNF16), que mantêm a operação, a data e o horário sem identificar o usuário;
-- **Dados no aparelho:** a base local é apagada no momento da confirmação; os backups por arquivo estão fora do escopo atual.
-- **Prazo:** a remoção no Cloud Firestore ocorre em até 30 dias após a confirmação da exclusão; como cada backup do servidor é mantido por até 30 dias (RNF17), os backups deixam de conter os dados do usuário em até 60 dias após a confirmação;
+- **Dados no aparelho:** no modo sem conta, o sistema apaga apenas a base do modo local após a confirmação. Com conta, a base do UID é apagada no aparelho solicitante após o servidor confirmar o recebimento do pedido.
+- **Processamento:** o registro do pedido bloqueia novas gravações do UID. A fila automática roda diariamente, prioriza os pedidos mais antigos e retoma pedidos interrompidos. O servidor registra a solicitação e a conclusão para verificar o prazo.
+- **Prazo:** a remoção no Cloud Firestore ocorre em até 30 dias a partir do recebimento do pedido confirmado. Esse é o prazo máximo. A execução da fila acontece diariamente. Os backups do servidor devem deixar de conter os dados do usuário em até 60 dias após a mesma confirmação, considerando a retenção de até 30 dias por backup (RNF17).
 - **Administrador único:** o usuário que é o único Administrador de um grupo deve designar outro Administrador antes da exclusão (RN01).
 
 ### RN05: Formatos de extrato aceitos (RF21)
@@ -170,7 +171,7 @@ A importação de extratos está fora do escopo atual do produto (Won't have now
 
 ### RN06: Princípio offline-first e disponibilidade
 
-A base local é a cópia principal dos dados; o servidor serve à sincronização e aos grupos. Funcionam offline: CP1 a CP4, categorias, metas, conquistas e pontos pessoais. Exigem conexão: cadastro e recuperação de senha (RF01, RF31) e operações de grupo (RF22 a RF25, RF51). Dados de outros membros (RF27, RF29, RF30, RF52, RF53) aparecem offline com a data da última atualização. Uma operação é concluída ao ser gravada na base local (RNF35); a aceitação pelo Cloud Firestore é exibida como estado de sincronização (RF62).
+A base local é a cópia principal dos dados; o servidor serve à sincronização e aos grupos. Funcionam offline: CP1 a CP4, categorias, metas, conquistas e pontos pessoais. Exigem conexão: cadastro e recuperação de senha (RF01, RF31), solicitação de exclusão de conta (RF05) e operações de grupo (RF22 a RF25, RF51). A limpeza dos dados do modo sem conta funciona offline (RF05). Dados de outros membros (RF27, RF29, RF30, RF52, RF53) aparecem offline com a data da última atualização. Uma operação é concluída ao ser gravada na base local (RNF35); a aceitação pelo Cloud Firestore é exibida como estado de sincronização (RF62).
 
 ### RN07: Resolução de conflitos
 
@@ -291,7 +292,7 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 - RF65, RF66 e RF67, requisitos latentes de categoria identificados pela equipe na escrita dos casos de uso ([D16](decisoes.md#d16));
 - Inclusão do alerta de saldo negativo (RN18) entre as preferências do RF58;
 - Campos obrigatórios do cadastro (RF01), respeitando a [D12](decisoes.md#d12) (sem CPF nem e-mail) e a definição prevista para os casos de uso;
-- Contas diferentes no mesmo aparelho (RF06, RF59, RF61 e RF62): definir o isolamento dos dados locais por conta, incluindo dados criados durante o uso sem cadastro; o tratamento das alterações ainda não sincronizadas ao encerrar uma sessão ou alternar contas; e a possibilidade de associação ou mesclagem dos dados locais com a conta autenticada. Verificar também como a RN04 (RF05), que trata da exclusão de perfil, se aplica quando houver mais de uma conta no mesmo aparelho. Essas decisões permanecem pendentes de validação; não há definição sobre apagar, preservar, transferir ou mesclar os dados.
+- Contas diferentes no mesmo aparelho (RF06, RF59, RF61 e RF62): definir o isolamento dos dados locais por conta, incluindo dados criados durante o uso sem cadastro; o tratamento das alterações ainda não sincronizadas ao encerrar uma sessão ou alternar contas; e a possibilidade de associação ou mesclagem dos dados locais com a conta autenticada. A limpeza prevista no RF05 segue a separação de bases da RN04 e da D29. O tratamento de transferências e mesclagem entre contas permanece pendente de validação.
 - Distinção, no RF12, entre meta de investimento ou poupança e orientação sobre investimentos ([D01](decisoes.md#d01)), preservada a redação vigente;
 - Regra de apuração do valor realizado e de associação de lançamentos às metas financeiras no RF36;
 - Aceite das clientes sobre os marcos de concessão de selos (RF44) e os 100 pontos por meta de investimento alcançada (RF45), conforme a proposta da [D28](decisoes.md#d28);
@@ -328,3 +329,4 @@ Os seguintes pontos ainda precisam ser confirmados com a cliente:
 | 1.24 | 16/11/2026 | Revisa requisitos (issue #20): campos de RF07 e RF15 conforme RN08, RN10 e RN19; harmoniza RF59, RF61 e RF62 com o uso local sem conta (D20, D21); registra pendências de RF01, RF12, RF36, RF44 e RF45 nos pontos para validação | Leonardo Alves |
 | 1.25 | 17/11/2026 | Complementa o RF62 com referência à RN07 e registra pendência sobre contas diferentes no mesmo aparelho (issue #20) | Leonardo Alves |
 | 1.26 | 26/11/2026 | Ajusta o RF58 ao protótipo: um tipo "limite" para aproximação e ultrapassagem e estado inicial desativado (D25) | Bruno Duarte |
+| 1.27 | 27/11/2026 | Alinha RF05, RN04 e RN06 à exclusão de conta e à limpeza local da D29 | Equipe UniCash |
