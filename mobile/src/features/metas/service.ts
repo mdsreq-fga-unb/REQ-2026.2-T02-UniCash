@@ -1,5 +1,6 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
+import { avisarMudancaLancamentos } from '@/features/conquistas/gatilhos';
 import { hojeISO } from '@/features/receitas/dates';
 import { gerarId } from '@/features/receitas/service';
 import { notificarAlteracaoMeta } from './integracoes';
@@ -55,6 +56,8 @@ async function transacao<T>(fn: (tx: SQLiteDatabase) => Promise<T>): Promise<T> 
     await db.withExclusiveTransactionAsync(async (tx) => {
       resultado = await fn(tx as unknown as SQLiteDatabase);
     });
+    // UC13: uma meta alcançada ou desfeita muda selos e pontos; reavalia depois do commit.
+    avisarMudancaLancamentos();
     return resultado;
   } catch (e) {
     if (e instanceof MetaIndisponivel) throw e;

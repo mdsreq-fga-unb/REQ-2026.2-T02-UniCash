@@ -67,7 +67,7 @@ describe('consultarConquistas (UC13, fluxo B)', () => {
     expect((await consultarConquistas()).selos.map((s) => s.chave)).toEqual(['no-verde:2026-10']);
   });
 
-  it('sem metas na produção: nenhum ponto (UC12 ainda não existe)', async () => {
+  it('sem metas cadastradas: nenhum ponto', async () => {
     expect((await consultarConquistas()).totalPontos).toBe(0);
   });
 
@@ -80,5 +80,44 @@ describe('consultarConquistas (UC13, fluxo B)', () => {
     await registrarReceita(input({ data: '2026-10-05', valorCentavos: 1000 }));
     expect((await consultarSelo('no-verde:2026-10'))?.nome).toBe('No verde em outubro');
     expect(await consultarSelo('no-verde:2026-09')).toBeNull();
+  });
+
+  describe('metas reais do UC12 (RF45)', () => {
+    const meta = (id: string, tipo: string, alvo: number, acumulado: number | null, informado: string | null, excluido: string | null = null) =>
+      banco.sqlite
+        .prepare(
+          `INSERT INTO metas (id, objetivo, tipo, valor_alvo_centavos, prazo, inicio, categoria_id,
+             valor_acumulado_centavos, valor_acumulado_atualizado_em, sync_status, excluido_em, criado_em, atualizado_em)
+           VALUES (?, ?, ?, ?, '2027-12-31', '2026-01-01', ?, ?, ?, 'pendente', ?, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`,
+        )
+        .run(id, `Meta ${id}`, tipo, alvo, tipo === 'gasto' ? 'cat' : null, acumulado, informado, excluido);
+
+    it('conta só a meta de investimento que alcançou o alvo, com a data do último informe', async () => {
+      meta('alcancada', 'investimento', 100_000, 100_000, '2026-10-15T13:00:00.000Z');
+      meta('ultrapassada', 'investimento', 50_000, 60_000, '2026-09-02T10:00:00.000Z');
+      meta('em-andamento', 'investimento', 100_000, 99_999, '2026-10-20T10:00:00.000Z');
+      meta('sem-informe', 'investimento', 100_000, null, null);
+      meta('excluida', 'investimento', 100_000, 100_000, '2026-10-01T10:00:00.000Z', '2026-10-02T00:00:00.000Z');
+      meta('gasto', 'gasto', 100_000, null, null);
+
+      const r = await consultarConquistas();
+
+      expect(r.pontuacoes.map((p) => [p.metaId, p.concluidaEm])).toEqual([
+        ['alcancada', '2026-10-15'],
+        ['ultrapassada', '2026-09-02'],
+      ]);
+      expect(r.totalPontos).toBe(200);
+      expect(r.selos.find((s) => s.chave === 'primeira-meta')).toMatchObject({
+        data: '2026-09-02',
+        referencia: { tipo: 'meta', metaId: 'ultrapassada', titulo: 'Meta ultrapassada' },
+      });
+    });
+
+    it('meta que deixa de estar alcançada sai da pontuação (FA08)', async () => {
+      meta('m', 'investimento', 100_000, 100_000, '2026-10-15T13:00:00.000Z');
+      expect((await consultarConquistas()).totalPontos).toBe(100);
+      banco.sqlite.prepare("UPDATE metas SET valor_acumulado_centavos = 10 WHERE id = 'm'").run();
+      expect((await consultarConquistas()).totalPontos).toBe(0);
+    });
   });
 });

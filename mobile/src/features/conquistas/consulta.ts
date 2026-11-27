@@ -32,11 +32,17 @@ export async function lerTotaisMensais(db: SQLiteDatabase, hoje = new Date()): P
   return linhas.map((l) => ({ mes: l.mes, receitasCentavos: l.receitas, despesasCentavos: l.despesas }));
 }
 
-/** UC13 fluxo B: lê lançamentos e metas locais (RN06) do dono da sessão (RNF03). Não grava. */
-export async function consultarConquistas(fonte: FonteMetas = obterFonteMetas()): Promise<ResumoConquistas> {
+/**
+ * UC13 fluxo B: lê lançamentos e metas locais (RN06) do dono da sessão (RNF03). Não grava.
+ * `base` permite à avaliação ler tudo da base do dono que ela capturou no início.
+ */
+export async function consultarConquistas(
+  fonte: FonteMetas = obterFonteMetas(),
+  base?: SQLiteDatabase,
+): Promise<ResumoConquistas> {
   try {
-    const db = await getDb();
-    const [meses, metas] = await Promise.all([lerTotaisMensais(db), fonte.concluidas()]);
+    const db = base ?? (await getDb());
+    const [meses, metas] = await Promise.all([lerTotaisMensais(db), fonte.concluidas(db)]);
     return avaliar({ meses, metas });
   } catch (e) {
     throw new FalhaLeituraConquistas(e);

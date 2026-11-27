@@ -60,6 +60,9 @@ describe('UC13 - área Conquistas', () => {
       expect(screen.getByText('Nenhuma meta concluída')).toBeTruthy();
       expect(screen.getByText('Nenhuma conquista ainda.')).toBeTruthy();
       expect(screen.getByText('Mantenha as contas no verde e conclua suas metas para ganhar selos e pontos.')).toBeTruthy();
+
+      await fireEvent.press(screen.getByRole('button', { name: 'Ver metas' }));
+      expect(router.push).toHaveBeenCalledWith('/metas');
     });
 
     it('tocar no selo abre o detalhe', async () => {

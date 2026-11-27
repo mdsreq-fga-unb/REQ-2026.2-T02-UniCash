@@ -18,6 +18,7 @@
 - **Decision**: interface `FonteMetas.concluidas(): Promise<MetaConcluida[]>`. Produção: `fonteMetasVazia` (lista vazia) até o UC12; testes e roteiro manual: `fonteMetasExemplo` com as 3 metas do protótipo.
 - **Rationale**: DoR do UC13 ("metas de exemplo até o UC12"); `ProgressoMeta` em `resumo/service.ts` também é placeholder. Trocar a fonte é integração posterior.
 - **Alternatives**: criar a tabela de metas agora (escopo do UC12).
+- **Atualização (integração com o UC12)**: a produção passou a usar `fonteMetasUc12`, que lê as metas da base do dono. Conta como concluída a meta de investimento com valor acumulado igual ou maior que o alvo, com a data do último informe. O critério para metas de gasto fica pendente de decisão da equipe.
 
 ## R5. Quando avaliar
 - **Decision**: `avaliarEEmitir()` roda (a) na montagem do layout raiz, (b) no `AppState` `active`, (c) no foco da tela Conquistas e (d) após gravações de receitas e despesas, via um emissor simples `aoMudarLancamentos` chamado nos services existentes.

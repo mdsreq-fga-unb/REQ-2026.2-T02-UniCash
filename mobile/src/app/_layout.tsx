@@ -15,7 +15,7 @@ import { restaurarDaNuvem, sincronizarEmSegundoPlano, sincronizarPendentes } fro
 import { observarConexaoSaldoInicial } from '@/features/saldoInicial/sync';
 import { avisarBaseAtualizada, ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { avaliarEEmitir } from '@/features/conquistas/emissao';
-import { aoMudarLancamentos } from '@/features/conquistas/gatilhos';
+import { aoMudarLancamentos, aoVirarMes } from '@/features/conquistas/gatilhos';
 import { iniciarSincronizacaoAutomatica } from '@/features/sincronizacao/service';
 import { cores, raio } from '@/lib/theme';
 
@@ -131,13 +131,15 @@ export default function RootLayout() {
   }, [estado]);
 
   // UC13 (research R5): avalia conquistas ao liberar a base, ao voltar ao app, após mudanças em
-  // lançamentos e após as rotinas de inicialização, para notificar selos novos na mesma sessão.
+  // lançamentos ou metas, na virada do mês e após as rotinas de inicialização, para notificar selos
+  // novos na mesma sessão.
   useEffect(() => {
     if (estado !== 'pronto') return;
     const avaliar = () => void avaliarEEmitir();
     avaliar();
     const pararLancamentos = aoMudarLancamentos(avaliar);
     const pararBase = ouvirBaseAtualizada(avaliar);
+    const pararVirada = aoVirarMes(avaliar);
     const aplicativo = AppState.addEventListener('change', (e) => {
       if (e === 'active') avaliar();
     });
@@ -146,6 +148,7 @@ export default function RootLayout() {
     return () => {
       pararLancamentos();
       pararBase();
+      pararVirada();
       aplicativo.remove();
       toque.remove();
     };

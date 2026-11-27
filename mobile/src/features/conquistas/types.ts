@@ -1,3 +1,5 @@
+import type { SQLiteDatabase } from 'expo-sqlite';
+
 /** UC13 (RF44, RF45, RF46): tipos do contrato em specs/002-uc13-conquistas-pontuacao/contracts. */
 export type MarcoId = 'no-verde' | 'primeira-meta';
 
@@ -9,7 +11,8 @@ export interface MetaConcluida {
 }
 
 export interface FonteMetas {
-  concluidas(): Promise<MetaConcluida[]>;
+  /** Lê da base do dono que está sendo avaliado (RNF03). */
+  concluidas(db: SQLiteDatabase): Promise<MetaConcluida[]>;
 }
 
 /** Totais de um mês encerrado, no mesmo período do resumo mensal. */

@@ -669,15 +669,20 @@ Testes de convergência em `tests/service/metas.sync.test.ts`: dois bancos/dispo
 | Requisito / fluxo | Código | Teste automatizado | Teste manual |
 |---|---|---|---|
 | RF44, A1 (selos por marco), FR-005 | `src/features/conquistas/avaliacao.ts`, `src/features/conquistas/config.ts`, `src/features/conquistas/consulta.ts` | `tests/features/conquistas/avaliacao.test.ts`, `tests/features/conquistas/consulta.test.ts` | 2 |
-| RF45, A2 (pontos por meta), FR-006 | `src/features/conquistas/avaliacao.ts`, `src/features/conquistas/metas.ts` | `tests/features/conquistas/avaliacao.test.ts` | 3 |
+| RF45, A2 (pontos por meta), FR-006 | `src/features/conquistas/avaliacao.ts`, `src/features/conquistas/metas.ts` (`fonteMetasUc12`: meta de investimento com valor acumulado igual ou maior que o alvo) | `tests/features/conquistas/avaliacao.test.ts`, `tests/features/conquistas/consulta.test.ts` ("metas reais do UC12") | 3 |
 | RF46, A3 (notificação), FA05 | `src/features/conquistas/emissao.ts`, `src/features/conquistas/emissor.ts`, `src/app/_layout.tsx` | `tests/features/conquistas/emissao.test.ts` | 8, 9 |
-| B1, B2 (consultar), FA01 | `src/app/conquistas/index.tsx`, `src/components/conquistas/*`, `src/app/perfil.tsx` | `tests/screens/Conquistas.test.tsx` (US1), `tests/screens/Perfil.test.tsx` (UC13) | 1, 3 |
+| A1 na virada do mês com o app aberto | `src/features/conquistas/gatilhos.ts` (`aoVirarMes`), `src/app/_layout.tsx` | `tests/features/conquistas/gatilhos.test.ts` | 13 |
+| Gatilho por metas (meta alcançada ou desfeita) | `src/features/metas/service.ts` (aviso depois do commit) | `tests/features/conquistas/consulta.test.ts` ("meta que deixa de estar alcançada") | 14 |
+| B1, B2 (consultar), FA01 (com "Ver metas" [CQ3]) | `src/app/conquistas/index.tsx`, `src/components/conquistas/*`, `src/app/perfil.tsx` | `tests/screens/Conquistas.test.tsx` (US1), `tests/screens/Perfil.test.tsx` (UC13) | 1, 3 |
 | B3 (detalhe do selo) | `src/app/conquistas/[chave].tsx`, `src/app/index.tsx` (mês por parâmetro) | `tests/screens/Conquistas.test.tsx` (US3) | 4, 5 |
 | FA02, FA03, FA07 (sem duplicidade, sem contador), RN07 | `src/features/conquistas/avaliacao.ts` | `tests/features/conquistas/avaliacao.test.ts`, `tests/features/conquistas/emissao.test.ts` ("chamadas simultâneas") | 12 |
 | FA04 (alerta desligado) | `src/features/conquistas/emissao.ts` | `tests/features/conquistas/emissao.test.ts` | 10 |
 | FA06, RN06 (offline) | `src/features/conquistas/consulta.ts` (só base local) | `tests/features/conquistas/consulta.test.ts` (sem Firebase) | 11 |
 | FA08, FR-007a (selo acompanha os dados) | `src/features/conquistas/consulta.ts`, `src/features/conquistas/gatilhos.ts` | `tests/features/conquistas/consulta.test.ts`, `tests/features/conquistas/emissao.test.ts` | 6, 7 |
 | FR-009a (histórico sem notificação) | `src/features/conquistas/emissao.ts` | `tests/features/conquistas/emissao.test.ts` | 2 |
-| EX01, EX02 | `src/features/conquistas/emissao.ts`, `src/db/migrations.ts` (`migrar016`) | `tests/features/conquistas/emissao.test.ts`, `tests/db/migrations.test.ts` | — |
+| EX01, EX02 (a emissão é marcada antes de agendar; falha na gravação não agenda, falha no agendamento volta a pendente) | `src/features/conquistas/emissao.ts`, `src/db/migrations.ts` (`migrar016`) | `tests/features/conquistas/emissao.test.ts` ("agendamento não se repete"), `tests/db/migrations.test.ts` | — |
+| RNF03 na avaliação (dono capturado no início, conferido antes de cada gravação e emissão) | `src/features/conquistas/emissao.ts` | `tests/features/conquistas/emissao.test.ts` ("isolamento por conta") | 15 |
 | EX03, EX04, RNF03 | `src/app/conquistas/index.tsx` | `tests/screens/Conquistas.test.tsx` (US5) | — |
 | EX05 (sincronização) | Selos derivados; `conquistas_emitidas` não sincroniza | — | — |
+
+**Pendências do UC13.** O critério de conclusão de uma meta de gasto (limite mensal) ainda não está definido pela equipe; até lá, só metas de investimento alcançadas pontuam. Os valores de pontos e os marcos continuam como valores de teste do protótipo (ata R07). Falta a evidência no aparelho dos roteiros 8, 9 e 13 a 15 e as capturas dos frames CQ1 a CQ6.

@@ -67,7 +67,9 @@ function ConteudoConquistas() {
         <View style={estilos.vazio}>
           <Text style={estilos.mensagem}>{MSG.vazio}</Text>
           <Text style={estilos.detalhe}>{MSG.vazioIncentivo}</Text>
-          {/* "Ver metas" [CQ3] entra com a área de metas do UC12. */}
+          <Pressable accessibilityRole="button" onPress={() => router.push('/metas')} style={estilos.botao}>
+            <Text style={estilos.botaoTexto}>{MSG.verMetas}</Text>
+          </Pressable>
         </View>
       ) : (
         <>
