@@ -12,7 +12,7 @@ import { MSG_DESPESA } from '@/features/despesas/validation';
 import { setFeedback } from '@/lib/feedback';
 import { sincronizarEmSegundoPlano } from '@/features/receitas/sync';
 
-import { router } from '../helpers/expoRouterMock';
+import { router, useLocalSearchParams } from '../helpers/expoRouterMock';
 
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 
@@ -57,6 +57,7 @@ jest.mock('@/components/despesas/DespesaForm', () => {
       erroGeral,
       onSalvar,
       onCancelar,
+      textoCancelar = 'Cancelar',
       onTrocarTipo,
     }: {
       titulo: string;
@@ -65,6 +66,7 @@ jest.mock('@/components/despesas/DespesaForm', () => {
       erroGeral?: string | null;
       onSalvar: (valores: typeof dados) => void;
       onCancelar: () => void;
+      textoCancelar?: string;
       onTrocarTipo?: () => void;
     }) =>
       React.createElement(
@@ -94,7 +96,7 @@ jest.mock('@/components/despesas/DespesaForm', () => {
             accessibilityRole: 'button',
             onPress: onCancelar,
           },
-          React.createElement(Text, null, 'Cancelar'),
+          React.createElement(Text, null, textoCancelar),
         ),
         React.createElement(
           Pressable,
@@ -202,6 +204,71 @@ describe('Tela de nova despesa', () => {
   it('tocar em "Receita" troca para o formulário de nova receita', async () => {
     await render(<NovaDespesa />);
     await fireEvent.press(screen.getByRole('button', { name: 'Receita' }));
-    expect(router.replace).toHaveBeenCalledWith('/receitas/nova');
+    expect(router.replace).toHaveBeenCalledWith({ pathname: '/receitas/nova', params: { trocouTipo: '1' } });
+  });
+
+  it('depois de trocar o tipo (veio de "Nova receita"), salvar leva à lista de despesas', async () => {
+    (useLocalSearchParams as jest.Mock).mockReturnValue({ trocouTipo: '1' });
+    try {
+      registrar.mockResolvedValue(undefined);
+      await render(<NovaDespesa />);
+      await fireEvent.press(screen.getByText('Salvar despesa'));
+
+      await waitFor(() => expect(router.replace).toHaveBeenCalledWith('/despesas'));
+      expect(router.back).not.toHaveBeenCalled();
+    } finally {
+      (useLocalSearchParams as jest.Mock).mockReturnValue({ id: 'abc' });
+    }
+  });
+
+  it('sem trocar o tipo, salvar volta para a tela anterior', async () => {
+    registrar.mockResolvedValue(undefined);
+    await render(<NovaDespesa />);
+    await fireEvent.press(screen.getByText('Salvar despesa'));
+
+    await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
+    expect(router.replace).not.toHaveBeenCalled();
+  });
+
+  describe('quando aberta pelo tutorial', () => {
+    beforeEach(() => {
+      useLocalSearchParams.mockImplementation(() => ({ id: 'abc', tutorial: '1' }));
+    });
+
+    afterEach(() => {
+      useLocalSearchParams.mockImplementation(() => ({ id: 'abc' }));
+    });
+
+    it('permite voltar à etapa após uma falha ao salvar', async () => {
+      registrar.mockRejectedValueOnce(new Error('Falha no banco'));
+
+      await render(<NovaDespesa />);
+      expect(screen.getByRole('button', { name: 'Cancelar' })).toBeTruthy();
+      await fireEvent.press(screen.getByRole('button', { name: 'Salvar despesa' }));
+
+      expect(await screen.findByText(MSG_DESPESA.falhaSalvar)).toBeTruthy();
+      expect(router.back).not.toHaveBeenCalled();
+      await fireEvent.press(screen.getByRole('button', { name: 'Voltar à etapa' }));
+      expect(router.back).toHaveBeenCalledTimes(1);
+    });
+
+    it('mantém a origem ao trocar para o formulário de receita', async () => {
+      await render(<NovaDespesa />);
+      await fireEvent.press(screen.getByRole('button', { name: 'Receita' }));
+
+      expect(router.replace).toHaveBeenCalledWith({
+        pathname: '/receitas/nova',
+        params: { tutorial: '1', trocouTipo: '1' },
+      });
+    });
+    it('com o tipo trocado, salvar volta ao tutorial e não vai para a lista', async () => {
+      useLocalSearchParams.mockImplementation(() => ({ id: 'abc', tutorial: '1', trocouTipo: '1' }));
+      registrar.mockResolvedValue(undefined);
+      await render(<NovaDespesa />);
+      await fireEvent.press(screen.getByRole('button', { name: 'Salvar despesa' }));
+
+      await waitFor(() => expect(router.back).toHaveBeenCalledTimes(1));
+      expect(router.replace).not.toHaveBeenCalled();
+    });
   });
 });

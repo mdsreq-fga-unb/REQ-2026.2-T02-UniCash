@@ -24,6 +24,8 @@ module.exports = {
   coverageReporters: ['text', 'text-summary', 'lcov'],
 
   coverageThreshold: {
+    'src/features/consumo/**/*.ts': { statements: 100, branches: 100, functions: 100, lines: 100 },
+    'src/components/consumo/**/*.tsx': { statements: 100, branches: 100, functions: 100, lines: 100 },
     'src/**/despesas/**/*.{ts,tsx}': {
       statements: 90,
       branches: 72,
@@ -45,6 +47,13 @@ module.exports = {
     },
     // UC03: cálculos, hook e tela do resumo financeiro (tela inicial).
     'src/**/resumo/**/*.{ts,tsx}': {
+      statements: 90,
+      branches: 70,
+      functions: 85,
+      lines: 90,
+    },
+    // UC07: cálculo e hook da evolução mensal (o gráfico fica em components/resumo, já coberto acima).
+    'src/**/evolucao/**/*.{ts,tsx}': {
       statements: 90,
       branches: 70,
       functions: 85,

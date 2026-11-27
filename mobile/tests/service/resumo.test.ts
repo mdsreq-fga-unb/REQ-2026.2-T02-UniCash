@@ -16,10 +16,12 @@ import { fixarHoje, restaurarTempo } from '../helpers/tempo';
 import { instalarBanco, type BancoFalso } from '../helpers/fakeDb';
 import { input } from '../helpers/dados';
 
-// RN06/RN07/RF61: o resumo nunca consulta a nuvem. Se algum módulo do resumo importar o Firebase, o teste quebra.
-jest.mock('@/lib/firebase', () => {
-  throw new Error('O resumo não pode depender do Firebase');
-});
+// Os serviços usados para montar a massa de teste carregam a autenticação da UC05.
+// Uma leitura do resumo continua independente de sessão e Firestore.
+jest.mock('@/lib/firebase', () => ({
+  get auth() { throw new Error('O resumo não pode consultar a sessão'); },
+  get db() { throw new Error('O resumo não pode consultar o Firestore'); },
+}));
 jest.mock('@/features/receitas/sync', () => ({
   sincronizarPendentes: jest.fn().mockResolvedValue(false),
   sincronizarEmSegundoPlano: jest.fn(),

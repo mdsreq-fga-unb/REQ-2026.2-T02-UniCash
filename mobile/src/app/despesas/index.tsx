@@ -1,5 +1,5 @@
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -20,6 +20,7 @@ import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
 import { nomeCategoriaPorId } from '@/features/despesas/categorias';
 import { useDespesas } from '@/features/despesas/useDespesas';
 import { MSG_DESPESA } from '@/features/despesas/validation';
+import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import {
   consumirAcessoNegado,
@@ -90,6 +91,11 @@ export default function ListaDespesas() {
       // indicador é informativo
     }
   }, []);
+
+  useEffect(() => ouvirBaseAtualizada(() => {
+    void recarregar();
+    void atualizarPendentes();
+  }), [recarregar, atualizarPendentes]);
 
   // Ao focar: mostra mensagem pendente, recarrega e tenta sincronizar (EX03).
   useFocusEffect(

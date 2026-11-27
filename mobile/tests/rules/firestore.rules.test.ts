@@ -6,7 +6,7 @@ import {
   initializeTestEnvironment,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { deleteDoc, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc, updateDoc } from 'firebase/firestore';
 
 /**
  * Security Rules no Firebase Emulator Suite.
@@ -117,10 +117,15 @@ const cat = (d: any, uid = 'u1', id = 'uuid-cat') =>
   doc(d, 'usuarios', uid, 'categorias', id);
 
 describe('RNF03: acesso só ao próprio uid', () => {
-  it('o dono grava, lê e exclui as próprias receitas', async () => {
+  it('o dono grava, lê e registra a exclusão das próprias receitas', async () => {
     await assertSucceeds(setDoc(rec(db('u1')), receita()));
     await assertSucceeds(getDoc(rec(db('u1'))));
-    await assertSucceeds(deleteDoc(rec(db('u1'))));
+    const ref = rec(db('u1'));
+    const timestamp = '2026-11-26T12:00:00.000Z';
+    await assertFails(setDoc(ref, { excluido_em: timestamp }));
+    await assertSucceeds(setDoc(ref, { excluido_em: timestamp, atualizado_em: timestamp }));
+    await assertFails(setDoc(ref, receita()));
+    await assertFails(deleteDoc(ref));
   });
 
   it('outro usuário não lê, não grava e não exclui', async () => {
@@ -907,5 +912,91 @@ describe('metas: metadados de merge por campo (RN07)', () => {
       revisao: 2,
       campos_revisao: { objetivo: 2 },
     });
+  });
+});
+
+describe('Alertas de limites — UC05', () => {
+  const dados = {
+    tipo: 'aproximacao',
+    ref_id: 'uuid-cat',
+    periodo: '2026-10',
+    categoria_nome: 'Casa',
+    gasto_centavos: 8000,
+    limite_centavos: 10000,
+    emitido_em: '2026-10-16T12:00:00.000Z',
+  };
+  const caminho = 'usuarios/alice/alertas/aproximacao_uuid-cat_2026-10';
+
+  beforeEach(async () => {
+    await assertSucceeds(setDoc(cat(db('alice'), 'alice'), categoria()));
+  });
+
+  it('permite gravar e ler ao dono, com identidade única e histórico imutável', async () => {
+    const alerta = doc(db('alice'), caminho);
+    await assertSucceeds(setDoc(alerta, dados));
+    await assertSucceeds(getDoc(alerta));
+    await assertFails(getDoc(doc(db('bob'), caminho)));
+    await assertFails(getDoc(doc(env.unauthenticatedContext().firestore(), caminho)));
+    await assertFails(updateDoc(alerta, { gasto_centavos: 9000 }));
+  });
+
+  it('rejeita outro uid, chaves divergentes e meses inválidos', async () => {
+    await assertFails(setDoc(doc(db('bob'), caminho), dados));
+    await assertFails(setDoc(doc(db('alice'), caminho), { ...dados, periodo: '2026-11' }));
+    await assertFails(setDoc(doc(db('alice'), caminho.replace('2026-10', '2026-13')), {
+      ...dados,
+      periodo: '2026-13',
+    }));
+  });
+  it('só permite remover o alerta após excluir a categoria e bloqueia sua recriação', async () => {
+    const alerta = doc(db('alice'), caminho);
+    await assertSucceeds(setDoc(alerta, dados));
+    await assertFails(deleteDoc(alerta));
+    await assertSucceeds(updateDoc(cat(db('alice'), 'alice'), {
+      excluido_em: dados.emitido_em,
+      atualizado_em: dados.emitido_em,
+    }));
+    await assertFails(deleteDoc(doc(db('bob'), caminho)));
+    await assertSucceeds(deleteDoc(alerta));
+    await assertFails(setDoc(alerta, dados));
+  });
+
+});
+
+describe('UC08 — saldo inicial', () => {
+  const saldo = { valor_centavos: -12550, mes_referencia: '2026-11' };
+  const ref = (firestore: ReturnType<typeof db>, uid = 'dono', id = 'atual') =>
+    doc(firestore, 'usuarios', uid, 'saldo_inicial', id);
+
+  it('permite consultar e substituir o documento único do dono confirmado', async () => {
+    const proprio = ref(db('dono'));
+    await assertSucceeds(setDoc(proprio, saldo));
+    await assertSucceeds(setDoc(proprio, { ...saldo, valor_centavos: 0 }));
+    await assertSucceeds(setDoc(proprio, { ...saldo, valor_centavos: Number.MAX_SAFE_INTEGER }));
+    await assertSucceeds(getDoc(proprio));
+    await assertFails(setDoc(ref(db('dono'), 'dono', 'outro'), saldo));
+    await assertFails(getDoc(ref(db('dono'), 'dono', 'outro')));
+    await assertFails(getDocs(collection(db('dono'), 'usuarios', 'dono', 'saldo_inicial')));
+  });
+
+  it('isola contas e rejeita usuários sem confirmação', async () => {
+    await assertSucceeds(setDoc(ref(db('dono')), saldo));
+    await assertFails(getDoc(ref(db('outra'))));
+    await assertFails(setDoc(ref(db('outra')), saldo));
+    await assertFails(getDoc(ref(anonimo())));
+    const naoConfirmado = env.authenticatedContext('dono', { email_verified: false }).firestore();
+    await assertFails(getDoc(ref(naoConfirmado)));
+    await assertFails(setDoc(ref(naoConfirmado), saldo));
+  });
+
+  it.each([
+    { valor_centavos: 1.5 },
+    { valor_centavos: Number.MAX_SAFE_INTEGER + 1 },
+    { mes_referencia: '2026-13' },
+    { mes_referencia: '0000-01' },
+    { mes_referencia: '2026-1' },
+    { sync_status: 'pendente' },
+  ])('rejeita dados fora do contrato: %j', async (extra) => {
+    await assertFails(setDoc(ref(db('dono')), { ...saldo, ...extra }));
   });
 });

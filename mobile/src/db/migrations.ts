@@ -11,7 +11,12 @@ import {
   PERCENTUAL_MIN_CENTESIMOS,
 } from '@/features/categorias/limites';
 import {
+  DDL_ALERTAS,
+  DDL_PREFERENCIAS_ALERTAS_POR_TIPO,
   DDL_ESQUEMA,
+  DDL_PREFERENCIAS_LOCAIS,
+  DDL_PREFERENCIAS_NOTIFICACAO,
+  DDL_SALDO_INICIAL,
   DDL_SALDO_MENSAL,
   DDL_NUMERAR_ALERTAS,
   DDL_COLUNAS_REVISAO_METAS,
@@ -32,7 +37,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 11;
+export const VERSAO_ESQUEMA = 15;
 
 export interface RegistroInvalido {
   id: string;
@@ -146,10 +151,14 @@ interface Migracao {
  * A 007 normaliza os percentuais legados para a faixa definitiva de 1% a 100%
  * e substitui os triggers da faixa provisória pelos definitivos.
  * A 008 integra saldo inicial e alertas da UC04.
- * A 009 adiciona a tabela inicial de metas da UC12.
- * A 010 estende `metas` com início, categoria e valor acumulado declarado,
- * preservando os dados da 009 e mantendo registros legados incompletos.
- * A 011 adiciona os metadados locais de merge por campo da RN07.
+ * A 009 converte o saldo provisório do UC04 para o contrato do UC08.
+ * A 010 cria as preferências do aparelho, independentes de conta.
+ * A 011 integra os alertas e as preferências de limite da UC05.
+ * A 012 cria as preferências de notificação por dono do UC14.
+ * A 013 adiciona a tabela inicial de metas da UC12.
+ * A 014 estende `metas` com início, categoria e valor acumulado declarado,
+ * preservando os dados da 013 e mantendo registros legados incompletos.
+ * A 015 adiciona os metadados locais de merge por campo da RN07.
  */
 const MIGRACOES: Migracao[] = [
   { versao: 1, executar: migrar001 },
@@ -163,6 +172,10 @@ const MIGRACOES: Migracao[] = [
   { versao: 9, executar: migrar009 },
   { versao: 10, executar: migrar010 },
   { versao: 11, executar: migrar011 },
+  { versao: 12, executar: migrar012 },
+  { versao: 13, executar: migrar013 },
+  { versao: 14, executar: migrar014 },
+  { versao: 15, executar: migrar015 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -688,6 +701,8 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       }
       await prepararInstalacaoNova(tx, despesasLegadas);
       await tx.execAsync(DDL_ESQUEMA);
+      await tx.execAsync(DDL_PREFERENCIAS_LOCAIS);
+      await tx.execAsync(DDL_PREFERENCIAS_NOTIFICACAO);
       await garantirColunasRecorrencias(tx);
       await garantirTabelaDespesas(tx);
       if (despesasLegadas) {
@@ -704,17 +719,22 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await garantirTabelaMetasV9(tx);
       await garantirColunasMetasRevisao(tx);
       await aplicarTriggersPercentual(tx);
-      await tx.execAsync(DDL_SALDO_MENSAL);
-      await tx.execAsync(DDL_NUMERAR_ALERTAS);
+      await tx.execAsync(DDL_ALERTAS);
+      await tx.execAsync(DDL_PREFERENCIAS_ALERTAS_POR_TIPO);
+      await consolidarSaldoInicial(tx);
       await tx.execAsync(`PRAGMA user_version = ${VERSAO_ESQUEMA}`);
     });
     return;
   }
 
-  // Antes de pular direto para 009/010, identifica bancos de desenvolvimento
-  // que já tinham `user_version` 8/9 por causa da UC12 antiga, mas nunca
-  // receberam a migração 008 da UC04.
-  const reparouUc04 = await repararUc04Ausente(db, versao);
+  // As prévias da UC05 gravaram 8/9 antes de incorporar as migrações de saldo.
+  const previaUC05 = (versao === 8 || versao === 9)
+    && await existeTabela(db, 'alertas') && !(await existeTabela(db, 'alertas_emitidos'));
+
+  // Antes de seguir a cadeia, identifica bancos de desenvolvimento que já
+  // tinham `user_version` 8/9 por causa da UC12 antiga, mas nunca receberam a
+  // migração 008 da UC04. As prévias da UC05 têm caminho próprio acima.
+  const reparouUc04 = !previaUC05 && await repararUc04Ausente(db, versao);
   if (versao === VERSAO_ESQUEMA) {
     if (!(await existeTabela(db, 'metas'))) {
       throw new EstruturaLegadaInesperada('tabela "metas" ausente na versão final', 'metas');
@@ -725,8 +745,28 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
   // Instalação legada (ou parcial): migrações pendentes, em ordem.
   const versaoAtual = reparouUc04 ? await lerVersao(db) : versao;
   for (const m of MIGRACOES) {
-    if (m.versao > versaoAtual) await m.executar(db, m.versao);
+    if (m.versao > (previaUC05 ? 7 : versaoAtual)) await m.executar(db, m.versao);
   }
+}
+
+/** 011 — integra os alertas e as preferências de limite da UC05. */
+async function migrar011(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.execAsync(DDL_ALERTAS);
+    await tx.execAsync(DDL_PREFERENCIAS_ALERTAS_POR_TIPO);
+    if (await existeTabela(tx, 'preferencias_alertas')) {
+      await tx.execAsync(`
+        INSERT OR IGNORE INTO preferencias_alertas_por_tipo (tipo, ativo)
+          SELECT 'aproximacao', ativo FROM preferencias_alertas
+          UNION ALL SELECT 'ultrapassagem', ativo FROM preferencias_alertas;
+        DROP TABLE preferencias_alertas;
+      `);
+    }
+    if (await existeTabela(tx, 'categorias')) {
+      await tx.execAsync('DELETE FROM alertas WHERE ref_id IN (SELECT id FROM categorias WHERE excluido_em IS NOT NULL)');
+    }
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
 }
 
 /**
@@ -1122,12 +1162,12 @@ async function migrar008(db: SQLiteDatabase, versaoDestino: number): Promise<voi
 }
 
 /**
- * 009 — tabela inicial de metas da UC12. Aditiva, idempotente e transacional.
+ * 013 — tabela inicial de metas da UC12. Aditiva, idempotente e transacional.
  *
- * Aceita uma tabela já estendida (crash após a 010) apenas validando a forma
- * atual; a 010 confirma a versão. Nenhuma tabela financeira é reconstruída.
+ * Aceita uma tabela já estendida (crash após a 014) apenas validando a forma
+ * atual; a 014 confirma a versão. Nenhuma tabela financeira é reconstruída.
  */
-async function migrar009(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+async function migrar013(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     const info = await tx.getAllAsync<ColunaRecorrenciaAtual>('PRAGMA table_info(metas)');
     const temColunaV10 = info.some((coluna) =>
@@ -1369,11 +1409,11 @@ export async function garantirTabelaMetasV9(tx: SQLiteDatabase): Promise<void> {
 }
 
 /**
- * 010 — extensão das metas da UC12 (issue #106). Transacional e idempotente.
- * Preserva integralmente os registros da 009 e não preenche categoria ou valor
+ * 014 — extensão das metas da UC12 (issue #106). Transacional e idempotente.
+ * Preserva integralmente os registros da 013 e não preenche categoria ou valor
  * realizado fictícios.
  */
-async function migrar010(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+async function migrar014(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await garantirTabelaMetasV9(tx);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
@@ -1381,12 +1421,56 @@ async function migrar010(db: SQLiteDatabase, versaoDestino: number): Promise<voi
 }
 
 /**
- * 011 — metadados locais de merge por campo da RN07. Transacional e
+ * 015 — metadados locais de merge por campo da RN07. Transacional e
  * idempotente; não altera dados financeiros existentes.
  */
-async function migrar011(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+async function migrar015(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await garantirColunasMetasRevisao(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/** 009 — converte o saldo provisório do UC04 para o contrato do UC08. */
+async function migrar009(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await consolidarSaldoInicial(tx);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+async function consolidarSaldoInicial(tx: SQLiteDatabase): Promise<void> {
+  const colunas = await tx.getAllAsync<{ name: string }>('PRAGMA table_info(saldo_inicial)');
+  if (colunas.some(({ name }) => name === 'mes')) {
+    await tx.execAsync('ALTER TABLE saldo_inicial RENAME TO saldo_inicial_uc04');
+    await tx.execAsync(DDL_SALDO_INICIAL);
+    await tx.execAsync(`
+      INSERT INTO saldo_inicial (id, valor_centavos, mes_referencia)
+      SELECT id, valor_centavos, mes FROM saldo_inicial_uc04;
+      DROP TABLE saldo_inicial_uc04;
+    `);
+  }
+  // Instalações de prévia do UC08 tinham a tabela definitiva, mas ainda não tinham alertas.
+  await tx.execAsync(DDL_SALDO_INICIAL);
+  await tx.execAsync(DDL_SALDO_MENSAL);
+  const alertas = await tx.getAllAsync<{ name: string }>('PRAGMA table_info(alertas_emitidos)');
+  if (!alertas.some(({ name }) => name === 'transicao')) {
+    await tx.execAsync(DDL_NUMERAR_ALERTAS);
+  }
+}
+
+/** 010 — preferências do aparelho, independentes de conta. */
+async function migrar010(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.execAsync(DDL_PREFERENCIAS_LOCAIS);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/** 012 — UC14: preferências de notificação por dono (D25). */
+async function migrar012(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.execAsync(DDL_PREFERENCIAS_NOTIFICACAO);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

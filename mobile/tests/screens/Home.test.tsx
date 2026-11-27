@@ -8,6 +8,23 @@ import { router } from '../helpers/expoRouterMock';
 // A tela inicial é o resumo financeiro (UC03); os atalhos ficam disponíveis em qualquer estado dele.
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
+jest.mock('@/features/evolucao/service', () => {
+  const real = jest.requireActual('@/features/evolucao/service');
+  // Evolução sem valores, mas com lançamentos: o gráfico aparece e não interfere no resumo.
+  return {
+    ...real,
+    calcularEvolucao: jest.fn(async (fimAno: number, fimMes: number) => ({
+      fimAno,
+      fimMes,
+      meses: real.mesesDaJanela({ ano: fimAno, mes: fimMes }).map((m: { ano: number; mes: number }) => ({
+        ...m,
+        receitasCentavos: 0,
+        despesasCentavos: 0,
+      })),
+      semLancamentos: false,
+    })),
+  };
+});
 jest.mock('@/features/resumo/service', () => ({
   ...jest.requireActual('@/features/resumo/service'),
   calcularResumo: jest.fn(),
@@ -45,6 +62,23 @@ describe('Home (navegação da UC06)', () => {
     expect(await screen.findByRole('button', { name: 'Metas' })).toBeTruthy();
     await fireEvent.press(screen.getByRole('button', { name: 'Metas' }));
     expect(router.push).toHaveBeenCalledWith('/metas');
+  });
+
+  it('oferece acesso ao Perfil e navega para /perfil (UC14)', async () => {
+    await salvarContinuidadeSemConta();
+    await render(<Home />);
+
+    expect(await screen.findByRole('button', { name: 'Perfil' })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Perfil' }));
+    expect(router.push).toHaveBeenCalledWith('/perfil');
+  });
+
+  it('abre as preferências de alertas de limite da UC05', async () => {
+    await salvarContinuidadeSemConta();
+    await render(<Home />);
+
+    await fireEvent.press(await screen.findByRole('button', { name: 'Preferências de alertas' }));
+    expect(router.push).toHaveBeenCalledWith('/preferencias-alertas');
   });
 
   it('mantém o acesso a Receitas', async () => {

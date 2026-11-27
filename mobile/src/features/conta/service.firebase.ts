@@ -41,8 +41,6 @@ export function criarContaServiceFirebase(auth: AuthService): ContaService {
         }
 
         // Envio pedido pela pessoa (manual): libera o envio automático pausado em FA01.
-        // Não chamar retomar() aqui: ele ocupa a trava do sincronizarPendentes() em segundo plano e
-        // faria o envio manual ser descartado.
         const atual = auth.currentSession();
         if (atual.status !== 'ativa' || atual.uid !== sessao.uid) throw new ErroConta('falha');
         await sync.sincronizar();
@@ -78,7 +76,6 @@ export function criarContaServiceFirebase(auth: AuthService): ContaService {
           throw new ErroConta('falha');
         }
 
-        // Sem retomar(): ele ocupa a trava do envio em segundo plano e faria este envio ser descartado.
         await obterSincronizacao().sincronizar();
       } catch (e) {
         if (e instanceof ErroConta) {

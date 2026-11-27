@@ -9,6 +9,15 @@ import { MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service'
 import { percentualMetaExibido, rotuloDia } from '@/features/resumo/format';
 import { formatarPercentual } from '@/features/metas/formato';
 import { useResumo } from '@/features/resumo/useResumo';
+import { ajustarFimDaJanela, MSG_FALHA_EVOLUCAO, type EvolucaoMensal } from '@/features/evolucao/service';
+import { useEvolucao } from '@/features/evolucao/useEvolucao';
+import { GraficoEvolucao } from '@/components/resumo/GraficoEvolucao';
+import { IndicadoresConsumo } from '@/components/consumo/IndicadoresConsumo';
+import { useConsumoMensal } from '@/features/consumo/useConsumoMensal';
+import { AcaoTutorial } from '@/components/tutorial/Interface';
+import { EntradaTutorial } from '@/components/tutorial/EntradaTutorial';
+import { MSG_ABERTURA_TUTORIAL } from '@/features/tutorial/conteudo';
+import { useOfertaTutorial } from '@/features/tutorial/useOfertaTutorial';
 import { PainelSaldo } from '@/components/saldo/PainelSaldo';
 
 import { useSessao } from '@/features/conta/sessao';
@@ -26,11 +35,25 @@ export default function Home() {
   return <ResumoFinanceiro key={sessao.status === 'ativa' ? sessao.uid : 'local'} />;
 }
 
-function ResumoFinanceiro() {
+export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean }) {
+
   // Passo 2: o mês corrente é o período padrão (RN12).
+  const ofertaTutorial = useOfertaTutorial(!noTutorial);
   const [periodo, setPeriodo] = useState(mesCorrente);
   const inicio = primeiroDiaDoMes(periodo.ano, periodo.mes);
+  const consumo = useConsumoMensal(inicio.slice(0, 7));
+  // UC07: último mês da janela do gráfico. Começa no mês selecionado e só se desloca quando
+  // o mês escolhido fica fora dos 6 exibidos (FA05).
+  const [fimJanela, setFimJanela] = useState(mesCorrente);
   const { resumo, falhou, recarregar } = useResumo(periodo.ano, periodo.mes);
+  const evolucao = useEvolucao(fimJanela.ano, fimJanela.mes);
+  const recarregarEvolucao = evolucao.recarregar;
+
+  // O mês selecionado é um só para o resumo (UC03) e o gráfico (UC07): seletor ou toque na barra.
+  const escolherMes = useCallback((m: { ano: number; mes: number }) => {
+    setPeriodo(m);
+    setFimJanela((fim) => ajustarFimDaJanela(fim, m));
+  }, []);
   // Só exibe valores calculados para o mês selecionado: ao trocar de mês, os do mês anterior
   // não podem aparecer sob o título novo enquanto o recálculo não termina.
   const resumoDoPeriodo = resumo && resumo.ano === periodo.ano && resumo.mes === periodo.mes ? resumo : null;
@@ -41,17 +64,57 @@ function ResumoFinanceiro() {
       void recarregar();
     }, [recarregar]),
   );
+  // UC07, FA06: o gráfico recalcula ao abrir, ao voltar de outra tela e quando a janela se desloca;
+  // tocar numa barra dentro da janela só muda o mês selecionado.
+  useFocusEffect(
+    useCallback(() => {
+      void recarregarEvolucao();
+    }, [recarregarEvolucao]),
+  );
+
+  if (ofertaTutorial.verificando) {
+    return (
+      <SafeAreaView style={estilos.tela}>
+        <ActivityIndicator color={cores.primaria} accessibilityLabel="Preparando resumo" />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <ScrollView contentContainerStyle={estilos.conteudo}>
-        <Text style={estilos.titulo} accessibilityRole="header">
-          Resumo financeiro
-        </Text>
+        <View style={estilos.cabecalho}>
+          <Text style={estilos.titulo} accessibilityRole="header">
+            Resumo financeiro
+          </Text>
+          {noTutorial ? (
+            <Pressable onPress={() => router.back()} style={estilos.ajuda} accessibilityRole="button">
+              <Text style={estilos.botaoContornoTexto}>Voltar ao tutorial</Text>
+            </Pressable>
+          ) : (
+            <Pressable onPress={() => router.push('/ajuda')} style={estilos.ajuda} accessibilityRole="button">
+              <Text style={estilos.botaoContornoTexto}>Ajuda</Text>
+            </Pressable>
+          )}
+        </View>
+        {ofertaTutorial.falhou && (
+          <View style={estilos.secao}>
+            <Text style={estilos.erro} accessibilityRole="alert">{MSG_ABERTURA_TUTORIAL}</Text>
+            <AcaoTutorial texto="Tentar novamente" onPress={ofertaTutorial.tentarNovamente} />
+          </View>
+        )}
+
+        <Pressable
+          onPress={() => router.push('/preferencias-alertas')}
+          accessibilityRole="button"
+          style={estilos.botaoContorno}
+        >
+          <Text style={estilos.botaoContornoTexto}>Preferências de alertas</Text>
+        </Pressable>
 
         <View style={estilos.seletor}>
           <Pressable
-            onPress={() => setPeriodo((p) => mesAnterior(p.ano, p.mes))}
+            onPress={() => escolherMes(mesAnterior(periodo.ano, periodo.mes))}
             accessibilityRole="button"
             accessibilityLabel="Mês anterior"
             style={estilos.seta}
@@ -63,7 +126,7 @@ function ResumoFinanceiro() {
             {nomeMes(periodo.ano, periodo.mes)}
           </Text>
           <Pressable
-            onPress={() => setPeriodo((p) => proximoMes(p.ano, p.mes))}
+            onPress={() => escolherMes(proximoMes(periodo.ano, periodo.mes))}
             accessibilityRole="button"
             accessibilityLabel="Próximo mês"
             style={estilos.seta}
@@ -91,13 +154,32 @@ function ResumoFinanceiro() {
           </View>
         ) : !resumoDoPeriodo ? (
           <ActivityIndicator color={cores.primaria} style={{ marginTop: 32 }} testID="carregando" />
-        ) : resumoDoPeriodo.semLancamentos ? (
+        ) : resumoDoPeriodo.semLancamentos && !noTutorial ? (
           <EstadoVazio />
         ) : (
           <Conteudo resumo={resumoDoPeriodo} />
         )}
 
-        <Atalhos ano={periodo.ano} mes={periodo.mes} />
+        {/* UC07. FA02 (sem lançamentos): o estado vazio do resumo já oferece o atalho do tutorial. */}
+        {noTutorial || resumoDoPeriodo?.semLancamentos ? null : (
+          <SecaoEvolucao
+            evolucao={evolucao.evolucao}
+            falhou={evolucao.falhou}
+            fimJanela={fimJanela}
+            selecionado={periodo}
+            onSelecionar={escolherMes}
+            onTentarNovamente={() => void recarregarEvolucao()}
+          />
+        )}
+
+        {!noTutorial && (
+          <View style={estilos.vazio}>
+            <Text accessibilityRole="header" style={estilos.titulo}>Consumo por categoria</Text>
+            <IndicadoresConsumo estado={consumo.estado} aoTentarNovamente={consumo.tentarNovamente} />
+          </View>
+        )}
+
+        {!noTutorial && <Atalhos ano={periodo.ano} mes={periodo.mes} mostrarNovos={!resumoDoPeriodo?.semLancamentos} />}
       </ScrollView>
     </SafeAreaView>
   );
@@ -185,38 +267,116 @@ function Conteudo({ resumo }: { resumo: ResumoMensal }) {
   );
 }
 
+/** Evolução mensal (UC07): gráfico dos 6 meses da janela, com carregamento, falha (EX01) e FA02. */
+function SecaoEvolucao({
+  evolucao,
+  falhou,
+  fimJanela,
+  selecionado,
+  onSelecionar,
+  onTentarNovamente,
+}: {
+  evolucao: EvolucaoMensal | null;
+  falhou: boolean;
+  fimJanela: { ano: number; mes: number };
+  selecionado: { ano: number; mes: number };
+  onSelecionar: (m: { ano: number; mes: number }) => void;
+  onTentarNovamente: () => void;
+}) {
+  // Só exibe a série calculada para a janela atual (não a de uma janela anterior).
+  const daJanela =
+    evolucao && evolucao.fimAno === fimJanela.ano && evolucao.fimMes === fimJanela.mes ? evolucao : null;
+  if (daJanela?.semLancamentos) return null;
+
+  return (
+    <View style={estilos.secao} testID="secao-evolucao">
+      <Text style={estilos.secaoTitulo}>Evolução mensal</Text>
+      {falhou ? (
+        <View style={estilos.vazio}>
+          <Text style={estilos.erro}>{MSG_FALHA_EVOLUCAO}</Text>
+          <Pressable
+            onPress={onTentarNovamente}
+            style={estilos.botaoContorno}
+            accessibilityRole="button"
+            accessibilityLabel="Tentar carregar a evolução mensal novamente"
+          >
+            <Text style={estilos.botaoContornoTexto}>Tentar novamente</Text>
+          </Pressable>
+        </View>
+      ) : !daJanela ? (
+        <ActivityIndicator color={cores.primaria} testID="evolucao-carregando" />
+      ) : (
+        <GraficoEvolucao evolucao={daJanela} selecionado={selecionado} onSelecionar={onSelecionar} />
+      )}
+    </View>
+  );
+}
+
 /**
  * Atalhos para as listas e categorias, visíveis em todos os estados da tela (carregando, resumo,
  * estado vazio e EX01), como na tela inicial anterior. Receitas e Despesas abrem no mês selecionado,
  * para o usuário achar (e editar ou excluir) os lançamentos dele.
  */
-function Atalhos({ ano, mes }: { ano: number; mes: number }) {
+function Atalhos({ ano, mes, mostrarNovos }: { ano: number; mes: number; mostrarNovos: boolean }) {
   const doMes = { ano: String(ano), mes: String(mes) };
   return (
-    <View style={estilos.linha}>
-      <Pressable
-        onPress={() => router.push({ pathname: '/receitas', params: doMes })}
-        style={estilos.botao}
-        accessibilityRole="button"
-      >
-        <Text style={estilos.botaoTexto}>Receitas</Text>
-      </Pressable>
-      <Pressable
-        onPress={() => router.push({ pathname: '/despesas', params: doMes })}
-        style={estilos.botao}
-        accessibilityRole="button"
-      >
-        <Text style={estilos.botaoTexto}>Despesas</Text>
-      </Pressable>
-      <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
-        <Text style={estilos.botaoTexto}>Categorias</Text>
-      </Pressable>
-      <Pressable onPress={() => router.push('/metas')} style={estilos.botao} accessibilityRole="button">
-        <Text style={estilos.botaoTexto}>Metas</Text>
-      </Pressable>
-      <Pressable onPress={() => router.push('/conta')} style={estilos.botao} accessibilityRole="button">
-        <Text style={estilos.botaoTexto}>Conta</Text>
-      </Pressable>
+    <View>
+      {/* Registro direto da tela inicial, sem abrir a lista antes. No estado vazio (FA02), os botões
+          "Registrar receita" e "Registrar despesa" já cumprem esse papel. */}
+      {mostrarNovos ? (
+        <View style={estilos.linha}>
+          <Pressable
+            onPress={() => router.push('/receitas/nova')}
+            style={estilos.botaoContorno}
+            accessibilityRole="button"
+            accessibilityLabel="Nova receita"
+          >
+            <Text style={estilos.botaoContornoTexto}>+ Nova receita</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => router.push('/despesas/nova')}
+            style={estilos.botaoContorno}
+            accessibilityRole="button"
+            accessibilityLabel="Nova despesa"
+          >
+            <Text style={estilos.botaoContornoTexto}>+ Nova despesa</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <View style={estilos.linha}>
+        <Pressable
+          onPress={() => router.push({ pathname: '/receitas', params: doMes })}
+          style={estilos.botao}
+          accessibilityRole="button"
+        >
+          <Text style={estilos.botaoTexto}>Receitas</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push({ pathname: '/despesas', params: doMes })}
+          style={estilos.botao}
+          accessibilityRole="button"
+        >
+          <Text style={estilos.botaoTexto}>Despesas</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Categorias</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/metas')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Metas</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/sincronizacao')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Sincronização</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/configuracoes-financeiras')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Configurações financeiras</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/perfil')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Perfil</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/conta')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Conta</Text>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -229,9 +389,7 @@ function EstadoVazio() {
       <Text style={estilos.vazioTexto}>
         Registre receitas e despesas para ver aqui o saldo e os totais do mês.
       </Text>
-      <Pressable onPress={() => router.push('/tutorial')} style={estilos.botao} accessibilityRole="button">
-        <Text style={estilos.botaoTexto}>Ver tutorial</Text>
-      </Pressable>
+      <EntradaTutorial texto="Ver tutorial" />
       <View style={estilos.linha}>
         <Pressable onPress={() => router.push('/receitas/nova')} style={estilos.botaoContorno} accessibilityRole="button">
           <Text style={estilos.botaoContornoTexto}>Registrar receita</Text>
@@ -253,7 +411,9 @@ function EstadoVazio() {
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   conteudo: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
-  titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  ajuda: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, marginBottom: 12 },
+  titulo: { flexShrink: 1, fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
   seletor: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -80,7 +80,7 @@ service cloud.firestore {
           || d.recorrencia_id is string);
     }
 
-    function marcadorDespesaValido(d) {
+    function marcadorLancamentoValido(d) {
       return d.keys().hasOnly(['excluido_em', 'atualizado_em'])
         && d.excluido_em is string && d.excluido_em.size() > 0
         && d.atualizado_em is string && d.atualizado_em.size() > 0;
@@ -438,19 +438,67 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /usuarios/{uid}/alertas/{id} {
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid) && alertaValido(request.resource.data)
+        && getAfter(categoriaDoAlerta(request.resource.data.ref_id)).data.excluido_em == null;
+      allow update: if false;
+      allow delete: if donoConfirmado(uid)
+        && getAfter(categoriaDoAlerta(resource.data.ref_id)).data.excluido_em is string;
+
+      function categoriaDoAlerta(refId) {
+        return /databases/$(database)/documents/usuarios/$(uid)/categorias/$(refId);
+      }
+
+      function alertaValido(d) {
+        return d.keys().hasAll([
+          'tipo', 'ref_id', 'periodo', 'categoria_nome',
+          'gasto_centavos', 'limite_centavos', 'emitido_em'
+        ]) && d.keys().hasOnly([
+          'tipo', 'ref_id', 'periodo', 'categoria_nome',
+          'gasto_centavos', 'limite_centavos', 'emitido_em'
+        ])
+        && d.tipo in ['aproximacao', 'ultrapassagem']
+        && d.ref_id is string && d.ref_id.matches('^[a-zA-Z0-9_-]{1,100}$')
+        && d.periodo is string && d.periodo.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && id == d.tipo + '_' + d.ref_id + '_' + d.periodo
+        && d.categoria_nome is string && d.categoria_nome.size() >= 1 && d.categoria_nome.size() <= 30
+        && d.gasto_centavos is int && d.gasto_centavos > 0 && d.gasto_centavos <= 9007199254740991
+        && d.limite_centavos is int && d.limite_centavos > 0 && d.limite_centavos <= 9007199254740991
+        && d.emitido_em is string
+        && d.emitido_em.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}[.][0-9]{3}Z$');
+      }
+    }
+
+    match /usuarios/{uid}/saldo_inicial/{id} {
+      allow get: if donoConfirmado(uid) && id == 'atual';
+      allow create, update: if donoConfirmado(uid) && id == 'atual'
+        && request.resource.data.keys().hasOnly(['valor_centavos', 'mes_referencia'])
+        && request.resource.data.valor_centavos is int
+        && request.resource.data.valor_centavos >= -9007199254740991
+        && request.resource.data.valor_centavos <= 9007199254740991
+        && request.resource.data.mes_referencia is string
+        && request.resource.data.mes_referencia.matches('^[0-9]{4}-(0[1-9]|1[0-2])$')
+        && !request.resource.data.mes_referencia.matches('^0000-.*$');
+    }
+
     match /usuarios/{uid}/receitas/{id} {
-      allow read, delete: if donoConfirmado(uid);
-      allow create, update: if donoConfirmado(uid)
-        && receitaValida(request.resource.data);
+      allow read: if donoConfirmado(uid);
+      allow create: if donoConfirmado(uid)
+        && (receitaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
+      allow update: if donoConfirmado(uid)
+        && !('excluido_em' in resource.data)
+        && (receitaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
+      allow delete: if false;
     }
 
     match /usuarios/{uid}/despesas/{id} {
       allow read: if donoConfirmado(uid);
       allow create: if donoConfirmado(uid)
-        && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
+        && (despesaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
       allow update: if donoConfirmado(uid)
         && !('excluido_em' in resource.data)
-        && (despesaValida(request.resource.data) || marcadorDespesaValido(request.resource.data));
+        && (despesaValida(request.resource.data) || marcadorLancamentoValido(request.resource.data));
       allow delete: if false;
     }
 

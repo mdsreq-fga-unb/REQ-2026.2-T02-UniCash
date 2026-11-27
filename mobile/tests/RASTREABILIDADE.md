@@ -8,6 +8,8 @@ As seções 1–3 registram o **UC01 — Gerenciar receitas**; a seção 4 regis
 
 A seção 6 registra o **UC03 — Consultar resumo financeiro**.
 
+A seção 7 registra o **UC07 — Consultar evolução mensal**.
+
 ## 1. Regras de negócio e requisitos não funcionais
 
 | Requisito | Fluxo do UC01 | Código | Teste automatizado | Teste manual |
@@ -107,7 +109,7 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 | RN09 — valor monetário | B, C, EX03 | `validation.ts`, `src/features/receitas/money.ts`, `src/db/schema.ts` | `tests/unit/validation-categorias.test.ts`, `tests/db/schema.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Testado: 1 centavo, zero, teto e inteiros |
 | RN11 — exclusão/atomicidade | C, D, EX04 | `service.ts` (`transacao`, `excluirCategoria`), `[id]/editar.tsx` | `tests/service/categorias.test.ts` (falha em criar/editar/excluir), `tests/screens/EditarCategoria.test.tsx` | Operação local, desvinculação e rollback testados; recálculo pendente |
 | RN13 — nome, unicidade e padrões | A, B, C, D | `validation.ts`, `service.ts`, `src/db/schema.ts`, `useCategorias.ts`, `firestore.rules` | `tests/service/categorias.test.ts`, `tests/db/schema.test.ts`, `tests/unit/validation-categorias.test.ts`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx`, `tests/rules/firestore.rules.test.ts` | Testado (30/31 caracteres, Unicode/emoji, duplicidade, padrões, tombstone); padrão sem renomear/excluir e com limite editável |
-| RN14 — limites por valor/percentual | B, C | `validation.ts`, `limites.ts`, `formato.ts`, `CategoriaForm.tsx`, `[id]/editar.tsx`, `src/db/schema.ts`, `categorias/sync.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/categorias.sync.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx`, `tests/db/schema.test.ts`, `tests/db/migrations.test.ts` | Faixa definitiva 1%–100% testada em formulário/domínio/serviço/SQLite/Firestore; recálculo UC05/UC09 pendente |
+| RN14 — limites por valor/percentual | B, C | `validation.ts`, `limites.ts`, `formato.ts`, `CategoriaForm.tsx`, `[id]/editar.tsx`, `src/db/schema.ts`, `categorias/sync.ts` | `tests/unit/validation-categorias.test.ts`, `tests/unit/categorias.sync.test.ts`, `tests/unit/formato-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx`, `tests/db/schema.test.ts`, `tests/db/migrations.test.ts` | Faixa definitiva 1%–100% testada em formulário/domínio/serviço/SQLite/Firestore; recálculo de consumo validado no UC09; alertas do UC05 seguem externos |
 | RNF03 — isolamento por usuário | EX09, sincronização | `firestore.rules` | `tests/rules/firestore.rules.test.ts` | Isolamento por UID testado nas Rules de categorias |
 | RNF04 — validação local | B, C | `validation.ts`, `CategoriaForm.tsx` | `tests/unit/validation-categorias.test.ts`, `tests/screens/CategoriaForm.test.tsx` | Testado |
 | RNF05 — evitar estado parcial | B, C, D | `service.ts` (`transacao`) | `tests/service/categorias.test.ts` (falha em criar/editar/excluir) | Testado no escopo local |
@@ -129,7 +131,7 @@ integrações posteriores. Itens dependentes dessas integrações estão marcado
 | FA01 — operação offline | `service.ts`, `schema.ts` | `tests/service/categorias.test.ts` (grava `sync_status='pendente'`) | Local testado; sincronização testada |
 | FA02 — categoria sem lançamentos | `src/app/categorias/index.tsx`, `src/app/despesas/index.tsx` | `tests/screens/ListaCategorias.test.tsx`, `tests/screens/TelaListaDespesas.test.tsx`, `tests/service/despesas.leitura.test.ts` | Implementado/testado: “Nenhum lançamento” e “Nenhum registro” |
 | FA03 — exclusão com lançamentos | `service.ts` (`marcarCategoriaExcluidaNaTransacao`) | `tests/service/categorias.test.ts` (despesa avulsa, série ativa/inativa, tombstones) | Implementado/testado: despesas mantidas e “Sem categoria” |
-| FA04 — categoria sem limite | `CategoriaForm.tsx`, `EditarCategoria.test.tsx`, `service.ts` | `tests/screens/CategoriaForm.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/service/categorias.test.ts` | Local testado; recálculo pendente UC05/UC09 |
+| FA04 — categoria sem limite | `CategoriaForm.tsx`, `EditarCategoria.test.tsx`, `service.ts` | `tests/screens/CategoriaForm.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/service/categorias.test.ts`, `tests/service/consumo.test.ts`, `tests/screens/IndicadoresConsumo.test.tsx` | Local testado; o UC09 omite o indicador de categorias sem limite |
 | FA05 — cancelar edição/exclusão | `NovaCategoria.tsx`, `EditarCategoria.tsx`, `CategoriaForm.tsx` | `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx` | Implementado/testado |
 | EX01 — nome duplicado | `service.ts` (`NomeDuplicado`), `validation.ts` | `tests/service/categorias.test.ts`, `tests/screens/NovaCategoria.test.tsx`, `tests/screens/EditarCategoria.test.tsx` | Implementado/testado |
 | EX02 — categoria padrão protegida | `service.ts` (`CategoriaPadraoProtegida`), `EditarCategoria.tsx` | `tests/service/categorias.test.ts`, `tests/screens/EditarCategoria.test.tsx`, `tests/screens/CategoriaForm.test.tsx` | Implementado/testado |
@@ -193,16 +195,24 @@ Os números e links abaixo são **históricos** da integração UC02 + UC06 no m
 
 **Checklist histórico da integração UC02:** detalhado em 4.9, incluindo migrations 004/005, slugs históricos, desvinculação, FK e verificação de integridade. A issue #70 registra o encerramento da integração.
 
-**Pendências naquele baseline, superadas ou ainda externas:** RF65, sincronização de categorias e Rules de categorias foram concluídos no PR #76. Permanecem externos o recálculo UC05/UC09, a publicação das Rules no projeto real, a sincronização real e a validação de upgrade nativo a partir de banco antigo.
+**Pendências naquele baseline, superadas ou ainda externas:** RF65, sincronização de categorias e Rules de categorias foram concluídos no PR #76. Permanecem externos os alertas do UC05, a publicação das Rules no projeto real, a sincronização real e a validação de upgrade nativo a partir de banco antigo.
 
 ### 4.5. Pendências de integração
 
 - **UC02 / issue #70:** integração concluída pelo PR #73 no merge `9e373e9`; evidências históricas em 4.4.2 e 4.9. RF65, sincronização de categorias e Rules de categorias foram concluídos no PR #76.
-- **UC05/UC09:** recálculo de indicadores e alertas após criar/editar/excluir categoria. A UC06 deixa o estado consistente no SQLite (`categorias`, limites, tombstones) e a UC02 mantém as `despesas`; a interface prevista é a leitura dessas tabelas por período após cada operação (contrato em 4.10). Não há evento de domínio nem chamada direta implementada nesta etapa; o cálculo continua sob responsabilidade dessas UCs.
+- **UC09 / issue #46:** recálculo de consumo por período integrado à lista e ao Resumo Financeiro, com rastreabilidade abaixo.
+- **UC05:** integração dos alertas permanece sob responsabilidade desse caso de uso. O contrato de leitura das tabelas está em 4.10.
 - **UC10:** a restauração no startup aguarda `authStateReady` e usa `auth.currentUser`, mas o app ainda não possui tela de login própria. Sem sessão, a operação permanece offline-first.
 - **Validação nativa:** o smoke funcional da UC06 foi concluído via **Expo Go em dispositivo Android** em 20/11/2026, cobrindo RF19/RF65/RF66/RF67 e persistência. Não houve build nativa/APK, inspeção de `user_version` ou repetição do upgrade nativo a partir de banco antigo; as migrações 006/007 seguem cobertas por testes automatizados.
 - **Firebase não configurado:** `src/lib/firebase.ts` abre em modo offline quando as variáveis `EXPO_PUBLIC_FIREBASE_*` estão ausentes; `auth.currentUser` fica nulo e sincronização/restauração não executam. Teste: `tests/unit/firebase.offline.test.ts`.
 - **Semeadura:** conflitos são reportados uma vez por instância e a semeadura não é repetida a cada foco. Após excluir uma categoria própria com nome reservado, um sinal único faz a lista tentar a semeadura no próximo foco; não há conversão automática da categoria própria. Se a tentativa posterior falhar, a exclusão já confirmada permanece e o erro é exibido como falha de preparação das padrão, não como falha da exclusão.
+
+| Fluxo do UC09 | Implementação | Testes |
+| --- | --- | --- |
+| RF39, FA06, EX01 e EX02 — exibir consumo e trocar o mês na lista | `src/app/categorias/index.tsx`, `src/features/consumo/useConsumoMensal.ts` | `tests/screens/ListaCategorias.test.tsx` |
+| RF39 e FA06 — seguir o seletor de mês do Resumo Financeiro | `src/app/index.tsx`, `src/features/consumo/useConsumoMensal.ts` | `tests/screens/Resumo.test.tsx` |
+| EX03 — consultar somente a base da conta ativa | `src/db/database.ts`, `src/features/consumo/sqlite.ts` | `tests/db/proprietario-uc10.test.ts` |
+| RN06, RN07 e RN14 — cálculo local após alterações de despesas, receitas e categorias | `src/features/consumo/sqlite.ts`, `src/features/consumo/calculo.ts` | `tests/service/consumo.test.ts`, `tests/unit/consumo.test.ts` |
 
 ### 4.6. Limite percentual — faixa definitiva 1%–100%
 
@@ -402,7 +412,7 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 |---|---|---|---|---|
 | RF11 – total de receitas do mês e por dia | passos 3 e 4 | `src/features/resumo/service.ts` (`totalReceitasDoMes`, `receitasPorDia`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF11"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…") | 4.1 (passo 2) |
 | RF40 – saldo, receitas, despesas e metas do período | passos 3 e 4 | `service.ts` (`totalDespesasDoMes`, `saldoDoMes`, `progressoMetasDoMes`, `calcularResumo`), `src/app/index.tsx` | `tests/service/resumo.test.ts` (bloco "RF40"), `tests/screens/Resumo.test.tsx` ("abre no mês corrente…", "mostra o progresso das metas…") | 4.1 (passo 2) |
-| RF55 – atalho para o tutorial (placeholder) | FA02 | `src/app/index.tsx` (`EstadoVazio`), `src/app/tutorial.tsx` | `tests/screens/Resumo.test.tsx` ("FA02…"), `tests/screens/Tutorial.test.tsx` | 4.1 (passo 1) |
+| RF55 – atalho para o tutorial | FA02 | `src/app/index.tsx` (`EstadoVazio`), `src/app/tutorial.tsx` | `tests/screens/Resumo.test.tsx` ("FA02…"), `tests/screens/Tutorial.test.tsx` | 4.1 (passo 1) |
 | RF61 – usar sem conta | FA03 | `service.ts` (só SQLite; não importa o Firebase) | `tests/service/resumo.test.ts` ("FA03…"; o Firebase é mockado para quebrar se for importado) | 4.2 |
 | RN06 – base local | todos | `service.ts`, `src/db/schema.ts` | `tests/service/resumo.test.ts` (SQLite em memória) | 4.2 |
 | RN07 – sem contadores persistidos; exclusão lógica | passos 3 e 6, FA05 | `service.ts` (`excluido_em IS NULL`, cálculo na hora) | `tests/service/resumo.test.ts` ("ignora receitas excluídas", "ignora despesas excluídas", "FA02: lançamentos só excluídos…", "pós-condição…") | 4.1 (passo 5) |
@@ -428,9 +438,9 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 | Abertura com recorrências a completar | `src/app/_layout.tsx` (geração de receitas e despesas), `service.ts` (`calcularResumo`) | `tests/service/resumo.test.ts` ("gravações durante a abertura do app…") | 4.5 |
 | Abertura: recálculo depois da preparação e da restauração da nuvem | `src/lib/baseAtualizada.ts`, `src/app/_layout.tsx` (sinal ao liberar o guard e ao terminar as rotinas), `useResumo.ts` (recalcula ao receber o sinal) | `tests/screens/Layout.test.tsx` (bloco "sinal de base atualizada"), `tests/screens/Resumo.test.tsx` (bloco "recálculo quando a base muda por fora da tela") | 4.5 (passo 2) |
 | Atalhos Receitas, Despesas e Categorias em todos os estados | `src/app/index.tsx` (`Atalhos`; Receitas e Despesas abrem no mês selecionado) | `tests/screens/Resumo.test.tsx` (bloco "atalhos em todos os estados", "atalhos abrem as listas no mês selecionado…"), `tests/screens/Home.test.tsx`, `tests/screens/HomeDespesas.test.tsx` | 4.1 (passo 1) |
+| Registro direto da tela inicial ("+ Nova receita" e "+ Nova despesa", RNF27) | `src/app/index.tsx` (`Atalhos`; escondidos no estado vazio, que já tem "Registrar receita" e "Registrar despesa") | `tests/screens/Resumo.test.tsx` (bloco "registro direto da tela inicial") | – |
 
-**Placeholders:** metas (RF12) e tutorial (RF55) ainda não existem. `progressoMetasDoMes` retorna vazio e
-`/tutorial` mostra "Tutorial em breve"; ligar quando os casos de uso de metas e tutorial forem entregues.
+**Placeholder de metas (RF12):** `progressoMetasDoMes` retorna vazio enquanto o caso de uso de metas estiver pendente.
 A visão por dia está em lista, provisória até a escolha entre lista e calendário com a cliente.
 
 ### 6.3. Resultados de validação
@@ -455,11 +465,87 @@ Limites mínimos em `jest.config.js` para `src/**/resumo/**` e `src/app/index.ts
 | 4.4 RNF07 – precisão | | | | | |
 | 4.5 Geração de recorrências na abertura | 2026-11-24 | Android, Expo Go | dantescarpati | Passou | Resumo do mês corrente com R$ 100,10, R$ 40,20 e saldo R$ 59,90 logo após abrir, sem navegar entre meses; ocorrências do mês seguinte geradas, sem duplicidade ao reabrir. |
 
-## 7. UC12 — Gerenciar metas financeiras
+## 7. UC07 — Consultar evolução mensal
+
+Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
+O gráfico fica na tela do resumo (UC03) e compartilha com ele o mês selecionado.
+
+### 7.1. Requisitos e regras
+
+| Requisito | Fluxo do UC07 | Código | Teste automatizado | Teste manual |
+|---|---|---|---|---|
+| RF68 – gráfico de barras com receitas e despesas de cada mês | passos 3 e 4 | `src/features/evolucao/service.ts` (`calcularEvolucao`), `src/components/resumo/GraficoEvolucao.tsx`, `src/app/index.tsx` (`SecaoEvolucao`) | `tests/service/evolucao.test.ts` (bloco "RF68"), `tests/screens/Evolucao.test.tsx` ("passos 1 a 4…", "barras proporcionais…") | 5.1 (passo 2) |
+| RN12 – mês corrente como padrão; janela de 6 meses (o selecionado e os 5 anteriores); datas futuras no mês | passo 2, passo 4, FA04, FA05 | `service.ts` (`mesesDaJanela`, `ajustarFimDaJanela`, `MESES_NO_GRAFICO`), `src/app/index.tsx` (`fimJanela`, `escolherMes`) | `tests/service/evolucao.test.ts` (bloco "janela do gráfico", "com mais de 6 meses…", "FA04…"), `tests/screens/Evolucao.test.tsx` ("FA05…") | 5.1 (passos 2, 4 e 6) |
+| RN06 / RF61 – base local, sem conta e sem conexão | FA03 | `service.ts` (só SQLite; não importa o Firebase) | `tests/service/evolucao.test.ts` ("FA03…"; o Firebase é mockado para quebrar se for importado) | 5.2 |
+| RN07 – sem contadores persistidos; exclusão lógica | passos 3 e 6, FA06 | `service.ts` (`excluido_em IS NULL`, cálculo na hora) | `tests/service/evolucao.test.ts` ("ignora lançamentos excluídos", "FA06…", "pós-condição…") | 5.1 (passo 7) |
+| RNF07 – inteiros em centavos, 2 casas na exibição | passos 3 e 4 | `service.ts` (`SUM(valor_centavos) … GROUP BY` mês), `GraficoEvolucao.tsx` (`formatarBRL`) | `tests/service/evolucao.test.ts` ("RNF07…") | 5.4 |
+| RNF20 – telas adaptadas a tamanhos de celular | passo 4 | `GraficoEvolucao.tsx` (6 colunas com `flex: 1`) | – (layout não é renderizado no Jest) | 5.3 |
+| RNF38 – barras na paleta | passo 4 | `src/lib/theme.ts` (`graficoReceita`, `graficoDespesa`), `GraficoEvolucao.tsx` | – | 5.3 |
+| RF55 – atalho para o tutorial | FA02 | `src/app/index.tsx` (`EstadoVazio` do resumo; a seção do gráfico some) | `tests/screens/Evolucao.test.tsx` ("FA02…") | 5.1 (passo 1) |
+| RNF03 – Security Rules | – | não se aplica: o gráfico não lê nem grava na nuvem | – | – |
+
+### 7.2. Fluxos e exceções
+
+| Fluxo / exceção | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| Passos 1–4 – abrir e calcular a janela do mês corrente | `src/app/index.tsx`, `src/features/evolucao/useEvolucao.ts`, `service.ts` (numa única consulta SQL) | `tests/screens/Evolucao.test.tsx` ("passos 1 a 4…"), `tests/service/evolucao.test.ts` ("lê tudo numa única consulta…") | 5.1 (passo 2) |
+| Passos 5–6 – selecionar o mês pela barra ou pelo seletor (mês compartilhado com o UC03) | `GraficoEvolucao.tsx` (cada mês é um botão), `src/app/index.tsx` (`escolherMes`) | `tests/screens/Evolucao.test.tsx` ("passos 5 e 6…", "seletor dentro da janela…") | 5.1 (passo 3) |
+| FA01 – mês sem receitas ou sem despesas | `service.ts` (meses sem lançamento entram com zero), `GraficoEvolucao.tsx` (`altura`) | `tests/service/evolucao.test.ts` ("FA01…"), `tests/screens/Evolucao.test.tsx` ("FA01…") | 5.1 (passo 5) |
+| FA02 – sem nenhum lançamento | `service.ts` (`semLancamentos`), `src/app/index.tsx` (`SecaoEvolucao`) | `tests/service/evolucao.test.ts` ("FA02…"), `tests/screens/Evolucao.test.tsx` ("FA02…") | 5.1 (passo 1) |
+| FA03 – consulta offline | `service.ts` | `tests/service/evolucao.test.ts` ("FA03…") | 5.2 |
+| FA04 – mês futuro | `service.ts` | `tests/service/evolucao.test.ts` ("FA04…") | 5.1 (passo 6) |
+| FA05 – mês fora da janela | `service.ts` (`ajustarFimDaJanela`), `src/app/index.tsx` | `tests/service/evolucao.test.ts` ("FA05…"), `tests/screens/Evolucao.test.tsx` ("FA05…") | 5.1 (passo 4) |
+| FA06 – lançamento alterado ou excluído | `src/app/index.tsx` (`useFocusEffect`), `service.ts` | `tests/service/evolucao.test.ts` ("FA06…") | 5.1 (passo 7) |
+| Abertura: recálculo depois da preparação e da restauração | `src/lib/baseAtualizada.ts`, `useEvolucao.ts` | `tests/screens/Evolucao.test.tsx` ("recalcula quando a preparação…") | – |
+| EX01 – falha na leitura ou no cálculo | `service.ts` (`FalhaEvolucao`, `MSG_FALHA_EVOLUCAO`), `useEvolucao.ts`, `src/app/index.tsx` | `tests/service/evolucao.test.ts` (bloco "EX01"), `tests/screens/Evolucao.test.tsx` ("EX01…", "a falha da evolução não esconde o resumo…"), `tests/unit/useEvolucao.test.ts` | – |
+| Pós-condição – nenhum dado alterado | `service.ts` (somente leitura) | `tests/service/evolucao.test.ts` ("pós-condição…") | 5.1 (passo 8) |
+
+**Biblioteca de gráficos:** nenhuma. As barras são `View` do React Native, sem dependência nova (funciona no Expo Go),
+e cada mês é um botão com rótulo de acessibilidade que informa os valores.
+
+### 7.3. Resultados de validação
+
+#### 7.3.1. Automatizados (`npm test -- --ci --coverage`)
+
+| Data | Suítes | Testes | `features/evolucao` (statements / branches / funções / linhas) | Responsável |
+|---|---|---|---|---|
+| 2026-11-24 | 77 de 77 | 1358 de 1358 | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-26 (após integrar a `develop` com UC03, UC04, UC10 e UC16) | 106 de 106 | 1765 de 1765 | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-26 (revisão: séries e integração com UC09 e UC15) | 110 de 110 | 1815 de 1815 | 100% / 100% / 100% / 100% | dantescarpati |
+| 2026-11-26 (após integrar o UC05) | 111 de 111 | 1837 de 1837 | 100% / 100% / 100% / 100% | dantescarpati |
+
+Limites mínimos em `jest.config.js` para `src/**/evolucao/**` (e `src/**/resumo/**`, que inclui o gráfico): 90% statements, 70% branches, 85% funções, 90% linhas.
+
+#### 7.3.2. Manuais (`tests/MANUAL.md`, seção 5)
+
+| Roteiro | Data | Aparelho / versão | Executado por | Resultado | Observações |
+|---|---|---|---|---|---|
+| 5.1 Fluxo principal e alternativos | | | | | |
+| 5.2 Offline e sem conta | | | | | |
+| 5.3 RNF20 e RNF38 – tamanhos de tela e cores | | | | | |
+| 5.4 RNF07 – precisão | | | | | |
+
+## UC05 — Monitorar limites de gastos
+
+A [issue #32](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/32) e o [manual do UC05](MANUAL-UC05.md) registram o escopo entregue, a integração com UC09 e RF12 e os cenários de notificação em aparelho, incluindo offline. A cobertura automatizada da EX02 está em [alertas-uc05.test.ts](service/alertas-uc05.test.ts).
+
+## UC14 — Configurar notificações (D25)
+
+| Requisito / fluxo | Código | Teste automatizado | Teste manual |
+|---|---|---|---|
+| RF58, passos 1 e 2, D25 (estado inicial desligado) | `src/app/perfil.tsx`, `src/components/perfil/SecaoNotificacoes.tsx`, `src/features/notificacoes/padroes.ts` | `tests/screens/Perfil.test.tsx` (US1), `tests/features/notificacoes/preferencias.test.ts` | 1, 10 |
+| Passos 3 e 5 (grava antes de confirmar), FA01 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/preferencias.ts` | `tests/screens/Perfil.test.tsx` ("grava antes de ligar o interruptor") | 2, 3 |
+| Passo 4, FA06, FA07 (permissão do aparelho) | `src/features/notificacoes/permissao.ts` | `tests/features/notificacoes/permissao.test.ts`, `tests/screens/Perfil.test.tsx` (US2) | 4 a 7 |
+| FA05, RN06 (pendente de sincronização com conta) | `src/features/notificacoes/preferencias.ts`, `src/db/migrations.ts` (`migrar012`) | `tests/features/notificacoes/preferencias.test.ts`, `tests/db/migrations.test.ts` | 8 |
+| RNF03 (isolamento por dono), EX05 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
+| EX01, EX02 | `src/features/notificacoes/useNotificacoes.ts`, `src/features/notificacoes/mensagens.ts` | `tests/screens/Perfil.test.tsx` (US3) | — |
+| Contrato `isEnabled('limite' \| 'conquistas')` para UC05 e UC13 | `src/features/notificacoes/preferencias.ts` | `tests/features/notificacoes/preferencias.test.ts` | — |
+
+## 8. UC12 — Gerenciar metas financeiras
 
 Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Caminhos relativos a `mobile/`.
 
-### 7.1. Requisitos e regras
+### 8.1. Requisitos e regras
 
 | Requisito | Fluxo do UC12 | Código | Teste automatizado |
 |---|---|---|---|
@@ -468,7 +554,7 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 | RF14 – excluir meta | D | `service.ts` (`excluirMeta`, tombstone), `src/app/metas/[id]/index.tsx` | `tests/service/metas.test.ts` (bloco "excluirMeta"), `tests/screens/DetalheMeta.test.tsx` ("confirma a exclusão…") |
 | RF20 – listar e acompanhar | passos 2 e B | `useMetas.ts`, `progresso.ts`, `src/app/metas/index.tsx`, `src/app/metas/[id]/index.tsx` | `tests/screens/ListaMetas.test.tsx`, `tests/screens/DetalheMeta.test.tsx`, `tests/unit/metas.progresso.test.ts` |
 | RF36 – progresso percentual e restante | B | `progresso.ts` (`calcularProgresso`, `rotuloSituacaoProgresso`), `formato.ts` | `tests/unit/metas.progresso.test.ts`, `tests/screens/DetalheMeta.test.tsx` |
-| RN07 – sincronização e conflitos | A7, C6, D5, EX04 | `src/features/metas/merge.ts`, `sync.ts`, migração 011 | `tests/unit/metas.merge.test.ts`, `tests/service/metas.sync.test.ts` (blocos "decisão de conflito", "merge por campo entre dois dispositivos") |
+| RN07 – sincronização e conflitos | A7, C6, D5, EX04 | `src/features/metas/merge.ts`, `sync.ts`, migração 015 | `tests/unit/metas.merge.test.ts`, `tests/service/metas.sync.test.ts` (blocos "decisão de conflito", "merge por campo entre dois dispositivos") |
 | RN09 – valor alvo em centavos | A4, C4 | `validation.ts` (`validarDadosMeta`), `src/features/receitas/money.ts` | `tests/unit/metas.validation.test.ts`, `tests/service/metas.test.ts` |
 | RN10 – objetivo de 1 a 80 caracteres | A4, C4 | `validation.ts` (`contarCaracteres`) | `tests/unit/metas.validation.test.ts` ("conta caracteres por code point…"), `tests/db/metas.schema.test.ts` |
 | RN11 – falha sem alteração parcial; exclusão mantém lançamentos | A5/A6, C5, D4 | `service.ts` (`transacao`, `excluirMeta`) | `tests/service/metas.test.ts` ("falha de gravação…", "faz exclusão lógica…") |
@@ -477,7 +563,7 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 | RNF05 – falha não deixa estado parcial | EX02 | `service.ts` (transações exclusivas) | `tests/service/metas.test.ts` ("falha de gravação não deixa estado parcial", "falha de gravação mantém os dados anteriores", "falha de gravação não exclui parcialmente") |
 | RNF14 – mensagens de rejeição | EX01 | `validation.ts` (`MSG_META`) | `tests/unit/metas.validation.test.ts`, `tests/screens/MetaForm.test.tsx` |
 
-### 7.2. Fluxos e exceções
+### 8.2. Fluxos e exceções
 
 | Código | Condição de disparo | Mensagem exibida | Tela / serviço responsável | Teste automatizado | Status |
 |---|---|---|---|---|---|
@@ -491,9 +577,9 @@ Mesma cadeia: **requisito → fluxo → código → teste → resultado.** Camin
 
 Fluxos alternativos cobertos: FA01 (offline/pendente), FA02 ("Nenhuma meta"), FA03 (cancelamento), FA05 (investimento sem alerta), FA06 (restante zero), FA08 (prazo vencido). FA04 e FA07 dependem do recálculo real de UC05/UC09 e permanecem como integração parcial.
 
-### 7.3. RN07 — merge por campo
+### 8.3. RN07 — merge por campo
 
-A estratégia usa três metadados persistidos pela migração **011** (aditiva, após as migrações 008–010):
+A estratégia usa três metadados persistidos pela migração **015** (aditiva, depois da 013 e da 014):
 
 - `revisao`: relógio lógico local/remoto, incrementado a cada edição efetiva;
 - `campos_revisao`: JSON com a revisão lógica de cada campo alterado;
@@ -510,7 +596,7 @@ O merge (`src/features/metas/merge.ts`, `mergeMetaRemota`) segue esta ordem:
 
 Testes de convergência em `tests/service/metas.sync.test.ts`: dois bancos/dispositivos partindo da mesma versão, A e B alterando campos diferentes, com A sincronizando primeiro e depois com B; o mesmo campo em conflito; tombstone concorrente; timestamps iguais; edição durante a aplicação remota; ACK de versão ultrapassada; documento legado; falha de rede e nova tentativa. Testes puros complementares em `tests/unit/metas.merge.test.ts`. Migração e rollback em `tests/db/metas.migrations.test.ts`.
 
-### 7.4. Valor acumulado inicial
+### 8.4. Valor acumulado inicial
 
 | Entrada na criação | Coluna `valor_acumulado_centavos` | Data do informe | Evidência |
 |---|---|---|---|
@@ -520,7 +606,7 @@ Testes de convergência em `tests/service/metas.sync.test.ts`: dois bancos/dispo
 
 “Nulo quando omitido” descreve apenas a ausência de informe; zero explícito é um valor real e não é convertido em `NULL`.
 
-### 7.5. Resultados de validação
+### 8.5. Resultados de validação
 
 | Data | Escopo | Comando | Resultado |
 |---|---|---|---|
@@ -530,7 +616,7 @@ Testes de convergência em `tests/service/metas.sync.test.ts`: dois bancos/dispo
 | 2026-11-25 | Tipos e lint | `npm run typecheck`, `npm run lint` | Sem erros |
 | 2026-11-25 | Rules | `npm run test:rules` | **Não executado neste ambiente**: `firebase` não está instalado e não há Java para o emulador. Pendente de execução no CI/ambiente com Firebase CLI. |
 
-### 7.6. Pendências
+### 8.6. Pendências
 
 - **EX06**: falta a mensagem literal no app e um caminho de tela que a exiba; o isolamento por UID e as Rules já negam o acesso.
 - **UC05/UC09**: `notificarAlteracaoMeta` avisa consumidores, mas não há recálculo transacional real de indicadores/alertas. Não declarar integração concluída.

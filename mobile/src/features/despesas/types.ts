@@ -64,4 +64,5 @@ export type CampoFormDespesa =
 export type FiltroDespesa =
   | { modo: 'mes'; ano: number; mes: number }
   | { modo: 'data'; data: string }
-  | { modo: 'periodo'; de: string; ate: string };
+  | { modo: 'periodo'; de: string; ate: string }
+  | { modo: 'tudo' }; // todas as despesas, de qualquer data
