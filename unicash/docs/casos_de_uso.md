@@ -722,10 +722,11 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 ### Pós-condições
 
 - **Sucesso (visualizar):** nenhum dado é alterado; a tela apresenta os dados do próprio perfil.
-- **Sucesso (editar, A):** a nova senha, se houve, está gravada protegida (RNF01); o novo e-mail aguarda confirmação e o e-mail atual continua valendo até lá.
+- **Sucesso (alterar senha, A):** a nova senha é atualizada no serviço de autenticação e permanece protegida (RNF01), sem alterar o e-mail da conta.
+- **Sucesso (solicitar alteração de e-mail, A):** a ligação de confirmação é enviada ao novo e-mail. O e-mail atual permanece válido até a confirmação, sem alterar a senha da conta.
 - **Sucesso (confirmar novo e-mail, B):** o novo e-mail passa a ser o e-mail da conta.
 - **Sucesso (excluir, C):** a base local está apagada, a sessão está encerrada, a exclusão está registrada na trilha de auditoria (RNF16) e a remoção no servidor está solicitada ou pendente, dentro do prazo da RN04.
-- **Falha:** nenhum dado do perfil ou da conta é alterado (RN11, RNF05).
+- **Falha na edição:** quando uma operação falha sem ser concluída, os dados correspondentes permanecem inalterados. Alterações concluídas anteriormente em operações independentes são preservadas, conforme a proposta D26.
 
 ### Fluxo principal
 
@@ -735,13 +736,20 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 #### A - Editar perfil (RF04)
 
+
 1. O usuário aciona "Editar perfil".
-2. O sistema apresenta o formulário com o e-mail atual e um campo opcional para a nova senha.
-3. O usuário altera o e-mail, a senha ou ambos e solicita o salvamento.
-4. O sistema valida os dados no aparelho (RNF04): e-mail preenchido, em formato válido e ainda não utilizado em outra conta; se há nova senha, ela deve ter no mínimo 8 caracteres, com letra maiúscula, letra minúscula e ao menos um caractere especial (política de senha do UC10, fluxo A).
-5. Se a senha mudou, o sistema grava a nova senha protegida (RNF01).
-6. Se o e-mail mudou, o sistema envia a ligação de confirmação, válida por 5 minutos, para o novo e-mail e informa que o e-mail atual continua valendo até a confirmação (fluxo B).
-7. O sistema confirma a edição.
+2. O sistema apresenta duas operações independentes: "Alterar e-mail" e "Alterar senha".
+3. O usuário seleciona a operação desejada e informa o novo dado.
+4. O sistema valida os dados da operação selecionada (RNF04):
+   - Para alteração de e-mail, verifica o preenchimento, o formato válido e a disponibilidade do endereço.
+   - Para alteração de senha, verifica se a nova senha possui no mínimo 8 caracteres, com letra maiúscula, letra minúscula e ao menos um caractere especial, conforme a política do UC10.
+5. O sistema executa somente a operação selecionada:
+   - Para alteração de senha, atualiza a senha no serviço de autenticação (RNF01).
+   - Para alteração de e-mail, envia a ligação de confirmação, válida por 5 minutos, ao novo endereço (fluxo B).
+6. O sistema apresenta a mensagem correspondente ao resultado:
+   - Alteração de senha: "Senha alterada com sucesso."
+   - Solicitação de alteração de e-mail: "Confirmação enviada ao novo e-mail. Seu e-mail atual permanece válido até a confirmação."
+7. O sistema retorna à tela de perfil, permitindo que o usuário realize outra operação de forma independente.
 
 #### B - Confirmar novo e-mail (RF04)
 
@@ -764,9 +772,9 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 ### Fluxos alternativos
 
 - **FA01 - Exclusão sem conexão (C7):** a remoção no servidor fica pendente e é solicitada quando houver conexão, dentro do prazo da RN04 (RN06, RF62).
-- **FA02 - Nenhuma alteração (A3):** se o usuário salva sem mudar nenhum dado, o sistema não altera nada e volta ao perfil.
-- **FA03 - Cancelamento:** edição descartada ou exclusão não confirmada não alteram nada (RN11).
-- **FA04 - Troca de e-mail pendente (A6):** até o novo e-mail ser confirmado, a entrada e a recuperação de senha (UC10) continuam usando o e-mail atual.
+- **FA02 - Nenhuma alteração (A3):** se o usuário informa o mesmo dado já cadastrado, o sistema não realiza alterações e retorna à tela de perfil.
+- **FA03 - Cancelamento:** o cancelamento de uma operação de edição ou de uma exclusão ainda não confirmada não altera os dados correspondentes. Alterações concluídas anteriormente em operações independentes são preservadas (RN11).
+- **FA04 - Troca de e-mail pendente (A5):** até o novo e-mail ser confirmado, a entrada e a recuperação de senha (UC10) continuam usando o e-mail atual. A pendência de confirmação não impede uma operação independente de alteração de senha, desde que as condições de autenticação sejam atendidas.
 - **FA05 - Conta sem sessão ativa:** o sistema não exibe o perfil e leva o usuário ao UC10.
 - **FA06 - Reenvio da confirmação (B):** se o usuário não recebeu a ligação, aciona "Reenviar" e o sistema envia uma nova ligação ao novo e-mail.
 - **FA07 - Visualização sem conexão (passo 2 do fluxo principal):** o sistema exibe os dados do perfil guardados no aparelho (RNF34).
@@ -775,13 +783,17 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
-- **EX01 - Dados inválidos (A4):** o sistema não altera nada e mostra o motivo ao lado de cada campo inválido (RNF04, RNF14). **Retorno:** ao passo 3 do fluxo A, com os dados digitados preservados, exceto a senha. Mensagens:
+- **EX01 - Dados inválidos (A4):** o sistema não executa a operação selecionada e mostra o motivo ao lado do campo inválido (RNF04, RNF14). Alterações concluídas anteriormente são preservadas. **Retorno:** ao passo 3 do fluxo A, com o dado digitado preservado, exceto a senha. Mensagens:
   - e-mail não informado: "Informe o e-mail."
   - e-mail em formato inválido: "Informe um e-mail válido."
   - e-mail já utilizado em outra conta: "Este e-mail já está em uso."
   - senha fora da política: "A senha deve ter no mínimo 8 caracteres, com letra maiúscula, letra minúscula e um caractere especial."
-- **EX02 - Falha na gravação (A5 e A6):** o sistema não confirma e informa: "Não foi possível salvar. Nenhuma alteração foi feita. Tente novamente." (RNF05). **Retorno:** ao passo 3 do fluxo A, com os dados preservados, exceto a senha.
-- **EX03 - Sem conexão na edição (A5, A6 e B3):** o sistema não executa a operação e informa: "Sem conexão. Conecte-se à internet para alterar o perfil." **Retorno:** ao passo 2 do fluxo principal.
+- **EX02 - Falha na edição (A5):** quando o serviço confirma que a operação não foi concluída, o sistema preserva os dados anteriores correspondentes à operação selecionada. Alterações concluídas em outras operações não são revertidas. O sistema apresenta a mensagem correspondente:
+  - Alteração de senha: "Não foi possível alterar a senha. Tente novamente."
+  - Alteração de e-mail: "Não foi possível enviar a confirmação ao novo e-mail. Tente novamente."
+  - Caso não seja possível determinar o resultado da operação, o sistema informa: "Não foi possível confirmar o resultado da alteração. Verifique os dados da conta antes de tentar novamente."
+  - **Retorno:** ao passo 3 do fluxo A, com o dado digitado preservado, exceto a senha.
+- **EX03 - Sem conexão na edição (A5 e B3):** se não houver conexão antes do início da operação, o sistema não a executa e informa: "Sem conexão. Conecte-se à internet para alterar o perfil." Alterações concluídas anteriormente são preservadas. Se a conexão for interrompida durante a execução e o resultado for desconhecido, aplica-se a EX02. **Retorno:** ao passo 2 do fluxo principal.
 - **EX04 - Ligação de confirmação inválida (B1):** a ligação, válida por 5 minutos, expirou ou já foi usada. O sistema informa: "Esta ligação expirou ou já foi usada. Solicite uma nova." **Retorno:** ao passo 2 do fluxo principal, com a opção de reenviar (FA06).
 - **EX05 - Novo e-mail ainda não confirmado (B3):** o sistema informa: "Este e-mail ainda não foi confirmado. Abra a ligação enviada ao novo e-mail ou peça um reenvio." **Retorno:** ao passo 1 do fluxo B.
 - **EX06 - Único Administrador de grupo (C2):** o sistema bloqueia a exclusão e informa: "Você é o único Administrador de um grupo. Indique outro Administrador antes de excluir a conta." (RN04, RN01). **Retorno:** ao passo 2 do fluxo principal. Aplica-se quando houver grupos, que estão fora do MVP (D09).
@@ -789,6 +801,22 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **EX08 - Falha na remoção no servidor (C7):** a base local já foi apagada. A remoção permanece pendente e é solicitada de novo quando houver conexão, dentro do prazo da RN04. **Retorno:** o fluxo segue no passo C8.
 - **EX09 - Acesso a perfil de outro usuário (passo 2 do fluxo principal, A1, C1):** o sistema nega o acesso (RNF03) e informa: "Você não tem acesso a este perfil." **Retorno:** ao passo 2 do fluxo principal, com o perfil do próprio usuário.
 - **EX10 - Falha na leitura local (passo 2 do fluxo principal):** o sistema informa: "Não foi possível carregar o perfil. Tente novamente." e oferece a ação "Tentar novamente". **Retorno:** ao passo 1 do fluxo principal, ao tentar novamente.
+
+### Critérios de aceitação e cenários de teste da edição do perfil
+
+Os cenários abaixo especificam os resultados esperados para o RF04.
+
+| Cenário | Resultado esperado |
+| --- | --- |
+| Alteração de senha válida | A senha é atualizada e o e-mail permanece inalterado. |
+| Solicitação de alteração de e-mail | A confirmação é enviada e a senha permanece inalterada. |
+| Confirmação do novo e-mail | O novo endereço passa a ser utilizado na conta. |
+| Senha alterada e posterior falha no envio da confirmação de e-mail | A nova senha é preservada e o e-mail atual permanece válido. |
+| Solicitação de alteração de e-mail seguida de falha na alteração da senha | A solicitação de confirmação é preservada e a senha anterior permanece válida. |
+| Dados inválidos | A operação selecionada não é executada e o motivo é apresentado. |
+| Operação iniciada sem conexão | Nenhuma nova alteração é realizada. |
+| Interrupção com resultado desconhecido | O sistema informa que não foi possível confirmar o resultado da operação. |
+| Cancelamento antes da execução | Nenhuma nova alteração é realizada e as operações anteriores são preservadas. |
 
 ### Pontos para validação
 
@@ -798,6 +826,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 - **Remoção no servidor sem Cloud Functions (RN04):** o aplicativo não tem servidor próprio; a remoção da conta e dos dados em até 30 dias depende de o próprio aplicativo solicitá-la, o que exige conexão e sessão. O texto trata a remoção como pendente quando não há conexão, mas falta definir como ela continua depois que a base local e a sessão são apagadas.
 - **Confirmação da senha atual:** o serviço de autenticação pode exigir um acesso recente para trocar a senha ou o e-mail ou para excluir a conta; o RF04 e o RF05 não dizem como o aplicativo deve pedir essa confirmação.
 - **Administrador único (RN04):** só se aplica quando os grupos forem implementados (D09).
+- **Independência das operações de edição (issue #110):** a revisão propõe separar a alteração de e-mail da alteração de senha, evitando inconsistências em caso de falhas parciais. A solução deve ser alinhada com a equipe responsável pela implementação do UC11. Os cenários de teste documentados representam resultados esperados e ainda precisam ser verificados na implementação.
 
 ### Dependências planejadas (DoR)
 
@@ -878,7 +907,7 @@ Cada exceção indica o passo em que ocorre e o ponto de retorno.
 
 - **FA01 - Operação offline:** o sistema grava localmente, marca a alteração como pendente de sincronização e sincroniza quando a conexão voltar (RN06, RF62).
 - **FA02 - Nenhuma meta:** o sistema exibe "Nenhuma meta" e oferece a ação "Nova meta".
-- **FA03 - Cancelamento:** se o usuário desiste do registro ou da edição ou não confirma a exclusão, nada é alterado.
+- **FA03 - Cancelamento:** o cancelamento de uma operação de edição ou de uma exclusão ainda não confirmada não altera os dados correspondentes. Alterações concluídas anteriormente em operações independentes são preservadas (RN11).
 - **FA04 - Meta de gasto:** o valor alvo é o limite usado nos alertas de aproximação (80%) e de ultrapassagem (100%), emitidos uma vez por mês (RN03, UC05).
 - **FA05 - Meta de investimento:** não gera alertas de limite (RN03 se aplica só às metas de gasto).
 - **FA06 - Valor realizado igual ou acima do valor alvo (B2):** o valor restante é zero (ver pontos para validação).

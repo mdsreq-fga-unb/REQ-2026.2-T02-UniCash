@@ -32,6 +32,8 @@ Esta página reúne as decisões que mudaram o escopo, os requisitos, o processo
 | <span id="d22"></span>[D22](#d22) | 10/11/2026 | Validado com a cliente das regras de limites, retenção, uso offline e gamificação | Documento validado com Leinad e Maria | Vigente, com RF57 pendente |
 | <span id="d23"></span>[D23](#d23) | 10/11/2026 | Retirada dos fluxos de importação, extração de comprovantes, anexos e backup por arquivo do escopo atual | Atualização do catálogo de requisitos pela equipe | Vigente |
 | [D24](#d24) | 20/11/2026 | Faixa percentual de 1% a 100% e proteção das categorias padrão | Issues #71 e #72 | Vigente |
+| [D25](#d25) | 26/11/2026 | Preferências de notificação alinhadas ao protótipo do Perfil | Decisão da equipe | Proposta |
+| [D26](#d26) | 27/11/2026 | Independência das operações de edição de e-mail e senha | [Issue #110](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/110) | Proposta |
 
 A situação **Proposta** indica uma decisão da equipe que ainda depende de confirmação da cliente.
 
@@ -309,12 +311,25 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | **Requisitos afetados** | RF37, RF38, RF46, RF58; RN03 (sem alteração de conteúdo); UC05, UC13 e UC14. |
 | **Comunicação** | Registrada na documentação pela equipe. Pendente de validação com a cliente. |
 
+### D26 — Independência das operações de edição de e-mail e senha { #d26 }
+
+| Campo | Registro |
+| :--- | :--- |
+| **Data** | 27/11/2026 |
+| **Origem** | [Issue #110](https://github.com/mdsreq-fga-unb/REQ-2026.2-T02-UniCash/issues/110). |
+| **Decisão** | Propõe-se tratar a alteração de e-mail e a alteração de senha como operações independentes. A falha de uma operação não deve reverter outra operação concluída anteriormente. O e-mail atual permanece válido até a confirmação do novo endereço. |
+| **Motivo** | Eliminar a inconsistência entre o fluxo de edição do UC11 e a garantia de preservação dos dados em caso de falhas parciais. |
+| **Alternativas consideradas** | Manter uma operação conjunta de edição, exigindo mecanismos adicionais de consistência e tratamento de falhas parciais. |
+| **Requisitos afetados** | RF04 e RNF14; UC11. |
+| **Comunicação** | Proposta registrada na documentação. Pendente de alinhamento com a equipe responsável pelo UC11 e de validação com a cliente. |
+
 ## Pendências do registro
 
 - Registrar o motivo da escolha da paleta na [D17](#d17);
 - Comunicar à cliente as decisões de arquitetura [D18](#d18) e [D19](#d19) e registrar a comunicação em ata;
 - Validar com a cliente as decisões propostas [D15](#d15), [D16](#d16) e [D21](#d21);
 - Validar com a cliente a [D25](#d25), que alinha o RF58 ao protótipo.
+- Validar a proposta [D26](#d26) com a equipe responsável pelo UC11 e com a cliente.
 
 ## Histórico de versões
 
@@ -326,3 +341,4 @@ A situação **Proposta** indica uma decisão da equipe que ainda depende de con
 | 1.3 | 10/11/2026 | Registra a decisão D23 sobre a retirada dos fluxos de importação, comprovantes e backup por arquivo | Equipe UniCash |
 | 1.4 | 20/11/2026 | Registra a decisão D24 sobre a faixa percentual definitiva e a proteção das categorias padrão | Equipe UniCash |
 | 1.5 | 26/11/2026 | Registra a decisão D25 sobre as preferências de notificação alinhadas ao protótipo | Bruno Duarte |
+| 1.6 | 27/11/2026 | Registra a proposta D26 sobre operações independentes de edição do perfil (issue #110) | Evellyn Rocha |
