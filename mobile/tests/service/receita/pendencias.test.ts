@@ -1,5 +1,6 @@
 import { getDb } from '@/db/database';
 import { criarCategoria, excluirCategoria } from '@/features/categorias/service';
+import { criarMeta, excluirMeta } from '@/features/metas/service';
 import { excluirReceita, registrarReceita } from '@/features/receitas/service';
 import { contarPendentes } from '@/features/receitas/pendencias';
 import { fixarHoje, restaurarTempo } from '../../helpers/tempo';
@@ -68,6 +69,22 @@ describe('Contador de pendências de sincronização', () => {
 
     // O tombstone da categoria continua pendente até a confirmação remota.
     expect(await contarPendentes()).toBe(2);
+  });
+
+  it('conta metas pendentes, inclusive tombstones', async () => {
+    const id = await criarMeta({
+      objetivo: 'Viagem',
+      tipo: 'investimento',
+      valorAlvoCentavos: 100_000,
+      prazo: '2027-12-31',
+    });
+    expect(await contarPendentes()).toBe(1);
+
+    await excluirMeta(id);
+    expect(await contarPendentes()).toBe(1);
+
+    banco.sqlite.prepare("UPDATE metas SET sync_status = 'sincronizado'").run();
+    expect(await contarPendentes()).toBe(0);
   });
 
   it('resultado vazio da consulta é tratado como zero', async () => {

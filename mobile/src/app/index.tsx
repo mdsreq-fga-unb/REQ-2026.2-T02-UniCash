@@ -6,7 +6,8 @@ import { cores, raio } from '@/lib/theme';
 import { mesAnterior, nomeMes, primeiroDiaDoMes, proximoMes } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { MSG_FALHA_CALCULO, type ResumoMensal } from '@/features/resumo/service';
-import { percentualMeta, rotuloDia } from '@/features/resumo/format';
+import { percentualMetaExibido, rotuloDia } from '@/features/resumo/format';
+import { formatarPercentual } from '@/features/metas/formato';
 import { useResumo } from '@/features/resumo/useResumo';
 import { ajustarFimDaJanela, MSG_FALHA_EVOLUCAO, type EvolucaoMensal } from '@/features/evolucao/service';
 import { useEvolucao } from '@/features/evolucao/useEvolucao';
@@ -208,19 +209,40 @@ function Conteudo({ resumo }: { resumo: ResumoMensal }) {
           <Text style={estilos.textoSuave}>Nenhuma meta no período.</Text>
         ) : (
           resumo.metas.map((m) => {
-            const pct = percentualMeta(m.realizadoCentavos, m.alvoCentavos);
+            const realizado = m.realizadoCentavos;
+            const indisponivel = realizado === null;
+            const futura = m.situacaoVigencia === 'futura';
+            const pct = realizado === null ? 0 : percentualMetaExibido(realizado, m.alvoCentavos);
+            const pctBarra = Math.min(100, pct);
             return (
-              <View key={m.id} style={estilos.meta} accessibilityLabel={`${m.titulo}: ${pct}%`}>
+              <View
+                key={m.id}
+                style={estilos.meta}
+                accessibilityLabel={`${m.titulo}: ${indisponivel ? 'indisponível' : formatarPercentual(pct)}`}
+              >
                 <View style={estilos.metaTopo}>
                   <Text style={estilos.metaTitulo}>{m.titulo}</Text>
-                  <Text style={estilos.textoSuave}>{pct}%</Text>
-                </View>
-                <View style={estilos.barra}>
-                  <View style={[estilos.barraCheia, { width: `${pct}%` }]} />
+                  {realizado === null ? null : (
+                    <Text style={estilos.textoSuave}>{formatarPercentual(pct)}</Text>
+                  )}
                 </View>
                 <Text style={estilos.textoSuave}>
-                  {formatarBRL(m.realizadoCentavos)} de {formatarBRL(m.alvoCentavos)}
+                  {m.tipo === 'gasto' ? 'Consumo mensal do limite' : 'Investimento acumulado'}
                 </Text>
+                {realizado === null ? (
+                  <Text style={estilos.textoSuave}>
+                    {futura ? 'Ainda não iniciada.' : 'Progresso indisponível.'}
+                  </Text>
+                ) : (
+                  <>
+                    <View style={estilos.barra}>
+                      <View style={[estilos.barraCheia, { width: `${pctBarra}%` }]} />
+                    </View>
+                    <Text style={estilos.textoSuave}>
+                      {formatarBRL(realizado)} de {formatarBRL(m.alvoCentavos)}
+                    </Text>
+                  </>
+                )}
               </View>
             );
           })
@@ -338,6 +360,9 @@ function Atalhos({ ano, mes, mostrarNovos }: { ano: number; mes: number; mostrar
         </Pressable>
         <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Categorias</Text>
+        </Pressable>
+        <Pressable onPress={() => router.push('/metas')} style={estilos.botao} accessibilityRole="button">
+          <Text style={estilos.botaoTexto}>Metas</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/sincronizacao')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Sincronização</Text>

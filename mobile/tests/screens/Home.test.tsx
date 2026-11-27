@@ -55,6 +55,15 @@ describe('Home (navegação da UC06)', () => {
     expect(router.push).toHaveBeenCalledWith('/categorias');
   });
 
+  it('oferece acesso a Metas e navega para /metas', async () => {
+    await salvarContinuidadeSemConta();
+    await render(<Home />);
+
+    expect(await screen.findByRole('button', { name: 'Metas' })).toBeTruthy();
+    await fireEvent.press(screen.getByRole('button', { name: 'Metas' }));
+    expect(router.push).toHaveBeenCalledWith('/metas');
+  });
+
   it('oferece acesso ao Perfil e navega para /perfil (UC14)', async () => {
     await salvarContinuidadeSemConta();
     await render(<Home />);

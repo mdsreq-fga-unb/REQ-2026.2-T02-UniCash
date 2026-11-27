@@ -107,6 +107,8 @@ beforeEach(async () => {
 });
 
 const db = (uid: string) => env.authenticatedContext(uid, { email_verified: true }).firestore();
+const dbNaoConfirmado = (uid: string) =>
+  env.authenticatedContext(uid, { email_verified: false }).firestore();
 const anonimo = () => env.unauthenticatedContext().firestore();
 const rec = (d: any, uid = 'u1', id = 'r1') => doc(d, 'usuarios', uid, 'receitas', id);
 const desp = (d: any, uid = 'u1', id = 'd1') => doc(d, 'usuarios', uid, 'despesas', id);
@@ -687,6 +689,229 @@ describe('categorias: identidade, tombstones e isolamento (UC06)', () => {
     const ref = cat(db('u1'));
     await assertSucceeds(setDoc(ref, categoria()));
     await assertFails(deleteDoc(ref));
+  });
+});
+
+const meta = (extra: Record<string, unknown> = {}) => ({
+  objetivo: 'Viagem',
+  tipo: 'investimento',
+  valor_alvo_centavos: 100_000,
+  prazo: '2027-12-31',
+  criado_em: '2026-10-16T12:00:00.000Z',
+  atualizado_em: '2026-10-16T12:00:00.000Z',
+  ...extra,
+});
+
+const metaRef = (d: any, uid = 'u1', id = 'm1') =>
+  doc(d, 'usuarios', uid, 'metas', id);
+
+describe('metas: acesso e validação (UC12, RNF03)', () => {
+  it('o dono cria, lê e atualiza a própria meta; exclusão física é negada', async () => {
+    const ref = metaRef(db('u1'));
+    await assertSucceeds(setDoc(ref, meta()));
+    await assertSucceeds(getDoc(ref));
+    await assertSucceeds(setDoc(ref, meta({ objetivo: 'Viagem longa' })));
+    await assertFails(deleteDoc(ref));
+  });
+
+  it('outro usuário e anônimo não acessam metas', async () => {
+    await assertSucceeds(setDoc(metaRef(db('u1')), meta()));
+    await assertFails(getDoc(metaRef(db('u2'))));
+    await assertFails(setDoc(metaRef(db('u2')), meta({ objetivo: 'invasor' })));
+    await assertFails(getDoc(metaRef(anonimo())));
+    await assertFails(setDoc(metaRef(anonimo()), meta()));
+  });
+
+  it('e-mail não confirmado não lê nem grava metas (UC10)', async () => {
+    await assertSucceeds(setDoc(metaRef(db('u1')), meta()));
+    await assertFails(getDoc(metaRef(dbNaoConfirmado('u1'))));
+    await assertFails(
+      setDoc(metaRef(dbNaoConfirmado('u1'), 'u1', 'm2'), meta({ objetivo: 'Pendente' })),
+    );
+  });
+
+  it('aceita os valores-limite de 1 e 99.999.999.999 centavos', async () => {
+    await assertSucceeds(setDoc(metaRef(db('u1'), 'u1', 'min'), meta({ valor_alvo_centavos: 1 })));
+    await assertSucceeds(
+      setDoc(metaRef(db('u1'), 'u1', 'max'), meta({ valor_alvo_centavos: 99_999_999_999 })),
+    );
+  });
+
+  it.each([
+    ['objetivo', ''],
+    ['objetivo', 'a'.repeat(81)],
+    ['tipo', 'outro'],
+    ['valor_alvo_centavos', 0],
+    ['valor_alvo_centavos', -1],
+    ['valor_alvo_centavos', 1.5],
+    ['valor_alvo_centavos', '100'],
+    ['valor_alvo_centavos', 100_000_000_000],
+    ['prazo', '31/12/2027'],
+    ['criado_em', ''],
+    ['atualizado_em', ''],
+  ])('rejeita %s inválido', async (campo, valor) => {
+    await assertFails(setDoc(metaRef(db('u1')), meta({ [campo]: valor })));
+  });
+
+  it.each(['objetivo', 'tipo', 'valor_alvo_centavos', 'prazo', 'criado_em', 'atualizado_em'])(
+    'rejeita campo obrigatório ausente: %s',
+    async (campo) => {
+      const { [campo]: _omitido, ...resto } = meta() as Record<string, unknown>;
+      await assertFails(setDoc(metaRef(db('u1')), resto));
+    },
+  );
+
+  it('rejeita campo desconhecido e tombstone vazio', async () => {
+    await assertFails(setDoc(metaRef(db('u1')), meta({ extra: true })));
+    await assertFails(setDoc(metaRef(db('u1')), meta({ excluido_em: '' })));
+  });
+
+  it('permite tombstone direto e impede ressurreição', async () => {
+    const ref = metaRef(db('u1'));
+    const excluido_em = '2026-11-01T00:00:00.000Z';
+    await assertSucceeds(setDoc(ref, meta({ excluido_em })));
+    await assertFails(setDoc(ref, meta()));
+    await assertFails(setDoc(ref, meta({ excluido_em, objetivo: 'Outra' })));
+  });
+
+  it('não permite alterar criado_em', async () => {
+    const ref = metaRef(db('u1'));
+    await assertSucceeds(setDoc(ref, meta()));
+    await assertFails(setDoc(ref, meta({ criado_em: '2027-01-01T00:00:00.000Z' })));
+    await assertSucceeds(setDoc(ref, meta({ objetivo: 'Viagem 2' })));
+  });
+});
+
+describe('metas: campos da issue #106 (UC12)', () => {
+  it('aceita legado sem campos novos e aceita atualização para a forma nova', async () => {
+    const ref = metaRef(db('u1'));
+    await assertSucceeds(setDoc(ref, meta()));
+    await assertSucceeds(
+      setDoc(
+        ref,
+        meta({
+          inicio: '2026-01-01',
+          valor_acumulado_centavos: 0,
+          valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z',
+        }),
+      ),
+    );
+  });
+
+  it('aceita gasto com categoria e investimento com valor declarado', async () => {
+    await assertSucceeds(
+      setDoc(
+        metaRef(db('u1'), 'u1', 'gasto'),
+        meta({ tipo: 'gasto', categoria_id: 'categoria-1' }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(
+        metaRef(db('u1'), 'u1', 'investimento'),
+        meta({
+          tipo: 'investimento',
+          valor_acumulado_centavos: 250_000,
+          valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z',
+        }),
+      ),
+    );
+  });
+
+  it.each([
+    ['investimento com categoria', { categoria_id: 'c1' }],
+    ['gasto com acumulado', { tipo: 'gasto', categoria_id: 'c1', valor_acumulado_centavos: 0 }],
+    ['acumulado sem data', { valor_acumulado_centavos: 0 }],
+    ['data sem acumulado', { valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z' }],
+    ['acumulado negativo', { valor_acumulado_centavos: -1, valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z' }],
+    ['acumulado fracionado', { valor_acumulado_centavos: 1.5, valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z' }],
+    ['acumulado acima do teto', { valor_acumulado_centavos: 100_000_000_000, valor_acumulado_atualizado_em: '2026-11-01T00:00:00.000Z' }],
+    ['categoria vazia', { tipo: 'gasto', categoria_id: '' }],
+    ['início em formato inválido', { inicio: '31/12/2027' }],
+    ['início depois do prazo', { inicio: '2028-01-01' }],
+  ])('rejeita %s', async (_nome, extra) => {
+    await assertFails(setDoc(metaRef(db('u1')), meta(extra)));
+  });
+
+  it('aceita tombstone com os novos campos', async () => {
+    await assertSucceeds(
+      setDoc(
+        metaRef(db('u1')),
+        meta({
+          excluido_em: '2026-11-01T00:00:00.000Z',
+          inicio: '2026-01-01',
+          categoria_id: 'c1',
+          tipo: 'gasto',
+        }),
+      ),
+    );
+  });
+});
+
+describe('metas: metadados de merge por campo (RN07)', () => {
+  it('aceita documento com revisão e mapa de campos válidos', async () => {
+    const ref = metaRef(db('u1'), 'u1', 'merge-valido');
+    await assertSucceeds(
+      setDoc(
+        ref,
+        meta({
+          revisao: 3,
+          campos_revisao: {
+            objetivo: 3,
+            valor_acumulado: 2,
+          },
+        }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(ref, meta({ revisao: 4, campos_revisao: { objetivo: 4, prazo: 3 } })),
+    );
+  });
+
+  it('aceita mapa vazio, nulo e documento legado sem metadados', async () => {
+    await assertSucceeds(
+      setDoc(metaRef(db('u1'), 'u1', 'merge-vazio'), meta({ revisao: 0, campos_revisao: {} })),
+    );
+    await assertSucceeds(
+      setDoc(metaRef(db('u1'), 'u1', 'merge-nulo'), meta({ revisao: 1, campos_revisao: null })),
+    );
+    await assertSucceeds(setDoc(metaRef(db('u1'), 'u1', 'merge-legado'), meta()));
+  });
+
+  it.each([
+    ['revisão negativa', { revisao: -1 }],
+    ['revisão fracionada', { revisao: 1.5 }],
+    ['revisão textual', { revisao: '1' }],
+    ['mapa textual', { campos_revisao: '{"objetivo":1}' }],
+    ['mapa em lista', { campos_revisao: [{ objetivo: 1 }] }],
+    ['campo desconhecido', { campos_revisao: { extra: 1 } }],
+    ['revisão de campo negativa', { campos_revisao: { objetivo: -1 } }],
+    ['revisão de campo fracionada', { campos_revisao: { objetivo: 1.5 } }],
+    ['revisão de campo textual', { campos_revisao: { objetivo: '1' } }],
+    ['revisão de tipo', { campos_revisao: { tipo: 1 } }],
+    ['revisão de criado_em', { campos_revisao: { criado_em: 1 } }],
+    ['revisão de excluido_em', { campos_revisao: { excluido_em: 1 } }],
+  ])('rejeita %s', async (_nome, extra) => {
+    await assertFails(setDoc(metaRef(db('u1')), meta(extra)));
+  });
+
+  it('aceita metadados em tombstone e os preserva na leitura', async () => {
+    const ref = metaRef(db('u1'), 'u1', 'merge-tombstone');
+    await assertSucceeds(
+      setDoc(
+        ref,
+        meta({
+          excluido_em: '2026-11-01T00:00:00.000Z',
+          revisao: 2,
+          campos_revisao: { objetivo: 2 },
+        }),
+      ),
+    );
+    const snapshot = await assertSucceeds(getDoc(ref));
+    expect(snapshot.exists()).toBe(true);
+    expect(snapshot.data()).toMatchObject({
+      revisao: 2,
+      campos_revisao: { objetivo: 2 },
+    });
   });
 });
 

@@ -6,8 +6,8 @@ import {
   EstruturaLegadaInesperada,
   ESTRUTURAS_ESPERADAS,
   FalhaMigracao,
-  VersaoBancoDesconhecida,
   VERSAO_ESQUEMA,
+  VersaoBancoDesconhecida,
   garantirColunasRecorrencias,
   garantirTabelaDespesas,
   migrarSeNecessario,
@@ -2382,7 +2382,7 @@ describe('Migração 012 (UC14, preferências de notificação)', () => {
   it('instalação nova já cria a tabela, junto com as da UC05', async () => {
     const sqlite = novoSqlite();
     await migrarSeNecessario(criarAdaptador(sqlite));
-    expect(versao(sqlite)).toBe(12);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(temTabela(sqlite, 'preferencias_notificacao')).toBe(true);
     expect(temTabela(sqlite, 'alertas')).toBe(true);
   });
@@ -2396,7 +2396,7 @@ describe('Migração 012 (UC14, preferências de notificação)', () => {
     await migrarSeNecessario(criarAdaptador(sqlite));
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(12);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(temTabela(sqlite, 'preferencias_notificacao')).toBe(true);
     expect(temTabela(sqlite, 'alertas')).toBe(true);
     expect(sqlite.prepare('SELECT tipo, ativo FROM preferencias_alertas_por_tipo').all()).toEqual([

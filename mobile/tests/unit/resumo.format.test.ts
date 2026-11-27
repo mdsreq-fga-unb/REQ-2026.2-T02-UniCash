@@ -1,4 +1,9 @@
-import { formatarSaldo, percentualMeta, rotuloDia } from '@/features/resumo/format';
+import {
+  formatarSaldo,
+  percentualMeta,
+  percentualMetaExibido,
+  rotuloDia,
+} from '@/features/resumo/format';
 
 describe('formatação do resumo', () => {
   it('saldo com sinal e 2 casas (RNF07)', () => {
@@ -19,5 +24,12 @@ describe('formatação do resumo', () => {
     expect(percentualMeta(1, 3)).toBe(33);
     expect(percentualMeta(200, 100)).toBe(100);
     expect(percentualMeta(10, 0)).toBe(0);
+  });
+
+  it('percentual exibido tem uma casa e pode ultrapassar 100', () => {
+    expect(percentualMetaExibido(25000, 100000)).toBe(25.0);
+    expect(percentualMetaExibido(99950, 100000)).toBe(100.0);
+    expect(percentualMetaExibido(125000, 100000)).toBe(125.0);
+    expect(percentualMetaExibido(10, 0)).toBe(0);
   });
 });

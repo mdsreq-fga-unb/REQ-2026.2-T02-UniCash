@@ -1,6 +1,22 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
-import { primeiroDiaDoMes, proximoMes } from '@/features/receitas/dates';
+import {
+  adicionarDias,
+  hojeISO,
+  primeiroDiaDoMes,
+  proximoMes,
+} from '@/features/receitas/dates';
+import type {
+  MetaTipo,
+  SituacaoPrazo,
+  SituacaoProgresso,
+  SituacaoVigencia,
+} from '@/features/metas/types';
+import {
+  situacaoDoPrazo,
+  situacaoDoProgresso,
+} from '@/features/metas/progresso';
+import { periodoDoMes, situacaoDaVigencia } from '@/features/metas/periodo';
 
 /**
  * Cálculos do resumo financeiro (UC03, RF11, RF40).
@@ -20,12 +36,23 @@ export interface TotalDoDia {
   totalCentavos: number;
 }
 
-/** Progresso de uma meta no período (RF36/RF40). Metas ainda não existem na base (RF12). */
+/**
+ * Progresso de uma meta no resumo (RF36/RF40).
+ *
+ * `gasto` representa consumo mensal do limite, nunca conquista. `investimento`
+ * representa o valor acumulado declarado e só aparece no mês corrente, pois
+ * não há histórico mensal nem snapshots nesta versão.
+ */
 export interface ProgressoMeta {
   id: string;
   titulo: string;
+  tipo: MetaTipo;
   alvoCentavos: number;
-  realizadoCentavos: number;
+  /** Nulo quando o cálculo está indisponível; nunca zero artificial. */
+  realizadoCentavos: number | null;
+  situacaoProgresso: SituacaoProgresso;
+  situacaoPrazo: SituacaoPrazo;
+  situacaoVigencia: SituacaoVigencia;
 }
 
 export interface ResumoMensal {
@@ -80,9 +107,119 @@ async function receitasPorDiaNoIntervalo(db: SQLiteDatabase, inicio: string, fim
   return linhas.map((l) => ({ data: l.data, totalCentavos: l.total }));
 }
 
-/** Placeholder até existir a tabela de metas (RF12). */
-async function metasDoPeriodo(_db: SQLiteDatabase, _inicio: string, _fim: string): Promise<ProgressoMeta[]> {
-  return [];
+interface MetaResumo {
+  id: string;
+  objetivo: string;
+  tipo: MetaTipo;
+  valor_alvo_centavos: number;
+  prazo: string;
+  inicio: string | null;
+  categoria_id: string | null;
+  valor_acumulado_centavos: number | null;
+}
+
+async function metasDoPeriodo(
+  db: SQLiteDatabase,
+  inicio: string,
+  fim: string,
+): Promise<ProgressoMeta[]> {
+  const ultimoDia = adicionarDias(fim, -1);
+  const ano = Number(inicio.slice(0, 4));
+  const mes = Number(inicio.slice(5, 7));
+  const hoje = hojeISO();
+  const mesCorrente = inicio.slice(0, 7) === hoje.slice(0, 7);
+
+  const metas = await db.getAllAsync<MetaResumo>(
+    `SELECT id, objetivo, tipo, valor_alvo_centavos, prazo, inicio,
+            categoria_id, valor_acumulado_centavos
+       FROM metas
+      WHERE excluido_em IS NULL
+        AND (
+          (tipo = 'gasto' AND inicio IS NOT NULL AND inicio <= ? AND prazo >= ?)
+          OR (tipo = 'investimento' AND ? = 1)
+        )
+      ORDER BY prazo ASC, criado_em ASC, id ASC`,
+    [ultimoDia, inicio, mesCorrente ? 1 : 0],
+  );
+
+  const resultado: ProgressoMeta[] = [];
+
+  for (const meta of metas) {
+    const situacaoPrazo = situacaoDoPrazo(meta.prazo, hoje);
+    const situacaoVigencia = situacaoDaVigencia(meta.inicio, meta.prazo, hoje);
+    const futura = situacaoVigencia === 'futura';
+
+    if (meta.tipo === 'investimento') {
+      const realizado = futura ? null : meta.valor_acumulado_centavos;
+      resultado.push({
+        id: meta.id,
+        titulo: meta.objetivo,
+        tipo: meta.tipo,
+        alvoCentavos: meta.valor_alvo_centavos,
+        realizadoCentavos: realizado,
+        situacaoProgresso:
+          realizado === null
+            ? 'indisponivel'
+            : situacaoDoProgresso('investimento', meta.valor_alvo_centavos, realizado),
+        situacaoPrazo,
+        situacaoVigencia,
+      });
+      continue;
+    }
+
+    if (futura) {
+      resultado.push({
+        id: meta.id,
+        titulo: meta.objetivo,
+        tipo: meta.tipo,
+        alvoCentavos: meta.valor_alvo_centavos,
+        realizadoCentavos: null,
+        situacaoProgresso: 'indisponivel',
+        situacaoPrazo,
+        situacaoVigencia,
+      });
+      continue;
+    }
+
+    const periodo = periodoDoMes(meta, ano, mes);
+    if (!periodo) continue;
+
+    let realizado: number | null = null;
+    if (meta.categoria_id) {
+      const categoria = await db.getFirstAsync<{ id: string }>(
+        'SELECT id FROM categorias WHERE id = ? AND excluido_em IS NULL',
+        [meta.categoria_id],
+      );
+      if (categoria) {
+        const soma = await db.getFirstAsync<{ total: number | null }>(
+          `SELECT COALESCE(SUM(valor_centavos), 0) AS total
+             FROM despesas
+            WHERE excluido_em IS NULL
+              AND categoria_id = ?
+              AND data >= ?
+              AND data <= ?`,
+          [meta.categoria_id, periodo.inicio, periodo.fim],
+        );
+        realizado = soma?.total ?? 0;
+      }
+    }
+
+    resultado.push({
+      id: meta.id,
+      titulo: meta.objetivo,
+      tipo: meta.tipo,
+      alvoCentavos: meta.valor_alvo_centavos,
+      realizadoCentavos: realizado,
+      situacaoProgresso:
+        realizado === null
+          ? 'indisponivel'
+          : situacaoDoProgresso('gasto', meta.valor_alvo_centavos, realizado),
+      situacaoPrazo,
+      situacaoVigencia,
+    });
+  }
+
+  return resultado;
 }
 
 // ------------------------------------------------- funções públicas compartilhadas
