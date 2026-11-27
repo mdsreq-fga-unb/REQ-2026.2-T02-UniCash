@@ -1,21 +1,20 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
+import { dataISOValida } from '@/features/metas/validation';
 import type { FonteMetas, MetaConcluida } from './types';
 
-/**
- * Produção: metas do UC12 na base do dono. Enquanto a equipe não define o critério de conclusão
- * de uma meta de gasto (limite mensal), conta como concluída a meta de investimento cujo valor
- * acumulado informado alcançou o alvo, situação "alcançada" do UC12. A data de conclusão é a do
- * último informe do valor acumulado.
- */
+/** Metas de investimento alcançadas (D28), inclusive quando a data do informe é indeterminável. */
 export const fonteMetasUc12: FonteMetas = {
   async concluidas(db: SQLiteDatabase) {
-    const linhas = await db.getAllAsync<{ id: string; objetivo: string; informado_em: string }>(
+    const linhas = await db.getAllAsync<{ id: string; objetivo: string; informado_em: string | null }>(
       `SELECT id, objetivo, valor_acumulado_atualizado_em AS informado_em FROM metas
        WHERE excluido_em IS NULL AND tipo = 'investimento'
-         AND valor_acumulado_centavos IS NOT NULL AND valor_acumulado_atualizado_em IS NOT NULL
+         AND valor_acumulado_centavos IS NOT NULL
          AND valor_acumulado_centavos >= valor_alvo_centavos`,
     );
-    return linhas.map((l) => ({ id: l.id, titulo: l.objetivo, concluidaEm: l.informado_em.slice(0, 10) }));
+    return linhas.map((l) => {
+      const data = l.informado_em?.slice(0, 10);
+      return { id: l.id, titulo: l.objetivo, concluidaEm: data && dataISOValida(data) ? data : null };
+    });
   },
 };
 

@@ -137,9 +137,10 @@ export default function RootLayout() {
     if (estado !== 'pronto') return;
     const avaliar = () => void avaliarEEmitir();
     avaliar();
-    const pararLancamentos = aoMudarLancamentos(avaliar);
+    const avaliarESincronizar = () => void avaliarEEmitir().then(() => sincronizarEmSegundoPlano(true));
+    const pararLancamentos = aoMudarLancamentos(avaliarESincronizar);
     const pararBase = ouvirBaseAtualizada(avaliar);
-    const pararVirada = aoVirarMes(avaliar);
+    const pararVirada = aoVirarMes(avaliarESincronizar);
     const aplicativo = AppState.addEventListener('change', (e) => {
       if (e === 'active') avaliar();
     });

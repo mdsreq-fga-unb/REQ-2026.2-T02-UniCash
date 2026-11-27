@@ -1000,3 +1000,27 @@ describe('UC08 — saldo inicial', () => {
     await assertFails(setDoc(ref(db('dono')), { ...saldo, ...extra }));
   });
 });
+
+describe('UC13: histórico de desbloqueio', () => {
+  const selo = (cliente: ReturnType<typeof db>) =>
+    doc(cliente, 'usuarios', 'u1', 'conquistas_historico', 'primeira-meta');
+
+  it('restringe leitura e escrita à conta confirmada', async () => {
+    await assertSucceeds(setDoc(selo(db('u1')), { data: null }));
+    await assertSucceeds(getDoc(selo(db('u1'))));
+    await assertFails(getDoc(selo(db('u2'))));
+    await assertFails(getDoc(selo(dbNaoConfirmado('u1'))));
+    await assertFails(setDoc(selo(db('u2')), { data: '2026-09-10' }));
+  });
+
+  it('só aceita datas mais antigas e impede apagar a data conhecida ou o histórico', async () => {
+    const ref = selo(db('u1'));
+    await assertSucceeds(setDoc(ref, { data: null }));
+    await assertSucceeds(setDoc(ref, { data: '2026-10-10' }));
+    await assertSucceeds(setDoc(ref, { data: '2026-09-10' }));
+    await assertFails(setDoc(ref, { data: null }));
+    await assertFails(setDoc(ref, { data: '2026-11-10' }));
+    await assertFails(setDoc(ref, { data: '2026-08-10', pontos: 100 }));
+    await assertFails(deleteDoc(ref));
+  });
+});

@@ -13,6 +13,7 @@ import {
 import {
   DDL_ALERTAS,
   DDL_CONQUISTAS_EMITIDAS,
+  DDL_HISTORICO_CONQUISTAS,
   DDL_PREFERENCIAS_ALERTAS_POR_TIPO,
   DDL_ESQUEMA,
   DDL_PREFERENCIAS_LOCAIS,
@@ -38,7 +39,7 @@ import {
 } from './schema';
 
 /** Versão atual do esquema local. Incrementar a cada nova migração. */
-export const VERSAO_ESQUEMA = 16;
+export const VERSAO_ESQUEMA = 17;
 
 export interface RegistroInvalido {
   id: string;
@@ -161,6 +162,7 @@ interface Migracao {
  * preservando os dados da 013 e mantendo registros legados incompletos.
  * A 015 adiciona os metadados locais de merge por campo da RN07.
  * A 016 cria o registro de emissão das notificações de conquistas do UC13.
+ * A 017 preserva e permite sincronizar o histórico de desbloqueio do UC13.
  */
 const MIGRACOES: Migracao[] = [
   { versao: 1, executar: migrar001 },
@@ -179,6 +181,7 @@ const MIGRACOES: Migracao[] = [
   { versao: 14, executar: migrar014 },
   { versao: 15, executar: migrar015 },
   { versao: 16, executar: migrar016 },
+  { versao: 17, executar: migrar017 },
 ];
 
 const COLUNAS_CATEGORIAS = [
@@ -707,6 +710,7 @@ export async function migrarSeNecessario(db: SQLiteDatabase): Promise<void> {
       await tx.execAsync(DDL_PREFERENCIAS_LOCAIS);
       await tx.execAsync(DDL_PREFERENCIAS_NOTIFICACAO);
       await tx.execAsync(DDL_CONQUISTAS_EMITIDAS);
+      await tx.execAsync(DDL_HISTORICO_CONQUISTAS);
       await garantirColunasRecorrencias(tx);
       await garantirTabelaDespesas(tx);
       if (despesasLegadas) {
@@ -1483,6 +1487,18 @@ async function migrar012(db: SQLiteDatabase, versaoDestino: number): Promise<voi
 async function migrar016(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
   await db.withExclusiveTransactionAsync(async (tx) => {
     await tx.execAsync(DDL_CONQUISTAS_EMITIDAS);
+    await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
+  });
+}
+
+/** 017 — preserva desbloqueios legados sem usar o horário de emissão como data da conquista. */
+async function migrar017(db: SQLiteDatabase, versaoDestino: number): Promise<void> {
+  await db.withExclusiveTransactionAsync(async (tx) => {
+    await tx.execAsync(DDL_HISTORICO_CONQUISTAS);
+    await tx.execAsync(`
+      INSERT OR IGNORE INTO conquistas_historico (chave, data)
+      SELECT chave, NULL FROM conquistas_emitidas
+    `);
     await tx.execAsync(`PRAGMA user_version = ${versaoDestino}`);
   });
 }

@@ -7,7 +7,7 @@ import { cores } from '@/lib/theme';
 export function ItemPontuacao({ pontuacao }: { pontuacao: PontuacaoMeta }) {
   return (
     <View style={estilos.item}>
-      <Text style={estilos.data}>{formatarBR(pontuacao.concluidaEm)}</Text>
+      {pontuacao.concluidaEm && <Text style={estilos.data}>{formatarBR(pontuacao.concluidaEm)}</Text>}
       <Text style={estilos.texto}>{`${pontuacao.titulo} · +${pontuacao.pontos}`}</Text>
     </View>
   );

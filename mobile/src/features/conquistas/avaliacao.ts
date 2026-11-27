@@ -8,7 +8,8 @@ function ultimoDiaDoMes(mes: string): string {
   return `${mes}-${String(dia).padStart(2, '0')}`;
 }
 
-const decrescente = (a: string, b: string) => (a < b ? 1 : a > b ? -1 : 0);
+export const compararDatasDecrescente = (a: string | null, b: string | null) =>
+  (b ?? '').localeCompare(a ?? '');
 
 /**
  * UC13 fluxo A (RF44, RF45): selos e pontos derivados dos dados atuais. Pura, sem I/O.
@@ -41,9 +42,9 @@ export function avaliar({ meses, metas }: { meses: TotaisMes[]; metas: MetaConcl
   const unicas = [...new Map(metas.map((m) => [m.id, m])).values()];
   const pontuacoes: PontuacaoMeta[] = unicas
     .map((m) => ({ metaId: m.id, titulo: m.titulo, concluidaEm: m.concluidaEm, pontos: PONTOS_POR_META }))
-    .sort((a, b) => decrescente(a.concluidaEm, b.concluidaEm));
+    .sort((a, b) => compararDatasDecrescente(a.concluidaEm, b.concluidaEm));
 
-  const primeira = pontuacoes[pontuacoes.length - 1];
+  const primeira = [...pontuacoes].reverse().find((p) => p.concluidaEm !== null) ?? pontuacoes[0];
   if (primeira) {
     selos.set('primeira-meta', {
       chave: 'primeira-meta',
@@ -59,7 +60,7 @@ export function avaliar({ meses, metas }: { meses: TotaisMes[]; metas: MetaConcl
     totalPontos: pontuacoes.length * PONTOS_POR_META,
     metasConcluidas: pontuacoes.length,
     pontosPorMeta: PONTOS_POR_META,
-    selos: [...selos.values()].sort((a, b) => decrescente(a.data, b.data)),
+    selos: [...selos.values()].sort((a, b) => compararDatasDecrescente(a.data, b.data)),
     pontuacoes,
   };
 }

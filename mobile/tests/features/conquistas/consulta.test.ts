@@ -113,6 +113,14 @@ describe('consultarConquistas (UC13, fluxo B)', () => {
       });
     });
 
+    it('concede selo e pontos para uma meta alcançada cuja data é indeterminável', async () => {
+      meta('m', 'investimento', 100_000, 100_000, 'data-desconhecida');
+      const r = await consultarConquistas();
+      expect(r.totalPontos).toBe(100);
+      expect(r.pontuacoes).toMatchObject([{ metaId: 'm', concluidaEm: null }]);
+      expect(r.selos).toMatchObject([{ chave: 'primeira-meta', data: null }]);
+    });
+
     it('meta que deixa de estar alcançada sai da pontuação (FA08)', async () => {
       meta('m', 'investimento', 100_000, 100_000, '2026-10-15T13:00:00.000Z');
       expect((await consultarConquistas()).totalPontos).toBe(100);

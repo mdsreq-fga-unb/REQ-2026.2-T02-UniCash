@@ -2415,7 +2415,7 @@ describe('Migração 016 (UC13, emissão de notificações de conquistas)', () =
   it('instalação nova já cria a tabela', async () => {
     const sqlite = novoSqlite();
     await migrarSeNecessario(criarAdaptador(sqlite));
-    expect(versao(sqlite)).toBe(16);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(colunas(sqlite)).toEqual([
       ['chave', 1], ['status', 0], ['criado_em', 0], ['atualizado_em', 0],
     ]);
@@ -2424,14 +2424,33 @@ describe('Migração 016 (UC13, emissão de notificações de conquistas)', () =
   it('banco na versão 15 ganha a tabela, de forma idempotente', async () => {
     const sqlite = novoSqlite();
     await migrarSeNecessario(criarAdaptador(sqlite));
-    sqlite.exec('DROP TABLE conquistas_emitidas; PRAGMA user_version = 15;');
+    sqlite.exec('DROP TABLE conquistas_emitidas; DROP TABLE conquistas_historico; PRAGMA user_version = 15;');
 
     await migrarSeNecessario(criarAdaptador(sqlite));
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(16);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(() =>
       sqlite.exec("INSERT INTO conquistas_emitidas VALUES ('primeira-meta', 'outro', 'x', 'x')"),
     ).toThrow(/CHECK/);
+  });
+});
+
+describe('Migração 017 (histórico de desbloqueio)', () => {
+  it('preserva selos conhecidos na v16 sem inventar a data', async () => {
+    const sqlite = novoSqlite();
+    await migrarSeNecessario(criarAdaptador(sqlite));
+    sqlite.exec(`
+      DROP TABLE conquistas_historico;
+      PRAGMA user_version = 16;
+      INSERT INTO conquistas_emitidas VALUES ('primeira-meta', 'emitida', '2026-11-01', '2026-11-01');
+    `);
+
+    await migrarSeNecessario(criarAdaptador(sqlite));
+
+    expect(versao(sqlite)).toBe(17);
+    expect(sqlite.prepare('SELECT * FROM conquistas_historico').all()).toEqual([
+      { chave: 'primeira-meta', data: null },
+    ]);
   });
 });

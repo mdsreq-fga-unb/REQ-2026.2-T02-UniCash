@@ -112,13 +112,13 @@ A área informa falhas sem deixar dados parciais e só mostra conquistas do pró
 ### Functional Requirements
 
 - **FR-001**: O sistema DEVE oferecer a área "Conquistas", acessível pelo ícone de selo no cabeçalho do Perfil.
-- **FR-002**: A área DEVE exibir o total de pontos, a quantidade de metas concluídas com o valor por meta, a lista de selos (nome, descrição do marco, data) e a lista de metas pontuadas (data, nome, pontos).
+- **FR-002**: A área DEVE exibir o total de pontos, a quantidade de metas concluídas com o valor por meta, a lista de selos (nome, descrição do marco, data) e a lista de metas pontuadas (data, nome, pontos). Exibir datas apenas quando determináveis.
 - **FR-003**: Sem selos nem metas concluídas, a área DEVE exibir o estado vazio com "Nenhuma conquista ainda." e o atalho "Ver metas" (FA01).
-- **FR-004**: O sistema DEVE avaliar os marcos ao abrir o app e após registrar, editar ou excluir lançamentos ou metas, usando só dados locais (RF44, FA06).
+- **FR-004**: O sistema DEVE avaliar os marcos ao abrir o app, na virada do mês e após registrar, editar ou excluir lançamentos ou metas, usando só dados locais (RF44, FA06).
 - **FR-005**: O catálogo inicial de marcos DEVE conter "No verde em <mês>" (mês encerrado com receitas maiores que despesas, um selo por mês, usando o mesmo período e os mesmos totais do resumo mensal do app) e "Primeira meta concluída" (um único selo), definidos em configuração única, substituível sem mudar o restante da funcionalidade.
-- **FR-006**: O sistema DEVE somar os pontos por meta concluída, com valor inicial de 100 pontos definido em configuração única (RF45).
+- **FR-006**: O sistema DEVE somar 100 pontos por ID de meta de investimento no estado `alcancada` do UC12, inclusive com data indeterminável. Metas de gasto ficam fora da contagem (RF45, D28).
 - **FR-007**: Selos e pontos DEVEM ser derivados de lançamentos e metas, sem duplicidade por marco ou por meta (FA02, FA03, FA07, RN07).
-- **FR-007a**: Quando um marco deixar de valer ou uma meta deixar de estar concluída após edição ou exclusão, o selo ou os pontos correspondentes DEVEM ser retirados; se voltarem a valer, são concedidos de novo sem nova notificação de um selo já notificado (FA08).
+- **FR-007a**: Quando um marco deixar de valer ou uma meta deixar de estar concluída após edição ou exclusão, o selo ou os pontos correspondentes DEVEM ser retirados; se voltarem a valer, são concedidos de novo. O selo volta com a data conhecida mais antiga, preservando o histórico e o controle do primeiro aviso (FA08, D28).
 - **FR-008**: Ao tocar em um selo, o sistema DEVE exibir seu detalhe com os dados que comprovam o marco (B3).
 - **FR-009**: Para cada selo novo, se `isEnabled('conquistas')` for verdadeiro, o sistema DEVE emitir uma notificação com o nome do selo e a frase do marco e registrar a emissão; caso contrário, não emite (RF46, FA04).
 - **FR-009a**: Selos concedidos na primeira avaliação, a partir do histórico existente, DEVEM ser registrados como já emitidos, sem notificação.
@@ -126,7 +126,7 @@ A área informa falhas sem deixar dados parciais e só mostra conquistas do pró
 - **FR-011**: Falha na avaliação ou no registro NÃO DEVE gravar selo ou ponto parcial nem alterar lançamentos, metas ou saldo (EX01).
 - **FR-012**: Falha de leitura DEVE exibir a mensagem do EX03 com "Tentar novamente".
 - **FR-013**: O sistema DEVE exibir somente conquistas do usuário atual; outro usuário recebe a tela do EX04.
-- **FR-014**: Enquanto o UC12 (metas) não estiver pronto, as metas concluídas DEVEM vir de uma fonte substituível com metas de exemplo (DoR).
+- **FR-014**: O sistema DEVE usar as metas reais do UC12 para calcular a pontuação. A fonte de exemplo fica disponível para demonstração.
 - **FR-015**: A classificação do grupo (RF30) NÃO DEVE fazer parte desta entrega (D09).
 
 ### Key Entities
@@ -152,5 +152,5 @@ A área informa falhas sem deixar dados parciais e só mostra conquistas do pró
 - "Meta concluída" usa o contrato de metas do UC12; até lá, metas de exemplo. O critério real é integração posterior.
 - Texto da notificação ("Novo selo: <nome>" + frase do marco) segue o protótipo [CQ5] e fica a validar.
 - O envio da notificação é local no aparelho; push remoto fica fora. Usa a preferência e a permissão já entregues no UC14.
-- A sincronização com a nuvem (RF62) não grava contadores; selos são recalculados em cada aparelho.
+- A sincronização com a nuvem (RF62) inclui o histórico de desbloqueio da própria conta. O merge mantém a menor data conhecida de cada selo e preserva desbloqueios sem data. Selos vigentes e pontos são recalculados em cada aparelho (D28).
 - A tela de detalhe para "Primeira meta concluída" não tem protótipo; segue o layout de [CQ2] com os dados da meta.

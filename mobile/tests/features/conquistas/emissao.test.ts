@@ -1,5 +1,6 @@
 import { getDb } from '@/db/database';
 import { DDL_CONQUISTAS_EMITIDAS, DDL_PREFERENCIAS_LOCAIS } from '@/db/schema';
+import { consultarConquistas } from '@/features/conquistas/consulta';
 import { avaliarEEmitir } from '@/features/conquistas/emissao';
 import { criarEmissorSimulado } from '@/features/conquistas/emissor';
 import type { FonteMetas, MetaConcluida } from '@/features/conquistas/types';
@@ -163,7 +164,7 @@ describe('avaliarEEmitir (UC13, RF46)', () => {
   it('agendamento não se repete quando a gravação da emissão falha (FA05, EX02)', async () => {
     await rodar();
     await verde('2026-10-05');
-    banco.falharNaOperacao(1);
+    banco.falharNaOperacao(3);
     await rodar();
     expect(emissor.emitidas).toEqual([]);
 
@@ -171,6 +172,39 @@ describe('avaliarEEmitir (UC13, RF46)', () => {
     await rodar();
     expect(titulos()).toEqual(['Novo selo: No verde em outubro']);
     expect(status()).toEqual([{ chave: 'no-verde:2026-10', status: 'emitida' }]);
+  });
+
+  it('falha do Expo e SQLite indisponível deixam o selo elegível para uma única nova emissão', async () => {
+    await rodar();
+    await verde('2026-10-05');
+    const emitir = jest.spyOn(emissor, 'emitir').mockImplementationOnce(async () => {
+      banco.falharNaOperacao(1);
+      throw new Error('Expo indisponível');
+    });
+
+    await rodar();
+    expect(status()).toEqual([{ chave: 'no-verde:2026-10', status: 'pendente' }]);
+    expect(emissor.emitidas).toEqual([]);
+
+    await rodar();
+    await rodar();
+    await rodar();
+    expect(emitir).toHaveBeenCalledTimes(2);
+    expect(titulos()).toEqual(['Novo selo: No verde em outubro']);
+  });
+
+  it('reconquista da primeira meta retém a data mais antiga e não emite outro aviso', async () => {
+    await rodar();
+    metas = [{ id: 'm', titulo: 'Reserva', concluidaEm: '2026-09-10' }];
+    await rodar();
+    metas = [];
+    await rodar();
+    expect((await consultarConquistas(fonte)).selos).toEqual([]);
+
+    metas = [{ id: 'm', titulo: 'Reserva', concluidaEm: '2026-11-10' }];
+    await rodar();
+    expect((await consultarConquistas(fonte)).selos).toMatchObject([{ data: '2026-09-10' }]);
+    expect(titulos()).toEqual(['Novo selo: Primeira meta concluída']);
   });
 
   describe('isolamento por conta (RNF03)', () => {
@@ -198,6 +232,28 @@ describe('avaliarEEmitir (UC13, RF46)', () => {
 
       expect(emissor.emitidas).toEqual([]);
       expect(status()).toEqual([]);
+    });
+
+    it('revalida a sessão após gravar emitida e permite tentar de novo ao voltar', async () => {
+      await rodar();
+      await verde('2026-10-05');
+      const db = await getDb();
+      const gravar = db.runAsync.bind(db);
+      const escrita = jest.spyOn(db, 'runAsync').mockImplementation(async (sql, params) => {
+        const resultado = await gravar(sql, params);
+        if (Array.isArray(params) && params[1] === 'emitida') dono = 'conta-b';
+        return resultado;
+      });
+
+      await rodar();
+      escrita.mockRestore();
+      expect(emissor.emitidas).toEqual([]);
+      expect(status()).toEqual([{ chave: 'no-verde:2026-10', status: 'pendente' }]);
+
+      dono = 'local';
+      await rodar();
+      await rodar();
+      expect(titulos()).toEqual(['Novo selo: No verde em outubro']);
     });
 
     it('troca de conta na primeira avaliação não grava a linha de base', async () => {

@@ -7,7 +7,7 @@ export interface MetaConcluida {
   id: string;
   titulo: string;
   /** AAAA-MM-DD */
-  concluidaEm: string;
+  concluidaEm: string | null;
 }
 
 export interface FonteMetas {
@@ -34,14 +34,14 @@ export interface Selo {
   nome: string;
   descricao: string;
   /** AAAA-MM-DD */
-  data: string;
+  data: string | null;
   referencia: ReferenciaSelo;
 }
 
 export interface PontuacaoMeta {
   metaId: string;
   titulo: string;
-  concluidaEm: string;
+  concluidaEm: string | null;
   pontos: number;
 }
 

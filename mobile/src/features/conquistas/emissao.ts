@@ -10,6 +10,7 @@ import type {
 import { MARCOS } from './config';
 import { consultarConquistas } from './consulta';
 import { emissorExpo } from './emissor';
+import { registrarDesbloqueio } from './historico';
 import { MSG } from './mensagens';
 import { obterFonteMetas } from './metas';
 import type { EmissorNotificacao, FonteMetas, Selo } from './types';
@@ -30,6 +31,10 @@ const abrirBasePadrao = (dono: DonoPreferencias) => (dono.uid === UID_LOCAL ? ge
 
 /** A sessão mudou no meio da avaliação: nada mais é gravado nem notificado para o dono antigo. */
 class DonoMudou extends Error {}
+class FalhaAgendamento extends Error {}
+
+// Se o Expo confirmou e o commit falhou, a próxima avaliação só confirma o SQLite.
+const avisosConfirmados = new WeakMap<SQLiteDatabase, Set<string>>();
 
 const CHAVE_LINHA_BASE = 'conquistas_linha_base';
 
@@ -66,6 +71,7 @@ async function executar(deps: DependenciasEmissao): Promise<void> {
     if (preferencias.donoAtual().uid !== dono.uid) throw new DonoMudou();
   };
   const db = await abrirBase(dono);
+  conferirDono();
   const { selos } = await consultarConquistas(fonte, db);
   const linhaBase = await db.getFirstAsync<{ valor: number }>(
     'SELECT valor FROM preferencias_locais WHERE chave = ?',
@@ -76,7 +82,15 @@ async function executar(deps: DependenciasEmissao): Promise<void> {
   if (!linhaBase) {
     conferirDono();
     await db.withExclusiveTransactionAsync(async (tx) => {
-      for (const s of selos) await gravar(tx, s.chave, 'emitida');
+      for (const s of selos) {
+        conferirDono();
+        await registrarDesbloqueio(tx, s);
+        await tx.runAsync(
+          "INSERT OR IGNORE INTO conquistas_emitidas (chave, status, criado_em, atualizado_em) VALUES (?, 'emitida', ?, ?)",
+          [s.chave, new Date().toISOString(), new Date().toISOString()],
+        );
+      }
+      conferirDono();
       await tx.runAsync('INSERT OR REPLACE INTO preferencias_locais (chave, valor) VALUES (?, 1)', [CHAVE_LINHA_BASE]);
     });
     return;
@@ -87,34 +101,70 @@ async function executar(deps: DependenciasEmissao): Promise<void> {
       (r) => [r.chave, r.status],
     ),
   );
+  for (const selo of selos) {
+    conferirDono();
+    await registrarDesbloqueio(db, selo);
+  }
+
   // Selo que some e volta mantém a linha 'emitida' e não é notificado de novo (FR-007a).
   const aEmitir = selos.filter((s) => registros.get(s.chave) !== 'emitida');
   if (aEmitir.length === 0) return;
 
   // FA04: com o alerta desligado, só a notificação some; o aviso não fica guardado para depois.
   if (!(await preferencias.isEnabled('conquistas', dono))) {
-    conferirDono();
-    for (const s of aEmitir) await gravar(db, s.chave, 'emitida');
+    for (const s of aEmitir) {
+      conferirDono();
+      await gravar(db, s.chave, 'emitida');
+    }
     return;
   }
 
   if ((await permissao.consultar()) !== 'concedida') {
-    conferirDono();
-    for (const s of aEmitir) if (!registros.has(s.chave)) await gravar(db, s.chave, 'pendente');
+    for (const s of aEmitir.filter((selo) => !registros.has(selo.chave))) {
+      conferirDono();
+      await gravar(db, s.chave, 'pendente');
+    }
     return;
   }
 
-  // FA05: uma notificação por selo. A emissão é registrada antes de agendar: se a gravação falha,
-  // nada é agendado e o selo volta na próxima avaliação; se o agendamento falha, a marca volta a
-  // pendente (EX02). Assim um aviso já agendado nunca é agendado de novo.
+  const confirmados = avisosConfirmados.get(db) ?? new Set<string>();
+  avisosConfirmados.set(db, confirmados);
   for (const s of aEmitir) {
     conferirDono();
-    await gravar(db, s.chave, 'emitida');
-    try {
-      await emissor.emitir(conteudo(s));
-    } catch {
-      await gravar(db, s.chave, 'pendente');
+    if (!registros.has(s.chave)) {
+      await db.runAsync(
+        "INSERT OR IGNORE INTO conquistas_emitidas (chave, status, criado_em, atualizado_em) VALUES (?, 'pendente', ?, ?)",
+        [s.chave, new Date().toISOString(), new Date().toISOString()],
+      );
     }
+
+    // A troca de dono ou a rejeição do Expo reverte a própria transação. A
+    // tentativa continua pendente mesmo se o SQLite não aceitar novas escritas.
+    try {
+      await db.withExclusiveTransactionAsync(async (tx) => {
+        conferirDono();
+        const registro = await tx.getFirstAsync<{ status: Status }>(
+          'SELECT status FROM conquistas_emitidas WHERE chave = ?', [s.chave],
+        );
+        if (registro?.status === 'emitida') return;
+        conferirDono();
+        await gravar(tx, s.chave, 'emitida');
+        if (confirmados.has(s.chave)) return;
+
+        const aviso = conteudo(s);
+        conferirDono();
+        try {
+          await emissor.emitir(aviso);
+          confirmados.add(s.chave);
+        } catch (causa) {
+          throw new FalhaAgendamento('Falha ao agendar a notificação de conquista', { cause: causa });
+        }
+      });
+    } catch (e) {
+      if (e instanceof FalhaAgendamento) continue;
+      throw e;
+    }
+    confirmados.delete(s.chave);
   }
 }
 

@@ -99,6 +99,19 @@ describe('UC13 - área Conquistas', () => {
       expect(screen.getByText('Conquistado em 12/09/2026')).toBeTruthy();
     });
 
+    it('mostra o selo e a meta quando a data da conquista é indeterminável', async () => {
+      const r = avaliar({
+        meses: [],
+        metas: [{ id: 'reserva', titulo: 'Reserva', concluidaEm: null }],
+      });
+      params.mockReturnValue({ chave: 'primeira-meta' });
+      selo.mockResolvedValue(r.selos[0]);
+      await render(<DetalheSelo />);
+
+      expect(await screen.findByText('Reserva')).toBeTruthy();
+      expect(screen.queryByText(/Conquistado em/)).toBeNull();
+    });
+
     it('selo que não vale mais (FA08) avisa e volta à lista', async () => {
       params.mockReturnValue({ chave: 'no-verde:2026-08' });
       selo.mockResolvedValue(null);

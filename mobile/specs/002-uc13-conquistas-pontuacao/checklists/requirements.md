@@ -32,4 +32,6 @@
 ## Notes
 
 - `isEnabled('conquistas')` (FR-009) is kept as the named contract delivered by UC14, matching the UC14 spec style; the CI criterion (SC-005) follows the same project convention.
-- Open business points (marcos, pontos por meta, FA08, texto da notificação) resolved with prototype test values and documented in Assumptions, pending client validation (ata R07).
+- A D28 registra os dois marcos, os 100 pontos por meta de investimento alcançada e a data opcional. O aceite das clientes continua pendente.
+- Selos vigentes e pontos são calculados localmente. O histórico de desbloqueio sincroniza por conta, e o controle de emissão fica no aparelho.
+- Os testes de Security Rules cobrem o isolamento do histórico por conta confirmada e a preservação da menor data conhecida. O roteiro manual cobre a troca entre duas contas no mesmo aparelho.

@@ -8,11 +8,11 @@ const diaMes = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
 
 /** Item da lista "Selos conquistados" [CQ1]; abre o detalhe [CQ2]. */
 export function ItemSelo({ selo }: { selo: Selo }) {
-  const data = diaMes(selo.data);
+  const data = selo.data ? diaMes(selo.data) : null;
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${selo.nome}, ${data}`}
+      accessibilityLabel={data ? `${selo.nome}, ${data}` : selo.nome}
       onPress={() => router.push({ pathname: '/conquistas/[chave]', params: { chave: selo.chave } })}
       style={estilos.item}
     >
@@ -23,7 +23,7 @@ export function ItemSelo({ selo }: { selo: Selo }) {
         <Text style={estilos.nome}>{selo.nome}</Text>
         <Text style={estilos.descricao}>{selo.descricao}</Text>
       </View>
-      <Text style={estilos.data}>{data}</Text>
+      {data && <Text style={estilos.data}>{data}</Text>}
     </Pressable>
   );
 }

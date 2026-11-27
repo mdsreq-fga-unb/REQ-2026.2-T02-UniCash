@@ -69,7 +69,7 @@ function Conteudo({ selo }: { selo: Selo }) {
     <ScrollView contentContainerStyle={estilos.conteudo}>
       <View style={estilos.topo}>
         <Text style={estilos.nome}>{selo.nome}</Text>
-        <Text style={estilos.texto}>{MSG.conquistadoEm(formatarBR(selo.data))}</Text>
+        {selo.data && <Text style={estilos.texto}>{MSG.conquistadoEm(formatarBR(selo.data))}</Text>}
       </View>
       <View style={estilos.cartao}>
         <Linha rotulo={MSG.marcoAtingido} valor={MARCOS[selo.marco].marcoAtingido} />
@@ -83,7 +83,7 @@ function Conteudo({ selo }: { selo: Selo }) {
         ) : (
           <>
             <Linha rotulo={MSG.meta} valor={ref.titulo} />
-            <Linha rotulo={MSG.concluidaEm} valor={formatarBR(selo.data)} />
+            {selo.data && <Linha rotulo={MSG.concluidaEm} valor={formatarBR(selo.data)} />}
           </>
         )}
       </View>

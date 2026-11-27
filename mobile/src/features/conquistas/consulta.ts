@@ -1,7 +1,8 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
 import { getDb } from '@/db/database';
 import { intervaloDoMes } from '@/features/resumo/service';
-import { avaliar } from './avaliacao';
+import { avaliar, compararDatasDecrescente } from './avaliacao';
+import { dataMaisAntiga, lerHistorico } from './historico';
 import { obterFonteMetas } from './metas';
 import type { FonteMetas, ResumoConquistas, Selo, TotaisMes } from './types';
 
@@ -42,8 +43,13 @@ export async function consultarConquistas(
 ): Promise<ResumoConquistas> {
   try {
     const db = base ?? (await getDb());
-    const [meses, metas] = await Promise.all([lerTotaisMensais(db), fonte.concluidas(db)]);
-    return avaliar({ meses, metas });
+    const [meses, metas, historico] = await Promise.all([lerTotaisMensais(db), fonte.concluidas(db), lerHistorico(db)]);
+    const datas = new Map(historico.map(({ chave, data }) => [chave, data]));
+    const resumo = avaliar({ meses, metas });
+    resumo.selos = resumo.selos
+      .map((selo) => ({ ...selo, data: dataMaisAntiga(selo.data, datas.get(selo.chave) ?? null) }))
+      .sort((a, b) => compararDatasDecrescente(a.data, b.data));
+    return resumo;
   } catch (e) {
     throw new FalhaLeituraConquistas(e);
   }

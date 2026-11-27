@@ -1,3 +1,4 @@
+import { DDL_CONQUISTAS_EMITIDAS } from '@/db/schema';
 import { emitirAlertasPendentes } from '@/features/alertas/notificacoes';
 import { consultarAlertas } from '@/features/saldo/alertas';
 import { consultarResumoMensal } from '@/features/saldo/service';
@@ -247,6 +248,36 @@ describe('Persistência local e sincronização (RN06, RN07, RF62)', () => {
     consumirAcessoNegado();
   });
   afterEach(restaurarTempo);
+  it('combina o histórico do UC13 e restaura desbloqueios sem publicar pontos', async () => {
+    banco.sqlite.exec(DDL_CONQUISTAS_EMITIDAS);
+    banco.sqlite.prepare('INSERT INTO conquistas_historico VALUES (?, ?)').run('primeira-meta', '2026-09-10');
+    banco.sqlite.prepare('INSERT INTO conquistas_emitidas VALUES (?, ?, ?, ?)')
+      .run('primeira-meta', 'pendente', 'agora', 'agora');
+    const colecao = 'usuarios/u1/conquistas_historico/';
+    mockNuvem.set(colecao + 'primeira-meta', { data: '2026-10-10' });
+    mockNuvem.set(colecao + 'no-verde:2026-08', { data: null });
+
+    await sincronizarPendentes();
+
+    expect(mockNuvem.get(colecao + 'primeira-meta')).toEqual({ data: '2026-09-10' });
+    expect(banco.sqlite.prepare('SELECT chave, status FROM conquistas_emitidas ORDER BY chave').all()).toEqual([
+      { chave: 'no-verde:2026-08', status: 'emitida' },
+      { chave: 'primeira-meta', status: 'pendente' },
+    ]);
+
+    banco = instalarBanco();
+    banco.sqlite.exec(DDL_CONQUISTAS_EMITIDAS);
+    await restaurarDaNuvem({ servidor: true });
+
+    expect(banco.sqlite.prepare('SELECT * FROM conquistas_historico ORDER BY chave').all()).toEqual([
+      { chave: 'no-verde:2026-08', data: null },
+      { chave: 'primeira-meta', data: '2026-09-10' },
+    ]);
+    expect(banco.sqlite.prepare('SELECT DISTINCT status FROM conquistas_emitidas').all()).toEqual([
+      { status: 'emitida' },
+    ]);
+  });
+
   it('sincroniza o alerta offline uma vez e restaura sem uma nova notificação (UC05)', async () => {
     const categoria = inserirCategoria({ limite_tipo: 'valor', limite_centavos: 10000 });
     await registrarDespesa({

@@ -19,7 +19,9 @@ Aparelho físico ou emulador (o Expo Go serve: a notificação é local, sem pus
 | 11 | Modo avião, repetir o passo 6 | Selos e pontos se comportam igual | FA06, RN06 |
 | 12 | Repetir abertura de Conquistas várias vezes | Nenhum selo ou ponto duplicado | FA02, FA03 |
 | 13 | Com "Conquistas" ligado e um mês corrente no verde, deixar o app aberto na virada para o mês seguinte (ou ajustar o relógio do aparelho para 23:59 do último dia) | Ao virar o mês, chega "Novo selo: No verde em <mês que acabou>" sem precisar sair do app | A1 |
-| 14 | Criar uma meta de investimento, informar valor acumulado igual ao alvo e abrir Conquistas. Depois, reduzir o valor | Primeiro aparecem "+100" e o selo "Primeira meta concluída"; ao reduzir, os pontos e o selo saem | A2, RF45, FA08 |
+| 14 | Criar uma meta de investimento, informar valor acumulado igual ao alvo e abrir Conquistas. Fechar e reabrir o app, depois reduzir o valor | Primeiro aparecem "+100" e o selo "Primeira meta concluída"; os dois continuam após reabrir e saem ao reduzir o valor | A2, RF45, FA08 |
 | 15 | Com duas contas no mesmo aparelho, criar um mês no verde na conta A e trocar para a conta B logo em seguida | A conquista aparece só na conta A; a conta B não recebe aviso nem selo da conta A | RNF03 |
+
+| 16 | Sincronizar a conta em dois aparelhos. Desfazer a única meta alcançada, sincronizar os dois e alcançar novamente a meta em data posterior | O selo e os pontos saem após a sincronização da perda, e a reconquista volta com a data mais antiga e sem novo aviso | FA07, FA08, D28 |
 
 Não cobertos manualmente (testes automatizados em `tests/screens/Conquistas.test.tsx`): EX03, erro de leitura [CQ4], e EX04, acesso negado [CQ6].

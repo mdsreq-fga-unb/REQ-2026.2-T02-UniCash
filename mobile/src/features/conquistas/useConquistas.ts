@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
+import { ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { consultarConquistas } from './consulta';
 import type { ResumoConquistas } from './types';
 
@@ -23,6 +24,7 @@ export function useConquistas() {
   useFocusEffect(
     useCallback(() => {
       void recarregar();
+      return ouvirBaseAtualizada(recarregar);
     }, [recarregar]),
   );
 
