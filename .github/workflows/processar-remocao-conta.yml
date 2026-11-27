@@ -1,0 +1,38 @@
+name: Processar exclusões de conta
+
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: unicash-remocao-conta
+  cancel-in-progress: false
+
+jobs:
+  processar:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: scripts/remocao-conta/package-lock.json
+      - run: npm ci
+        working-directory: scripts/remocao-conta
+      - uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ vars.FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ vars.FIREBASE_WIF_PROVIDER }}
+          service_account: ${{ vars.FIREBASE_REMOVAL_SERVICE_ACCOUNT }}
+      - run: node processar.mjs --projeto "$FIREBASE_PROJECT_ID" --fila --executar
+        working-directory: scripts/remocao-conta
