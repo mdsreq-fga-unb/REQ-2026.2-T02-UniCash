@@ -48,3 +48,7 @@ example
 !.vscode/extensions.json
 
 coverage/
+# Maestro: prints e vídeos gerados (anexar ao PR)
+.maestro/artefatos/
+# Log do emulador do Firestore (npm run test:rules)
+firestore-debug.log

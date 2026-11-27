@@ -390,7 +390,7 @@ describe('migrações da develop até a 012 + 013/014/015 UC12', () => {
 
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(15);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(sqlite.prepare('SELECT * FROM metas WHERE id = ?').get('m1')).toMatchObject({
       objetivo: 'Reserva',
       valor_alvo_centavos: 100000,
@@ -435,7 +435,7 @@ describe('migrações da develop até a 012 + 013/014/015 UC12', () => {
     sqlite.exec('PRAGMA user_version = 14');
     await migrarSeNecessario(criarAdaptador(sqlite));
 
-    expect(versao(sqlite)).toBe(15);
+    expect(versao(sqlite)).toBe(VERSAO_ESQUEMA);
     expect(colunasMetas(sqlite)).toHaveLength(16);
     expect(colunasMetas(sqlite).filter((nome) => nome === 'revisao')).toHaveLength(1);
   });

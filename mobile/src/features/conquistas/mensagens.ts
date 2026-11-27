@@ -1,0 +1,33 @@
+/** Textos do UC13 (protótipo CQ1 a CQ6). */
+export const MSG = {
+  titulo: 'Conquistas',
+  totalPontos: 'Total de pontos',
+  selosConquistados: (n: number) => `Selos conquistados (${n})`,
+  pontosPorMeta: 'Pontos por meta concluída',
+  resumoMetas: (n: number, pontos: number) =>
+    n === 0 ? 'Nenhuma meta concluída' : `${n} ${n === 1 ? 'meta concluída' : 'metas concluídas'} · ${pontos} pontos cada`,
+  vazio: 'Nenhuma conquista ainda.',
+  vazioIncentivo: 'Mantenha as contas no verde e conclua suas metas para ganhar selos e pontos.',
+  verMetas: 'Ver metas',
+  erroLeitura: 'Não foi possível carregar as conquistas.',
+  erroLeituraDetalhe: 'Tente novamente.',
+  tentarNovamente: 'Tentar novamente',
+  acessoNegado: 'Você não tem acesso a estas conquistas.',
+  acessoNegadoDetalhe: 'As conquistas são visíveis apenas para o próprio usuário.',
+  irParaMinhas: 'Ir para minhas conquistas',
+  detalheTitulo: 'Detalhe do selo',
+  conquistadoEm: (data: string) => `Conquistado em ${data}`,
+  marcoAtingido: 'Marco atingido',
+  mesReferencia: 'Mês de referência',
+  receitas: 'Receitas',
+  despesas: 'Despesas',
+  saldoMes: 'Saldo do mês',
+  meta: 'Meta',
+  concluidaEm: 'Concluída em',
+  incentivoNoVerde: (mesAno: string) =>
+    `Você fechou ${mesAno} com mais receitas do que despesas. Continue assim para conquistar novos selos.`,
+  verResumo: 'Ver resumo do mês',
+  seloIndisponivel: 'Este selo não está mais disponível, porque os dados que o garantiam mudaram.',
+  voltarConquistas: 'Voltar para Conquistas',
+  tituloNotificacao: (nome: string) => `Novo selo: ${nome}`,
+} as const;

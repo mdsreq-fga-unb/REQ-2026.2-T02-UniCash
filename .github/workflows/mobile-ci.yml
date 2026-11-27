@@ -23,6 +23,9 @@ jobs:
   check:
     name: Lint, typecheck, testes e build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     env:
       # Valores fictícios: o build só empacota o JS e os testes mockam o Firebase.
       EXPO_PUBLIC_FIREBASE_API_KEY: ci
@@ -50,6 +53,18 @@ jobs:
       - run: npm run typecheck
       # Testes automatizados (unitários, serviço com SQLite em memória e telas), com cobertura
       - run: npm test -- --ci --coverage
+      # Resumo de cobertura no topo da execução e num comentário fixo do PR (atualizado a cada push).
+      - name: Resumo de cobertura
+        if: always() && hashFiles('mobile/coverage/coverage-summary.json') != ''
+        run: |
+          node ../.github/scripts/resumo-cobertura.mjs coverage/coverage-summary.json coverage/resumo.md
+          cat coverage/resumo.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Comentar cobertura no PR
+        if: always() && github.event_name == 'pull_request' && hashFiles('mobile/coverage/resumo.md') != ''
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: cobertura-jest
+          path: mobile/coverage/resumo.md
       - name: Verificar cobertura do UC04
         run: npm test -- --config jest.uc04.config.js --ci --runInBand
       # Build: empacota o app (bundle JS) sem gastar a cota de builds do EAS

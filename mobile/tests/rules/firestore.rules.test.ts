@@ -1000,3 +1000,41 @@ describe('UC08 — saldo inicial', () => {
     await assertFails(setDoc(ref(db('dono')), { ...saldo, ...extra }));
   });
 });
+
+describe('UC13: histórico de desbloqueio', () => {
+  const origem = '01234567-89ab-4cde-8f01-23456789abcd';
+  const selo = (cliente: ReturnType<typeof db>) =>
+    doc(cliente, 'usuarios', 'u1', 'conquistas_historico', 'primeira-meta');
+
+  it('restringe leitura e escrita à conta confirmada', async () => {
+    await assertSucceeds(setDoc(selo(db('u1')), { data: null, origem }));
+    await assertSucceeds(getDoc(selo(db('u1'))));
+    await assertFails(getDoc(selo(db('u2'))));
+    await assertFails(getDoc(selo(dbNaoConfirmado('u1'))));
+    await assertFails(setDoc(selo(db('u2')), { data: '2026-09-10', origem }));
+  });
+
+  it('só aceita datas mais antigas e impede apagar a data conhecida ou o histórico', async () => {
+    const ref = selo(db('u1'));
+    await assertSucceeds(setDoc(ref, { data: null, origem }));
+    await assertSucceeds(setDoc(ref, { data: '2026-10-10', origem }));
+    await assertSucceeds(setDoc(ref, { data: '2026-09-10', origem }));
+    await assertFails(setDoc(ref, { data: null, origem }));
+    await assertFails(setDoc(ref, { data: '2026-11-10', origem }));
+    await assertFails(setDoc(ref, { data: '2026-08-10', pontos: 100, origem }));
+    await assertFails(deleteDoc(ref));
+  });
+  it('exige a origem na criação e impede trocar ou remover a origem', async () => {
+    const ref = selo(db('u1'));
+    await assertFails(setDoc(ref, { data: null }));
+    await assertSucceeds(setDoc(ref, { data: null, origem }));
+    await assertFails(setDoc(ref, { data: '2026-09-10' }));
+    await assertFails(setDoc(ref, { data: '2026-09-10', origem: '11234567-89ab-4cde-8f01-23456789abcd' }));
+  });
+
+  it('permite corrigir a data de um desbloqueio legado sem atribuir uma origem', async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => setDoc(selo(ctx.firestore()), { data: null }));
+    await assertSucceeds(updateDoc(selo(db('u1')), { data: '2026-09-10' }));
+  });
+
+});

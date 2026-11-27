@@ -59,7 +59,9 @@
     "build:aab": "eas build -p android --profile production",
     "build:ios": "eas build -p ios --profile preview",
     "test": "jest",
-    "test:rules": "firebase --config ../firebase.json emulators:exec --only firestore --project unicash-rules-test \"jest --config jest.rules.config.js\""
+    "test:rules": "firebase --config ../firebase.json emulators:exec --only firestore --project unicash-rules-test \"jest --config jest.rules.config.js\"",
+    "e2e": "maestro test .maestro/uc13",
+    "e2e:gravar": "maestro record .maestro/uc13/02-selos-e-detalhe.yaml .maestro/artefatos/uc13/02-selos-e-detalhe.mp4"
   },
   "private": true,
   "allowScripts": {
