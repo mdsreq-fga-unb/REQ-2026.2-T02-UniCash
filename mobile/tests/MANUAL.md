@@ -275,7 +275,18 @@ Use uma conta de teste confirmada e uma segunda caixa de e-mail ainda não cadas
 3. **Troca de e-mail.** Informe o novo e-mail e a senha atual. Salve, reabra **Editar perfil** e confirme que o e-mail anterior permanece ativo e há ações **Já confirmei** e **Reenviar**. Toque em **Já confirmei** antes de abrir o link e confira a mensagem de confirmação pendente. Reenvie e abra o link na caixa de teste. Volte ao app e toque em **Já confirmei**. Confira o novo e-mail no perfil, no Firestore e em um novo login. Depois, reabra offline com a sessão ativa e confira o e-mail confirmado no perfil.
 4. **Validação e desconexão.** Tente alterar para um e-mail inválido ou já utilizado por outra conta de teste. Confira a mensagem e o e-mail atual preservado. Com o modo avião ativo, tente editar o perfil e confirme que o app pede conexão e que a alteração pode ser refeita ao reconectar.
 
-**Bloqueado nesta versão:** exclusão de conta (fluxo C, RF05, RN04 e EX06 a EX08). Registre o bloqueio na evidência do UC11. As falhas de armazenamento e ligação expirada ficam documentadas na [rastreabilidade do UC11](RASTREABILIDADE.md#uc11--gerenciar-perfil-entrega-parcial-edição-do-perfil).
+### Exclusão de conta no plano Spark (fluxo C, RF05)
+
+Use um projeto Firebase de teste com as regras atualizadas e uma conta confirmada descartável, com lançamentos já sincronizados. Anote o UID e, para testar o bloqueio de sincronização, mantenha a mesma conta ativa em uma segunda instalação.
+
+1. **Cancelamento e senha incorreta.** Abra **Conta → Excluir conta** e cancele. Abra de novo e informe uma senha incorreta. Confira que a sessão e os lançamentos locais continuam disponíveis e que `pedidos_remocao/{uid}` ainda não existe.
+2. **Sem conexão.** Ative o modo avião no aparelho que fará o pedido e tente confirmar com a senha correta. Confira a mensagem de conexão e a preservação da sessão e dos dados locais. Reconecte e confirme que nenhum pedido foi criado durante essa tentativa.
+3. **Pedido recebido e limpeza local.** Confirme com a senha correta. Confira **Solicitação de exclusão recebida**, a saída da sessão e o status `pendente` no Firestore. Reabra o app e confira que os dados da conta removida ficaram indisponíveis no aparelho solicitante. Se havia dados de teste na base sem conta, confira que continuam disponíveis.
+4. **Bloqueio em outro aparelho.** Antes de processar o pedido, crie uma receita na segunda instalação e tente sincronizar. Confira que a nova receita não aparece no Firestore. A segunda instalação pode conservar sua cópia local.
+5. **Processamento administrativo.** Siga as [instruções do script](../../scripts/remocao-conta/README.md) para o UID de teste. Após executar, confira que `usuarios/{uid}` e suas subcoleções foram removidos, que o UID sumiu do Authentication e que o pedido ficou `concluido`. Execute novamente e confira que o script informa que o pedido já foi concluído.
+6. **Retomada.** Em ambiente de teste, simule uma interrupção depois de apagar os dados do Firestore e antes de excluir o UID do Authentication. Confira que o pedido ainda bloqueia gravações. Após a expiração da reserva, execute o script para o mesmo UID e confirme a conclusão.
+
+Registre as evidências por cenário. A política de backup de 60 dias e o prazo operacional de processamento continuam pendentes de definição.
 
 ## UC12 — Gerenciar metas financeiras
 
