@@ -1,16 +1,17 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { EstadoConsumo } from '@/components/consumo/IndicadoresConsumo';
+import { formatarBRL } from '@/features/receitas/money';
 import { cores, raio } from '@/lib/theme';
 
-const paleta = [cores.marinho, cores.primaria, '#22C55E', '#A3E635', '#7DD3FC'];
+const paleta = [cores.marinho, cores.primaria, '#22C55E', cores.claro, cores.fundoSuave];
 const percentual = new Intl.NumberFormat('pt-BR', { style: 'percent', maximumFractionDigits: 1 });
-const diametro = 112;
+const diametro = 116;
 const metade = diametro / 2;
 
 export function GastosPorCategoria({ estado, total, onRelatorios, onTentarNovamente }: {
   estado: EstadoConsumo;
   total: number;
-  onRelatorios: () => void;
+  onRelatorios?: () => void;
   onTentarNovamente: () => void;
 }) {
   const gastos = estado.tipo === 'pronto'
@@ -21,7 +22,8 @@ export function GastosPorCategoria({ estado, total, onRelatorios, onTentarNovame
   const categorias = semCategoria
     ? [...gastos, { categoriaId: null, nome: 'Sem categoria ativa', gastoCentavos: semCategoria }]
     : gastos;
-  const itens = categorias.length <= paleta.length ? categorias : [
+  const relatorio = !onRelatorios;
+  const itens = relatorio || categorias.length <= paleta.length ? categorias : [
     ...categorias.slice(0, paleta.length - 1),
     {
       categoriaId: null,
@@ -33,17 +35,22 @@ export function GastosPorCategoria({ estado, total, onRelatorios, onTentarNovame
   const fatias = itens.map((item, indice) => ({
     ...item,
     proporcao: item.gastoCentavos / totalExibido,
-    inicio: itens.slice(0, indice).reduce((valor, anterior) => valor + anterior.gastoCentavos, 0) / totalExibido * 360,
-    cor: paleta[indice],
+    inicio: relatorio ? 0 : itens.slice(0, indice)
+      .reduce((total, anterior) => total + anterior.gastoCentavos, 0) / totalExibido * 360,
+    cor: paleta[indice % paleta.length],
   }));
 
   return (
     <View style={estilos.cartao}>
       <View style={estilos.topo}>
-        <Text accessibilityRole="header" style={estilos.titulo}>Gastos por categoria</Text>
-        <Pressable accessibilityRole="button" onPress={onRelatorios} hitSlop={8}>
-          <Text style={estilos.link}>Relatórios ›</Text>
-        </Pressable>
+        <Text accessibilityRole="header" style={estilos.titulo}>
+          {relatorio ? 'Despesas por categoria' : 'Gastos por categoria'}
+        </Text>
+        {onRelatorios && (
+          <Pressable accessibilityRole="button" onPress={onRelatorios} hitSlop={8}>
+            <Text style={estilos.link}>Relatórios ›</Text>
+          </Pressable>
+        )}
       </View>
       {estado.tipo === 'erro' ? (
         <>
@@ -56,6 +63,22 @@ export function GastosPorCategoria({ estado, total, onRelatorios, onTentarNovame
         <Text style={estilos.texto}>Calculando gastos…</Text>
       ) : fatias.length === 0 ? (
         <Text style={estilos.texto}>Nenhuma despesa neste mês.</Text>
+      ) : relatorio ? (
+        <>
+          <Text style={estilos.total}>Total: {formatarBRL(totalExibido)}</Text>
+          {fatias.map(({ nome, proporcao, gastoCentavos }, indice) => (
+            <View key={`${indice}:${nome}`} style={estilos.categoria}>
+              <View style={estilos.linhaRelatorio}>
+                <Text style={[estilos.texto, estilos.nome]}>{nome}</Text>
+                <Text style={estilos.texto}>{formatarBRL(gastoCentavos)}</Text>
+                <Text style={estilos.percentual}>{percentual.format(proporcao)}</Text>
+              </View>
+              <View style={estilos.trilha}>
+                <View style={[estilos.barra, { width: `${proporcao * 100}%` }]} />
+              </View>
+            </View>
+          ))}
+        </>
       ) : (
         <View style={estilos.dados}>
           <View style={estilos.disco} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
@@ -103,6 +126,12 @@ const estilos = StyleSheet.create({
   titulo: { color: cores.marinho, fontWeight: '700', fontSize: 15 },
   link: { color: cores.primaria, fontWeight: '600', fontSize: 13 },
   texto: { color: cores.marinho, fontSize: 13 },
+  total: { color: cores.marinho, fontSize: 20, fontWeight: '700' },
+  categoria: { gap: 4 },
+  linhaRelatorio: { flexDirection: 'row', alignItems: 'center', columnGap: 12 },
+  percentual: { minWidth: 40, textAlign: 'right', color: cores.marinho, fontSize: 13, fontWeight: '600' },
+  trilha: { height: 8, backgroundColor: cores.claro, borderRadius: 4, overflow: 'hidden' },
+  barra: { height: 8, backgroundColor: cores.primaria, borderRadius: 4 },
   dados: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14 },
   disco: { width: diametro, height: diametro },
   mascara: { position: 'absolute', left: metade, width: metade, height: diametro, overflow: 'hidden' },
