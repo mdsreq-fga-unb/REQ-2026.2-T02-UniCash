@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { cores, raio } from '@/lib/theme';
 import { useMetas } from '@/features/metas/useMetas';
 import { consumirFeedback, type Feedback } from '@/features/metas/feedback';
@@ -46,39 +47,44 @@ function MetaItem({
       accessibilityLabel={`Meta ${meta.objetivo}`}
     >
       <View style={estilos.itemTopo}>
+        <IconePrototipo nome="metas" tamanho={17} />
         <Text style={estilos.itemObjetivo}>{meta.objetivo}</Text>
-        <Text style={estilos.tipo}>{rotuloTipo(meta.tipo)}</Text>
+        {!indisponivel && <Text style={estilos.percentual}>{formatarPercentual(progresso.percentual!)}</Text>}
+        <IconePrototipo nome="direita" tamanho={9} />
       </View>
-      <Text style={estilos.itemValor}>{formatarBRL(meta.valor_alvo_centavos)}</Text>
-      <Text style={estilos.itemPrazo}>Prazo: {textoPrazo(meta.prazo)}</Text>
-      <Text style={[estilos.sync, pendente ? estilos.syncPendente : estilos.syncOk]}>
-        {pendente ? 'Pendente de sincronização' : 'Sincronizado'}
-      </Text>
       {indisponivel ? (
-        <Text style={estilos.progressoPendente}>
-          {futura
-            ? `Meta ainda não iniciada${meta.inicio ? ` · início em ${formatarBR(meta.inicio)}` : ''}`
-            : meta.tipo === 'investimento'
-              ? 'Valor acumulado não informado'
-              : 'Progresso indisponível'}
-        </Text>
+        <>
+          <Text style={estilos.itemPrazo}>Valor-alvo: {formatarBRL(meta.valor_alvo_centavos)}</Text>
+          <Text style={estilos.progressoPendente}>
+            {futura
+              ? `Meta ainda não iniciada${meta.inicio ? ` · início em ${formatarBR(meta.inicio)}` : ''}`
+              : meta.tipo === 'investimento'
+                ? 'Valor acumulado não informado'
+                : 'Progresso indisponível'}
+          </Text>
+        </>
       ) : (
         <>
           <View style={estilos.trilha}>
             <View style={[estilos.progresso, { width: `${Math.min(100, Math.max(0, progresso.percentual!))}%` }]} />
           </View>
-          <Text style={estilos.progressoTexto}>
-            {meta.tipo === 'gasto' ? 'Consumo do limite' : 'Valor acumulado'}:{' '}
-            {formatarBRL(progresso.valorRealizadoCentavos!)} de{' '}
-            {formatarBRL(progresso.valorAlvoCentavos)} ({formatarPercentual(progresso.percentual!)})
-          </Text>
-          <Text style={estilos.progressoPendente}>
-            {rotuloSituacaoProgresso(progresso.situacaoProgresso)} ·{' '}
-            {rotuloSituacaoVigencia(progresso.situacaoVigencia)} ·{' '}
-            {rotuloSituacaoPrazo(progresso.situacaoPrazo)}
-          </Text>
+          <View style={estilos.valores}>
+            <Text style={estilos.progressoTexto}>
+              {meta.tipo === 'gasto' ? 'Consumo: ' : ''}
+              {formatarBRL(progresso.valorRealizadoCentavos!)} de {formatarBRL(progresso.valorAlvoCentavos)}
+            </Text>
+            <Text style={estilos.restante}>Restam {formatarBRL(progresso.valorRestanteCentavos!)}</Text>
+          </View>
         </>
       )}
+      <Text style={estilos.itemPrazo}>Prazo: {textoPrazo(meta.prazo)}</Text>
+      <Text style={estilos.progressoPendente}>
+        {rotuloTipo(meta.tipo)}
+        {!indisponivel ? ` · ${rotuloSituacaoProgresso(progresso.situacaoProgresso)} · ${rotuloSituacaoVigencia(progresso.situacaoVigencia)} · ${rotuloSituacaoPrazo(progresso.situacaoPrazo)}` : ''}
+      </Text>
+      <Text style={[estilos.sync, pendente ? estilos.syncPendente : estilos.syncOk]}>
+        {pendente ? 'Pendente de sincronização' : 'Sincronizado'}
+      </Text>
     </Pressable>
   );
 }
@@ -88,6 +94,17 @@ export default function ListaMetas() {
   const { itens, progressos, carregando, erroLeitura, recarregar } = useMetas();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const criarMeta = () => router.push('/metas/nova');
+  const investimentosAtivos = itens.flatMap((meta) => {
+    const progresso = progressos?.[meta.id];
+    return meta.tipo === 'investimento' && progresso?.situacaoVigencia === 'em_vigor'
+      ? [progresso]
+      : [];
+  });
+  const totalGuardado = investimentosAtivos.reduce(
+    (total, progresso) => total + (progresso.valorRealizadoCentavos ?? 0), 0,
+  );
+  const totalAlvo = investimentosAtivos.reduce((total, progresso) => total + progresso.valorAlvoCentavos, 0);
+  const valoresConhecidos = investimentosAtivos.every((progresso) => progresso.valorRealizadoCentavos !== null);
 
   useFocusEffect(
     useCallback(() => {
@@ -101,7 +118,7 @@ export default function ListaMetas() {
       <View style={estilos.cabecalho}>
         <Text style={estilos.titulo}>Metas</Text>
         <Pressable onPress={criarMeta} style={estilos.adicionar} accessibilityRole="button" accessibilityLabel="Nova meta">
-          <Text style={estilos.adicionarTexto}>+</Text>
+          <IconePrototipo nome="mais" tamanho={15} />
         </Pressable>
       </View>
 
@@ -141,6 +158,18 @@ export default function ListaMetas() {
                 </Pressable>
               </View>
             ) : null}
+            {investimentosAtivos.length > 0 && (
+              <View style={estilos.resumo}>
+                <Text style={estilos.progressoTexto}>
+                  {investimentosAtivos.length} {investimentosAtivos.length === 1 ? 'meta de investimento ativa' : 'metas de investimento ativas'}
+                </Text>
+                {valoresConhecidos && (
+                  <Text style={estilos.resumoValor}>
+                    {formatarBRL(totalGuardado)} guardados de {formatarBRL(totalAlvo)}
+                  </Text>
+                )}
+              </View>
+            )}
           </>
         }
         ListEmptyComponent={
@@ -159,17 +188,24 @@ export default function ListaMetas() {
             </View>
           ) : (
             <View style={estilos.vazio}>
+              <View style={estilos.vazioIcone}>
+                <IconePrototipo nome="metaVazia" tamanho={27} />
+              </View>
               <Text style={estilos.vazioTitulo}>Nenhuma meta ainda</Text>
-              <Text style={estilos.vazioTexto}>Crie uma meta e acompanhe seu progresso.</Text>
+              <Text style={estilos.vazioTexto}>
+                Crie uma meta com valor-alvo e prazo, como uma reserva de emergência, e acompanhe o progresso aqui.
+              </Text>
               <Pressable onPress={criarMeta} style={estilos.criar} accessibilityRole="button">
-                <Text style={estilos.criarTexto}>+ Criar primeira meta</Text>
+                <IconePrototipo nome="mais" tamanho={13} style={estilos.iconeBranco} />
+                <Text style={estilos.criarTexto}>Criar primeira meta</Text>
               </Pressable>
             </View>
           )
         }
         ListFooterComponent={itens.length > 0 ? (
-          <Pressable onPress={criarMeta} style={estilos.tentar} accessibilityRole="button">
-            <Text style={[estilos.tentarTexto, estilos.centralizado]}>+ Nova meta</Text>
+          <Pressable onPress={criarMeta} style={estilos.novaMeta} accessibilityRole="button">
+            <IconePrototipo nome="mais" tamanho={13} />
+            <Text style={estilos.novaMetaTexto}>Nova meta</Text>
           </Pressable>
         ) : undefined}
       />
@@ -181,44 +217,36 @@ const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   cabecalho: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 20, paddingTop: 8,
+    paddingHorizontal: 16, minHeight: 50,
   },
-  titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho },
-  conteudo: { paddingHorizontal: 20, paddingBottom: 24 },
+  titulo: { fontSize: 18, fontWeight: '600', color: cores.marinho },
+  conteudo: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
   banner: { borderRadius: raio.cartao, padding: 14, marginBottom: 12 },
   bannerOk: { backgroundColor: cores.primaria },
   bannerErro: { backgroundColor: cores.erro },
   bannerTexto: { color: cores.branco, fontSize: 13, fontWeight: '600' },
-  item: {
-    backgroundColor: cores.fundoSuave,
-    borderRadius: raio.cartao,
-    padding: 14,
-    marginBottom: 10,
-  },
-  itemTopo: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  itemObjetivo: { fontSize: 16, fontWeight: '700', color: cores.marinho, flexShrink: 1 },
-  tipo: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: cores.primaria,
-    borderWidth: 1,
-    borderColor: cores.primaria,
-    borderRadius: raio.pilula,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  itemValor: { fontSize: 18, fontWeight: '800', color: cores.marinho, marginTop: 6 },
-  itemPrazo: { fontSize: 13, color: cores.textoSuave, marginTop: 4 },
-  sync: { fontSize: 12, fontWeight: '600', marginTop: 6 },
+  resumo: { backgroundColor: cores.fundoSuave, borderRadius: 10, padding: 12, marginBottom: 16, gap: 2 },
+  resumoValor: { fontSize: 15, fontWeight: '600', color: cores.marinho },
+  item: { borderWidth: 1, borderColor: cores.borda, borderRadius: raio.cartao, padding: 14, marginBottom: 16, gap: 5 },
+  itemTopo: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  itemObjetivo: { flex: 1, fontSize: 15, fontWeight: '600', color: cores.marinho },
+  percentual: { fontSize: 14, fontWeight: '600', color: cores.marinho },
+  itemPrazo: { fontSize: 12, color: cores.primaria },
+  sync: { fontSize: 11, fontWeight: '600' },
   syncPendente: { color: cores.erro },
   syncOk: { color: cores.sucesso },
-  trilha: { height: 6, backgroundColor: cores.claro, borderRadius: 3, overflow: 'hidden', marginTop: 8 },
-  progresso: { height: '100%', backgroundColor: cores.primaria, borderRadius: 3 },
-  progressoTexto: { fontSize: 12, color: cores.marinho, marginTop: 6, fontWeight: '600' },
-  progressoPendente: { fontSize: 12, color: cores.textoSuave, marginTop: 4 },
-  vazio: { alignItems: 'center', paddingVertical: 40 },
-  vazioTitulo: { fontSize: 16, fontWeight: '700', color: cores.marinho },
-  vazioTexto: { fontSize: 14, color: cores.textoSuave, marginTop: 6, textAlign: 'center' },
+  trilha: { height: 8, backgroundColor: cores.claro, borderRadius: 4, overflow: 'hidden', marginVertical: 3 },
+  progresso: { height: '100%', backgroundColor: cores.primaria, borderRadius: 4 },
+  valores: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', columnGap: 8 },
+  progressoTexto: { fontSize: 12, color: cores.primaria },
+  restante: { fontSize: 12, fontWeight: '600', color: cores.marinho },
+  progressoPendente: { fontSize: 12, color: cores.textoSuave },
+  vazio: { alignItems: 'center', paddingVertical: 40, gap: 10 },
+  vazioIcone: {
+    width: 80, height: 80, borderRadius: 40, backgroundColor: cores.claro, alignItems: 'center', justifyContent: 'center',
+  },
+  vazioTitulo: { fontSize: 17, fontWeight: '600', color: cores.marinho },
+  vazioTexto: { fontSize: 14, lineHeight: 20, color: cores.primaria, textAlign: 'center' },
   erro: { color: cores.erro, fontSize: 14, textAlign: 'center' },
   tentar: {
     marginTop: 12,
@@ -239,11 +267,16 @@ const estilos = StyleSheet.create({
   },
   tentarBannerTexto: { color: cores.erro, fontWeight: '700', fontSize: 13 },
   adicionar: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
-  adicionarTexto: { color: cores.primaria, fontSize: 25 },
   criar: {
     alignSelf: 'stretch', alignItems: 'center', backgroundColor: cores.primaria,
-    borderRadius: raio.botao, padding: 12, marginTop: 16,
+    borderRadius: 8, minHeight: 44, marginTop: 14, paddingHorizontal: 8,
+    flexDirection: 'row', justifyContent: 'center', gap: 8,
   },
-  criarTexto: { color: cores.branco, fontWeight: '700' },
-  centralizado: { textAlign: 'center' },
+  criarTexto: { color: cores.branco, fontWeight: '600', textAlign: 'center', flexShrink: 1 },
+  iconeBranco: { tintColor: cores.branco },
+  novaMeta: {
+    flexDirection: 'row', minHeight: 46, alignItems: 'center', justifyContent: 'center', gap: 8,
+    borderWidth: 1, borderColor: cores.borda, borderRadius: 8,
+  },
+  novaMetaTexto: { color: cores.marinho, fontSize: 15, fontWeight: '600' },
 });
