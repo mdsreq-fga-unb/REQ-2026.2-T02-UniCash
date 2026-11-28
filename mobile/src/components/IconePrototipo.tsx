@@ -1,6 +1,18 @@
 import { Image, type ImageStyle, type StyleProp } from 'react-native';
 
 const imagens = {
+  editarAcao: require('../assets/prototipo/editarAcao.png'),
+  carteiraTutorial: require('../assets/prototipo/carteiraTutorial.png'),
+  listaTutorial: require('../assets/prototipo/listaTutorial.png'),
+  graficoTutorial: require('../assets/prototipo/graficoTutorial.png'),
+  metaTutorial: require('../assets/prototipo/metaTutorial.png'),
+  busca: require('../assets/prototipo/busca.png'),
+  buscaVazia: require('../assets/prototipo/buscaVazia.png'),
+  confirmado: require('../assets/prototipo/confirmado.png'),
+  despesa: require('../assets/prototipo/despesa.png'),
+  excluir: require('../assets/prototipo/excluir.png'),
+  metaVazia: require('../assets/prototipo/metaVazia.png'),
+  receita: require('../assets/prototipo/receita.png'),
   resumo: require('../assets/prototipo/resumo.png'),
   movimentacoes: require('../assets/prototipo/movimentacoes.png'),
   metas: require('../assets/prototipo/metas.png'),
