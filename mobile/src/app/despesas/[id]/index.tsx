@@ -23,6 +23,7 @@ import { useCategoriasAtivas } from '@/features/categorias/useCategoriasAtivas';
 import { nomeCategoriaPorId } from '@/features/despesas/categorias';
 import type { Despesa } from '@/features/despesas/types';
 import { useExclusaoDespesas } from '@/components/despesas/useExclusaoDespesas';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { cores, raio } from '@/lib/theme';
 
 const UNIDADE: Record<string, [string, string]> = {
@@ -171,12 +172,12 @@ export default function DetalheDespesa() {
         <Pressable
           onPress={() => router.back()}
           accessibilityLabel="Voltar"
-          style={{ paddingHorizontal: 10 }}
+          style={estilos.voltar}
         >
-          <Text style={estilos.voltar}>‹</Text>
+          <IconePrototipo nome="voltar" tamanho={14} />
         </Pressable>
 
-        <Text style={estilos.titulo}>Detalhe da despesa</Text>
+        <Text style={estilos.titulo}>{despesa.recorrencia_id ? 'Despesa recorrente' : 'Detalhe do lançamento'}</Text>
       </View>
 
       <ScrollView contentContainerStyle={estilos.conteudo}>
@@ -283,7 +284,8 @@ export default function DetalheDespesa() {
           style={estilos.primario}
           accessibilityRole="button"
         >
-          <Text style={estilos.primarioTexto}>✎  Editar despesa</Text>
+          <IconePrototipo nome="editarAcao" tamanho={14} />
+          <Text style={estilos.primarioTexto}>Editar despesa</Text>
         </Pressable>
 
         <Pressable
@@ -291,6 +293,7 @@ export default function DetalheDespesa() {
           style={estilos.destrutivo}
           accessibilityRole="button"
         >
+          <IconePrototipo nome="excluir" tamanho={14} />
           <Text style={estilos.destrutivoTexto}>Excluir despesa</Text>
         </Pressable>
       </ScrollView>
@@ -333,18 +336,14 @@ const estilos = StyleSheet.create({
   cabecalho: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    minHeight: 48,
+    gap: 10,
   },
-  voltar: {
-    fontSize: 30,
-    color: cores.primaria,
-    fontWeight: '700',
-    lineHeight: 32,
-  },
+  voltar: { width: 28, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   titulo: { fontSize: 18, fontWeight: '700', color: cores.marinho },
-  conteudo: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-  topo: { alignItems: 'center', marginBottom: 20 },
+  conteudo: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 },
+  topo: { alignItems: 'center', marginBottom: 24 },
   avatar: {
     width: 56,
     height: 56,
@@ -352,9 +351,9 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.claro,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
-  avatarTexto: { color: cores.marinho, fontWeight: '700', fontSize: 20 },
+  avatarTexto: { color: cores.primaria, fontWeight: '700', fontSize: 20 },
   nome: {
     fontSize: 16,
     fontWeight: '700',
@@ -362,7 +361,7 @@ const estilos = StyleSheet.create({
     textAlign: 'center',
   },
   valor: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: '800',
     color: cores.erro,
     marginTop: 4,
@@ -372,11 +371,11 @@ const estilos = StyleSheet.create({
     borderColor: cores.claro,
     borderRadius: raio.pilula,
     paddingHorizontal: 12,
-    paddingVertical: 3,
+    paddingVertical: 6,
     marginTop: 8,
     backgroundColor: cores.branco,
   },
-  tagTexto: { fontSize: 11, color: cores.marinho },
+  tagTexto: { fontSize: 13, color: cores.marinho },
   cartao: {
     borderWidth: 1,
     borderColor: cores.claro,
@@ -388,12 +387,14 @@ const estilos = StyleSheet.create({
   linha: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 9,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: cores.borda,
   },
-  rotulo: { fontSize: 12, color: cores.primaria, marginRight: 16 },
+  rotulo: { fontSize: 14, color: cores.primaria, marginRight: 16 },
   linhaValor: {
     flex: 1,
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
     color: cores.marinho,
     textAlign: 'right',
@@ -409,9 +410,12 @@ const estilos = StyleSheet.create({
   },
   primario: {
     backgroundColor: cores.primaria,
-    borderRadius: raio.botao,
-    paddingVertical: 14,
+    borderRadius: 8,
+    minHeight: 44,
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   primarioTexto: {
     color: cores.branco,
@@ -419,15 +423,18 @@ const estilos = StyleSheet.create({
     fontSize: 14,
   },
   destrutivo: {
-    borderWidth: 1,
-    borderColor: cores.erro,
-    borderRadius: raio.botao,
-    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: cores.marinho,
+    borderRadius: 8,
+    minHeight: 44,
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
-    marginTop: 12,
+    justifyContent: 'center',
+    marginTop: 16,
   },
   destrutivoTexto: {
-    color: cores.erro,
+    color: cores.marinho,
     fontWeight: '700',
     fontSize: 14,
   },
