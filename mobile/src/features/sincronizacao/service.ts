@@ -4,13 +4,15 @@ import { AppState } from 'react-native';
 import { getDb, getDbDoDono } from '@/db/database';
 import { contarPendentes as contarRestauracaoPendente } from '@/db/restauracaoPendente';
 import { aoMudarSessao, obterSessao } from '@/features/conta/sessao';
-import { envioPausado, restaurarDaNuvem, sincronizarPendentes } from '@/features/receitas/sync';
+import {
+  definirPreferenciaAutomatica, envioPausado, restaurarDaNuvem, sincronizarPendentes,
+} from '@/features/receitas/sync';
 import { avisarBaseAtualizada, ouvirBaseAtualizada } from '@/lib/baseAtualizada';
 import { auth } from '@/lib/firebase';
 import type { CodigoSincronizacao, EstadoSincronizacao, SyncService } from './contrato';
 import { listarFila, type ItemFila } from './fila';
 
-const ciclos = new Map<string, Promise<void>>();
+const ciclos = new Map<string, { tarefa: Promise<void>; manual: boolean }>();
 const falhas = new Map<string, CodigoSincronizacao>();
 function chaveItem(item: Pick<ItemFila, 'tipo' | 'id' | 'revisao'>) {
   return JSON.stringify([item.tipo, item.id, item.revisao]);
@@ -84,6 +86,7 @@ async function executarCiclo(uid: string, manual: boolean) {
     let falhaEnvio: CodigoSincronizacao | null = null;
     await sincronizarPendentes({
       manual,
+      manterPausa: true,
       aguardar: true,
       aoFalhar: (erro, item) => {
         if (item) {
@@ -103,7 +106,8 @@ async function executarCiclo(uid: string, manual: boolean) {
       return;
     }
 
-    await restaurarDaNuvem({ servidor: true, uidEsperado: uid });
+    if (!manual && await envioPausado(uid)) return;
+    await restaurarDaNuvem({ servidor: true, uidEsperado: uid, automatica: !manual });
     if (uidAtivo() !== uid) return;
 
     etapa = 'EX07';
@@ -144,15 +148,15 @@ async function sincronizar(manual: boolean): Promise<void> {
   }
   const atual = ciclos.get(uid);
   if (atual) {
-    await atual;
-    if (manual && uidAtivo() === uid && await envioPausado(uid).catch(() => false)) {
+    await atual.tarefa;
+    if (manual && !atual.manual && uidAtivo() === uid && await envioPausado(uid).catch(() => false)) {
       return sincronizar(true);
     }
     return;
   }
 
   const ciclo = executarCiclo(uid, manual);
-  ciclos.set(uid, ciclo);
+  ciclos.set(uid, { tarefa: ciclo, manual });
   avisar();
   try {
     await ciclo;
@@ -163,13 +167,25 @@ async function sincronizar(manual: boolean): Promise<void> {
   }
 }
 
+export async function alterarSincronizacaoAutomatica(uid: string, ligada: boolean): Promise<void> {
+  if (uidAtivo() !== uid) throw new Error('EX08');
+  await definirPreferenciaAutomatica(uid, ligada);
+  avisar();
+  if (ligada) {
+    void Promise.resolve(ciclos.get(uid)?.tarefa).then(() => {
+      if (uidAtivo() === uid) return sincronizar(false);
+    });
+  }
+}
+
 export const syncService: SyncService = {
   async consultar() {
     const uid = uidAtivo();
-    const [fila, ultimaSincronizacao, rejeitados] = await Promise.all([
+    const [fila, ultimaSincronizacao, rejeitados, pausada] = await Promise.all([
       (uid ? getDbDoDono(uid) : getDb()).then(listarFila),
       uid ? AsyncStorage.getItem(chaveUltimoCiclo(uid)) : Promise.resolve(null),
       uid ? lerRecusas(uid) : Promise.resolve(null),
+      uid ? envioPausado(uid) : Promise.resolve(undefined),
     ]);
     if (uidAtivo() !== uid) throw new Error('EX08');
 
@@ -186,6 +202,7 @@ export const syncService: SyncService = {
       ultimaSincronizacao,
       quantidadePendencias,
       sincronizando: uid !== null && ciclos.has(uid),
+      sincronizacaoAutomatica: pausada === undefined ? undefined : !pausada,
       status: codigo === 'EX01' ? 'sem-conexao'
         : codigo && codigo !== 'EX02' ? 'erro'
         : !uid || quantidadePendencias > 0 || !ultimaSincronizacao ? 'pendente'
