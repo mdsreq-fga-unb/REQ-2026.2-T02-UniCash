@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { cores, raio } from '@/lib/theme';
 import { Campo } from '../receitas/Campo';
 import { Segmentado } from '../receitas/Segmentado';
@@ -19,8 +20,9 @@ import {
   hojeISO,
   formatarBR,
   mascararData,
+  parseBR,
 } from '@/features/receitas/dates';
-import { mascararValor } from '@/features/receitas/money';
+import { formatarBRL, mascararValor, parseValor } from '@/features/receitas/money';
 import {
   validarFormularioDespesa,
   type ErrosFormDespesa,
@@ -66,22 +68,23 @@ interface Props {
 const UNIDADES: {
   valor: UnidadeRecorrencia;
   rotulo: string;
-  um: string;
   varios: string;
 }[] = [
-  { valor: 'dia', rotulo: 'Dias', um: 'dia', varios: 'dias' },
-  { valor: 'mes', rotulo: 'Meses', um: 'mês', varios: 'meses' },
-  { valor: 'ano', rotulo: 'Anos', um: 'ano', varios: 'anos' },
+  { valor: 'dia', rotulo: 'Dias', varios: 'dias' },
+  { valor: 'mes', rotulo: 'Meses', varios: 'meses' },
+  { valor: 'ano', rotulo: 'Anos', varios: 'anos' },
 ];
 
 function resumoRepeticao(v: FormValoresDespesa): string {
   if (!v.recorrente) return 'Não se repete';
 
-  const n = Number(v.intervalo) || 0;
-  const unidade = UNIDADES.find((x) => x.valor === v.unidade)!;
-  const base = `A cada ${v.intervalo || '?'} ${n === 1 ? unidade.um : unidade.varios}`;
+  const n = Number(v.intervalo);
+  if (n === 1) {
+    return v.unidade === 'mes' ? 'Mensal' : v.unidade === 'ano' ? 'Anual' : 'Diária';
+  }
 
-  return v.termino ? `${base} · até ${v.termino}` : base;
+  const unidade = UNIDADES.find((item) => item.valor === v.unidade)!;
+  return `A cada ${v.intervalo || '?'} ${unidade.varios}`;
 }
 
 export function DespesaForm({
@@ -101,7 +104,7 @@ export function DespesaForm({
     () => inicial ?? { ...FORM_DESPESA_VAZIO, data: formatarBR(hojeISO()) },
   );
   const [erros, setErros] = useState<ErrosFormDespesa>({});
-  const [repeticaoAberta, setRepeticaoAberta] = useState(false);
+  const [seletor, setSeletor] = useState<'repeticao' | 'personalizar' | 'termino' | 'categoria' | null>(null);
 
   const {
     itens: categorias,
@@ -145,28 +148,47 @@ export function DespesaForm({
     }
   }
 
-  const erroRepeticao = erros.intervalo ?? erros.termino;
+  const categoriaSelecionada = opcoesCategoria.find(({ id }) => id === v.categoriaId)?.nome;
+  const repeticao = resumoRepeticao(v);
+  const dia = parseBR(v.data) ? Number(v.data.slice(0, 2)) : 0;
+  const repeticaoMensal = v.unidade === 'mes' && Number(v.intervalo) === 1 && dia > 0;
+  const regra = repeticaoMensal ? `todo mês, no dia ${dia}` : repeticao.toLowerCase();
+  const valor = parseValor(v.valor);
+
+  function escolherRepeticao(unidade: UnidadeRecorrencia | null) {
+    setV((anterior) => ({
+      ...anterior,
+      recorrente: unidade !== null,
+      unidade: unidade ?? 'mes',
+      intervalo: '1',
+      termino: unidade ? anterior.termino : '',
+    }));
+    setErros((anteriores) => ({ ...anteriores, intervalo: undefined, termino: undefined }));
+    setSeletor(null);
+  }
 
   return (
     <View style={estilos.tela}>
       <View style={estilos.cabecalho}>
         <Pressable
           onPress={onCancelar}
+          accessibilityRole="button"
           accessibilityLabel="Voltar"
           style={estilos.voltar}
         >
-          <Text style={estilos.voltarTexto}>‹</Text>
+          <IconePrototipo nome="voltar" tamanho={16} />
         </Pressable>
 
-        <Text style={estilos.titulo}>{titulo}</Text>
+        <Text accessibilityRole="header" style={estilos.titulo}>{titulo}</Text>
       </View>
 
       <ScrollView
         contentContainerStyle={estilos.conteudo}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={{ marginBottom: 16 }}>
+        <View style={estilos.bloco}>
           <Segmentado
+            variante="compacto"
             valor="despesa"
             opcoes={[
               { valor: 'despesa', rotulo: 'Despesa' },
@@ -179,6 +201,7 @@ export function DespesaForm({
         </View>
 
         <Campo
+          compacto
           rotulo="Título"
           value={v.titulo}
           onChangeText={(texto) => set('titulo', texto)}
@@ -187,6 +210,7 @@ export function DespesaForm({
         />
 
         <Campo
+          compacto
           rotulo="Valor"
           prefixo="R$"
           value={v.valor}
@@ -197,26 +221,27 @@ export function DespesaForm({
         />
 
         <Campo
-          rotulo="Data"
+          compacto
+          rotulo={v.recorrente ? "Data inicial" : "Data"}
           value={v.data}
           onChangeText={(texto) => set('data', mascararData(texto))}
           placeholder="DD/MM/AAAA"
           keyboardType="number-pad"
           erro={erros.data}
-          acao={<Text style={estilos.icone}>🗓</Text>}
-          abaixo={
-            <Pressable
-              onPress={() => set('data', formatarBR(hojeISO()))}
-              accessibilityRole="button"
-              style={estilos.hojeBotao}
-            >
-              <Text style={estilos.hoje}>Hoje</Text>
+          acao={<IconePrototipo nome="calendario" tamanho={16} />}
+          abaixo={v.recorrente ? (
+            <Text style={estilos.dica}>Data da primeira ocorrência.</Text>
+          ) : (
+            <Pressable accessibilityRole="button" onPress={() => set('data', formatarBR(hojeISO()))}
+              style={estilos.hoje}>
+              <Text style={estilos.dica}>Hoje</Text>
             </Pressable>
-          }
+          )}
         />
 
         <Campo
-          rotulo="Descrição (opcional)"
+          compacto
+          rotulo={v.recorrente ? "Descrição" : "Descrição (opcional)"}
           value={v.descricao}
           onChangeText={(texto) => set('descricao', texto)}
           placeholder="Detalhes da despesa"
@@ -224,123 +249,77 @@ export function DespesaForm({
           erro={erros.descricao}
         />
 
-        <View style={estilos.bloco}>
-          <Text style={estilos.rotulo}>Tipo de despesa</Text>
-          <Segmentado
-            valor={v.fixaOuVariavel}
-            onChange={(valor) =>
-              set('fixaOuVariavel', valor as FormValoresDespesa['fixaOuVariavel'])
-            }
-            opcoes={[
-              { valor: 'fixa', rotulo: 'Fixa' },
-              { valor: 'variavel', rotulo: 'Variável' },
-            ]}
-          />
-        </View>
+        <SeletorDespesa
+          rotulo="Repetição (opcional)"
+          acessibilidade="Repetição"
+          valor={repeticao}
+          erro={erros.intervalo}
+          dica={v.recorrente
+            ? repeticaoMensal ? `Repete todo mês no dia ${dia}.` : undefined
+            : 'Opcional · Dias, meses ou anos'}
+          onPress={() => setSeletor('repeticao')}
+        />
 
-        <View style={estilos.bloco}>
-          <Text style={estilos.rotulo}>Importância</Text>
-          <Segmentado
-            valor={v.essencial}
-            onChange={(valor) =>
-              set('essencial', valor as FormValoresDespesa['essencial'])
-            }
-            opcoes={[
-              { valor: 'essencial', rotulo: 'Essencial' },
-              { valor: 'nao_essencial', rotulo: 'Não essencial' },
-            ]}
-          />
-        </View>
+        {v.recorrente ? (
+          <>
+            <SeletorDespesa
+              rotulo="Término (opcional)"
+              valor={v.termino || 'Sem término'}
+              erro={erros.termino}
+              dica="Você pode definir uma data para a última repetição."
+              onPress={() => setSeletor('termino')}
+            />
+            {dia > 0 && valor.ok && Number(v.intervalo) > 0 ? (
+              <View style={estilos.resumo}>
+                <Text accessibilityRole="header" style={estilos.resumoTitulo}>Resumo da repetição</Text>
+                <Text style={estilos.resumoTexto}>
+                  {formatarBRL(valor.centavos)} {regra}, a partir de {v.data},
+                  {v.termino ? ` até ${v.termino}.` : ' sem data de término.'}
+                </Text>
+                <Text style={estilos.dica}>
+                  Repete o lançamento no UniCash. Não faz débito bancário automático.
+                </Text>
+              </View>
+            ) : null}
+          </>
+        ) : null}
+
+        {emSerie ? (
+          <Text style={estilos.avisoSerie}>
+            Despesa de uma série: mudanças na repetição podem valer para esta,
+            as próximas ou todas as ocorrências.
+          </Text>
+        ) : null}
 
         <View style={estilos.bloco}>
           <Text style={estilos.rotulo}>Categoria</Text>
-
-          {carregandoCategorias ? (
-            <ActivityIndicator
-              color={cores.primaria}
-              style={estilos.carregandoCategorias}
+          <View style={estilos.classificacoes}>
+            <Segmentado
+              variante="pilulas"
+              valor={v.fixaOuVariavel}
+              onChange={(valor) => set('fixaOuVariavel', valor)}
+              opcoes={[
+                { valor: 'fixa', rotulo: 'Fixa' },
+                { valor: 'variavel', rotulo: 'Variável' },
+              ]}
             />
-          ) : null}
-
-          {erroCategorias ? (
-            <View style={estilos.avisoCategorias}>
-              <Text style={estilos.erro} accessibilityRole="alert">
-                Não foi possível carregar as categorias.
-              </Text>
-              <Pressable
-                onPress={recarregarCategorias}
-                accessibilityRole="button"
-                style={estilos.tentarCategorias}
-              >
-                <Text style={estilos.dica}>Tentar novamente</Text>
-              </Pressable>
-            </View>
-          ) : null}
-
-          <View style={estilos.categoriaOpcoes} accessibilityRole="radiogroup">
-            {opcoesCategoria.map((c) => {
-              const ativa = v.categoriaId === c.id;
-
-              return (
-                <Pressable
-                  key={c.id || 'sem-categoria'}
-                  onPress={() => set('categoriaId', c.id)}
-                  style={[
-                    estilos.categoriaChip,
-                    ativa && estilos.categoriaChipAtivo,
-                  ]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: ativa }}
-                >
-                  <Text
-                    style={[
-                      estilos.categoriaChipTexto,
-                      ativa && estilos.categoriaChipTextoAtivo,
-                    ]}
-                  >
-                    {c.nome}
-                  </Text>
-                </Pressable>
-              );
-            })}
+            <Segmentado
+              variante="pilulas"
+              valor={v.essencial}
+              onChange={(valor) => set('essencial', valor)}
+              opcoes={[
+                { valor: 'essencial', rotulo: 'Essencial' },
+                { valor: 'nao_essencial', rotulo: 'Não essencial' },
+              ]}
+            />
           </View>
         </View>
 
-        <View style={estilos.bloco}>
-          <Text style={estilos.rotulo}>Repetição (opcional)</Text>
-
-          <Pressable
-            onPress={() => setRepeticaoAberta(true)}
-            style={[
-              estilos.seletor,
-              erroRepeticao ? estilos.seletorErro : null,
-            ]}
-            accessibilityRole="button"
-            accessibilityLabel="Repetição"
-          >
-            <Text style={estilos.seletorTexto}>
-              {resumoRepeticao(v)}
-            </Text>
-            <Text style={estilos.seta}>▾</Text>
-          </Pressable>
-
-          {erroRepeticao ? (
-            <Text style={estilos.erro} accessibilityRole="alert">
-              {erroRepeticao}
-            </Text>
-          ) : (
-            <Text style={estilos.dica}>
-              Opcional · Dias, meses ou anos
-            </Text>
-          )}
-
-          {emSerie ? (
-            <Text style={estilos.dica}>
-              Despesa de uma série: mudanças na repetição podem valer para esta,
-              as próximas ou todas as ocorrências.
-            </Text>
-          ) : null}
-        </View>
+        <SeletorDespesa
+          rotulo="Subcategoria (opcional)"
+          valor={v.categoriaId && categoriaSelecionada ? categoriaSelecionada : 'Selecionar subcategoria'}
+          onPress={() => setSeletor('categoria')}
+        />
 
         <Text style={estilos.dica}>
           Salvo primeiro no dispositivo: funciona sem internet.
@@ -394,72 +373,92 @@ export function DespesaForm({
       </View>
 
       <Modal
-        visible={repeticaoAberta}
+        visible={seletor !== null}
         transparent
         animationType="slide"
-        onRequestClose={() => setRepeticaoAberta(false)}
+        onRequestClose={() => setSeletor(null)}
       >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={estilos.modalFundo}
         >
           <View style={estilos.modalCartao}>
-            <Text style={estilos.modalTitulo}>Repetição</Text>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              {seletor === 'repeticao' ? (
+                <>
+                  <Text accessibilityRole="header" style={estilos.modalTitulo}>Repetição</Text>
+                  <Opcao rotulo="Não se repete" onPress={() => escolherRepeticao(null)} />
+                  <Opcao rotulo="Diária" onPress={() => escolherRepeticao('dia')} />
+                  <Opcao rotulo="Mensal" onPress={() => escolherRepeticao('mes')} />
+                  <Opcao rotulo="Anual" onPress={() => escolherRepeticao('ano')} />
+                  <Opcao rotulo="Personalizar" onPress={() => {
+                    set('recorrente', true);
+                    setSeletor('personalizar');
+                  }} />
+                </>
+              ) : null}
 
-            <Segmentado
-              valor={v.recorrente ? 'sim' : 'nao'}
-              onChange={(valor) => set('recorrente', valor === 'sim')}
-              opcoes={[
-                { valor: 'nao', rotulo: 'Não se repete' },
-                { valor: 'sim', rotulo: 'Repete' },
-              ]}
-            />
-
-            {v.recorrente ? (
-              <View style={{ marginTop: 16 }}>
-                <Campo
-                  rotulo="Repetir a cada"
-                  value={v.intervalo}
-                  onChangeText={(texto) =>
-                    set('intervalo', texto.replace(/\D/g, ''))
-                  }
-                  keyboardType="number-pad"
-                  erro={erros.intervalo}
-                />
-
-                <View style={{ marginBottom: 14 }}>
+              {seletor === 'personalizar' ? (
+                <>
+                  <Text accessibilityRole="header" style={estilos.modalTitulo}>Personalizar repetição</Text>
+                  <Campo
+                    compacto
+                    rotulo="Repetir a cada"
+                    value={v.intervalo}
+                    onChangeText={(texto) => set('intervalo', texto.replace(/\D/g, ''))}
+                    keyboardType="number-pad"
+                    erro={erros.intervalo}
+                  />
                   <Segmentado
                     valor={v.unidade}
-                    onChange={(unidade) =>
-                      set('unidade', unidade as UnidadeRecorrencia)
-                    }
-                    opcoes={UNIDADES.map((unidade) => ({
-                      valor: unidade.valor,
-                      rotulo: unidade.rotulo,
-                    }))}
+                    onChange={(unidade) => set('unidade', unidade)}
+                    opcoes={UNIDADES.map(({ valor, rotulo }) => ({ valor, rotulo }))}
                   />
-                </View>
+                </>
+              ) : null}
 
-                <Campo
-                  rotulo="Data de término (opcional)"
-                  value={v.termino}
-                  onChangeText={(texto) =>
-                    set('termino', mascararData(texto))
-                  }
-                  placeholder="DD/MM/AAAA"
-                  keyboardType="number-pad"
-                  erro={erros.termino}
-                />
-              </View>
-            ) : null}
+              {seletor === 'termino' ? (
+                <>
+                  <Text accessibilityRole="header" style={estilos.modalTitulo}>Término da repetição</Text>
+                  <Campo
+                    compacto
+                    rotulo="Data de término (opcional)"
+                    value={v.termino}
+                    onChangeText={(texto) => set('termino', mascararData(texto))}
+                    placeholder="DD/MM/AAAA"
+                    keyboardType="number-pad"
+                    erro={erros.termino}
+                  />
+                  <Opcao rotulo="Sem término" onPress={() => {
+                    set('termino', '');
+                    setSeletor(null);
+                  }} />
+                </>
+              ) : null}
 
-            <Pressable
-              onPress={() => setRepeticaoAberta(false)}
-              style={estilos.salvar}
-              accessibilityRole="button"
-            >
-              <Text style={estilos.salvarTexto}>Concluir</Text>
-            </Pressable>
+              {seletor === 'categoria' ? (
+                <>
+                  <Text accessibilityRole="header" style={estilos.modalTitulo}>Subcategoria</Text>
+                  {carregandoCategorias ? <ActivityIndicator color={cores.primaria} /> : null}
+                  {erroCategorias ? (
+                    <>
+                      <Text style={estilos.erro} accessibilityRole="alert">
+                        Não foi possível carregar as categorias.
+                      </Text>
+                      <Opcao rotulo="Tentar novamente" onPress={recarregarCategorias} />
+                    </>
+                  ) : null}
+                  {opcoesCategoria.map(({ id, nome }) => (
+                    <Opcao key={id} rotulo={nome} selecionada={v.categoriaId === id} onPress={() => {
+                      set('categoriaId', id);
+                      setSeletor(null);
+                    }} />
+                  ))}
+                </>
+              ) : null}
+            </ScrollView>
+            <Opcao rotulo={seletor === 'termino' || seletor === 'personalizar' ? 'Concluir' : 'Fechar'}
+              onPress={() => setSeletor(null)} />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -467,63 +466,51 @@ export function DespesaForm({
   );
 }
 
+function SeletorDespesa({ rotulo, acessibilidade = rotulo, valor, erro, dica, onPress }: {
+  rotulo: string;
+  acessibilidade?: string;
+  valor: string;
+  erro?: string;
+  dica?: string;
+  onPress: () => void;
+}) {
+  return (
+    <View style={estilos.bloco}>
+      <Text style={estilos.rotulo}>{rotulo}</Text>
+      <Pressable accessibilityRole="button" accessibilityLabel={acessibilidade} accessibilityHint={valor}
+        onPress={onPress} style={[estilos.seletor, erro && estilos.seletorErro]}>
+        <Text style={estilos.seletorTexto}>{valor}</Text>
+        <IconePrototipo nome="expandir" tamanho={14} />
+      </Pressable>
+      {erro ? <Text style={estilos.erro} accessibilityRole="alert">{erro}</Text> : null}
+      {dica ? <Text style={estilos.dica}>{dica}</Text> : null}
+    </View>
+  );
+}
+
+function Opcao({ rotulo, onPress, selecionada }: { rotulo: string; onPress: () => void; selecionada?: boolean }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityState={{ selected: selecionada }}
+      onPress={onPress} style={[estilos.opcao, selecionada && estilos.opcaoSelecionada]}>
+      <Text style={estilos.seletorTexto}>{rotulo}</Text>
+    </Pressable>
+  );
+}
+
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
-  cabecalho: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  voltar: { paddingHorizontal: 10 },
-  voltarTexto: {
-    fontSize: 30,
-    color: cores.primaria,
-    fontWeight: '700',
-    lineHeight: 32,
-  },
-  titulo: { fontSize: 18, fontWeight: '700', color: cores.marinho },
-  conteudo: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
-  icone: { fontSize: 16, marginLeft: 8 },
-  hojeBotao: { alignSelf: 'flex-start', paddingTop: 6 },
-  hoje: { color: cores.primaria, fontSize: 12, fontWeight: '600' },
-  bloco: { marginBottom: 14 },
-  rotulo: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: cores.marinho,
-    marginBottom: 6,
-  },
-  categoriaOpcoes: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  carregandoCategorias: {
-    alignSelf: 'flex-start',
-    marginBottom: 8,
-  },
-  avisoCategorias: {
-    marginBottom: 8,
-  },
-  tentarCategorias: {
-    alignSelf: 'flex-start',
-    paddingVertical: 4,
-  },
-  categoriaChip: {
-    borderWidth: 1,
-    borderColor: cores.borda,
-    borderRadius: raio.campo,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: cores.branco,
-  },
-  categoriaChipAtivo: {
-    backgroundColor: cores.primaria,
-    borderColor: cores.primaria,
-  },
-  categoriaChipTexto: { fontSize: 13, color: cores.marinho },
-  categoriaChipTextoAtivo: { color: cores.branco, fontWeight: '600' },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 4 },
+  voltar: { minWidth: 36, minHeight: 44, justifyContent: 'center', alignItems: 'center' },
+  titulo: { fontSize: 18, fontWeight: '600', color: cores.marinho, flexShrink: 1 },
+  conteudo: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
+  bloco: { marginBottom: 12 },
+  rotulo: { fontSize: 12, fontWeight: '500', color: cores.primaria, marginBottom: 4 },
+  classificacoes: { gap: 8 },
+  resumo: { padding: 14, borderRadius: raio.cartao, borderWidth: 1, borderColor: cores.borda, marginBottom: 12 },
+  resumoTitulo: { fontSize: 14, fontWeight: '700', color: cores.marinho },
+  resumoTexto: { fontSize: 13, color: cores.marinho, marginTop: 4 },
+  hoje: { alignSelf: 'flex-start', paddingBottom: 4 },
+  avisoSerie: { fontSize: 12, color: cores.primaria, marginBottom: 12 },
   seletor: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -531,13 +518,14 @@ const estilos = StyleSheet.create({
     borderWidth: 1,
     borderColor: cores.borda,
     borderRadius: raio.campo,
-    paddingHorizontal: 14,
-    paddingVertical: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    minHeight: 44,
+    gap: 8,
     backgroundColor: cores.branco,
   },
   seletorErro: { borderColor: cores.erro },
-  seletorTexto: { fontSize: 15, color: cores.marinho },
-  seta: { fontSize: 14, color: cores.primaria },
+  seletorTexto: { fontSize: 15, color: cores.marinho, flexShrink: 1 },
   dica: { fontSize: 12, color: cores.primaria, marginTop: 6 },
   erro: { color: cores.erro, fontSize: 12, marginTop: 4 },
   erroGeral: {
@@ -547,8 +535,8 @@ const estilos = StyleSheet.create({
     marginTop: 12,
   },
   rodape: {
-    padding: 20,
-    paddingTop: 12,
+    paddingHorizontal: 16,
+    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: cores.borda,
   },
@@ -575,7 +563,10 @@ const estilos = StyleSheet.create({
     backgroundColor: 'rgba(8,47,73,0.55)',
     justifyContent: 'flex-end',
   },
+  opcao: { minHeight: 44, justifyContent: 'center', padding: 10, borderRadius: raio.campo },
+  opcaoSelecionada: { backgroundColor: cores.fundoSuave },
   modalCartao: {
+    maxHeight: '85%',
     backgroundColor: cores.branco,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,

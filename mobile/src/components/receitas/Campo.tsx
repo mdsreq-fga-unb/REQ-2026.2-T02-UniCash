@@ -3,6 +3,7 @@ import { cores, raio } from '@/lib/theme';
 
 interface Props extends TextInputProps {
   rotulo: string;
+  compacto?: boolean;
   erro?: string;
   prefixo?: string;
   /** Elemento à direita, dentro do campo (ex.: ícone de calendário). */
@@ -11,14 +12,14 @@ interface Props extends TextInputProps {
   abaixo?: React.ReactNode;
 }
 
-export function Campo({ rotulo, erro, prefixo, acao, abaixo, style, ...rest }: Props) {
+export function Campo({ rotulo, erro, prefixo, acao, abaixo, compacto, style, ...rest }: Props) {
   return (
-    <View style={estilos.bloco}>
-      <Text style={estilos.rotulo}>{rotulo}</Text>
-      <View style={[estilos.entrada, erro ? estilos.entradaErro : null]}>
-        {prefixo ? <Text style={estilos.prefixo}>{prefixo}</Text> : null}
+    <View style={[estilos.bloco, compacto && estilos.blocoCompacto]}>
+      <Text style={[estilos.rotulo, compacto && estilos.rotuloCompacto]}>{rotulo}</Text>
+      <View style={[estilos.entrada, compacto && estilos.entradaCompacta, erro ? estilos.entradaErro : null]}>
+        {prefixo ? <Text style={[estilos.prefixo, compacto && estilos.prefixoCompacto]}>{prefixo}</Text> : null}
         <TextInput
-          style={[estilos.input, style]}
+          style={[estilos.input, compacto && estilos.inputCompacto, style]}
           placeholderTextColor="#94A3B8"
           accessibilityLabel={rotulo}
           {...rest}
@@ -50,5 +51,10 @@ const estilos = StyleSheet.create({
   entradaErro: { borderColor: cores.erro },
   prefixo: { fontSize: 15, color: cores.textoSuave, marginRight: 8 },
   input: { flex: 1, fontSize: 15, color: cores.marinho, paddingVertical: 12 },
+  blocoCompacto: { marginBottom: 12 },
+  rotuloCompacto: { fontSize: 12, fontWeight: '500', color: cores.primaria, marginBottom: 4 },
+  entradaCompacta: { paddingHorizontal: 12, minHeight: 44 },
+  prefixoCompacto: { color: cores.primaria },
+  inputCompacto: { paddingVertical: 10 },
   erro: { color: cores.erro, fontSize: 12, marginTop: 4 },
 });
