@@ -1,7 +1,14 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { doc, serverTimestamp, updateDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { doc, getDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { auth, db, firebaseConfigurado } from '@/lib/firebase';
 import { comTimeout } from './firebase-erros';
+
+export async function consultarNomeDoPerfil(uid: string): Promise<string | undefined> {
+  if (!firebaseConfigurado || auth.currentUser?.uid !== uid) return undefined;
+  const perfil = await comTimeout(getDoc(doc(db, 'usuarios', uid)));
+  const nome: unknown = perfil.data()?.nome;
+  return typeof nome === 'string' ? nome.trim() || undefined : undefined;
+}
 
 /**
  * UC11 (RF03): reconciliação do e-mail do perfil no Firestore.
