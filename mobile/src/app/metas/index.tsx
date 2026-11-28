@@ -64,6 +64,9 @@ function MetaItem({
         </Text>
       ) : (
         <>
+          <View style={estilos.trilha}>
+            <View style={[estilos.progresso, { width: `${Math.min(100, Math.max(0, progresso.percentual!))}%` }]} />
+          </View>
           <Text style={estilos.progressoTexto}>
             {meta.tipo === 'gasto' ? 'Consumo do limite' : 'Valor acumulado'}:{' '}
             {formatarBRL(progresso.valorRealizadoCentavos!)} de{' '}
@@ -84,6 +87,7 @@ function MetaItem({
 export default function ListaMetas() {
   const { itens, progressos, carregando, erroLeitura, recarregar } = useMetas();
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const criarMeta = () => router.push('/metas/nova');
 
   useFocusEffect(
     useCallback(() => {
@@ -96,6 +100,9 @@ export default function ListaMetas() {
     <SafeAreaView style={estilos.tela} edges={['top']}>
       <View style={estilos.cabecalho}>
         <Text style={estilos.titulo}>Metas</Text>
+        <Pressable onPress={criarMeta} style={estilos.adicionar} accessibilityRole="button" accessibilityLabel="Nova meta">
+          <Text style={estilos.adicionarTexto}>+</Text>
+        </Pressable>
       </View>
 
       <FlatList
@@ -152,30 +159,32 @@ export default function ListaMetas() {
             </View>
           ) : (
             <View style={estilos.vazio}>
-              <Text style={estilos.vazioTitulo}>Nenhuma meta</Text>
-              <Text style={estilos.vazioTexto}>Toque em + para criar uma meta.</Text>
+              <Text style={estilos.vazioTitulo}>Nenhuma meta ainda</Text>
+              <Text style={estilos.vazioTexto}>Crie uma meta e acompanhe seu progresso.</Text>
+              <Pressable onPress={criarMeta} style={estilos.criar} accessibilityRole="button">
+                <Text style={estilos.criarTexto}>+ Criar primeira meta</Text>
+              </Pressable>
             </View>
           )
         }
+        ListFooterComponent={itens.length > 0 ? (
+          <Pressable onPress={criarMeta} style={estilos.tentar} accessibilityRole="button">
+            <Text style={[estilos.tentarTexto, estilos.centralizado]}>+ Nova meta</Text>
+          </Pressable>
+        ) : undefined}
       />
-
-      <Pressable
-        onPress={() => router.push('/metas/nova')}
-        style={estilos.fab}
-        accessibilityRole="button"
-        accessibilityLabel="Nova meta"
-      >
-        <Text style={estilos.fabTexto}>+</Text>
-      </Pressable>
     </SafeAreaView>
   );
 }
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
-  cabecalho: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 10 },
+  cabecalho: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 20, paddingTop: 8,
+  },
   titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho },
-  conteudo: { paddingHorizontal: 20, paddingBottom: 110 },
+  conteudo: { paddingHorizontal: 20, paddingBottom: 24 },
   banner: { borderRadius: raio.cartao, padding: 14, marginBottom: 12 },
   bannerOk: { backgroundColor: cores.primaria },
   bannerErro: { backgroundColor: cores.erro },
@@ -203,6 +212,8 @@ const estilos = StyleSheet.create({
   sync: { fontSize: 12, fontWeight: '600', marginTop: 6 },
   syncPendente: { color: cores.erro },
   syncOk: { color: cores.sucesso },
+  trilha: { height: 6, backgroundColor: cores.claro, borderRadius: 3, overflow: 'hidden', marginTop: 8 },
+  progresso: { height: '100%', backgroundColor: cores.primaria, borderRadius: 3 },
   progressoTexto: { fontSize: 12, color: cores.marinho, marginTop: 6, fontWeight: '600' },
   progressoPendente: { fontSize: 12, color: cores.textoSuave, marginTop: 4 },
   vazio: { alignItems: 'center', paddingVertical: 40 },
@@ -227,17 +238,12 @@ const estilos = StyleSheet.create({
     marginTop: 8,
   },
   tentarBannerTexto: { color: cores.erro, fontWeight: '700', fontSize: 13 },
-  fab: {
-    position: 'absolute',
-    right: 20,
-    bottom: 28,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: cores.primaria,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
+  adicionar: { minHeight: 44, minWidth: 44, alignItems: 'center', justifyContent: 'center' },
+  adicionarTexto: { color: cores.primaria, fontSize: 25 },
+  criar: {
+    alignSelf: 'stretch', alignItems: 'center', backgroundColor: cores.primaria,
+    borderRadius: raio.botao, padding: 12, marginTop: 16,
   },
-  fabTexto: { color: cores.branco, fontSize: 30, lineHeight: 34, fontWeight: '400' },
+  criarTexto: { color: cores.branco, fontWeight: '700' },
+  centralizado: { textAlign: 'center' },
 });
