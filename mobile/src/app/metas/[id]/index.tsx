@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { cores, raio } from '@/lib/theme';
 import { OpcoesModal } from '@/components/receitas/OpcoesModal';
 import { useMeta, type ReferenciaMes } from '@/features/metas/useMetas';
@@ -118,24 +119,35 @@ export default function DetalheMeta() {
       <ScrollView contentContainerStyle={estilos.conteudo}>
         <View style={estilos.cabecalho}>
           <Pressable onPress={() => router.back()} accessibilityLabel="Voltar" style={estilos.voltar}>
-            <Text style={estilos.voltarTexto}>‹</Text>
+            <IconePrototipo nome="voltar" tamanho={14} />
           </Pressable>
-          <Text style={estilos.titulo}>Detalhe da meta</Text>
+          <Text accessibilityRole="header" style={estilos.titulo}>{meta.objetivo}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Editar meta"
+            onPress={() => router.push({ pathname: '/metas/[id]/editar', params: { id } })}
+            style={estilos.voltar}>
+            <IconePrototipo nome="editar" tamanho={16} />
+          </Pressable>
         </View>
 
-        <View style={estilos.cartaoPrincipal}>
-          <View style={estilos.linhaTopo}>
-            <Text style={estilos.objetivo}>{meta.objetivo}</Text>
-            <Text style={estilos.tipo}>{rotuloTipoMeta(meta.tipo)}</Text>
+        {!indisponivel && !futura && (
+          <View style={estilos.cartaoProgresso}>
+            <Text style={estilos.textoClaro}>Progresso</Text>
+            <Text style={estilos.percentual}>{formatarPercentual(progresso.percentual!)}</Text>
+            <View style={estilos.barra}>
+              <View style={[estilos.barraCheia, { width: `${Math.min(100, progresso.percentual!)}%` }]} />
+            </View>
+            <Text style={estilos.textoClaro}>
+              {formatarBRL(progresso.valorRealizadoCentavos!)} de {formatarBRL(progresso.valorAlvoCentavos)}
+            </Text>
           </View>
-          <Text style={estilos.valor}>{formatarBRL(meta.valor_alvo_centavos)}</Text>
-          <Text style={estilos.textoClaro}>
-            {meta.tipo === 'gasto' ? 'Limite mensal' : 'Valor alvo'}
-          </Text>
-          <Text style={estilos.textoClaro}>Prazo: {formatarBR(meta.prazo)}</Text>
-          <Text style={estilos.textoClaro}>
-            Início: {meta.inicio ? formatarBR(meta.inicio) : 'não disponível'}
-          </Text>
+        )}
+
+        <View style={estilos.secao}>
+          <LinhaMeta rotulo="Tipo" valor={rotuloTipoMeta(meta.tipo)} />
+          <LinhaMeta rotulo={meta.tipo === 'gasto' ? 'Limite mensal' : 'Valor-alvo'}
+            valor={formatarBRL(meta.valor_alvo_centavos)} />
+          <LinhaMeta rotulo="Prazo" valor={formatarBR(meta.prazo)} />
+          <LinhaMeta rotulo="Início" valor={meta.inicio ? formatarBR(meta.inicio) : 'não disponível'} />
           <Text style={[estilos.sync, pendente ? estilos.syncPendente : estilos.syncOk]}>
             {rotuloSync(meta.sync_status)}
           </Text>
@@ -221,20 +233,6 @@ export default function DetalheMeta() {
             </>
           ) : (
             <>
-              <View style={estilos.progressoTopo}>
-                <Text style={estilos.percentual}>{formatarPercentual(progresso.percentual!)}</Text>
-                <Text style={estilos.textoSuave}>
-                  {rotuloSituacaoProgresso(progresso.situacaoProgresso)}
-                </Text>
-              </View>
-              <View style={estilos.barra}>
-                <View
-                  style={[
-                    estilos.barraCheia,
-                    { width: `${Math.min(100, progresso.percentual!)}%` },
-                  ]}
-                />
-              </View>
               <Text style={estilos.textoSuave}>
                 Valor realizado: {formatarBRL(progresso.valorRealizadoCentavos!)}
               </Text>
@@ -281,6 +279,7 @@ export default function DetalheMeta() {
           style={estilos.botao}
           accessibilityRole="button"
         >
+          <IconePrototipo nome="editarAcao" tamanho={14} />
           <Text style={estilos.botaoTexto}>
             {categoriaIndisponivel ? 'Corrigir categoria' : 'Editar meta'}
           </Text>
@@ -292,6 +291,7 @@ export default function DetalheMeta() {
           style={estilos.excluir}
           accessibilityRole="button"
         >
+          <IconePrototipo nome="excluir" tamanho={14} />
           <Text style={estilos.excluirTexto}>
             {excluindo ? 'Excluindo…' : 'Excluir meta'}
           </Text>
@@ -309,6 +309,15 @@ export default function DetalheMeta() {
   );
 }
 
+function LinhaMeta({ rotulo, valor }: { rotulo: string; valor: string }) {
+  return (
+    <View style={estilos.linhaMeta}>
+      <Text style={estilos.textoClaro}>{rotulo}</Text>
+      <Text style={estilos.valorMeta}>{valor}</Text>
+    </View>
+  );
+}
+
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
   centro: {
@@ -318,35 +327,24 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.fundo,
     padding: 24,
   },
-  conteudo: { paddingHorizontal: 20, paddingBottom: 32 },
-  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
-  voltar: { paddingHorizontal: 10, marginLeft: -10 },
-  voltarTexto: { fontSize: 30, color: cores.primaria, fontWeight: '700', lineHeight: 32 },
-  titulo: { fontSize: 18, fontWeight: '700', color: cores.marinho },
-  cartaoPrincipal: {
-    backgroundColor: cores.marinho,
-    borderRadius: raio.cartao,
-    padding: 18,
-    marginBottom: 14,
+  conteudo: { paddingHorizontal: 16, paddingBottom: 32 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', minHeight: 58, gap: 10 },
+  voltar: { width: 28, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  titulo: { flex: 1, fontSize: 18, fontWeight: '600', color: cores.marinho },
+  cartaoProgresso: {
+    borderWidth: 1, borderColor: cores.borda, borderRadius: raio.cartao,
+    padding: 14, alignItems: 'center', marginBottom: 16, gap: 8,
   },
-  linhaTopo: { flexDirection: 'row', justifyContent: 'space-between', gap: 8 },
-  objetivo: { fontSize: 20, fontWeight: '800', color: cores.branco, flexShrink: 1 },
-  tipo: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: cores.claro,
-    borderWidth: 1,
-    borderColor: cores.claro,
-    borderRadius: raio.pilula,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
+  linhaMeta: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+    paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: cores.borda,
   },
-  valor: { fontSize: 26, fontWeight: '800', color: cores.branco, marginTop: 8 },
+  valorMeta: { flexShrink: 1, fontSize: 14, fontWeight: '600', color: cores.marinho, textAlign: 'right' },
   textoSuave: { fontSize: 13, color: cores.textoSuave, marginTop: 4 },
-  textoClaro: { fontSize: 13, color: cores.claro, marginTop: 4 },
-  sync: { fontSize: 12, fontWeight: '700', marginTop: 8 },
-  syncPendente: { color: cores.claro },
-  syncOk: { color: '#86EFAC' },
+  textoClaro: { fontSize: 13, color: cores.primaria },
+  sync: { fontSize: 12, fontWeight: '600', marginTop: 8 },
+  syncPendente: { color: cores.erro },
+  syncOk: { color: cores.sucesso },
   secao: {
     borderWidth: 1,
     borderColor: cores.borda,
@@ -356,16 +354,15 @@ const estilos = StyleSheet.create({
     gap: 4,
   },
   secaoTitulo: { fontSize: 15, fontWeight: '700', color: cores.marinho, marginBottom: 4 },
-  progressoTopo: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  percentual: { fontSize: 24, fontWeight: '800', color: cores.primaria },
+  percentual: { fontSize: 36, fontWeight: '700', color: cores.marinho },
   barra: {
-    height: 10,
+    alignSelf: 'stretch',
+    height: 12,
     borderRadius: raio.pilula,
-    backgroundColor: cores.fundoSuave,
+    backgroundColor: cores.claro,
     overflow: 'hidden',
-    marginVertical: 8,
   },
-  barraCheia: { height: 10, backgroundColor: cores.primaria },
+  barraCheia: { height: 12, backgroundColor: cores.primaria, borderRadius: raio.pilula },
   aviso: { fontSize: 12, color: cores.primaria, marginTop: 6, lineHeight: 17 },
   navegacaoPeriodo: {
     flexDirection: 'row',
@@ -379,14 +376,15 @@ const estilos = StyleSheet.create({
   periodoTexto: { fontSize: 15, fontWeight: '700', color: cores.marinho },
   botao: {
     backgroundColor: cores.primaria,
-    borderRadius: raio.botao,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
+    borderRadius: 8, minHeight: 44, flexDirection: 'row', gap: 8,
+    alignItems: 'center', justifyContent: 'center', marginTop: 4,
   },
   botaoTexto: { color: cores.branco, fontWeight: '700', fontSize: 15 },
-  excluir: { alignItems: 'center', paddingVertical: 14 },
-  excluirTexto: { color: cores.erro, fontWeight: '600', fontSize: 15 },
+  excluir: {
+    flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', minHeight: 46,
+    borderWidth: 1.5, borderColor: cores.marinho, borderRadius: 8, marginTop: 16,
+  },
+  excluirTexto: { color: cores.marinho, fontWeight: '600', fontSize: 15 },
   erro: { color: cores.erro, fontSize: 14, textAlign: 'center', marginVertical: 8 },
   tentar: {
     marginTop: 12,
