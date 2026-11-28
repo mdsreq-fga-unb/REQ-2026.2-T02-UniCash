@@ -33,7 +33,7 @@ export function MenuInferior() {
             }}
             style={estilos.aba}
           >
-            <IconePrototipo nome={icone} />
+            <IconePrototipo nome={icone} tamanho={22} />
             <Text style={[estilos.rotulo, ativa && estilos.ativa]}>{rotulo}</Text>
           </Pressable>
         );
