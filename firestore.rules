@@ -535,9 +535,9 @@ service cloud.firestore {
 
     match /usuarios/{uid}/conquistas_historico/{id} {
       allow read: if donoConfirmado(uid);
-      allow create: if donoConfirmado(uid) && desbloqueioValido(request.resource.data)
+      allow create: if donoConfirmado(uid) && semPedidoDeRemocao(uid) && desbloqueioValido(request.resource.data)
         && request.resource.data.keys().hasAll(['origem']);
-      allow update: if donoConfirmado(uid) && desbloqueioValido(request.resource.data)
+      allow update: if donoConfirmado(uid) && semPedidoDeRemocao(uid) && desbloqueioValido(request.resource.data)
         && request.resource.data.get('origem', null) == resource.data.get('origem', null)
         && (resource.data.data == null
           || (request.resource.data.data is string && request.resource.data.data <= resource.data.data));
