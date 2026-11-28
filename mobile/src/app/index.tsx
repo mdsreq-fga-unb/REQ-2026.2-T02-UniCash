@@ -1,7 +1,11 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState, type ComponentRef } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { IconePrototipo, type NomeIcone } from '@/components/IconePrototipo';
+import { GastosPorCategoria } from '@/components/resumo/GastosPorCategoria';
+import { SituacaoConexaoResumo } from '@/components/resumo/SituacaoConexaoResumo';
+import { useEstadoSincronizacao } from '@/features/sincronizacao/useEstadoSincronizacao';
 import { cores, raio } from '@/lib/theme';
 import { lerMesDeParametros, mesAnterior, nomeMes, primeiroDiaDoMes, proximoMes } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
@@ -32,10 +36,15 @@ function mesCorrente() {
 export default function Home() {
   const sessao = useSessao();
   if (sessao.status !== 'ativa' && !continuarSemContaNestaSessao()) return <Redirect href="/conta/cadastro" />;
-  return <ResumoFinanceiro key={sessao.status === 'ativa' ? sessao.uid : 'local'} />;
+  return <ResumoFinanceiro key={sessao.status === 'ativa' ? sessao.uid : 'local'}
+    nome={sessao.status === 'ativa' ? sessao.nome?.split(/\s+/)[0] : undefined} />;
 }
 
-export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean }) {
+export function ResumoFinanceiro({ noTutorial = false, nome }: { noTutorial?: boolean; nome?: string }) {
+  const rolagem = useRef<ComponentRef<typeof ScrollView>>(null);
+  const posicaoRelatorios = useRef(0);
+  const { estado: sincronizacao } = useEstadoSincronizacao(!noTutorial);
+  const abrirRelatorios = () => rolagem.current?.scrollTo({ y: posicaoRelatorios.current });
 
   // Passo 2: o mês corrente é o período padrão (RN12).
   const ofertaTutorial = useOfertaTutorial(!noTutorial);
@@ -84,21 +93,24 @@ export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean 
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top']}>
-      <ScrollView contentContainerStyle={estilos.conteudo}>
+      <ScrollView ref={rolagem} contentContainerStyle={estilos.conteudo}>
         <View style={estilos.cabecalho}>
           <Text style={estilos.titulo} accessibilityRole="header">
-            Resumo financeiro
+            {noTutorial ? 'Resumo financeiro' : nome ? `Olá, ${nome}` : 'Olá'}
           </Text>
           {noTutorial ? (
             <Pressable onPress={() => router.back()} style={estilos.ajuda} accessibilityRole="button">
               <Text style={estilos.botaoContornoTexto}>Voltar ao tutorial</Text>
             </Pressable>
-          ) : (
-            <Pressable onPress={() => router.push('/ajuda')} style={estilos.ajuda} accessibilityRole="button">
-              <Text style={estilos.botaoContornoTexto}>Ajuda</Text>
+          ) : sincronizacao?.status === 'sem-conexao' ? (
+            <Pressable accessibilityRole="button" accessibilityLabel="Offline. Abrir sincronização"
+              onPress={() => router.push('/sincronizacao')} style={estilos.offline} hitSlop={8}>
+              <IconePrototipo nome="offline" tamanho={13} />
+              <Text style={estilos.offlineTexto}>Offline</Text>
             </Pressable>
-          )}
+          ) : null}
         </View>
+        {!noTutorial ? <SituacaoConexaoResumo estado={sincronizacao} /> : null}
         {ofertaTutorial.falhou && (
           <View style={estilos.secao}>
             <Text style={estilos.erro} accessibilityRole="alert">{MSG_ABERTURA_TUTORIAL}</Text>
@@ -106,15 +118,11 @@ export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean 
           </View>
         )}
 
-        <Pressable
-          onPress={() => router.push('/preferencias-alertas')}
-          accessibilityRole="button"
-          style={estilos.botaoContorno}
-        >
-          <Text style={estilos.botaoContornoTexto}>Preferências de alertas</Text>
-        </Pressable>
-
         <View style={estilos.seletor}>
+          <View style={estilos.rotuloMes}>
+            {!noTutorial ? <Text style={estilos.mes}>Resumo de</Text> : null}
+            <Text style={estilos.mes} testID="mes-selecionado">{nomeMes(periodo.ano, periodo.mes)}</Text>
+          </View>
           <Pressable
             onPress={() => escolherMes(mesAnterior(periodo.ano, periodo.mes))}
             accessibilityRole="button"
@@ -124,9 +132,6 @@ export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean 
           >
             <Text style={estilos.setaTexto}>‹</Text>
           </Pressable>
-          <Text style={estilos.mes} testID="mes-selecionado">
-            {nomeMes(periodo.ano, periodo.mes)}
-          </Text>
           <Pressable
             onPress={() => escolherMes(proximoMes(periodo.ano, periodo.mes))}
             accessibilityRole="button"
@@ -144,6 +149,7 @@ export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean 
             inicio={inicio}
             receitas={resumoDoPeriodo.totalReceitasCentavos}
             despesas={resumoDoPeriodo.totalDespesasCentavos}
+            compacto={!noTutorial}
           />
         )}
 
@@ -158,52 +164,57 @@ export function ResumoFinanceiro({ noTutorial = false }: { noTutorial?: boolean 
           <ActivityIndicator color={cores.primaria} style={{ marginTop: 32 }} testID="carregando" />
         ) : resumoDoPeriodo.semLancamentos && !noTutorial ? (
           <EstadoVazio />
-        ) : (
-          <Conteudo resumo={resumoDoPeriodo} />
+        ) : noTutorial ? (
+          <Conteudo resumo={resumoDoPeriodo} mostrarTotais />
+        ) : null}
+
+        {!noTutorial && !resumoDoPeriodo?.semLancamentos && <Atalhos onRelatorios={abrirRelatorios} />}
+        {!noTutorial && resumoDoPeriodo && !resumoDoPeriodo.semLancamentos && (
+          <GastosPorCategoria estado={consumo.estado} total={resumoDoPeriodo.totalDespesasCentavos}
+            onRelatorios={abrirRelatorios} onTentarNovamente={consumo.tentarNovamente} />
         )}
 
-        {/* UC07. FA02 (sem lançamentos): o estado vazio do resumo já oferece o atalho do tutorial. */}
-        {noTutorial || resumoDoPeriodo?.semLancamentos ? null : (
-          <SecaoEvolucao
-            evolucao={evolucao.evolucao}
-            falhou={evolucao.falhou}
-            fimJanela={fimJanela}
-            selecionado={periodo}
-            onSelecionar={escolherMes}
-            onTentarNovamente={() => void recarregarEvolucao()}
-          />
-        )}
-
-        {!noTutorial && (
-          <View style={estilos.vazio}>
-            <Text accessibilityRole="header" style={estilos.titulo}>Consumo por categoria</Text>
-            <IndicadoresConsumo estado={consumo.estado} aoTentarNovamente={consumo.tentarNovamente} />
+        {!noTutorial && !resumoDoPeriodo?.semLancamentos && (
+          <View onLayout={(evento) => { posicaoRelatorios.current = evento.nativeEvent.layout.y; }}>
+            <SecaoEvolucao
+              evolucao={evolucao.evolucao}
+              falhou={evolucao.falhou}
+              fimJanela={fimJanela}
+              selecionado={periodo}
+              onSelecionar={escolherMes}
+              onTentarNovamente={() => void recarregarEvolucao()}
+            />
+            <View style={estilos.secao}>
+              <Text accessibilityRole="header" style={estilos.secaoTitulo}>Consumo por categoria</Text>
+              <IndicadoresConsumo estado={consumo.estado} aoTentarNovamente={consumo.tentarNovamente} />
+            </View>
+            {resumoDoPeriodo && <Conteudo resumo={resumoDoPeriodo} />}
           </View>
         )}
-
-        {!noTutorial && <Atalhos ano={periodo.ano} mes={periodo.mes} mostrarNovos={!resumoDoPeriodo?.semLancamentos} />}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function Conteudo({ resumo }: { resumo: ResumoMensal }) {
+function Conteudo({ resumo, mostrarTotais }: { resumo: ResumoMensal; mostrarTotais?: boolean }) {
   return (
     <View>
-      <View style={estilos.linha}>
-        <View style={estilos.cartao}>
-          <Text style={estilos.rotulo}>Receitas</Text>
-          <Text style={[estilos.valor, { color: cores.sucesso }]} testID="total-receitas">
-            {formatarBRL(resumo.totalReceitasCentavos)}
-          </Text>
+      {mostrarTotais ? (
+        <View style={estilos.linha}>
+          <View style={estilos.cartao}>
+            <Text style={estilos.rotulo}>Receitas</Text>
+            <Text style={[estilos.valor, { color: cores.sucesso }]} testID="total-receitas">
+              {formatarBRL(resumo.totalReceitasCentavos)}
+            </Text>
+          </View>
+          <View style={estilos.cartao}>
+            <Text style={estilos.rotulo}>Despesas</Text>
+            <Text style={[estilos.valor, { color: cores.erro }]} testID="total-despesas">
+              {formatarBRL(resumo.totalDespesasCentavos)}
+            </Text>
+          </View>
         </View>
-        <View style={estilos.cartao}>
-          <Text style={estilos.rotulo}>Despesas</Text>
-          <Text style={[estilos.valor, { color: cores.erro }]} testID="total-despesas">
-            {formatarBRL(resumo.totalDespesasCentavos)}
-          </Text>
-        </View>
-      </View>
+      ) : null}
 
       <View style={estilos.secao}>
         <Text style={estilos.secaoTitulo}>Metas do período</Text>
@@ -314,59 +325,25 @@ function SecaoEvolucao({
   );
 }
 
-/**
- * Atalhos para as listas e categorias, visíveis em todos os estados da tela (carregando, resumo,
- * estado vazio e EX01), como na tela inicial anterior. Receitas e Despesas abrem no mês selecionado,
- * para o usuário achar (e editar ou excluir) os lançamentos dele.
- */
-function Atalhos({ ano, mes, mostrarNovos }: { ano: number; mes: number; mostrarNovos: boolean }) {
-  const doMes = { ano: String(ano), mes: String(mes) };
+function Atalhos({ onRelatorios }: { onRelatorios: () => void }) {
   return (
-    <View>
-      {/* Registro direto da tela inicial, sem abrir a lista antes. No estado vazio (FA02), os botões
-          "Registrar receita" e "Registrar despesa" já cumprem esse papel. */}
-      {mostrarNovos ? (
-        <View style={estilos.linha}>
-          <Pressable
-            onPress={() => router.push('/receitas/nova')}
-            style={estilos.botaoContorno}
-            accessibilityRole="button"
-            accessibilityLabel="Nova receita"
-          >
-            <Text style={estilos.botaoContornoTexto}>+ Nova receita</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => router.push('/despesas/nova')}
-            style={estilos.botaoContorno}
-            accessibilityRole="button"
-            accessibilityLabel="Nova despesa"
-          >
-            <Text style={estilos.botaoContornoTexto}>+ Nova despesa</Text>
-          </Pressable>
-        </View>
-      ) : null}
-      <View style={estilos.linha}>
-        <Pressable
-          onPress={() => router.push({ pathname: '/movimentacoes', params: doMes })}
-          style={estilos.botao}
-          accessibilityRole="button"
-        >
-          <Text style={estilos.botaoTexto}>Movimentações do mês</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
-          <Text style={estilos.botaoTexto}>Categorias</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/sincronizacao')} style={estilos.botao} accessibilityRole="button">
-          <Text style={estilos.botaoTexto}>Sincronização</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/configuracoes-financeiras')} style={estilos.botao} accessibilityRole="button">
-          <Text style={estilos.botaoTexto}>Configurações financeiras</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/conta')} style={estilos.botao} accessibilityRole="button">
-          <Text style={estilos.botaoTexto}>Conta</Text>
-        </Pressable>
+    <View style={estilos.atalhos}>
+      <Text accessibilityRole="header" style={estilos.secaoTitulo}>Atalhos</Text>
+      <View style={estilos.atalhosLinha}>
+        <Atalho rotulo="Nova despesa" icone="menos" onPress={() => router.push('/despesas/nova')} />
+        <Atalho rotulo="Nova receita" icone="mais" onPress={() => router.push('/receitas/nova')} />
       </View>
+      <Atalho rotulo="Relatórios" icone="relatorios" onPress={onRelatorios} />
     </View>
+  );
+}
+
+function Atalho({ rotulo, icone, onPress }: { rotulo: string; icone: NomeIcone; onPress: () => void }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={rotulo} onPress={onPress} style={estilos.atalho}>
+      <IconePrototipo nome={icone} tamanho={18} />
+      <Text style={estilos.atalhoTexto}>{rotulo}</Text>
+    </Pressable>
   );
 }
 
@@ -399,22 +376,27 @@ function EstadoVazio() {
  */
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
-  conteudo: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 },
-  cabecalho: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  ajuda: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8, marginBottom: 12 },
-  titulo: { flexShrink: 1, fontSize: 20, fontWeight: '700', color: cores.marinho, marginBottom: 12 },
-  seletor: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: cores.fundoSuave,
-    borderRadius: raio.pilula,
-    paddingHorizontal: 6,
-    marginBottom: 16,
+  conteudo: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
+  cabecalho: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  ajuda: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
+  titulo: { flexShrink: 1, fontSize: 18, fontWeight: '600', color: cores.marinho },
+  offline: {
+    flexDirection: 'row', gap: 5, alignItems: 'center', paddingHorizontal: 8, paddingVertical: 5,
+    borderWidth: 1, borderStyle: 'dashed', borderColor: cores.primaria, borderRadius: raio.pilula,
   },
-  seta: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  setaTexto: { fontSize: 26, color: cores.primaria, fontWeight: '700' },
-  mes: { fontSize: 16, fontWeight: '700', color: cores.marinho, flexShrink: 1, textAlign: 'center' },
+  offlineTexto: { color: cores.marinho, fontSize: 11, fontWeight: '600' },
+  seletor: { flexDirection: 'row', gap: 4, alignItems: 'center', marginBottom: 2 },
+  seta: { minWidth: 40, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  setaTexto: { fontSize: 21, color: cores.primaria },
+  rotuloMes: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 4 },
+  mes: { fontSize: 13, color: cores.primaria },
+  atalhos: { gap: 8, marginBottom: 16 },
+  atalhosLinha: { flexDirection: 'row', gap: 8 },
+  atalho: {
+    flexGrow: 1, flexBasis: 0, minHeight: 68, padding: 8, alignItems: 'center', justifyContent: 'center', gap: 6,
+    borderWidth: 1, borderColor: cores.borda, borderRadius: raio.botao,
+  },
+  atalhoTexto: { color: cores.marinho, textAlign: 'center', fontSize: 13, fontWeight: '600' },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
   cartao: {
     flexGrow: 1,
@@ -442,17 +424,6 @@ const estilos = StyleSheet.create({
   },
   diaRotulo: { fontSize: 14, color: cores.marinho },
   diaValor: { fontSize: 14, fontWeight: '700', color: cores.sucesso },
-  botao: {
-    flexGrow: 1,
-    flexBasis: 140,
-    backgroundColor: cores.primaria,
-    borderRadius: raio.botao,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  botaoTexto: { color: cores.branco, fontWeight: '700', fontSize: 15 },
   botaoContorno: {
     flexGrow: 1,
     flexBasis: 140,
