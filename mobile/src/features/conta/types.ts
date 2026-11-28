@@ -1,7 +1,7 @@
 /** Contrato de sessão do UC10, consumido pelo UC11 (Gerenciar perfil). */
 export type SessionState =
   | { status: 'sem-sessao' }
-  | { status: 'ativa'; uid: string; email: string };
+  | { status: 'ativa'; uid: string; email: string; nome?: string };
 
 export type CodigoErro =
   | 'sem-conexao'

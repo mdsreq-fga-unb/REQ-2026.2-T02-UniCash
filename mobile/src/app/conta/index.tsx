@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Redirect, router } from 'expo-router';
+import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import { Aviso } from '@/components/conta/Aviso';
 import { Botao } from '@/components/conta/Botao';
@@ -17,6 +17,7 @@ import { cores } from '@/lib/theme';
  */
 export default function Conta() {
   const sessao = useSessao();
+  const { editar } = useLocalSearchParams<{ editar?: string }>();
   const [editando, setEditando] = useState(false);
   const [encerrada, setEncerrada] = useState(false);
   const [saindo, setSaindo] = useState(false);
@@ -73,8 +74,13 @@ export default function Conta() {
 
   if (sessao.status === 'sem-sessao') return <Redirect href="/conta/entrar" />;
 
-  if (editando) {
-    return <EditarPerfil key={sessao.uid} perfil={sessao} voltar={() => setEditando(false)} />;
+  if (editando || editar === '1') {
+    return (
+      <EditarPerfil key={sessao.uid} perfil={sessao} voltar={() => {
+        if (editar === '1') router.back();
+        else setEditando(false);
+      }} />
+    );
   }
 
   return (

@@ -30,7 +30,7 @@ const configAcao: ActionCodeSettings | undefined = process.env.EXPO_PUBLIC_AUTH_
 function sessaoDe(u: User | null): SessionState {
   // A sessão só existe para conta com e-mail confirmado (A6, E4, EX11).
   return u && u.emailVerified && u.email
-    ? { status: 'ativa', uid: u.uid, email: u.email }
+    ? { status: 'ativa', uid: u.uid, email: u.email, ...(u.displayName?.trim() ? { nome: u.displayName.trim() } : {}) }
     : { status: 'sem-sessao' };
 }
 
@@ -61,6 +61,17 @@ export function criarAuthFirebase(): AuthService {
       try {
         u = (await createUserWithEmailAndPassword(auth, email.trim(), senha)).user;
       } catch (e) {
+        console.warn('[Cadastro: criar usuário]', {
+          firebaseConfigurado,
+          codigo: (e as { code?: string })?.code,
+          mensagem: e instanceof Error ? e.message : String(e),
+          apiKey: Boolean(process.env.EXPO_PUBLIC_FIREBASE_API_KEY?.trim()),
+          authDomain: Boolean(process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN?.trim()),
+          projectId: Boolean(process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID?.trim()),
+          storageBucket: Boolean(process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET?.trim()),
+          messagingSenderId: Boolean(process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID?.trim()),
+          appId: Boolean(process.env.EXPO_PUBLIC_FIREBASE_APP_ID?.trim()),
+        });
         if ((e as { code?: string })?.code !== 'auth/email-already-in-use') {
           throw traduzirErroFirebase(e);
         }
@@ -73,6 +84,7 @@ export function criarAuthFirebase(): AuthService {
           throw new ErroConta('email-em-uso');
         }
       }
+            let etapa = 'ler perfil';
       try {
         const perfil: Record<string, unknown> = {
           email: email.trim(),
@@ -81,12 +93,19 @@ export function criarAuthFirebase(): AuthService {
         if (nome?.trim()) perfil.nome = nome.trim();
         const ref = doc(db, 'usuarios', u.uid);
         const existente = await comTimeout(getDoc(ref));
-        if (!existente.exists()) await comTimeout(setDoc(ref, perfil)); // sem CPF
-        await sendEmailVerification(u, configAcao); // A6
+
+        if (!existente.exists()) {
+          etapa = 'gravar perfil';
+          await comTimeout(setDoc(ref, perfil));
+        }
+
+              etapa = 'enviar confirmação';
+        await sendEmailVerification(u, configAcao);
       } catch (e) {
+        console.warn('[Cadastro]', etapa, (e as { code?: string })?.code ?? 'sem código');
+
         // Desfaz: nenhuma conta ou perfil parcial (EX07, EX10).
         try {
-          // Não apagar Auth se não foi possível limpar o perfil: permite retomar o cadastro.
           await comTimeout(deleteDoc(doc(db, 'usuarios', u.uid)));
           await comTimeout(deleteUser(u));
         } catch {

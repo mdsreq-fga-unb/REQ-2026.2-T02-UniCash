@@ -57,8 +57,8 @@ export function SecaoNotificacoes({ preferencias, permissao }: Props) {
 }
 
 const estilos = StyleSheet.create({
-  secao: { gap: 4 },
-  titulo: { fontSize: 16, fontWeight: '700', color: cores.marinho, marginBottom: 4 },
+  secao: { gap: 2 },
+  titulo: { fontSize: 16, fontWeight: '600', color: cores.marinho },
   erro: { color: cores.erro, fontSize: 14, marginTop: 8 },
   aviso: { backgroundColor: cores.fundoSuave, borderColor: cores.borda, borderWidth: 1, borderRadius: raio.cartao, padding: 12, marginTop: 8, gap: 8 },
   textoAviso: { color: cores.marinho, fontSize: 14 },

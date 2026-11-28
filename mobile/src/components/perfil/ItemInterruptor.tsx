@@ -30,6 +30,6 @@ export function ItemInterruptor({ rotulo, valor, desabilitado, onAlternar, testI
 }
 
 const estilos = StyleSheet.create({
-  item: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12, gap: 12 },
+  item: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 46, gap: 12, borderBottomWidth: 1, borderBottomColor: cores.borda },
   rotulo: { flex: 1, fontSize: 15, color: cores.marinho },
 });

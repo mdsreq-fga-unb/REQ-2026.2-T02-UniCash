@@ -62,6 +62,7 @@ const TELAS_COM_BANCO = [
   'despesas/[id]/index',
   'despesas/[id]/editar',
   'sincronizacao',
+  'perfil',
   'metas/index',
   'movimentacoes',
   'metas/nova',
