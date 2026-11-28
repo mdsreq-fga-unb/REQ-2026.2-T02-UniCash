@@ -2,9 +2,10 @@ import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
+import { ItemInterruptor } from '@/components/perfil/ItemInterruptor';
 import { useSessao } from '@/features/conta/sessao';
 import { mensagensSincronizacao, type CodigoSincronizacao, type EstadoSincronizacao } from '@/features/sincronizacao/contrato';
-import { syncService } from '@/features/sincronizacao/service';
+import { alterarSincronizacaoAutomatica, syncService } from '@/features/sincronizacao/service';
 import { cores, raio } from '@/lib/theme';
 
 const rotulos: Record<EstadoSincronizacao['status'], string> = {
@@ -26,6 +27,9 @@ function ConteudoSincronizacao() {
   const sessao = useSessao();
   const recarregar = useRef<(() => void) | null>(null);
   const [erro, setErro] = useState<CodigoSincronizacao | null>(null);
+  const [salvandoPreferencia, setSalvandoPreferencia] = useState(false);
+  const [erroPreferencia, setErroPreferencia] = useState(false);
+  const salvando = useRef(false);
 
   useFocusEffect(useCallback(() => {
     let ativo = true;
@@ -53,8 +57,30 @@ function ConteudoSincronizacao() {
   }, []));
 
   const estado = consulta?.estado;
+  const automatica = estado?.sincronizacaoAutomatica;
   const mensagem = erro ? mensagensSincronizacao[erro]
+    : estado?.codigo === 'EX01' && automatica === false
+      ? 'Sem conexão. Suas alterações continuam guardadas no aparelho.'
     : estado?.codigo && estado.codigo !== 'EX04' ? mensagensSincronizacao[estado.codigo] : null;
+
+  async function alternarSincronizacaoAutomatica() {
+    if (sessao.status !== 'ativa' || automatica === undefined || salvando.current) return;
+    salvando.current = true;
+    setSalvandoPreferencia(true);
+    setErroPreferencia(false);
+    try {
+      await alterarSincronizacaoAutomatica(sessao.uid, !automatica);
+      setConsulta((atual) => atual && {
+        ...atual,
+        estado: { ...atual.estado, sincronizacaoAutomatica: !automatica },
+      });
+    } catch {
+      setErroPreferencia(true);
+    } finally {
+      salvando.current = false;
+      setSalvandoPreferencia(false);
+    }
+  }
 
   return (
     <SafeAreaView style={estilos.tela} edges={['top', 'bottom']}>
@@ -84,6 +110,27 @@ function ConteudoSincronizacao() {
               ) : !erro ? <ActivityIndicator color={cores.primaria} /> : null}
               {mensagem ? <Text style={estilos.texto}>{mensagem}</Text> : null}
             </View>
+            {sessao.status === 'ativa' && automatica !== undefined ? (
+              <View>
+                <ItemInterruptor
+                  rotulo="Sincronização automática"
+                  valor={automatica}
+                  desabilitado={salvandoPreferencia}
+                  onAlternar={() => void alternarSincronizacaoAutomatica()}
+                  testID="sincronizacao-automatica"
+                />
+                {automatica === false ? (
+                  <Text style={estilos.texto}>
+                    Os novos registros ficam neste aparelho até você tocar em Sincronizar agora.
+                  </Text>
+                ) : null}
+                {erroPreferencia ? (
+                  <Text accessibilityRole="alert" style={estilos.erroPreferencia}>
+                    Não foi possível salvar a preferência. Tente novamente.
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
             {erro ? (
               <Pressable accessibilityRole="button" style={estilos.botao} onPress={() => recarregar.current?.()}>
                 <Text style={estilos.botaoTexto}>Tentar novamente</Text>
@@ -107,8 +154,8 @@ function ConteudoSincronizacao() {
               </>
             ) : estado ? (
               <Pressable accessibilityRole="button"
-                accessibilityState={{ disabled: estado.sincronizando, busy: estado.sincronizando }}
-                disabled={estado.sincronizando}
+                accessibilityState={{ disabled: estado.sincronizando || salvandoPreferencia, busy: estado.sincronizando }}
+                disabled={estado.sincronizando || salvandoPreferencia}
                 onPress={() => void syncService.sincronizarAgora()}
                 style={estilos.botao}>
                 <Text style={estilos.botaoTexto}>
@@ -153,6 +200,7 @@ const estilos = StyleSheet.create({
   titulo: { color: cores.marinho, fontSize: 26, fontWeight: '700' },
   destaque: { color: cores.marinho, fontSize: 16, fontWeight: '700' },
   texto: { color: cores.textoSuave, fontSize: 15 },
+  erroPreferencia: { color: cores.erro, fontSize: 15 },
   cartao: {
     gap: 6, padding: 12, backgroundColor: cores.fundoSuave,
     borderColor: cores.borda, borderWidth: 1, borderRadius: raio.cartao,
