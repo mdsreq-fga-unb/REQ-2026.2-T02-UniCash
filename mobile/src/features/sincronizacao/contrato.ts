@@ -17,6 +17,7 @@ export interface EstadoSincronizacao {
   ultimaSincronizacao: string | null;
   quantidadePendencias: number;
   sincronizando: boolean;
+  sincronizacaoAutomatica?: boolean;
   codigo: CodigoSincronizacao | null;
 }
 
