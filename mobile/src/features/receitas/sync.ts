@@ -61,6 +61,7 @@ type RecorrenciaSync = {
 
 /** Existe quando o envio automático está pausado (FA01). */
 const ENVIO_PAUSADO = 'unicash:envio_automatico_pausado';
+const AUTOMATICO_DESLIGADO = 'unicash:sincronizacao_automatica_desligada';
 // Protege o envio nesta execução caso a persistência da pausa falhe.
 const pausasNaoPersistidas = new Set<string>();
 
@@ -102,13 +103,34 @@ export async function definirEnvioAutomatico(ligado: boolean, uid = auth.current
 }
 
 export async function envioPausado(uid: string): Promise<boolean> {
+  return await automaticoDesligado(uid) || envioInicialPausado(uid);
+}
+
+async function envioInicialPausado(uid: string): Promise<boolean> {
   return pausasNaoPersistidas.has(uid) ||
     (await AsyncStorage.getItem(`${ENVIO_PAUSADO}:${uid}`)) === '1';
 }
 
+export async function automaticoDesligado(uid: string): Promise<boolean> {
+  return (await AsyncStorage.getItem(`${AUTOMATICO_DESLIGADO}:${uid}`)) === '1';
+}
+
+/** Preferência explícita do aparelho, independente da pausa inicial do cadastro. */
+export async function definirPreferenciaAutomatica(uid: string, ligada: boolean): Promise<void> {
+  const chave = `${AUTOMATICO_DESLIGADO}:${uid}`;
+  if (ligada) {
+    await AsyncStorage.multiRemove([chave, `${ENVIO_PAUSADO}:${uid}`]);
+    pausasNaoPersistidas.delete(uid);
+  } else {
+    await AsyncStorage.setItem(chave, '1');
+  }
+}
+
 export interface OpcoesSincronizacao {
-  /** true quando a pessoa pediu o envio. Libera o envio automático se estava pausado (FA01). */
+  /** true quando a pessoa pediu o envio. Pode liberar a pausa inicial do cadastro (FA01). */
   manual?: boolean;
+  /** "Sincronizar agora" envia uma vez, preservando também a pausa inicial. */
+  manterPausa?: boolean;
   /** O UC16 aguarda o envio em curso antes de iniciar um ciclo próprio. */
   aguardar?: boolean;
   aoFalhar?: (erro: unknown, item?: Pick<ItemFila, 'tipo' | 'id' | 'revisao'>) => void;
@@ -146,10 +168,10 @@ async function enviarPendencias(uid: string, opcoes: OpcoesSincronizacao): Promi
   let mudouLocal = false;
 
   try {
-    // FA01: com o envio automático pausado, só segue se a pessoa pediu a sincronização.
-    if (await envioPausado(uid)) {
-      if (!opcoes.manual) return false;
-      await definirEnvioAutomatico(true, uid); // a pessoa pediu: daqui em diante os registros sincronizam
+    if (!opcoes.manual && await envioPausado(uid)) return false;
+    if (opcoes.manual && !opcoes.manterPausa &&
+        !(await automaticoDesligado(uid)) && await envioInicialPausado(uid)) {
+      await definirEnvioAutomatico(true, uid);
     }
 
     const sqlite = await getDbDoDono(uid);
@@ -769,7 +791,7 @@ async function aguardarAuthResolvida(): Promise<void> {
  * Categorias próprias diferentes com o mesmo nome não são fundidas.
  */
 export async function restaurarDaNuvem(
-  opcoes: { servidor?: boolean; uidEsperado?: string } = {},
+  opcoes: { servidor?: boolean; uidEsperado?: string; automatica?: boolean } = {},
 ): Promise<ResultadoRestauracao> {
   await aguardarAuthResolvida();
   const user = auth.currentUser;
@@ -777,7 +799,12 @@ export async function restaurarDaNuvem(
     throw new FalhaRestauracao('sem conta confirmada');
   }
   const uid = user.uid;
-  return serializarImportacao(uid, () => restaurarParaUid(uid, opcoes.servidor === true));
+  return serializarImportacao(uid, async () => {
+    if (opcoes.automatica && await automaticoDesligado(uid)) {
+      return { receitas: 0, despesas: 0, recorrencias: 0, metas: 0 };
+    }
+    return restaurarParaUid(uid, opcoes.servidor === true);
+  });
 }
 
 async function restaurarParaUid(uid: string, servidor: boolean): Promise<ResultadoRestauracao> {
