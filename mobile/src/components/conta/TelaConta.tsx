@@ -40,11 +40,11 @@ export function TelaConta({ titulo, subtitulo, children, rodape, onVoltar }: Pro
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
-  conteudo: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 24 },
-  topo: { flexDirection: 'row', alignItems: 'center', marginBottom: 20 },
+  conteudo: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24 },
+  topo: { flexDirection: 'row', alignItems: 'center', marginBottom: 26 },
   voltar: { paddingRight: 12 },
   voltarTexto: { fontSize: 30, color: cores.primaria, fontWeight: '700', lineHeight: 32 },
   marca: { fontSize: 15, fontWeight: '700', color: cores.marinho },
-  titulo: { fontSize: 26, fontWeight: '700', color: cores.marinho, marginBottom: 6 },
+  titulo: { fontSize: 22, fontWeight: '700', color: cores.marinho, marginBottom: 6 },
   subtitulo: { fontSize: 14, color: cores.primaria, lineHeight: 20, marginBottom: 18 },
 });
