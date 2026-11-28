@@ -1,7 +1,7 @@
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from '@firebase/rules-unit-testing';
 import { existsSync, readFileSync } from 'fs';
 import { resolve } from 'path';
-import { deleteDoc, deleteField, doc, getDoc, serverTimestamp, setDoc, Timestamp, updateDoc } from 'firebase/firestore';
+import { collection, deleteDoc, deleteField, doc, getDoc, getDocs, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch } from 'firebase/firestore';
 
 /**
  * UC10: perfil em usuarios/{uid}. Roda no Firestore Emulator: npm run test:rules
@@ -208,5 +208,54 @@ describe('dados financeiros exigem confirmação', () => {
   it.each(['receitas', 'despesas', 'recorrencias', 'categorias'])('recusa leitura sem confirmação: %s', async (colecao) => {
     await assertFails(getDoc(doc(db('u1', anaNaoConfirmada), 'usuarios', 'u1', colecao, 'r1')));
     await assertSucceeds(getDoc(doc(db('u1', ana), 'usuarios', 'u1', colecao, 'r1')));
+  });
+});
+
+describe('UC11: pedido de exclusão de conta', () => {
+  const id = '00000000-0000-4000-8000-000000000001';
+  const payload = () => ({ status: 'pendente', solicitado_em: serverTimestamp(), comprovante_id: id });
+  function gravarPedido(cliente: ReturnType<typeof db>, extra = {}) {
+    const batch = writeBatch(cliente);
+    batch.set(doc(cliente, 'pedidos_remocao', 'u1'), { ...payload(), ...extra });
+    batch.set(doc(cliente, 'comprovantes_remocao', id), { recebido: true });
+    return batch.commit();
+  }
+
+  const recente = () => ({ ...ana, auth_time: Math.floor(Date.now() / 1000) });
+
+  it('aceita o pedido recente do dono e impede edição, leitura por terceiros e exclusão', async () => {
+    const ref = doc(db('u1', recente()), 'pedidos_remocao', 'u1');
+    await assertSucceeds(gravarPedido(db('u1', recente())));
+    await assertSucceeds(getDoc(ref));
+    await assertFails(updateDoc(ref, { status: 'concluido' }));
+    await assertFails(deleteDoc(ref));
+    await assertFails(getDoc(doc(db('u2', bia), 'pedidos_remocao', 'u1')));
+  });
+
+  it('recusa autenticação antiga, pedido por terceiro e campos extras', async () => {
+    await assertFails(gravarPedido(db('u1', { ...ana, auth_time: 1 })));
+    await assertFails(gravarPedido(db('u2', recente())));
+    await assertFails(gravarPedido(db('u1', recente()), { outro: true }));
+  });
+
+  it('exige criação atômica e permite só a consulta por ID exato após logout', async () => {
+    const cliente = db('u1', recente());
+    await assertFails(setDoc(doc(cliente, 'pedidos_remocao', 'u1'), payload()));
+    await assertFails(setDoc(doc(cliente, 'comprovantes_remocao', id), { recebido: true }));
+    await assertSucceeds(gravarPedido(cliente));
+    const publico = anonimo();
+    expect((await assertSucceeds(getDoc(doc(publico, 'comprovantes_remocao', id)))).data())
+      .toEqual({ recebido: true });
+    await assertFails(getDocs(collection(publico, 'comprovantes_remocao')));
+    await assertFails(updateDoc(doc(cliente, 'comprovantes_remocao', id), { recebido: false }));
+  });
+
+  it('bloqueia gravações de uma segunda sessão do mesmo UID desde o recebimento do pedido', async () => {
+    const saldo = doc(db('u1'), 'usuarios', 'u1', 'saldo_inicial', 'atual');
+    const dados = { valor_centavos: 100, mes_referencia: '2026-11' };
+    await assertSucceeds(setDoc(saldo, dados));
+    await assertSucceeds(gravarPedido(db('u1', recente())));
+    await assertFails(setDoc(saldo, { ...dados, valor_centavos: 200 }));
+    await assertSucceeds(setDoc(doc(db('u2', bia), 'usuarios', 'u2', 'saldo_inicial', 'atual'), dados));
   });
 });

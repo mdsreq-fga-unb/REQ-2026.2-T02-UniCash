@@ -1,0 +1,67 @@
+name: Processar exclusões de conta
+
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: unicash-remocao-conta
+  cancel-in-progress: false
+
+jobs:
+  processar:
+    name: Processar fila de exclusão
+    if: ${{ github.event_name == 'schedule' || github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        working-directory: scripts/remocao-conta
+
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+      FIREBASE_WIF_PROVIDER: ${{ vars.FIREBASE_WIF_PROVIDER }}
+      FIREBASE_REMOVAL_SERVICE_ACCOUNT: ${{ vars.FIREBASE_REMOVAL_SERVICE_ACCOUNT }}
+
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Conferir configuração do Firebase
+        shell: bash
+        run: |
+          faltando=0
+          for variavel in FIREBASE_PROJECT_ID FIREBASE_WIF_PROVIDER FIREBASE_REMOVAL_SERVICE_ACCOUNT; do
+            if [[ -z "${!variavel}" ]]; then
+              echo "::error::Configure a variável $variavel nas Actions variables do repositório."
+              faltando=1
+            fi
+          done
+          exit "$faltando"
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: scripts/remocao-conta/package-lock.json
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Autenticar no Google Cloud
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ env.FIREBASE_PROJECT_ID }}
+          workload_identity_provider: ${{ env.FIREBASE_WIF_PROVIDER }}
+          service_account: ${{ env.FIREBASE_REMOVAL_SERVICE_ACCOUNT }}
+          create_credentials_file: true
+
+      - name: Processar pedidos pendentes
+        run: node processar.mjs --projeto "$FIREBASE_PROJECT_ID" --fila --executar

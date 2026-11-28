@@ -1038,3 +1038,52 @@ describe('UC13: histórico de desbloqueio', () => {
   });
 
 });
+
+describe('UC11: bloqueio de gravação em todas as subcoleções do usuário', () => {
+  const casos = [
+    { colecao: 'receitas', id: 'r1', dados: receita() },
+    { colecao: 'despesas', id: 'd1', dados: despesa({ categoria_id: 'uuid-cat' }) },
+    { colecao: 'recorrencias', id: 's1', dados: serie() },
+    { colecao: 'categorias', id: 'outra-cat', dados: categoria() },
+    { colecao: 'metas', id: 'm1', dados: meta() },
+    { colecao: 'saldo_inicial', id: 'atual', dados: { valor_centavos: 100, mes_referencia: '2026-11' } },
+    { colecao: 'conquistas_historico', id: 'primeira-meta', dados: {
+      data: '2026-10-01', origem: '01234567-89ab-4cde-8f01-23456789abcd',
+    } },
+    { colecao: 'alertas_emitidos', id: 'a'.repeat(32), dados: {
+      mes: '2026-11', anterior_centavos: 0, saldo_centavos: -100, criado_em: '2026-11-01T10:00:00.000Z',
+    } },
+    { colecao: 'alertas', id: 'aproximacao_uuid-cat_2026-10', somenteCriacao: true, dados: {
+      tipo: 'aproximacao', ref_id: 'uuid-cat', periodo: '2026-10', categoria_nome: 'Mercado',
+      gasto_centavos: 8000, limite_centavos: 10000, emitido_em: '2026-10-16T12:00:00.000Z',
+    } },
+  ];
+
+  it('exige um cenário para cada subcoleção declarada nas regras', () => {
+    const declaradas = [...readFileSync(localizarRegras(), 'utf8')
+      .matchAll(/match \/usuarios\/\{uid\}\/([^/\s]+)\//g)].map(resultado => resultado[1]);
+    expect(casos.map(caso => caso.colecao).sort()).toEqual([...new Set(declaradas)].sort());
+  });
+
+  it.each(casos)('impede nova gravação em $colecao depois do pedido', async ({ colecao, id, dados, somenteCriacao }) => {
+    const conta = db('u1');
+    const ref = doc(conta, 'usuarios', 'u1', colecao, id);
+    await assertSucceeds(setDoc(cat(conta), categoria()));
+    await assertSucceeds(setDoc(ref, dados));
+    if (!somenteCriacao) await assertSucceeds(setDoc(ref, dados));
+
+    await env.withSecurityRulesDisabled(async ctx => {
+      await setDoc(doc(ctx.firestore(), 'pedidos_remocao', 'u1'), { status: 'pendente' });
+    });
+    if (!somenteCriacao) await assertFails(setDoc(ref, dados));
+
+    // Simula o intervalo após o script apagar os dados, com outra sessão ainda ativa.
+    await env.withSecurityRulesDisabled(async ctx => {
+      const admin = ctx.firestore();
+      await deleteDoc(doc(admin, 'usuarios', 'u1', colecao, id));
+      await updateDoc(doc(admin, 'pedidos_remocao', 'u1'), { status: 'concluido' });
+    });
+    await assertFails(setDoc(ref, dados));
+    await assertSucceeds(setDoc(cat(db('u2'), 'u2'), categoria()));
+  });
+});

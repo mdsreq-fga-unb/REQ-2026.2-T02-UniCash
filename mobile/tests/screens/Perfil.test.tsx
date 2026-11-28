@@ -1,3 +1,5 @@
+import { apagarBancoSemConta } from '@/db/database';
+import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import { AppState } from 'react-native';
 import { router } from 'expo-router';
@@ -7,6 +9,8 @@ import { MSG_NOTIFICACOES, ROTULOS_ALERTA } from '@/features/notificacoes/mensag
 import { criarPermissaoSimulada } from '@/features/notificacoes/permissao.simulada';
 import type { NotificationPreferences, TipoAlerta } from '@/features/notificacoes/types';
 
+jest.mock('@/features/categorias/service', () => ({ semearCategoriasPadrao: jest.fn() }));
+jest.mock('@/db/database', () => ({ apagarBancoSemConta: jest.fn() }));
 jest.mock('expo-router', () => require('../helpers/expoRouterMock'));
 jest.mock('react-native-safe-area-context', () => require('react-native-safe-area-context/jest/mock').default);
 jest.mock('@/features/notificacoes/preferencias', () => ({
@@ -192,5 +196,30 @@ describe('UC14 - seção Notificações', () => {
       expect(await screen.findByRole('switch', { name: ROTULOS_ALERTA.limite })).toBeTruthy();
       expect(prefs.listar).toHaveBeenCalledTimes(2);
     });
+  });
+});
+
+describe('UC11 - apagar dados no modo sem conta', () => {
+  it('preserva os dados ao cancelar e apaga somente após a confirmação', async () => {
+    jest.mocked(apagarBancoSemConta).mockResolvedValueOnce(undefined);
+    await render(<Perfil />);
+    const abrir = () => fireEvent.press(screen.getByRole('button', { name: 'Apagar dados deste aparelho' }));
+    await abrir();
+    await fireEvent.press(screen.getByRole('button', { name: 'Cancelar' }));
+    expect(apagarBancoSemConta).not.toHaveBeenCalled();
+    await abrir();
+    await fireEvent.press(screen.getByRole('button', { name: 'Apagar dados' }));
+    expect(await screen.findByText('Dados locais apagados.')).toBeTruthy();
+    expect(apagarBancoSemConta).toHaveBeenCalledTimes(1);
+    expect(semearCategoriasPadrao).toHaveBeenCalled();
+  });
+
+  it('informa a falha e permite repetir a confirmação', async () => {
+    jest.mocked(apagarBancoSemConta).mockRejectedValueOnce(new Error('SQLite indisponível'));
+    await render(<Perfil />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Apagar dados deste aparelho' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'Apagar dados' }));
+    expect(await screen.findByText('Não foi possível concluir a limpeza. Tente novamente.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Apagar dados' })).toBeTruthy();
   });
 });
