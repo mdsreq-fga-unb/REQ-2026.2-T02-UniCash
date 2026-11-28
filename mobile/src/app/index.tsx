@@ -37,10 +37,15 @@ export default function Home() {
   const sessao = useSessao();
   if (sessao.status !== 'ativa' && !continuarSemContaNestaSessao()) return <Redirect href="/conta/cadastro" />;
   return <ResumoFinanceiro key={sessao.status === 'ativa' ? sessao.uid : 'local'}
+    contaAtiva={sessao.status === 'ativa'}
     nome={sessao.status === 'ativa' ? sessao.nome?.split(/\s+/)[0] : undefined} />;
 }
 
-export function ResumoFinanceiro({ noTutorial = false, nome }: { noTutorial?: boolean; nome?: string }) {
+export function ResumoFinanceiro({ noTutorial = false, nome, contaAtiva = false }: {
+  noTutorial?: boolean;
+  nome?: string;
+  contaAtiva?: boolean;
+}) {
   const rolagem = useRef<ComponentRef<typeof ScrollView>>(null);
   const posicaoRelatorios = useRef(0);
   const { estado: sincronizacao } = useEstadoSincronizacao(!noTutorial);
@@ -108,6 +113,11 @@ export function ResumoFinanceiro({ noTutorial = false, nome }: { noTutorial?: bo
               <IconePrototipo nome="offline" tamanho={13} />
               <Text style={estilos.offlineTexto}>Offline</Text>
             </Pressable>
+          ) : contaAtiva && sincronizacao?.status === 'sincronizado' && !sincronizacao.sincronizando ? (
+            <View style={estilos.sincronizado}>
+              <IconePrototipo nome="confirmado" tamanho={12} />
+              <Text style={estilos.offlineTexto}>Sincronizado</Text>
+            </View>
           ) : null}
         </View>
         {!noTutorial ? <SituacaoConexaoResumo estado={sincronizacao} /> : null}
@@ -176,6 +186,13 @@ export function ResumoFinanceiro({ noTutorial = false, nome }: { noTutorial?: bo
 
         {!noTutorial && !resumoDoPeriodo?.semLancamentos && (
           <View onLayout={(evento) => { posicaoRelatorios.current = evento.nativeEvent.layout.y; }}>
+            {resumoDoPeriodo && !falhou && (
+              <>
+                <Text style={estilos.periodoRelatorio}>Período: {nomeMes(periodo.ano, periodo.mes)}</Text>
+                <GastosPorCategoria estado={consumo.estado} total={resumoDoPeriodo.totalDespesasCentavos}
+                  onTentarNovamente={consumo.tentarNovamente} />
+              </>
+            )}
             <SecaoEvolucao
               evolucao={evolucao.evolucao}
               falhou={evolucao.falhou}
@@ -384,13 +401,18 @@ const estilos = StyleSheet.create({
     flexDirection: 'row', gap: 5, alignItems: 'center', paddingHorizontal: 8, paddingVertical: 5,
     borderWidth: 1, borderStyle: 'dashed', borderColor: cores.primaria, borderRadius: raio.pilula,
   },
+  sincronizado: {
+    flexDirection: 'row', gap: 6, alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5,
+    borderWidth: 1, borderColor: cores.primaria, borderRadius: raio.pilula,
+  },
   offlineTexto: { color: cores.marinho, fontSize: 11, fontWeight: '600' },
   seletor: { flexDirection: 'row', gap: 4, alignItems: 'center', marginBottom: 2 },
   seta: { minWidth: 40, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   setaTexto: { fontSize: 21, color: cores.primaria },
   rotuloMes: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 4 },
   mes: { fontSize: 13, color: cores.primaria },
-  atalhos: { gap: 8, marginBottom: 16 },
+  periodoRelatorio: { fontSize: 12, color: cores.primaria, marginBottom: 8 },
+  atalhos: { gap: 10, marginBottom: 16 },
   atalhosLinha: { flexDirection: 'row', gap: 8 },
   atalho: {
     flexGrow: 1, flexBasis: 0, minHeight: 68, padding: 8, alignItems: 'center', justifyContent: 'center', gap: 6,
