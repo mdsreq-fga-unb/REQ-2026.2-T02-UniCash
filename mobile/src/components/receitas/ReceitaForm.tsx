@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { cores, raio } from '@/lib/theme';
 import { Campo } from './Campo';
 import { Segmentado } from './Segmentado';
@@ -79,7 +80,7 @@ export function ReceitaForm({
     <View style={estilos.tela}>
       <View style={estilos.cabecalho}>
         <Pressable onPress={onCancelar} accessibilityLabel="Voltar" style={estilos.voltar}>
-          <Text style={estilos.voltarTexto}>‹</Text>
+          <IconePrototipo nome="voltar" tamanho={14} />
         </Pressable>
         <Text style={estilos.titulo}>{titulo}</Text>
       </View>
@@ -87,6 +88,7 @@ export function ReceitaForm({
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
         <View style={{ marginBottom: 16 }}>
           <Segmentado
+            variante="compacto"
             valor="receita"
             opcoes={[
               { valor: 'despesa', rotulo: 'Despesa', inerte: !onTrocarTipo },
@@ -99,6 +101,7 @@ export function ReceitaForm({
         </View>
 
         <Campo
+          compacto
           rotulo="Título"
           value={v.titulo}
           onChangeText={(t) => set('titulo', t)}
@@ -106,6 +109,7 @@ export function ReceitaForm({
           erro={erros.titulo}
         />
         <Campo
+          compacto
           rotulo="Valor"
           prefixo="R$"
           value={v.valor}
@@ -115,13 +119,14 @@ export function ReceitaForm({
           erro={erros.valor}
         />
         <Campo
+          compacto
           rotulo="Data"
           value={v.data}
           onChangeText={(t) => set('data', mascararData(t))}
           placeholder="DD/MM/AAAA"
           keyboardType="number-pad"
           erro={erros.data}
-          acao={<Text style={estilos.icone}>🗓</Text>}
+          acao={<IconePrototipo nome="calendario" tamanho={14} />}
           abaixo={
             <Pressable onPress={() => set('data', formatarBR(hojeISO()))} accessibilityRole="button" style={estilos.hojeBotao}>
               <Text style={estilos.hoje}>Hoje</Text>
@@ -129,6 +134,7 @@ export function ReceitaForm({
           }
         />
         <Campo
+          compacto
           rotulo="Descrição (opcional)"
           value={v.descricao}
           onChangeText={(t) => set('descricao', t)}
@@ -146,7 +152,7 @@ export function ReceitaForm({
             accessibilityLabel="Repetição"
           >
             <Text style={estilos.seletorTexto}>{resumoRepeticao(v)}</Text>
-            <Text style={estilos.seta}>▾</Text>
+            <IconePrototipo nome="expandir" tamanho={10} />
           </Pressable>
           {erroRepeticao ? (
             <Text style={estilos.erro} accessibilityRole="alert">
@@ -208,6 +214,7 @@ export function ReceitaForm({
             {v.recorrente ? (
               <View style={{ marginTop: 16 }}>
                 <Campo
+                  compacto
                   rotulo="Repetir a cada"
                   value={v.intervalo}
                   onChangeText={(t) => set('intervalo', t.replace(/\D/g, ''))}
@@ -222,6 +229,7 @@ export function ReceitaForm({
                   />
                 </View>
                 <Campo
+                  compacto
                   rotulo="Data de término (opcional)"
                   value={v.termino}
                   onChangeText={(t) => set('termino', mascararData(t))}
@@ -243,12 +251,10 @@ export function ReceitaForm({
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
-  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12 },
-  voltar: { paddingHorizontal: 10 },
-  voltarTexto: { fontSize: 30, color: cores.primaria, fontWeight: '700', lineHeight: 32 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, minHeight: 48, gap: 10 },
+  voltar: { width: 28, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   titulo: { fontSize: 18, fontWeight: '700', color: cores.marinho },
-  conteudo: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
-  icone: { fontSize: 16, marginLeft: 8 },
+  conteudo: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
   hojeBotao: { alignSelf: 'flex-start', paddingTop: 6 },
   hoje: { color: cores.primaria, fontSize: 12, fontWeight: '600' },
   bloco: { marginBottom: 14 },
@@ -266,11 +272,10 @@ const estilos = StyleSheet.create({
   },
   seletorErro: { borderColor: cores.erro },
   seletorTexto: { fontSize: 15, color: cores.marinho },
-  seta: { fontSize: 14, color: cores.primaria },
   dica: { fontSize: 12, color: cores.primaria, marginTop: 6 },
   erro: { color: cores.erro, fontSize: 12, marginTop: 4 },
   erroGeral: { color: cores.erro, fontSize: 14, fontWeight: '600', marginTop: 12 },
-  rodape: { padding: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: cores.borda },
+  rodape: { paddingHorizontal: 16, paddingTop: 10, borderTopWidth: 1, borderTopColor: cores.borda },
   salvar: { backgroundColor: cores.primaria, borderRadius: raio.botao, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   salvarTexto: { color: cores.branco, fontWeight: '700', fontSize: 15 },
   secundario: { alignItems: 'center', paddingVertical: 14 },
