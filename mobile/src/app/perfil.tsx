@@ -46,8 +46,8 @@ export default function Perfil() {
           </Pressable>
         </View>
 
-        <CartaoSincronizacao key={ativa ? sessao.uid : 'local'} contaAtiva={ativa} />
-        <SecaoNotificacoes key={ativa ? sessao.uid : 'local'} />
+        <CartaoSincronizacao key={ativa ? `sincronizacao-${sessao.uid}` : 'sincronizacao-local'} contaAtiva={ativa} />
+        <SecaoNotificacoes key={ativa ? `notificacoes-${sessao.uid}` : 'notificacoes-local'} />
 
         <View>
           <Text style={estilos.tituloSecao} accessibilityRole="header">Geral</Text>
