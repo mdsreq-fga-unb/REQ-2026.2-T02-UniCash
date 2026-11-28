@@ -7,7 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { BancoPronto } from '@/db/Preparacao';
 import { getDb } from '@/db/database';
 import { iniciarConta } from '@/features/conta';
-import { retomarLimpezasDeConta } from '@/features/conta/remocao';
+import { encerrarSessaoComRemocaoConfirmada, retomarLimpezasDeConta } from '@/features/conta/remocao';
 import { resetarContinuidadeSemConta } from '@/features/conta/onboarding';
 import { semearCategoriasPadrao } from '@/features/categorias/service';
 import { completarRecorrencias } from '@/features/receitas/service';
@@ -98,12 +98,17 @@ export default function RootLayout() {
 
     void (async () => {
       try {
-        await retomarLimpezasDeConta();
+        await encerrarSessaoComRemocaoConfirmada();
         await getDb();
         await semearCategoriasPadrao();
 
         if (montado.current) {
           setEstado('pronto');
+          void retomarLimpezasDeConta().then(baseAlterada => {
+            if (baseAlterada) avisarBaseAtualizada();
+          }).catch(() => {
+            console.warn('Não foi possível verificar as limpezas locais pendentes.');
+          });
           // A Home fica montada atrás da camada durante a preparação; ao liberar o guard e
           // depois das rotinas (recorrências, restauração, sincronização), ela recalcula.
           avisarBaseAtualizada();

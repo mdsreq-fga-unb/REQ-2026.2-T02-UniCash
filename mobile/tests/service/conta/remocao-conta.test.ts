@@ -33,6 +33,7 @@ const sessao = auth as unknown as { currentUser: object | null };
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  jest.mocked(getDocFromServer).mockReset();
   await AsyncStorage.clear();
   jest.mocked(getNetworkStateAsync).mockResolvedValue({ isConnected: true });
   sessao.currentUser = { uid: 'dono', email: 'teste@example.com', emailVerified: true, getIdToken: renovarToken };
@@ -128,4 +129,30 @@ it('pede conexão antes de solicitar a exclusão de uma conta e preserva os dado
   expect(apagarBancoDaConta).not.toHaveBeenCalled();
   expect(signOut).not.toHaveBeenCalled();
   expect(await AsyncStorage.getItem(chave)).toBeNull();
+});
+
+it('descarta somente o marcador quando o servidor confirma a ausência do comprovante e do pedido', async () => {
+  await AsyncStorage.setItem(chave, 'enviando:' + id);
+  jest.mocked(getDocFromServer).mockResolvedValue({ exists: () => false } as never);
+  try {
+    await retomarLimpezasDeConta();
+    expect(apagarBancoDaConta).not.toHaveBeenCalled();
+    expect(await AsyncStorage.getItem(chave)).toBeNull();
+  } finally {
+    jest.mocked(getDocFromServer).mockReset();
+  }
+});
+
+it('preserva o marcador que falhou e continua a limpeza do próximo UID', async () => {
+  sessao.currentUser = null;
+  await AsyncStorage.setItem(chave, 'confirmado');
+  const outraChave = PREFIXO_REMOCAO_LOCAL + 'outro';
+  await AsyncStorage.setItem(outraChave, 'confirmado');
+  jest.mocked(apagarBancoDaConta).mockRejectedValueOnce(new Error('SQLite indisponível'));
+
+  await retomarLimpezasDeConta();
+
+  expect(await AsyncStorage.getItem(chave)).toBe('confirmado');
+  expect(apagarBancoDaConta).toHaveBeenCalledWith('outro');
+  expect(await AsyncStorage.getItem(outraChave)).toBeNull();
 });
