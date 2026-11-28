@@ -1,13 +1,14 @@
 import { router, usePathname } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { cores } from '@/lib/theme';
 
 const abas = [
-  { rota: '/', rotulo: 'Resumo', icone: '⌂' },
-  { rota: '/movimentacoes', rotulo: 'Movimentações', icone: '≡' },
-  { rota: '/metas', rotulo: 'Metas', icone: '◎' },
-  { rota: '/perfil', rotulo: 'Perfil', icone: '♙' },
+  { rota: '/', rotulo: 'Resumo', icone: 'resumo' },
+  { rota: '/movimentacoes', rotulo: 'Movimentações', icone: 'movimentacoes' },
+  { rota: '/metas', rotulo: 'Metas', icone: 'metas' },
+  { rota: '/perfil', rotulo: 'Perfil', icone: 'perfil' },
 ] as const;
 
 export function MenuInferior() {
@@ -32,7 +33,7 @@ export function MenuInferior() {
             }}
             style={estilos.aba}
           >
-            <Text style={estilos.icone}>{icone}</Text>
+            <IconePrototipo nome={icone} />
             <Text style={[estilos.rotulo, ativa && estilos.ativa]}>{rotulo}</Text>
           </Pressable>
         );
@@ -46,8 +47,7 @@ const estilos = StyleSheet.create({
     flexDirection: 'row', backgroundColor: cores.fundo,
     borderTopColor: cores.borda, borderTopWidth: StyleSheet.hairlineWidth,
   },
-  aba: { flex: 1, minHeight: 52, padding: 4, alignItems: 'center', justifyContent: 'center' },
-  icone: { fontSize: 22, color: cores.primaria },
-  rotulo: { fontSize: 11, color: cores.primaria, textAlign: 'center' },
+  aba: { flex: 1, minHeight: 60, gap: 3, padding: 4, alignItems: 'center', justifyContent: 'center' },
+  rotulo: { fontSize: 9, color: cores.primaria, textAlign: 'center' },
   ativa: { fontWeight: '700', color: cores.marinho },
 });
