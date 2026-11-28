@@ -224,7 +224,7 @@ export default function Movimentacoes() {
               setBusca('');
             }}><Text style={estilos.link}>Limpar filtros</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={novoLancamento} style={estilos.registrar}>
-              <IconePrototipo nome="mais" tamanho={13} style={estilos.iconeBranco} />
+              <IconePrototipo nome="mais" tamanho={18} style={estilos.iconeBranco} />
               <Text style={estilos.registrarTexto}>{tipo === 'receita' ? 'Registrar receita' : 'Registrar despesa'}</Text>
             </Pressable>
           </View>
@@ -234,7 +234,7 @@ export default function Movimentacoes() {
         accessibilityRole="button" accessibilityLabel="Novo lançamento"
         onPress={novoLancamento} style={estilos.adicionar}
       >
-        <IconePrototipo nome="mais" tamanho={19} style={estilos.iconeBranco} />
+        <IconePrototipo nome="mais" tamanho={26} style={estilos.iconeBranco} />
       </Pressable>
     </SafeAreaView>
   );
