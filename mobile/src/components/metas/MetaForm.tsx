@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { cores, raio } from '@/lib/theme';
 import { Campo } from '@/components/receitas/Campo';
 import { Segmentado } from '@/components/receitas/Segmentado';
@@ -112,13 +113,14 @@ export function MetaForm({
           accessibilityLabel="Voltar"
           style={[estilos.voltar, salvando && { opacity: 0.6 }]}
         >
-          <Text style={estilos.voltarTexto}>‹</Text>
+          <IconePrototipo nome="voltar" tamanho={14} />
         </Pressable>
         <Text style={estilos.titulo}>{titulo}</Text>
       </View>
 
       <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
         <Campo
+          compacto
           rotulo="Objetivo"
           value={v.objetivo}
           onChangeText={(t) => set('objetivo', t)}
@@ -149,6 +151,7 @@ export function MetaForm({
         </View>
 
         <Campo
+          compacto
           rotulo="Valor alvo"
           prefixo={v.tipo === 'gasto' ? 'R$ / mês' : 'R$'}
           value={v.valorAlvo}
@@ -223,6 +226,7 @@ export function MetaForm({
           </View>
         ) : (
           <Campo
+            compacto
             rotulo="Valor acumulado (opcional)"
             prefixo="R$"
             value={v.valorAcumulado}
@@ -239,13 +243,14 @@ export function MetaForm({
         )}
 
         <Campo
+          compacto
           rotulo="Prazo"
           value={v.prazo}
           onChangeText={(t) => set('prazo', mascararData(t))}
           placeholder="DD/MM/AAAA"
           keyboardType="number-pad"
           erro={erros.prazo}
-          acao={<Text style={estilos.icone}>🗓</Text>}
+          acao={<IconePrototipo nome="calendario" tamanho={14} />}
         />
 
         <Text style={estilos.dica}>Salvo primeiro no dispositivo: funciona sem internet.</Text>
@@ -285,14 +290,12 @@ export function MetaForm({
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
-  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12 },
-  voltar: { paddingHorizontal: 10 },
-  voltarTexto: { fontSize: 30, color: cores.primaria, fontWeight: '700', lineHeight: 32 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, minHeight: 48, gap: 10 },
+  voltar: { width: 28, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   titulo: { fontSize: 18, fontWeight: '700', color: cores.marinho },
-  conteudo: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
+  conteudo: { paddingHorizontal: 16, paddingTop: 8, paddingBottom: 24 },
   bloco: { marginBottom: 14 },
   rotulo: { fontSize: 13, fontWeight: '600', color: cores.marinho, marginBottom: 6 },
-  icone: { fontSize: 16, color: cores.textoSuave, marginLeft: 8 },
   dica: { fontSize: 12, color: cores.primaria, marginTop: 6 },
   erro: { color: cores.erro, fontSize: 12, marginTop: 4 },
   erroGeral: { color: cores.erro, fontSize: 14, fontWeight: '600', marginTop: 12 },
@@ -312,7 +315,7 @@ const estilos = StyleSheet.create({
   categoriaChipAtivo: { backgroundColor: cores.primaria, borderColor: cores.primaria },
   categoriaChipTexto: { fontSize: 13, color: cores.marinho },
   categoriaChipTextoAtivo: { color: cores.branco, fontWeight: '600' },
-  rodape: { padding: 20, paddingTop: 12, borderTopWidth: 1, borderTopColor: cores.borda },
+  rodape: { paddingHorizontal: 16, paddingTop: 10, borderTopWidth: 1, borderTopColor: cores.borda },
   salvar: {
     backgroundColor: cores.primaria,
     borderRadius: raio.botao,
