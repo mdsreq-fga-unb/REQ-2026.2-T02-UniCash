@@ -215,7 +215,7 @@ async function rotinasPosInicializacao() {
   }
 
   try {
-    await restaurarDaNuvem();
+    await restaurarDaNuvem({ automatica: true });
   } catch (erro) {
     // Sem conta, sem rede ou restauração adiada: o app segue offline-first.
     console.warn('Falha ao restaurar os dados da nuvem.', erro);
