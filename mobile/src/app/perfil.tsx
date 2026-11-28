@@ -11,7 +11,7 @@ export default function Perfil() {
   const chave = sessao.status === 'ativa' ? sessao.uid : 'local';
 
   return (
-    <SafeAreaView style={estilos.tela} edges={['top', 'bottom']}>
+    <SafeAreaView style={estilos.tela} edges={['top']}>
       <ScrollView contentContainerStyle={estilos.conteudo}>
         <View style={estilos.cabecalho}>
           <Pressable accessibilityRole="button" onPress={() => router.back()} hitSlop={8}>
@@ -39,6 +39,13 @@ export default function Perfil() {
 
         {/* A chave recarrega as preferências quando o dono muda (RNF03). */}
         <SecaoNotificacoes key={chave} />
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/conta')}
+          style={estilos.cartao}
+        >
+          <Text style={estilos.usuario}>Conta</Text>
+        </Pressable>
       </ScrollView>
     </SafeAreaView>
   );

@@ -28,7 +28,7 @@ export interface AlvoExclusaoDespesa {
 }
 
 /** Fluxo de exclusão de despesas, incluindo o alcance da recorrência. */
-export function useExclusaoDespesas(alvo: AlvoExclusaoDespesa | null) {
+export function useExclusaoDespesas(alvo: AlvoExclusaoDespesa | null, rotaLista: '/despesas' | '/movimentacoes' = '/despesas') {
   const [etapa, setEtapa] = useState<null | 'alcance' | 'confirmar'>(null);
   const [escopo, setEscopo] = useState<EscopoSerie>('esta');
 
@@ -57,7 +57,7 @@ export function useExclusaoDespesas(alvo: AlvoExclusaoDespesa | null) {
       });
     }
 
-    router.dismissTo('/despesas');
+    router.dismissTo(rotaLista);
   }
 
   const dialogos = alvo ? (

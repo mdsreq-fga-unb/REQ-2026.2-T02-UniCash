@@ -15,7 +15,9 @@ import type { EscopoSerie, FormValores, Receita, ReceitaInput } from '@/features
 import { cores } from '@/lib/theme';
 
 export default function EditarReceita() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, origem } = useLocalSearchParams<{ id: string; origem?: string }>();
+  const veioDeMovimentacoes = origem === 'movimentacoes';
+  const rotaLista = veioDeMovimentacoes ? '/movimentacoes' : '/receitas';
   const [receita, setReceita] = useState<Receita | null>(null);
   const [inicial, setInicial] = useState<FormValores | null>(null);
   const [carregando, setCarregando] = useState(true);
@@ -30,6 +32,7 @@ export default function EditarReceita() {
     receita
       ? { id, titulo: receita.titulo, valorCentavos: receita.valor_centavos, data: receita.data, emSerie }
       : null,
+    rotaLista,
   );
 
   const carregar = useCallback(async () => {
@@ -40,7 +43,8 @@ export default function EditarReceita() {
       if (!r) {
         // EX06
         setFeedback({ tipo: 'erro', texto: MSG.indisponivel });
-        router.replace('/receitas');
+        if (veioDeMovimentacoes) router.dismissTo('/movimentacoes');
+        else router.replace('/receitas');
         return;
       }
       setReceita(r.receita);
@@ -59,7 +63,7 @@ export default function EditarReceita() {
     } finally {
       setCarregando(false);
     }
-  }, [id]);
+  }, [id, veioDeMovimentacoes]);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,11 +79,12 @@ export default function EditarReceita() {
       await editarReceita(id, dados, escopo);
       setFeedback({ tipo: 'sucesso', texto: 'Salvo no dispositivo. Sincronização pendente.' });
       sincronizarEmSegundoPlano();
-      router.dismissTo('/receitas');
+      router.dismissTo(rotaLista);
     } catch (e) {
       if (e instanceof ReceitaIndisponivel) {
         setFeedback({ tipo: 'erro', texto: MSG.indisponivel });
-        router.replace('/receitas');
+        if (veioDeMovimentacoes) router.dismissTo('/movimentacoes');
+        else router.replace('/receitas');
         return;
       }
       setErro(MSG.falhaSalvar); // EX03

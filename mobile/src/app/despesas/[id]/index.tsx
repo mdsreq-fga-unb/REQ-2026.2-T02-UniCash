@@ -32,7 +32,9 @@ const UNIDADE: Record<string, [string, string]> = {
 };
 
 export default function DetalheDespesa() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, origem } = useLocalSearchParams<{ id: string; origem?: string }>();
+  const veioDeMovimentacoes = origem === 'movimentacoes';
+  const rotaLista = veioDeMovimentacoes ? '/movimentacoes' : '/despesas';
 
   const [dados, setDados] = useState<{
     despesa: Despesa;
@@ -99,7 +101,7 @@ export default function DetalheDespesa() {
       }
     : null;
 
-  const { iniciar, dialogos } = useExclusaoDespesas(alvoExclusao);
+  const { iniciar, dialogos } = useExclusaoDespesas(alvoExclusao, rotaLista);
 
   if (carregando && !dados) {
     return (
@@ -117,7 +119,7 @@ export default function DetalheDespesa() {
         </Text>
 
         <Pressable
-          onPress={() => router.replace('/despesas')}
+          onPress={() => veioDeMovimentacoes ? router.dismissTo('/movimentacoes') : router.replace('/despesas')}
           style={estilos.tentar}
           accessibilityRole="button"
         >
@@ -275,7 +277,7 @@ export default function DetalheDespesa() {
           onPress={() =>
             router.push({
               pathname: '/despesas/[id]/editar',
-              params: { id },
+              params: veioDeMovimentacoes ? { id, origem: 'movimentacoes' } : { id },
             })
           }
           style={estilos.primario}

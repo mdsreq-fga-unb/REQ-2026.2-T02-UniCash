@@ -14,7 +14,7 @@ export default function NovaDespesa() {
   // tutorial=1: aberto pelo tutorial (UC15); salvar volta a ele pela pilha de telas.
   // trocouTipo=1: veio do formulário de receita pelo seletor Despesa/Receita; fora do tutorial,
   // salvar leva à lista deste tipo, e não à lista de receitas de onde se veio.
-  const { tutorial, trocouTipo } = useLocalSearchParams<{ tutorial?: string; trocouTipo?: string }>();
+  const { tutorial, trocouTipo, origem } = useLocalSearchParams<{ tutorial?: string; trocouTipo?: string; origem?: string }>();
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -32,7 +32,7 @@ export default function NovaDespesa() {
       });
 
       // Depois de trocar o tipo, volta para a lista de despesas, não para a lista de onde veio.
-      if (trocouTipo && tutorial !== '1') router.replace('/despesas');
+      if (trocouTipo && tutorial !== '1' && origem !== 'movimentacoes') router.replace('/despesas');
       else router.back();
     } catch {
       setErro(MSG_DESPESA.falhaSalvar);
@@ -56,7 +56,11 @@ export default function NovaDespesa() {
         onTrocarTipo={() =>
           router.replace({
             pathname: '/receitas/nova',
-            params: tutorial === '1' ? { tutorial, trocouTipo: '1' } : { trocouTipo: '1' },
+            params: {
+              trocouTipo: '1',
+              ...(tutorial === '1' ? { tutorial } : {}),
+              ...(origem === 'movimentacoes' ? { origem } : {}),
+            },
           })
         }
       />

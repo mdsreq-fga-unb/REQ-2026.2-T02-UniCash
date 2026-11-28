@@ -24,7 +24,7 @@ export interface AlvoExclusao {
 }
 
 /** Fluxo D: alcance (se for série), confirmação informando o alcance e exclusão. */
-export function useExclusao(alvo: AlvoExclusao | null) {
+export function useExclusao(alvo: AlvoExclusao | null, rotaLista: '/receitas' | '/movimentacoes' = '/receitas') {
   const [etapa, setEtapa] = useState<null | 'alcance' | 'confirmar'>(null);
   const [escopo, setEscopo] = useState<EscopoSerie>('esta');
 
@@ -44,7 +44,7 @@ export function useExclusao(alvo: AlvoExclusao | null) {
       // EX06 ou EX03: em ambos o fluxo D volta à lista
       setFeedback({ tipo: 'erro', texto: e instanceof ReceitaIndisponivel ? MSG.indisponivel : MSG.falhaSalvar });
     }
-    router.dismissTo('/receitas');
+    router.dismissTo(rotaLista);
   }
 
   const montarDialogos = (a: AlvoExclusao) => (

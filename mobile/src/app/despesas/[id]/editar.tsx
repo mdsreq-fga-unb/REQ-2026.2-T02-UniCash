@@ -29,7 +29,9 @@ import type {
 import { cores } from '@/lib/theme';
 
 export default function EditarDespesa() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, origem } = useLocalSearchParams<{ id: string; origem?: string }>();
+  const veioDeMovimentacoes = origem === 'movimentacoes';
+  const rotaLista = veioDeMovimentacoes ? '/movimentacoes' : '/despesas';
 
   const [despesa, setDespesa] = useState<Despesa | null>(null);
   const [inicial, setInicial] = useState<FormValoresDespesa | null>(null);
@@ -50,7 +52,8 @@ export default function EditarDespesa() {
 
       if (!resultado) {
         setFeedback({ tipo: 'erro', texto: MSG_DESPESA.indisponivel });
-        router.replace('/despesas');
+        if (veioDeMovimentacoes) router.dismissTo('/movimentacoes');
+        else router.replace('/despesas');
         return;
       }
 
@@ -81,7 +84,7 @@ export default function EditarDespesa() {
     } finally {
       setCarregando(false);
     }
-  }, [id]);
+  }, [id, veioDeMovimentacoes]);
 
   useFocusEffect(
     useCallback(() => {
@@ -103,11 +106,12 @@ export default function EditarDespesa() {
         texto: 'Despesa atualizada com sucesso!',
       });
 
-      router.dismissTo('/despesas');
+      router.dismissTo(rotaLista);
     } catch (e) {
       if (e instanceof DespesaIndisponivel) {
         setFeedback({ tipo: 'erro', texto: MSG_DESPESA.indisponivel });
-        router.replace('/despesas');
+        if (veioDeMovimentacoes) router.dismissTo('/movimentacoes');
+        else router.replace('/despesas');
         return;
       }
 

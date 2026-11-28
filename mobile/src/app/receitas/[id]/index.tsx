@@ -14,7 +14,9 @@ import { cores, raio } from '@/lib/theme';
 const UNIDADE: Record<string, [string, string]> = { dia: ['dia', 'dias'], mes: ['mês', 'meses'], ano: ['ano', 'anos'] };
 
 export default function DetalheReceita() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, origem } = useLocalSearchParams<{ id: string; origem?: string }>();
+  const veioDeMovimentacoes = origem === 'movimentacoes';
+  const rotaLista = veioDeMovimentacoes ? '/movimentacoes' : '/receitas';
   const [dados, setDados] = useState<{ receita: Receita; recorrencia: Recorrencia | null } | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [erroLeitura, setErroLeitura] = useState(false);
@@ -29,6 +31,7 @@ export default function DetalheReceita() {
           emSerie: !!dados.receita.recorrencia_id,
         }
       : null,
+    rotaLista,
   );
 
   const carregar = useCallback(async () => {
@@ -39,7 +42,8 @@ export default function DetalheReceita() {
       if (!r) {
         // EX06
         setFeedback({ tipo: 'erro', texto: MSG.indisponivel });
-        router.replace('/receitas');
+        if (veioDeMovimentacoes) router.dismissTo('/movimentacoes');
+        else router.replace('/receitas');
         return;
       }
       setDados(r);
@@ -48,7 +52,7 @@ export default function DetalheReceita() {
     } finally {
       setCarregando(false);
     }
-  }, [id]);
+  }, [id, veioDeMovimentacoes]);
 
   useFocusEffect(
     useCallback(() => {
@@ -117,7 +121,7 @@ export default function DetalheReceita() {
         </View>
 
         <Pressable
-          onPress={() => router.push({ pathname: '/receitas/[id]/editar', params: { id } })}
+          onPress={() => router.push({ pathname: '/receitas/[id]/editar', params: veioDeMovimentacoes ? { id, origem: 'movimentacoes' } : { id } })}
           style={estilos.primario}
           accessibilityRole="button"
         >

@@ -347,33 +347,20 @@ function Atalhos({ ano, mes, mostrarNovos }: { ano: number; mes: number; mostrar
       ) : null}
       <View style={estilos.linha}>
         <Pressable
-          onPress={() => router.push({ pathname: '/receitas', params: doMes })}
+          onPress={() => router.push({ pathname: '/movimentacoes', params: doMes })}
           style={estilos.botao}
           accessibilityRole="button"
         >
-          <Text style={estilos.botaoTexto}>Receitas</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push({ pathname: '/despesas', params: doMes })}
-          style={estilos.botao}
-          accessibilityRole="button"
-        >
-          <Text style={estilos.botaoTexto}>Despesas</Text>
+          <Text style={estilos.botaoTexto}>Movimentações do mês</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/categorias')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Categorias</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/metas')} style={estilos.botao} accessibilityRole="button">
-          <Text style={estilos.botaoTexto}>Metas</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/sincronizacao')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Sincronização</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/configuracoes-financeiras')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Configurações financeiras</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/perfil')} style={estilos.botao} accessibilityRole="button">
-          <Text style={estilos.botaoTexto}>Perfil</Text>
         </Pressable>
         <Pressable onPress={() => router.push('/conta')} style={estilos.botao} accessibilityRole="button">
           <Text style={estilos.botaoTexto}>Conta</Text>

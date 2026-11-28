@@ -4,6 +4,7 @@ import { ActivityIndicator, AppState, Pressable, StyleSheet, Text, View } from '
 import { router, Stack } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 
+import { MenuInferior } from '@/components/navegacao/MenuInferior';
 import { BancoPronto } from '@/db/Preparacao';
 import { getDb } from '@/db/database';
 import { iniciarConta } from '@/features/conta';
@@ -62,6 +63,7 @@ const TELAS_COM_BANCO = [
   'despesas/[id]/editar',
   'sincronizacao',
   'metas/index',
+  'movimentacoes',
   'metas/nova',
   'metas/[id]/index',
   'metas/[id]/editar',
@@ -168,6 +170,7 @@ export default function RootLayout() {
             ))}
           </Stack.Protected>
         </Stack>
+        {estado === 'pronto' && <MenuInferior />}
       </BancoPronto.Provider>
 
       {estado !== 'pronto' ? (
