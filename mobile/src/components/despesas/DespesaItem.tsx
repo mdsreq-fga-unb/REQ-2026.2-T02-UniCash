@@ -8,10 +8,12 @@ export function DespesaItem({
   despesa,
   categoriaNome,
   onPress,
+  compacto = false,
 }: {
   despesa: Despesa;
   categoriaNome: string;
   onPress: () => void;
+  compacto?: boolean;
 }) {
   const tipo = despesa.fixa_ou_variavel && (despesa.fixa_ou_variavel === 'fixa' ? 'Fixa' : 'Variável');
   const importancia = despesa.essencial === null
@@ -20,8 +22,8 @@ export function DespesaItem({
   const classificacao = [tipo, importancia].filter(Boolean).join(' · ');
 
   return (
-    <Pressable onPress={onPress} style={estilos.linha} accessibilityRole="button">
-      <View style={estilos.avatar}>
+    <Pressable onPress={onPress} style={[estilos.linha, compacto && estilos.linhaCompacta]} accessibilityRole="button">
+      <View style={[estilos.avatar, compacto && estilos.avatarCompacto]}>
         <Text style={estilos.avatarTexto}>
           {despesa.titulo.charAt(0).toUpperCase()}
         </Text>
@@ -32,28 +34,29 @@ export function DespesaItem({
           {despesa.titulo}
         </Text>
 
-        <Text style={estilos.sub}>
-          Despesa · {formatarBR(despesa.data)}
+        <Text style={[estilos.sub, compacto && estilos.subCompacto]}>
+          {compacto ? (importancia ?? tipo ?? 'Despesa') : 'Despesa'} · {formatarBR(despesa.data)}
           {despesa.recorrencia_id ? ' · Recorrente' : ''}
         </Text>
 
-        <Text style={estilos.sub} testID="categoria-despesa">
-          {categoriaNome}
-        </Text>
+        {!compacto && (
+          <>
+            <Text style={estilos.sub} testID="categoria-despesa">{categoriaNome}</Text>
+            {classificacao ? <Text style={estilos.classificacao}>{classificacao}</Text> : null}
+          </>
+        )}
 
-        {classificacao ? (
-          <Text style={estilos.classificacao}>{classificacao}</Text>
-        ) : null}
-
-        <View style={estilos.chip}>
-          <Text style={estilos.chipTexto}>
-            {despesa.sync_status === 'pendente' ? 'Sincronização pendente' : 'Sincronizado'}
-          </Text>
-        </View>
+        {(!compacto || despesa.sync_status === 'pendente') && (
+          <View style={estilos.chip}>
+            <Text style={estilos.chipTexto}>
+              {despesa.sync_status === 'pendente' ? 'Sincronização pendente' : 'Sincronizado'}
+            </Text>
+          </View>
+        )}
       </View>
 
       <Text style={estilos.valor}>− {formatarBRL(despesa.valor_centavos)}</Text>
-      <Text style={estilos.seta}>›</Text>
+      {!compacto && <Text style={estilos.seta}>›</Text>}
     </Pressable>
   );
 }
@@ -66,6 +69,9 @@ const estilos = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0F2FE',
   },
+  linhaCompacta: { minHeight: 59, borderBottomColor: cores.borda, paddingVertical: 10 },
+  avatarCompacto: { width: 36, height: 36, borderRadius: 18 },
+  subCompacto: { color: cores.primaria },
   avatar: {
     width: 34,
     height: 34,
