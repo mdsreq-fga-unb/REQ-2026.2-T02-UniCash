@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { DespesaItem } from '@/components/despesas/DespesaItem';
 import { FiltroDespesas } from '@/components/despesas/FiltroDespesas';
 import { ReceitaItem } from '@/components/receitas/ReceitaItem';
@@ -126,11 +127,12 @@ export default function Movimentacoes() {
         keyExtractor={({ tipo: tipoItem, dado }) => `${tipoItem}:${dado.id}`}
         contentContainerStyle={estilos.conteudo}
         renderItem={({ item }) => item.tipo === 'receita' ? (
-          <ReceitaItem receita={item.dado} onPress={() => router.push({
+          <ReceitaItem compacto receita={item.dado} onPress={() => router.push({
             pathname: '/receitas/[id]', params: { id: item.dado.id, origem: 'movimentacoes' },
           })} />
         ) : (
           <DespesaItem
+            compacto
             despesa={item.dado}
             categoriaNome={nomeCategoriaPorId(item.dado.categoria_id, categorias)}
             onPress={() => router.push({
@@ -145,42 +147,56 @@ export default function Movimentacoes() {
                 estilos.aviso, feedback.tipo === 'erro' && estilos.erro,
               ]}>{feedback.texto}</Text>
             )}
-            <TextInput
-              accessibilityLabel="Buscar por descrição ou valor"
-              placeholder="Buscar por descrição ou valor"
-              placeholderTextColor={cores.textoSuave}
-              value={busca}
-              onChangeText={setBusca}
-              style={estilos.busca}
-            />
-            <FiltroDespesas filtro={filtro} onChange={setFiltro} />
-            {tipo !== 'receita' && (
-              <ScrollView horizontal keyboardShouldPersistTaps="handled" contentContainerStyle={estilos.categorias}>
-                {[{ id: null, nome: 'Todas as categorias' }, ...categorias].map(({ id, nome }) => (
-                  <Pressable
-                    key={id ?? 'todas'}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: categoriaAtiva === id }}
-                    style={[estilos.chip, categoriaAtiva === id && estilos.chipAtivo]}
-                    onPress={() => setCategoria(id)}
-                  >
-                    <Text style={estilos.link}>{nome}</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-            )}
-            <Segmentado opcoes={tipos} valor={tipo} onChange={(novo) => {
+            <View style={estilos.busca}>
+              <IconePrototipo nome="busca" tamanho={14} />
+              <TextInput
+                accessibilityLabel="Buscar por descrição ou valor"
+                placeholder="Buscar por descrição ou valor"
+                placeholderTextColor={cores.primaria}
+                value={busca}
+                onChangeText={setBusca}
+                style={estilos.buscaEntrada}
+              />
+            </View>
+            <View style={estilos.periodoECategorias}>
+              <FiltroDespesas filtro={filtro} onChange={setFiltro} titulo="Filtrar movimentações" />
+              {tipo !== 'receita' && (
+                <ScrollView horizontal keyboardShouldPersistTaps="handled"
+                  style={estilos.rolagemCategorias} contentContainerStyle={estilos.categorias}>
+                  {[{ id: null, nome: 'Todas as categorias' }, ...categorias].map(({ id, nome }) => (
+                    <Pressable
+                      key={id ?? 'todas'}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: categoriaAtiva === id }}
+                      style={[estilos.chip, categoriaAtiva !== null && categoriaAtiva === id && estilos.chipAtivo]}
+                      onPress={() => setCategoria(id)}
+                    >
+                      <Text style={[estilos.chipTexto, categoriaAtiva !== null && categoriaAtiva === id && estilos.chipTextoAtivo]}>
+                        {nome}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              )}
+            </View>
+            <Segmentado variante="compacto" opcoes={tipos} valor={tipo} onChange={(novo) => {
               if (novo === 'receita') setCategoria(null);
               setTipo(novo);
             }} />
             {dados && !dados.erro && (
               <View style={estilos.totais}>
-                <Text style={[estilos.total, estilos.receita]}>
-                  Receitas{'\n'}+ {formatarBRL(receitas.reduce((total, item) => total + item.valor_centavos, 0))}
-                </Text>
-                <Text style={[estilos.total, estilos.erro]}>
-                  Despesas{'\n'}− {formatarBRL(despesas.reduce((total, item) => total + item.valor_centavos, 0))}
-                </Text>
+                <View style={estilos.total}>
+                  <Text style={estilos.totalRotulo}>Receitas</Text>
+                  <Text style={[estilos.totalValor, estilos.receita]}>
+                    + {formatarBRL(receitas.reduce((total, item) => total + item.valor_centavos, 0))}
+                  </Text>
+                </View>
+                <View style={estilos.total}>
+                  <Text style={estilos.totalRotulo}>Despesas</Text>
+                  <Text style={[estilos.totalValor, estilos.erro]}>
+                    − {formatarBRL(despesas.reduce((total, item) => total + item.valor_centavos, 0))}
+                  </Text>
+                </View>
               </View>
             )}
           </View>
@@ -196,15 +212,20 @@ export default function Movimentacoes() {
           </View>
         ) : (
           <View style={estilos.vazio}>
-            <Text style={estilos.titulo}>Nenhum lançamento encontrado</Text>
-            <Pressable accessibilityRole="button" onPress={() => {
+            <View style={estilos.vazioIcone}>
+              <IconePrototipo nome="buscaVazia" tamanho={24} />
+            </View>
+            <Text style={estilos.vazioTitulo}>Nenhum lançamento encontrado</Text>
+            <Text style={estilos.vazioTexto}>Ajuste os filtros ou registre um novo lançamento.</Text>
+            <Pressable accessibilityRole="button" style={estilos.limpar} onPress={() => {
               setFiltro(filtroInicial(ano, mes));
               setCategoria(null);
               setTipo('todas');
               setBusca('');
             }}><Text style={estilos.link}>Limpar filtros</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={novoLancamento}>
-              <Text style={estilos.link}>{tipo === 'receita' ? 'Registrar receita' : 'Registrar despesa'}</Text>
+            <Pressable accessibilityRole="button" onPress={novoLancamento} style={estilos.registrar}>
+              <IconePrototipo nome="mais" tamanho={13} style={estilos.iconeBranco} />
+              <Text style={estilos.registrarTexto}>{tipo === 'receita' ? 'Registrar receita' : 'Registrar despesa'}</Text>
             </Pressable>
           </View>
         )}
@@ -213,7 +234,7 @@ export default function Movimentacoes() {
         accessibilityRole="button" accessibilityLabel="Novo lançamento"
         onPress={novoLancamento} style={estilos.adicionar}
       >
-        <Text style={estilos.mais}>+</Text>
+        <IconePrototipo nome="mais" tamanho={19} style={estilos.iconeBranco} />
       </Pressable>
     </SafeAreaView>
   );
@@ -225,26 +246,50 @@ const estilos = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 12, gap: 8,
   },
-  titulo: { fontSize: 20, fontWeight: '700', color: cores.marinho },
+  titulo: { fontSize: 18, fontWeight: '600', color: cores.marinho },
   conteudo: { paddingHorizontal: 16, paddingBottom: 76 },
-  filtros: { gap: 10, marginBottom: 12 },
+  filtros: { gap: 16, marginBottom: 16, paddingTop: 8 },
   busca: {
-    color: cores.marinho, borderWidth: 1, borderColor: cores.borda,
-    borderRadius: raio.campo, minHeight: 44, paddingHorizontal: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderColor: cores.borda,
+    borderRadius: raio.campo, minHeight: 42, paddingHorizontal: 12,
   },
+  buscaEntrada: { flex: 1, color: cores.marinho, fontSize: 14, paddingVertical: 8 },
+  periodoECategorias: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8 },
+  rolagemCategorias: { flexGrow: 1, flexBasis: 146, minWidth: 0 },
   categorias: { gap: 8 },
-  chip: { borderWidth: 1, borderColor: cores.borda, borderRadius: raio.pilula, padding: 8 },
-  chipAtivo: { backgroundColor: cores.claro },
-  totais: { flexDirection: 'row', gap: 8 },
-  total: { flex: 1, backgroundColor: cores.fundoSuave, borderRadius: raio.campo, padding: 10 },
+  chip: {
+    borderWidth: 1, borderColor: cores.borda, borderRadius: raio.pilula,
+    paddingHorizontal: 12, paddingVertical: 7,
+  },
+  chipAtivo: { backgroundColor: cores.primaria, borderColor: cores.primaria },
+  chipTexto: { color: cores.marinho, fontSize: 12, fontWeight: '600' },
+  chipTextoAtivo: { color: cores.branco },
+  totais: { flexDirection: 'row', gap: 10 },
+  total: { flex: 1, backgroundColor: cores.fundoSuave, borderRadius: 8, padding: 10 },
+  totalRotulo: { color: cores.primaria, fontSize: 12 },
+  totalValor: { fontSize: 15, fontWeight: '600' },
   receita: { color: cores.sucesso },
   erro: { color: cores.erro },
   link: { color: cores.primaria, fontWeight: '600' },
   aviso: { color: cores.marinho, backgroundColor: cores.claro, padding: 10, borderRadius: raio.campo },
+  vazioIcone: {
+    width: 80, height: 80, borderRadius: 40, backgroundColor: cores.claro, alignItems: 'center', justifyContent: 'center',
+  },
+  vazioTitulo: { color: cores.marinho, fontSize: 17, fontWeight: '600', textAlign: 'center' },
+  vazioTexto: { color: cores.primaria, fontSize: 14, textAlign: 'center' },
+  limpar: {
+    alignSelf: 'stretch', marginHorizontal: 24, minHeight: 46, borderWidth: 1, borderColor: cores.borda,
+    borderRadius: 8, alignItems: 'center', justifyContent: 'center',
+  },
+  registrar: {
+    flexDirection: 'row', gap: 8, alignSelf: 'stretch', marginHorizontal: 24, minHeight: 44,
+    borderRadius: 8, backgroundColor: cores.primaria, alignItems: 'center', justifyContent: 'center',
+  },
+  registrarTexto: { color: cores.branco, fontSize: 15, fontWeight: '600' },
   vazio: { alignItems: 'center', gap: 16, paddingVertical: 24 },
   adicionar: {
-    position: 'absolute', right: 16, bottom: 12, width: 52, height: 52,
-    backgroundColor: cores.primaria, borderRadius: 26, alignItems: 'center', justifyContent: 'center',
+    position: 'absolute', right: 16, bottom: 16, width: 56, height: 56,
+    backgroundColor: cores.primaria, borderRadius: 28, alignItems: 'center', justifyContent: 'center',
   },
-  mais: { color: cores.branco, fontSize: 28 },
+  iconeBranco: { tintColor: cores.branco },
 });
