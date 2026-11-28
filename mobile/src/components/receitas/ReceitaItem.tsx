@@ -4,28 +4,34 @@ import { formatarBR } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import type { Receita } from '@/features/receitas/types';
 
-export function ReceitaItem({ receita, onPress }: { receita: Receita; onPress: () => void }) {
+export function ReceitaItem({ receita, onPress, compacto = false }: {
+  receita: Receita;
+  onPress: () => void;
+  compacto?: boolean;
+}) {
   return (
-    <Pressable onPress={onPress} style={estilos.linha} accessibilityRole="button">
-      <View style={estilos.avatar}>
+    <Pressable onPress={onPress} style={[estilos.linha, compacto && estilos.linhaCompacta]} accessibilityRole="button">
+      <View style={[estilos.avatar, compacto && estilos.avatarCompacto]}>
         <Text style={estilos.avatarTexto}>{receita.titulo.charAt(0).toUpperCase()}</Text>
       </View>
       <View style={estilos.meio}>
         <Text style={estilos.titulo} numberOfLines={1}>
           {receita.titulo}
         </Text>
-        <Text style={estilos.sub}>
+        <Text style={[estilos.sub, compacto && estilos.subCompacto]}>
           Receita · {formatarBR(receita.data)}
           {receita.recorrencia_id ? ' · Recorrente' : ''}
         </Text>
-        <View style={estilos.chip}>
-          <Text style={estilos.chipTexto}>
-            {receita.sync_status === 'pendente' ? 'Sincronização pendente' : 'Sincronizado'}
-          </Text>
-        </View>
+        {(!compacto || receita.sync_status === 'pendente') && (
+          <View style={estilos.chip}>
+            <Text style={estilos.chipTexto}>
+              {receita.sync_status === 'pendente' ? 'Sincronização pendente' : 'Sincronizado'}
+            </Text>
+          </View>
+        )}
       </View>
       <Text style={estilos.valor}>+ {formatarBRL(receita.valor_centavos)}</Text>
-      <Text style={estilos.seta}>›</Text>
+      {!compacto && <Text style={estilos.seta}>›</Text>}
     </Pressable>
   );
 }
@@ -38,6 +44,9 @@ const estilos = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E0F2FE',
   },
+  linhaCompacta: { minHeight: 59, borderBottomColor: cores.borda, paddingVertical: 10 },
+  avatarCompacto: { width: 36, height: 36, borderRadius: 18 },
+  subCompacto: { color: cores.primaria },
   avatar: {
     width: 34,
     height: 34,
