@@ -80,6 +80,12 @@ export default function Tutorial() {
         disabled={encerrando}
         onPress={ultima ? encerrar : () => { setErro(false); setIndice(indice + 1); }}
       />
+      {indice > 0 && (
+        <AcaoTutorial texto="Voltar" disabled={encerrando} onPress={() => {
+          setErro(false);
+          setIndice((atual) => Math.max(0, atual - 1));
+        }} />
+      )}
       <AcaoTutorial texto="Encerrar tutorial" disabled={encerrando} onPress={encerrar} />
     </TelaTutorial>
   );
