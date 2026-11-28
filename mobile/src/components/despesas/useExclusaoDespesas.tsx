@@ -87,6 +87,7 @@ export function useExclusaoDespesas(alvo: AlvoExclusaoDespesa | null, rotaLista:
         opcoes={[
           {
             rotulo: 'Excluir',
+            destrutiva: true,
             onPress: excluir,
           },
         ]}
