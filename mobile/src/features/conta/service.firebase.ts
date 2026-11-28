@@ -40,7 +40,7 @@ export function criarContaServiceFirebase(auth: AuthService): ContaService {
           throw new ErroConta('falha');
         }
 
-        // Envio pedido pela pessoa (manual): libera o envio automático pausado em FA01.
+        // O envio manual pode liberar a pausa inicial de FA01.
         const atual = auth.currentSession();
         if (atual.status !== 'ativa' || atual.uid !== sessao.uid) throw new ErroConta('falha');
         await sync.sincronizar();
