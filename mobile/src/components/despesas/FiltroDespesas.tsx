@@ -5,10 +5,13 @@ import {
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { cores, raio } from '@/lib/theme';
 import { Campo } from '../receitas/Campo';
 import { Segmentado } from '../receitas/Segmentado';
@@ -40,9 +43,10 @@ function rotuloDoFiltro(f: FiltroDespesa): string {
 interface Props {
   filtro: FiltroDespesa;
   onChange: (f: FiltroDespesa) => void;
+  titulo?: string;
 }
 
-export function FiltroDespesas({ filtro, onChange }: Props) {
+export function FiltroDespesas({ filtro, onChange, titulo = 'Filtrar despesas' }: Props) {
   const [aberto, setAberto] = useState(false);
   const [modo, setModo] = useState<Modo>('mes');
   const [mes, setMes] = useState(mesAtual());
@@ -106,16 +110,15 @@ export function FiltroDespesas({ filtro, onChange }: Props) {
         onPress={abrir}
         style={estilos.chip}
         accessibilityRole="button"
-        accessibilityLabel="Filtrar despesas"
+        accessibilityLabel={titulo}
       >
-        <Text style={estilos.chipIcone}>🗓</Text>
+        <IconePrototipo nome="calendario" tamanho={12} />
         <Text style={estilos.chipTexto}>{rotuloDoFiltro(filtro)}</Text>
-        <Text style={estilos.chipSeta}>▾</Text>
+        <IconePrototipo nome="expandir" tamanho={10} />
       </Pressable>
 
       <Modal
         visible={aberto}
-        transparent
         animationType="slide"
         onRequestClose={() => setAberto(false)}
       >
@@ -123,88 +126,104 @@ export function FiltroDespesas({ filtro, onChange }: Props) {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={estilos.fundo}
         >
-          <View style={estilos.folha}>
-            <Text style={estilos.titulo}>Filtrar despesas</Text>
-            <Text style={estilos.secao}>Período</Text>
-
-            <Segmentado
-              valor={modo}
-              onChange={(m) => {
-                setModo(m);
-                setErro(null);
-              }}
-              opcoes={[
-                { valor: 'dia', rotulo: 'Dia' },
-                { valor: 'mes', rotulo: 'Mês' },
-                { valor: 'personalizado', rotulo: 'Personalizado' },
-                { valor: 'tudo', rotulo: 'Tudo' },
-              ]}
-            />
-
-            <View style={{ marginTop: 16 }}>
-              {modo === 'mes' ? (
-                <View style={estilos.navMes}>
-                  <Pressable
-                    onPress={() => setMes((m) => mesAnterior(m.ano, m.mes))}
-                    accessibilityLabel="Mês anterior"
-                    style={estilos.setaNav}
-                  >
-                    <Text style={estilos.setaNavTexto}>‹</Text>
-                  </Pressable>
-
-                  <Text style={estilos.mes}>
-                    {nomeMes(mes.ano, mes.mes)}
-                  </Text>
-
-                  <Pressable
-                    onPress={() => setMes((m) => proximoMes(m.ano, m.mes))}
-                    accessibilityLabel="Próximo mês"
-                    style={estilos.setaNav}
-                  >
-                    <Text style={estilos.setaNavTexto}>›</Text>
-                  </Pressable>
-                </View>
-              ) : null}
-
-              {modo === 'tudo' ? (
-                <Text style={estilos.tudoTexto}>Mostra todas as despesas, de qualquer data.</Text>
-              ) : null}
-              {modo === 'dia' ? (
-                <Campo
-                  rotulo="Data"
-                  value={dia}
-                  onChangeText={(t) => setDia(mascararData(t))}
-                  placeholder="DD/MM/AAAA"
-                  keyboardType="number-pad"
-                />
-              ) : null}
-
-              {modo === 'personalizado' ? (
-                <>
-                  <Campo
-                    rotulo="De"
-                    value={de}
-                    onChangeText={(t) => setDe(mascararData(t))}
-                    placeholder="DD/MM/AAAA"
-                    keyboardType="number-pad"
-                  />
-                  <Campo
-                    rotulo="Até"
-                    value={ate}
-                    onChangeText={(t) => setAte(mascararData(t))}
-                    placeholder="DD/MM/AAAA"
-                    keyboardType="number-pad"
-                  />
-                </>
-              ) : null}
+          <SafeAreaView style={estilos.folha}>
+            <View style={estilos.cabecalho}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Voltar"
+                onPress={() => setAberto(false)} style={estilos.voltar}>
+                <IconePrototipo nome="voltar" tamanho={14} />
+              </Pressable>
+              <Text accessibilityRole="header" style={estilos.titulo}>{titulo}</Text>
             </View>
+            <ScrollView contentContainerStyle={estilos.conteudo} keyboardShouldPersistTaps="handled">
+              <Text style={estilos.secao}>Período</Text>
 
-            {erro ? (
-              <Text style={estilos.erro} accessibilityRole="alert">
-                {erro}
-              </Text>
-            ) : null}
+              <Segmentado
+                variante="pilulas"
+                valor={modo}
+                onChange={(m) => {
+                  setModo(m);
+                  setErro(null);
+                }}
+                opcoes={[
+                  { valor: 'dia', rotulo: 'Dia' },
+                  { valor: 'mes', rotulo: 'Mês' },
+                  { valor: 'personalizado', rotulo: 'Personalizado' },
+                  { valor: 'tudo', rotulo: 'Tudo' },
+                ]}
+              />
 
+              <View style={{ marginTop: 16 }}>
+                {modo === 'mes' ? (
+                  <View style={estilos.navMes}>
+                    <Pressable
+                      onPress={() => setMes((m) => mesAnterior(m.ano, m.mes))}
+                      accessibilityLabel="Mês anterior"
+                      style={estilos.setaNav}
+                    >
+                      <Text style={estilos.setaNavTexto}>‹</Text>
+                    </Pressable>
+
+                    <Text style={estilos.mes}>
+                      {nomeMes(mes.ano, mes.mes)}
+                    </Text>
+
+                    <Pressable
+                      onPress={() => setMes((m) => proximoMes(m.ano, m.mes))}
+                      accessibilityLabel="Próximo mês"
+                      style={estilos.setaNav}
+                    >
+                      <Text style={estilos.setaNavTexto}>›</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+
+                {modo === 'tudo' ? (
+                  <Text style={estilos.tudoTexto}>Mostra os registros de qualquer data.</Text>
+                ) : null}
+                {modo === 'dia' ? (
+                  <Campo
+                    rotulo="Data"
+                    value={dia}
+                    onChangeText={(t) => setDia(mascararData(t))}
+                    placeholder="DD/MM/AAAA"
+                    keyboardType="number-pad"
+                  />
+                ) : null}
+
+                {modo === 'personalizado' ? (
+                  <View style={estilos.datas}>
+                    <View style={estilos.data}>
+                      <Campo
+                        compacto
+                        rotulo="De"
+                        value={de}
+                        onChangeText={(t) => setDe(mascararData(t))}
+                        placeholder="DD/MM/AAAA"
+                        keyboardType="number-pad"
+                        acao={<IconePrototipo nome="calendario" tamanho={14} />}
+                      />
+                    </View>
+                    <View style={estilos.data}>
+                      <Campo
+                        compacto
+                        rotulo="Até"
+                        value={ate}
+                        onChangeText={(t) => setAte(mascararData(t))}
+                        placeholder="DD/MM/AAAA"
+                        keyboardType="number-pad"
+                        acao={<IconePrototipo nome="calendario" tamanho={14} />}
+                      />
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+
+              {erro ? (
+                <Text style={estilos.erro} accessibilityRole="alert">
+                  {erro}
+                </Text>
+              ) : null}
+            </ScrollView>
             <View style={estilos.botoes}>
               <Pressable
                 onPress={limpar}
@@ -222,7 +241,7 @@ export function FiltroDespesas({ filtro, onChange }: Props) {
                 <Text style={estilos.aplicarTexto}>Aplicar filtros</Text>
               </Pressable>
             </View>
-          </View>
+          </SafeAreaView>
         </KeyboardAvoidingView>
       </Modal>
     </>
@@ -235,6 +254,8 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
+    gap: 6,
+    maxWidth: '100%',
     borderWidth: 1,
     borderColor: cores.claro,
     borderRadius: raio.pilula,
@@ -242,33 +263,16 @@ const estilos = StyleSheet.create({
     paddingVertical: 7,
     backgroundColor: cores.branco,
   },
-  chipIcone: { fontSize: 12, marginRight: 6 },
-  chipTexto: { fontSize: 12, color: cores.marinho, fontWeight: '600' },
-  chipSeta: { fontSize: 11, color: cores.primaria, marginLeft: 6 },
-  fundo: {
-    flex: 1,
-    backgroundColor: 'rgba(8,47,73,0.55)',
-    justifyContent: 'flex-end',
-  },
-  folha: {
-    backgroundColor: cores.branco,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 28,
-  },
-  titulo: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: cores.marinho,
-    marginBottom: 14,
-  },
-  secao: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: cores.marinho,
-    marginBottom: 6,
-  },
+  chipTexto: { flexShrink: 1, fontSize: 12, color: cores.marinho, fontWeight: '600' },
+  fundo: { flex: 1 },
+  folha: { flex: 1, backgroundColor: cores.branco },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', minHeight: 48, paddingHorizontal: 16, gap: 10 },
+  voltar: { width: 28, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  titulo: { flex: 1, fontSize: 18, fontWeight: '600', color: cores.marinho },
+  conteudo: { paddingHorizontal: 16, paddingVertical: 8 },
+  secao: { fontSize: 16, fontWeight: '600', color: cores.marinho, marginBottom: 16 },
+  datas: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  data: { flexGrow: 1, flexBasis: 145 },
   navMes: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -282,20 +286,20 @@ const estilos = StyleSheet.create({
   },
   mes: { fontSize: 16, fontWeight: '700', color: cores.marinho },
   erro: { color: cores.erro, fontSize: 12, marginTop: 4 },
-  botoes: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  botoes: { flexDirection: 'row', gap: 10, padding: 16, paddingTop: 10, borderTopWidth: 1, borderTopColor: cores.borda },
   limpar: {
     flex: 1,
-    borderWidth: 1.5,
-    borderColor: cores.primaria,
-    borderRadius: raio.botao,
+    borderWidth: 1,
+    borderColor: cores.borda,
+    borderRadius: 8,
     paddingVertical: 13,
     alignItems: 'center',
   },
-  limparTexto: { color: cores.primaria, fontWeight: '700' },
+  limparTexto: { color: cores.marinho, fontWeight: '700' },
   aplicar: {
-    flex: 2,
+    flex: 1,
     backgroundColor: cores.primaria,
-    borderRadius: raio.botao,
+    borderRadius: 8,
     paddingVertical: 13,
     alignItems: 'center',
   },
