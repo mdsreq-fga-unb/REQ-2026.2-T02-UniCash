@@ -9,6 +9,7 @@ import { formatarBRL } from '@/features/receitas/money';
 import { setFeedback } from '@/lib/feedback';
 import { MSG } from '@/features/receitas/validation';
 import type { Receita, Recorrencia } from '@/features/receitas/types';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { cores, raio } from '@/lib/theme';
 
 const UNIDADE: Record<string, [string, string]> = { dia: ['dia', 'dias'], mes: ['mês', 'meses'], ano: ['ano', 'anos'] };
@@ -84,8 +85,8 @@ export default function DetalheReceita() {
   return (
     <SafeAreaView style={estilos.tela} edges={['top', 'bottom']}>
       <View style={estilos.cabecalho}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Voltar" style={{ paddingHorizontal: 10 }}>
-          <Text style={estilos.voltar}>‹</Text>
+        <Pressable onPress={() => router.back()} accessibilityLabel="Voltar" style={estilos.voltar}>
+          <IconePrototipo nome="voltar" tamanho={14} />
         </Pressable>
         <Text style={estilos.titulo}>Detalhe do lançamento</Text>
       </View>
@@ -125,10 +126,12 @@ export default function DetalheReceita() {
           style={estilos.primario}
           accessibilityRole="button"
         >
-          <Text style={estilos.primarioTexto}>✎  Editar lançamento</Text>
+          <IconePrototipo nome="editarAcao" tamanho={14} />
+          <Text style={estilos.primarioTexto}>Editar lançamento</Text>
         </Pressable>
         <Pressable onPress={exclusao.iniciar} style={estilos.contorno} accessibilityRole="button">
-          <Text style={estilos.contornoTexto}>🗑  Excluir lançamento</Text>
+          <IconePrototipo nome="excluir" tamanho={14} />
+          <Text style={estilos.contornoTexto}>Excluir lançamento</Text>
         </Pressable>
       </ScrollView>
 
@@ -148,11 +151,11 @@ function Linha({ rotulo, valor }: { rotulo: string; valor: string }) {
 
 const estilos = StyleSheet.create({
   tela: { flex: 1, backgroundColor: cores.fundo },
-  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 12 },
-  voltar: { fontSize: 30, color: cores.primaria, fontWeight: '700', lineHeight: 32 },
+  cabecalho: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, minHeight: 48, gap: 10 },
+  voltar: { width: 28, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   titulo: { fontSize: 18, fontWeight: '700', color: cores.marinho },
-  conteudo: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 28 },
-  topo: { alignItems: 'center', marginBottom: 20 },
+  conteudo: { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 28 },
+  topo: { alignItems: 'center', marginBottom: 24 },
   avatar: {
     width: 56,
     height: 56,
@@ -160,21 +163,21 @@ const estilos = StyleSheet.create({
     backgroundColor: cores.claro,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
   },
-  avatarTexto: { color: cores.marinho, fontWeight: '700', fontSize: 20 },
+  avatarTexto: { color: cores.primaria, fontWeight: '700', fontSize: 20 },
   nome: { fontSize: 16, fontWeight: '700', color: cores.marinho, textAlign: 'center' },
-  valor: { fontSize: 26, fontWeight: '800', color: cores.sucesso, marginTop: 4 },
+  valor: { fontSize: 32, fontWeight: '800', color: cores.sucesso, marginTop: 4 },
   tag: {
     borderWidth: 1,
     borderColor: cores.claro,
     borderRadius: raio.pilula,
     paddingHorizontal: 12,
-    paddingVertical: 3,
+    paddingVertical: 6,
     marginTop: 8,
     backgroundColor: cores.branco,
   },
-  tagTexto: { fontSize: 11, color: cores.marinho },
+  tagTexto: { fontSize: 13, color: cores.marinho },
   cartao: {
     borderWidth: 1,
     borderColor: cores.claro,
@@ -183,23 +186,29 @@ const estilos = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 20,
   },
-  linha: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 9 },
-  rotulo: { fontSize: 12, color: cores.primaria, marginRight: 16 },
-  linhaValor: { flex: 1, fontSize: 12, fontWeight: '700', color: cores.marinho, textAlign: 'right' },
+  linha: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: cores.borda },
+  rotulo: { fontSize: 14, color: cores.primaria, marginRight: 16 },
+  linhaValor: { flex: 1, fontSize: 14, fontWeight: '700', color: cores.marinho, textAlign: 'right' },
   primario: {
     backgroundColor: cores.primaria,
-    borderRadius: raio.botao,
-    paddingVertical: 14,
+    borderRadius: 8,
+    minHeight: 44,
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   primarioTexto: { color: cores.branco, fontWeight: '700', fontSize: 14 },
   contorno: {
     borderWidth: 1.5,
     borderColor: cores.marinho,
-    borderRadius: raio.botao,
-    paddingVertical: 13,
+    borderRadius: 8,
+    minHeight: 46,
+    flexDirection: 'row',
+    gap: 8,
     alignItems: 'center',
-    marginTop: 10,
+    justifyContent: 'center',
+    marginTop: 16,
   },
   contornoTexto: { color: cores.marinho, fontWeight: '700', fontSize: 14 },
 });
