@@ -26,6 +26,7 @@ import { PainelSaldo } from '@/components/saldo/PainelSaldo';
 
 import { useSessao } from '@/features/conta/sessao';
 import { continuarSemContaNestaSessao } from '@/features/conta/onboarding';
+import { consultarNomeDoPerfil } from '@/features/conta/perfil';
 
 function mesCorrente() {
   const n = new Date();
@@ -35,10 +36,27 @@ function mesCorrente() {
 /** Resumo financeiro inicial (UC03, RF11, RF40). Somente leitura; calculado na base local. */
 export default function Home() {
   const sessao = useSessao();
+  const uid = sessao.status === 'ativa' ? sessao.uid : undefined;
+  const [perfil, setPerfil] = useState<{ uid: string; nome?: string }>();
+
+  useFocusEffect(useCallback(() => {
+    if (!uid) return;
+    let ativo = true;
+    void consultarNomeDoPerfil(uid).then((nome) => {
+      if (ativo) setPerfil({ uid, nome });
+    }).catch(() => {
+      // O resumo segue disponível se o perfil não puder ser carregado.
+    });
+    return () => { ativo = false; };
+  }, [uid]));
+
   if (sessao.status !== 'ativa' && !continuarSemContaNestaSessao()) return <Redirect href="/conta/cadastro" />;
+  const nome = sessao.status === 'ativa'
+    ? (perfil?.uid === sessao.uid ? perfil.nome : undefined) ?? sessao.nome
+    : undefined;
   return <ResumoFinanceiro key={sessao.status === 'ativa' ? sessao.uid : 'local'}
     contaAtiva={sessao.status === 'ativa'}
-    nome={sessao.status === 'ativa' ? sessao.nome?.split(/\s+/)[0] : undefined} />;
+    nome={nome?.trim().split(/\s+/)[0]} />;
 }
 
 export function ResumoFinanceiro({ noTutorial = false, nome, contaAtiva = false }: {
@@ -342,7 +360,7 @@ function SecaoEvolucao({
   );
 }
 
-function Atalhos({ onRelatorios }: { onRelatorios: () => void }) {
+function Atalhos({ onRelatorios }: { onRelatorios?: () => void }) {
   return (
     <View style={estilos.atalhos}>
       <Text accessibilityRole="header" style={estilos.secaoTitulo}>Atalhos</Text>
@@ -350,7 +368,7 @@ function Atalhos({ onRelatorios }: { onRelatorios: () => void }) {
         <Atalho rotulo="Nova despesa" icone="menos" onPress={() => router.push('/despesas/nova')} />
         <Atalho rotulo="Nova receita" icone="mais" onPress={() => router.push('/receitas/nova')} />
       </View>
-      <Atalho rotulo="Relatórios" icone="relatorios" onPress={onRelatorios} />
+      {onRelatorios && <Atalho rotulo="Relatórios" icone="relatorios" onPress={onRelatorios} />}
     </View>
   );
 }
@@ -358,7 +376,7 @@ function Atalhos({ onRelatorios }: { onRelatorios: () => void }) {
 function Atalho({ rotulo, icone, onPress }: { rotulo: string; icone: NomeIcone; onPress: () => void }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={rotulo} onPress={onPress} style={estilos.atalho}>
-      <IconePrototipo nome={icone} tamanho={18} />
+      <IconePrototipo nome={icone} tamanho={22} />
       <Text style={estilos.atalhoTexto}>{rotulo}</Text>
     </Pressable>
   );
@@ -367,21 +385,16 @@ function Atalho({ rotulo, icone, onPress }: { rotulo: string; icone: NomeIcone; 
 /** FA02: nenhum lançamento na base → estado vazio com atalho para o tutorial (RF55). */
 function EstadoVazio() {
   return (
-    <View style={estilos.vazio}>
-      <Text style={estilos.vazioTitulo}>Nenhum lançamento ainda</Text>
-      <Text style={estilos.vazioTexto}>
-        Registre receitas e despesas para ver aqui o saldo e os totais do mês.
-      </Text>
-      <EntradaTutorial texto="Ver tutorial" />
-      <View style={estilos.linha}>
-        <Pressable onPress={() => router.push('/receitas/nova')} style={estilos.botaoContorno} accessibilityRole="button">
-          <Text style={estilos.botaoContornoTexto}>Registrar receita</Text>
-        </Pressable>
-        <Pressable onPress={() => router.push('/despesas/nova')} style={estilos.botaoContorno} accessibilityRole="button">
-          <Text style={estilos.botaoContornoTexto}>Registrar despesa</Text>
-        </Pressable>
+    <>
+      <Atalhos />
+      <View style={estilos.vazio}>
+        <Text style={estilos.vazioTitulo}>Nenhum lançamento ainda</Text>
+        <Text style={estilos.vazioTexto}>
+          Registre receitas e despesas para ver aqui o saldo e os totais do mês.
+        </Text>
+        <EntradaTutorial texto="Ver tutorial" />
       </View>
-    </View>
+    </>
   );
 }
 
@@ -413,12 +426,12 @@ const estilos = StyleSheet.create({
   mes: { fontSize: 13, color: cores.primaria },
   periodoRelatorio: { fontSize: 12, color: cores.primaria, marginBottom: 8 },
   atalhos: { gap: 10, marginBottom: 16 },
-  atalhosLinha: { flexDirection: 'row', gap: 8 },
+  atalhosLinha: { flexDirection: 'row', gap: 10 },
   atalho: {
     flexGrow: 1, flexBasis: 0, minHeight: 68, padding: 8, alignItems: 'center', justifyContent: 'center', gap: 6,
     borderWidth: 1, borderColor: cores.borda, borderRadius: raio.botao,
   },
-  atalhoTexto: { color: cores.marinho, textAlign: 'center', fontSize: 13, fontWeight: '600' },
+  atalhoTexto: { color: cores.marinho, textAlign: 'center', fontSize: 12, fontWeight: '500' },
   linha: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
   cartao: {
     flexGrow: 1,
