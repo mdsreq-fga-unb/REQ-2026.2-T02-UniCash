@@ -20,7 +20,7 @@ export function Campo({ rotulo, erro, prefixo, acao, abaixo, compacto, style, ..
         {prefixo ? <Text style={[estilos.prefixo, compacto && estilos.prefixoCompacto]}>{prefixo}</Text> : null}
         <TextInput
           style={[estilos.input, compacto && estilos.inputCompacto, style]}
-          placeholderTextColor="#94A3B8"
+          placeholderTextColor={compacto ? cores.primaria : "#94A3B8"}
           accessibilityLabel={rotulo}
           {...rest}
         />
