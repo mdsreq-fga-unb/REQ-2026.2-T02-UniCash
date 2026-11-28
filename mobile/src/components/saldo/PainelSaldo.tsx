@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { IconePrototipo } from '@/components/IconePrototipo';
 import { nomeMes, NOMES_MES } from '@/features/receitas/dates';
 import { formatarBRL } from '@/features/receitas/money';
 import { consultarResumoMensal, type TotaisDoMes } from '@/features/saldo/service';
@@ -83,9 +84,18 @@ export function PainelSaldo({ inicio, receitas, despesas, compacto = false }: { 
             styles.valor,
             compacto && { color: resumo.saldo < 0 ? cores.erro : resumo.saldo > 0 ? cores.sucesso : cores.marinho },
           ]} testID="saldo">{formatarBRL(resumo.saldo)}</Text>
-          <Text style={[styles.indicador, compacto && styles.indicadorCompacto, { color: resumo.indicador.cor }]}>
-            {resumo.indicador.texto}
-          </Text>
+          {compacto ? (
+            <View style={styles.indicadorCompacto}>
+              <View style={[styles.marcador, { backgroundColor: resumo.indicador.cor }]} />
+              <Text style={[styles.indicadorTexto, { color: resumo.indicador.cor }]}>
+                {resumo.indicador.texto}
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.indicador, { color: resumo.indicador.cor }]}>
+              {resumo.indicador.texto}
+            </Text>
+          )}
           {compacto ? <Totais receitas={receitas} despesas={despesas} /> : null}
           <Text style={styles.rotulo}>
             Saldo {compacto ? 'do mês anterior' : 'anterior'} {resumo.saldoAnterior === null ? '· sem dados' : `· ${formatarBRL(resumo.saldoAnterior)}`}
@@ -121,11 +131,17 @@ function Totais({ receitas, despesas }: TotaisDoMes) {
   return (
     <View style={styles.totais}>
       <View style={styles.totalCartao}>
-        <Text style={styles.rotulo}>↑ Receitas</Text>
+        <View style={styles.totalRotulo}>
+          <IconePrototipo nome="receita" tamanho={12} />
+          <Text style={styles.rotulo}>Receitas</Text>
+        </View>
         <Text style={[styles.total, { color: cores.sucesso }]} testID="total-receitas">{formatarBRL(receitas)}</Text>
       </View>
       <View style={styles.totalCartao}>
-        <Text style={styles.rotulo}>↓ Despesas</Text>
+        <View style={styles.totalRotulo}>
+          <IconePrototipo nome="despesa" tamanho={12} />
+          <Text style={styles.rotulo}>Despesas</Text>
+        </View>
         <Text style={[styles.total, { color: cores.erro }]} testID="total-despesas">{formatarBRL(despesas)}</Text>
       </View>
     </View>
@@ -139,9 +155,12 @@ const styles = StyleSheet.create({
   cartao: { backgroundColor: cores.fundoSuave, borderColor: cores.borda, borderWidth: 1, borderRadius: raio.cartao, padding: 16, gap: 10 },
   cartaoCompacto: { backgroundColor: cores.branco, padding: 14, gap: 5 },
   indicadorCompacto: {
-    alignSelf: 'flex-start', paddingHorizontal: 8, paddingVertical: 3, borderRadius: raio.pilula,
-    overflow: 'hidden', backgroundColor: cores.fundoSuave, fontSize: 12,
+    alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 10, paddingVertical: 3, borderRadius: raio.pilula, backgroundColor: cores.fundoSuave,
   },
+  indicadorTexto: { fontSize: 12, flexShrink: 1 },
+  marcador: { width: 8, height: 8, borderRadius: 4 },
+  totalRotulo: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   totais: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 6 },
   totalCartao: { flexGrow: 1, flexBasis: 120, padding: 10, borderRadius: 8, backgroundColor: cores.fundoSuave },
   valor: { color: cores.marinho, fontSize: 32, fontWeight: '700' },
