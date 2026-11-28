@@ -45,9 +45,9 @@ export function MenuInferior() {
 const estilos = StyleSheet.create({
   menu: {
     flexDirection: 'row', backgroundColor: cores.fundo,
-    borderTopColor: cores.borda, borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: cores.borda, borderTopWidth: 1,
   },
-  aba: { flex: 1, minHeight: 60, gap: 3, padding: 4, alignItems: 'center', justifyContent: 'center' },
+  aba: { flex: 1, minHeight: 63, gap: 5, padding: 4, alignItems: 'center', justifyContent: 'center' },
   rotulo: { fontSize: 9, color: cores.primaria, textAlign: 'center' },
   ativa: { fontWeight: '700', color: cores.marinho },
 });
