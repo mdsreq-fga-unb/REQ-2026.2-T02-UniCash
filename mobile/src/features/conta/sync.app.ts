@@ -72,7 +72,7 @@ export function criarSincronizacaoDoApp(): SincronizacaoPort {
      * O sincronizarPendentes() da develop não lança em falha de rede: ele mantém as pendências.
      * Por isso o sucesso é conferido pelas pendências que sobraram (EX08, FA03).
      * Não consome consumirAcessoNegado(): esse aviso pertence à tela de receitas (UC01 EX07).
-     * É um envio pedido pela pessoa: se o envio automático estava pausado (FA01), volta a ficar ligado.
+     * O envio manual pode liberar a pausa inicial (FA01), respeitando a preferência do aparelho.
      */
     async sincronizar() {
       try {
@@ -102,7 +102,7 @@ export function criarSincronizacaoDoApp(): SincronizacaoPort {
       if (!(await estaVazio(uid))) return;
       if (auth.currentUser?.uid !== uid || !auth.currentUser.emailVerified) return;
       try {
-        await restaurarDaNuvem();
+        await restaurarDaNuvem({ automatica: true, uidEsperado: uid });
       } catch {
         throw new ErroConta('falha');
       }
