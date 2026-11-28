@@ -47,7 +47,7 @@ function MetaItem({
       accessibilityLabel={`Meta ${meta.objetivo}`}
     >
       <View style={estilos.itemTopo}>
-        <IconePrototipo nome="metas" tamanho={17} />
+        <IconePrototipo nome="metas" tamanho={20} />
         <Text style={estilos.itemObjetivo}>{meta.objetivo}</Text>
         {!indisponivel && <Text style={estilos.percentual}>{formatarPercentual(progresso.percentual!)}</Text>}
         <IconePrototipo nome="direita" tamanho={9} />
@@ -118,7 +118,7 @@ export default function ListaMetas() {
       <View style={estilos.cabecalho}>
         <Text style={estilos.titulo}>Metas</Text>
         <Pressable onPress={criarMeta} style={estilos.adicionar} accessibilityRole="button" accessibilityLabel="Nova meta">
-          <IconePrototipo nome="mais" tamanho={15} />
+          <IconePrototipo nome="mais" tamanho={22} />
         </Pressable>
       </View>
 
@@ -196,7 +196,7 @@ export default function ListaMetas() {
                 Crie uma meta com valor-alvo e prazo, como uma reserva de emergência, e acompanhe o progresso aqui.
               </Text>
               <Pressable onPress={criarMeta} style={estilos.criar} accessibilityRole="button">
-                <IconePrototipo nome="mais" tamanho={13} style={estilos.iconeBranco} />
+                <IconePrototipo nome="mais" tamanho={18} style={estilos.iconeBranco} />
                 <Text style={estilos.criarTexto}>Criar primeira meta</Text>
               </Pressable>
             </View>
@@ -204,7 +204,7 @@ export default function ListaMetas() {
         }
         ListFooterComponent={itens.length > 0 ? (
           <Pressable onPress={criarMeta} style={estilos.novaMeta} accessibilityRole="button">
-            <IconePrototipo nome="mais" tamanho={13} />
+            <IconePrototipo nome="mais" tamanho={18} />
             <Text style={estilos.novaMetaTexto}>Nova meta</Text>
           </Pressable>
         ) : undefined}
